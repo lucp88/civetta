@@ -16,9 +16,11 @@
             </div>
             <ul class="nav-links">
                 <li><a href="index.html">Home</a></li>
+                <li><a href="ons-verhaal.html">Ons Verhaal</a></li>
                 <li><a href="producten.html">Producten</a></li>
                 <li><a href="galerij.html">Galerij</a></li>
                 <li><a href="leveranciers.html">Leveranciers</a></li>
+                <li><a href="financiering.html">Crowdfunding</a></li>
                 <li><a href="contact.html" class="active">Contact</a></li>
             </ul>
             <button class="mobile-menu-btn" aria-label="Menu">
@@ -65,10 +67,7 @@
                     
                     <div class="contact-form-wrapper">
                         <h2>Stuur een bericht</h2>
-                        <form class="contact-form" action="https://formsubmit.co/laurens@bakkerij-civetta.nl" method="POST">
-                            <input type="hidden" name="_subject" value="Nieuw bericht via website">
-                            <input type="hidden" name="_captcha" value="false">
-                            <input type="hidden" name="_next" value="https://bakkerij-civetta.nl/bedankt.html">
+                        <form class="contact-form" action="send-mail.php" method="POST">
                             <input type="text" name="_honey" style="display:none">
                             
                             <div class="form-group">
@@ -98,7 +97,7 @@
         <div class="container">
             <div class="footer-content">
                 <div class="footer-info">
-                    <p><strong>Bakkerij Civetta</strong></p>
+                    <img src="img/logo.jpeg" alt="Civetta" class="footer-logo"><p><strong>Bakkerij Civetta</strong></p>
                     <p>Leersum, Utrecht</p>
                 </div>
                 <div class="footer-contact">
