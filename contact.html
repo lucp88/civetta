@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Contact | Bakkerij Civetta</title>
+    <link rel="stylesheet" href="css/style.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Libre+Baskerville:ital,wght@0,400;0,700;1,400&family=Source+Sans+Pro:wght@400;600&display=swap" rel="stylesheet">
+</head>
+<body>
+    <header>
+        <nav>
+            <div class="logo">
+                <a href="index.html">Civetta</a>
+            </div>
+            <ul class="nav-links">
+                <li><a href="index.html">Home</a></li>
+                <li><a href="producten.html">Producten</a></li>
+                <li><a href="galerij.html">Galerij</a></li>
+                <li><a href="leveranciers.html">Leveranciers</a></li>
+                <li><a href="contact.html" class="active">Contact</a></li>
+            </ul>
+            <button class="mobile-menu-btn" aria-label="Menu">
+                <span></span>
+                <span></span>
+                <span></span>
+            </button>
+        </nav>
+    </header>
+
+    <main>
+        <section class="page-header">
+            <div class="container">
+                <h1>Contact</h1>
+            </div>
+        </section>
+
+        <section class="contact">
+            <div class="container">
+                <div class="contact-grid">
+                    <div class="contact-info">
+                        <h2>Gegevens</h2>
+                        <address>
+                            <p><strong>Bakkerij Civetta</strong></p>
+                            <p>Laurens Peek</p>
+                            <p>Leersum, Utrecht</p>
+                            <p><a href="tel:+31306">+31 (0)30 6</a></p>
+                            <p><a href="mailto:laurens@bakkerij-civetta.nl">laurens@bakkerij-civetta.nl</a></p>
+                            <p class="kvk">KvK: [nummer]</p>
+                        </address>
+                        
+                        <h2 class="opening-hours-title">Openingstijden</h2>
+                        <dl class="opening-hours">
+                            <dt>Dinsdag t/m vrijdag</dt>
+                            <dd>9:00 - 17:00</dd>
+                            
+                            <dt>Zaterdag</dt>
+                            <dd>8:30 - 17:00</dd>
+                            
+                            <dt>Zondag & maandag</dt>
+                            <dd>Gesloten</dd>
+                        </dl>
+                    </div>
+                    
+                    <div class="contact-form-wrapper">
+                        <h2>Stuur een bericht</h2>
+                        <form class="contact-form" action="https://formsubmit.co/laurens@bakkerij-civetta.nl" method="POST">
+                            <input type="hidden" name="_subject" value="Nieuw bericht via website">
+                            <input type="hidden" name="_captcha" value="false">
+                            <input type="hidden" name="_next" value="https://bakkerij-civetta.nl/bedankt.html">
+                            <input type="text" name="_honey" style="display:none">
+                            
+                            <div class="form-group">
+                                <label for="name">Naam</label>
+                                <input type="text" id="name" name="name" required>
+                            </div>
+                            
+                            <div class="form-group">
+                                <label for="email">E-mailadres</label>
+                                <input type="email" id="email" name="email" required>
+                            </div>
+                            
+                            <div class="form-group">
+                                <label for="message">Bericht</label>
+                                <textarea id="message" name="message" rows="6" required></textarea>
+                            </div>
+                            
+                            <button type="submit" class="btn">Versturen</button>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <footer>
+        <div class="container">
+            <div class="footer-content">
+                <div class="footer-info">
+                    <p><strong>Bakkerij Civetta</strong></p>
+                    <p>Leersum, Utrecht</p>
+                </div>
+                <div class="footer-contact">
+                    <p><a href="mailto:laurens@bakkerij-civetta.nl">laurens@bakkerij-civetta.nl</a></p>
+                </div>
+            </div>
+        </div>
+    </footer>
+
+    <script src="js/main.js"></script>
+</body>
+</html>
