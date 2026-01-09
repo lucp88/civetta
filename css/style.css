@@ -734,59 +734,73 @@ main {
     border-radius: 50%;
 }
 
-.equipment-list {
+.equipment-table {
+    width: 100%;
     background: var(--color-warm-white);
     border-radius: 12px;
-    padding: var(--spacing-md);
     box-shadow: 0 4px 15px rgba(139, 90, 43, 0.06);
+    border-collapse: collapse;
+    overflow: hidden;
 }
 
-.equipment-list li {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    padding: 0.75rem 0;
+.equipment-table th,
+.equipment-table td {
+    padding: 0.75rem 1rem;
+    text-align: left;
+}
+
+.equipment-table th {
+    background: var(--color-parchment);
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: var(--color-stone);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+
+.equipment-table th:nth-child(2),
+.equipment-table td:nth-child(2) {
+    text-align: right;
+}
+
+.equipment-table th:nth-child(3),
+.equipment-table td:nth-child(3) {
+    text-align: center;
+    width: 100px;
+}
+
+.equipment-table tbody tr {
     border-bottom: 1px solid var(--color-parchment);
 }
 
-.equipment-list li::before {
-    display: none;
-}
-
-.equipment-list li:last-child {
+.equipment-table tbody tr:last-child {
     border-bottom: none;
 }
 
-.equipment-name {
+.equipment-table td:first-child {
     color: var(--color-charcoal);
     font-weight: 500;
 }
 
-.equipment-price {
+.equipment-table td:nth-child(2) {
     font-family: var(--font-display);
     font-weight: 700;
     color: var(--color-crust);
 }
 
-.equipment-list li.purchased {
-    background: linear-gradient(90deg, rgba(125, 132, 113, 0.1), transparent);
-}
-
-.equipment-list li.purchased .equipment-name {
-    text-decoration: line-through;
-    opacity: 0.7;
-}
-
-.equipment-check {
-    min-width: 2rem;
-    text-align: center;
+.equipment-table td:nth-child(3) {
     font-weight: 700;
     color: var(--color-sage);
     font-size: 1.1rem;
 }
 
-.equipment-list li.purchased .equipment-check {
-    color: var(--color-sage);
+.equipment-table tr.purchased {
+    background: linear-gradient(90deg, rgba(125, 132, 113, 0.1), transparent);
+}
+
+.equipment-table tr.purchased td:first-child {
+    text-decoration: line-through;
+    opacity: 0.7;
 }
 
 .funding-option {
@@ -806,6 +820,33 @@ main {
 .funding-option.highlight {
     background: linear-gradient(135deg, #fff8ed 0%, #ffefd9 100%);
     border-left-color: var(--color-terracotta);
+}
+
+.funding-option.compact {
+    padding: var(--spacing-sm) var(--spacing-md);
+}
+
+.funding-option.compact h3 {
+    margin-bottom: var(--spacing-xs);
+}
+
+.funding-option.compact p {
+    margin-bottom: 0;
+}
+
+.bank-details {
+    background: var(--color-parchment);
+    padding: var(--spacing-sm) var(--spacing-md);
+    border-radius: 8px;
+    margin: var(--spacing-sm) 0;
+}
+
+.bank-details p {
+    margin-bottom: 0.25rem;
+}
+
+.bank-details p:last-child {
+    margin-bottom: 0;
 }
 
 .transparency-note {
