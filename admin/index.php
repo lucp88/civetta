@@ -1,16 +1,13 @@
 <?php
 require_once 'config.php';
 requireLogin();
-
-$stmt = $pdo->query("SELECT * FROM blog_posts ORDER BY post_date DESC, id DESC");
-$posts = $stmt->fetchAll();
 ?>
 <!DOCTYPE html>
 <html lang="nl">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Admin Dashboard | Civetta</title>
+    <title>Dashboard | Civetta Admin</title>
     <style>
         * { box-sizing: border-box; margin: 0; padding: 0; }
         body {
@@ -39,75 +36,99 @@ $posts = $stmt->fetchAll();
             margin: 2rem auto;
             padding: 0 1rem;
         }
-        .card {
+        .welcome {
+            margin-bottom: 2rem;
+        }
+        .welcome h2 {
+            color: #5c3d1e;
+            font-size: 1.8rem;
+            margin-bottom: 0.5rem;
+        }
+        .welcome p {
+            color: #666;
+        }
+        .dashboard-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 1.5rem;
+        }
+        .dashboard-card {
             background: white;
             border-radius: 12px;
             box-shadow: 0 4px 15px rgba(0,0,0,0.08);
-            padding: 1.5rem;
-            margin-bottom: 1.5rem;
+            padding: 2rem;
+            text-decoration: none;
+            color: inherit;
+            transition: transform 0.2s, box-shadow 0.2s;
+            display: block;
         }
-        .card h2 {
+        .dashboard-card:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 8px 25px rgba(0,0,0,0.12);
+        }
+        .dashboard-card.disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            pointer-events: none;
+        }
+        .dashboard-card .icon {
+            width: 60px;
+            height: 60px;
+            background: linear-gradient(135deg, #8b5a2b, #5c3d1e);
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-bottom: 1rem;
+            font-size: 1.8rem;
+        }
+        .dashboard-card.disabled .icon {
+            background: linear-gradient(135deg, #999, #666);
+        }
+        .dashboard-card h3 {
+            color: #5c3d1e;
+            font-size: 1.3rem;
+            margin-bottom: 0.5rem;
+        }
+        .dashboard-card.disabled h3 {
+            color: #888;
+        }
+        .dashboard-card p {
+            color: #666;
+            font-size: 0.95rem;
+            line-height: 1.5;
+        }
+        .dashboard-card .badge {
+            display: inline-block;
+            background: #e8dfd2;
+            color: #8b5a2b;
+            padding: 0.25rem 0.75rem;
+            border-radius: 20px;
+            font-size: 0.8rem;
+            margin-top: 1rem;
+        }
+        .dashboard-card.disabled .badge {
+            background: #ddd;
+            color: #888;
+        }
+        .quick-links {
+            margin-top: 2rem;
+            padding: 1.5rem;
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.08);
+        }
+        .quick-links h3 {
             color: #5c3d1e;
             margin-bottom: 1rem;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
         }
-        .btn {
-            display: inline-block;
-            padding: 0.5rem 1rem;
-            background: #8b5a2b;
-            color: white;
-            text-decoration: none;
-            border-radius: 6px;
-            font-size: 0.9rem;
-            border: none;
-            cursor: pointer;
-        }
-        .btn:hover { background: #5c3d1e; }
-        .btn-small {
-            padding: 0.35rem 0.75rem;
-            font-size: 0.85rem;
-        }
-        .btn-danger { background: #c00; }
-        .btn-danger:hover { background: #900; }
-        table {
-            width: 100%;
-            border-collapse: collapse;
-        }
-        th, td {
-            text-align: left;
-            padding: 0.75rem;
-            border-bottom: 1px solid #e8dfd2;
-        }
-        th {
+        .quick-links a {
             color: #8b5a2b;
-            font-weight: 600;
-        }
-        .actions { white-space: nowrap; }
-        .actions a { margin-right: 0.5rem; }
-        .empty {
-            color: #888;
-            font-style: italic;
-            padding: 2rem;
-            text-align: center;
-        }
-        .nav-links {
-            display: flex;
-            gap: 1rem;
-            margin-bottom: 1.5rem;
-        }
-        .nav-links a {
-            padding: 0.75rem 1.5rem;
-            background: white;
-            color: #5c3d1e;
             text-decoration: none;
-            border-radius: 8px;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+            margin-right: 1.5rem;
         }
-        .nav-links a.active {
-            background: #8b5a2b;
-            color: white;
+        .quick-links a:hover {
+            text-decoration: underline;
         }
     </style>
 </head>
@@ -118,42 +139,32 @@ $posts = $stmt->fetchAll();
     </div>
     
     <div class="container">
-        <div class="nav-links">
-            <a href="index.php" class="active">Blog Posts</a>
-            <a href="../index.html" target="_blank">Bekijk Website</a>
+        <div class="welcome">
+            <h2>Welkom terug!</h2>
+            <p>Beheer hier je bakkerij website.</p>
         </div>
 
-        <div class="card">
-            <h2>
-                Blog Posts
-                <a href="post-edit.php" class="btn">+ Nieuwe Post</a>
-            </h2>
-            
-            <?php if (empty($posts)): ?>
-                <div class="empty">Nog geen blog posts. Maak je eerste post!</div>
-            <?php else: ?>
-                <table>
-                    <thead>
-                        <tr>
-                            <th>Datum</th>
-                            <th>Titel</th>
-                            <th>Acties</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        <?php foreach ($posts as $post): ?>
-                            <tr>
-                                <td><?= date('d-m-Y', strtotime($post['post_date'])) ?></td>
-                                <td><?= htmlspecialchars($post['title']) ?></td>
-                                <td class="actions">
-                                    <a href="post-edit.php?id=<?= $post['id'] ?>" class="btn btn-small">Bewerken</a>
-                                    <a href="post-delete.php?id=<?= $post['id'] ?>" class="btn btn-small btn-danger" onclick="return confirm('Weet je zeker dat je deze post wilt verwijderen?')">Verwijderen</a>
-                                </td>
-                            </tr>
-                        <?php endforeach; ?>
-                    </tbody>
-                </table>
-            <?php endif; ?>
+        <div class="dashboard-grid">
+            <a href="posts.php" class="dashboard-card">
+                <div class="icon">📝</div>
+                <h3>Blog Posts</h3>
+                <p>Schrijf en beheer nieuws berichten voor je website.</p>
+                <span class="badge">Actief</span>
+            </a>
+
+            <div class="dashboard-card disabled">
+                <div class="icon">📦</div>
+                <h3>Bestellingen</h3>
+                <p>Bekijk en beheer klant bestellingen.</p>
+                <span class="badge">Komt binnenkort</span>
+            </div>
+        </div>
+
+        <div class="quick-links">
+            <h3>Snelle links</h3>
+            <a href="../index.html" target="_blank">Bekijk website</a>
+            <a href="../financiering.html" target="_blank">Crowdfunding pagina</a>
+            <a href="../contact.html" target="_blank">Contact pagina</a>
         </div>
     </div>
 </body>

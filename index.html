@@ -57,8 +57,71 @@
         <section class="blog">
             <div class="container">
                 <h2>Nieuws uit de bakkerij</h2>
-                <div id="blog-posts">
-                    <p class="placeholder-text">Posts worden geladen...</p>
+                <div id="blog-app">
+                    <div class="admin-bar" v-if="isAuthenticated">
+                        <button @click="showEditor = true; editingPost = null" class="btn-small">+ Nieuwe post</button>
+                    </div>
+
+                    <div v-if="showLogin" class="modal-overlay" @click.self="showLogin = false">
+                        <div class="modal">
+                            <h3>Admin Login</h3>
+                            <div v-if="loginError" class="error-msg">{{ loginError }}</div>
+                            <form @submit.prevent="login">
+                                <div class="form-group">
+                                    <label>Gebruikersnaam</label>
+                                    <input v-model="loginForm.username" type="text" required>
+                                </div>
+                                <div class="form-group">
+                                    <label>Wachtwoord</label>
+                                    <input v-model="loginForm.password" type="password" required>
+                                </div>
+                                <div class="modal-buttons">
+                                    <button type="submit" class="btn">Inloggen</button>
+                                    <button type="button" @click="showLogin = false" class="btn btn-outline">Annuleren</button>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
+
+                    <div v-if="showEditor" class="modal-overlay" @click.self="showEditor = false">
+                        <div class="modal modal-large">
+                            <h3>{{ editingPost ? 'Post bewerken' : 'Nieuwe post' }}</h3>
+                            <form @submit.prevent="savePost">
+                                <div class="form-group">
+                                    <label>Titel</label>
+                                    <input v-model="postForm.title" type="text" required>
+                                </div>
+                                <div class="form-group">
+                                    <label>Datum</label>
+                                    <input v-model="postForm.post_date" type="date" required>
+                                </div>
+                                <div class="form-group">
+                                    <label>Inhoud</label>
+                                    <textarea v-model="postForm.content" rows="10" required></textarea>
+                                </div>
+                                <div class="modal-buttons">
+                                    <button type="submit" class="btn">Opslaan</button>
+                                    <button type="button" @click="showEditor = false" class="btn btn-outline">Annuleren</button>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
+
+                    <div v-if="loading" class="placeholder-text">Posts worden geladen...</div>
+                    <div v-else-if="posts.length === 0" class="placeholder-text">Nog geen nieuws. Kom binnenkort terug!</div>
+                    <template v-else>
+                        <article v-for="post in posts" :key="post.id" class="blog-post">
+                            <div class="post-header">
+                                <div class="post-date">{{ formatDate(post.post_date) }}</div>
+                                <div v-if="isAuthenticated" class="post-actions">
+                                    <button @click="editPost(post)" class="btn-icon" title="Bewerken">✏️</button>
+                                    <button @click="deletePost(post)" class="btn-icon" title="Verwijderen">🗑️</button>
+                                </div>
+                            </div>
+                            <h3>{{ post.title }}</h3>
+                            <div v-html="formatContent(post.content)"></div>
+                        </article>
+                    </template>
                 </div>
             </div>
         </section>
@@ -74,10 +137,15 @@
                 <div class="footer-contact">
                     <p><a href="mailto:laurens@bakkerij-civetta.nl">laurens@bakkerij-civetta.nl</a></p>
                 </div>
+                <div class="footer-admin">
+                    <a href="javascript:void(0)" class="admin-link" id="admin-dashboard-link">Admin dashboard</a>
+                </div>
             </div>
         </div>
     </footer>
 
+    <script src="https://unpkg.com/vue@3/dist/vue.global.prod.js"></script>
     <script src="js/main.js"></script>
+    <script src="js/blog-app.js"></script>
 </body>
 </html>

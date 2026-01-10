@@ -1,0 +1,68 @@
+<?php
+session_start();
+header('Content-Type: application/json');
+header('Access-Control-Allow-Origin: *');
+header('Access-Control-Allow-Methods: GET, POST, OPTIONS');
+header('Access-Control-Allow-Headers: Content-Type');
+
+if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
+    exit(0);
+}
+
+require_once '../admin/config.php';
+
+$action = $_GET['action'] ?? '';
+
+switch ($action) {
+    case 'check':
+        echo json_encode([
+            'success' => true,
+            'authenticated' => isset($_SESSION['admin_logged_in']) && $_SESSION['admin_logged_in'] === true,
+            'user' => $_SESSION['admin_user'] ?? null
+        ]);
+        break;
+        
+    case 'login':
+        if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+            http_response_code(405);
+            echo json_encode(['success' => false, 'error' => 'Method not allowed']);
+            break;
+        }
+        
+        $data = json_decode(file_get_contents('php://input'), true);
+        $username = trim($data['username'] ?? '');
+        $password = $data['password'] ?? '';
+        
+        if (!$username || !$password) {
+            echo json_encode(['success' => false, 'error' => 'Vul alle velden in']);
+            break;
+        }
+        
+        try {
+            $stmt = $pdo->prepare("SELECT * FROM users WHERE username = ?");
+            $stmt->execute([$username]);
+            $user = $stmt->fetch();
+            
+            if ($user && password_verify($password, $user['password'])) {
+                $_SESSION['admin_logged_in'] = true;
+                $_SESSION['admin_user'] = $user['username'];
+                echo json_encode(['success' => true, 'user' => $user['username']]);
+            } else {
+                echo json_encode(['success' => false, 'error' => 'Ongeldige gebruikersnaam of wachtwoord']);
+            }
+        } catch (PDOException $e) {
+            http_response_code(500);
+            echo json_encode(['success' => false, 'error' => 'Database fout']);
+        }
+        break;
+        
+    case 'logout':
+        session_destroy();
+        echo json_encode(['success' => true]);
+        break;
+        
+    default:
+        http_response_code(400);
+        echo json_encode(['success' => false, 'error' => 'Invalid action']);
+}
+?>
