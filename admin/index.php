@@ -1,0 +1,160 @@
+<?php
+require_once 'config.php';
+requireLogin();
+
+$stmt = $pdo->query("SELECT * FROM blog_posts ORDER BY post_date DESC, id DESC");
+$posts = $stmt->fetchAll();
+?>
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin Dashboard | Civetta</title>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            background: #f5f2ed;
+            min-height: 100vh;
+        }
+        .header {
+            background: linear-gradient(135deg, #8b5a2b, #5c3d1e);
+            color: white;
+            padding: 1rem 2rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .header h1 { font-size: 1.5rem; }
+        .header a {
+            color: white;
+            text-decoration: none;
+            padding: 0.5rem 1rem;
+            background: rgba(255,255,255,0.2);
+            border-radius: 6px;
+        }
+        .container {
+            max-width: 1000px;
+            margin: 2rem auto;
+            padding: 0 1rem;
+        }
+        .card {
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.08);
+            padding: 1.5rem;
+            margin-bottom: 1.5rem;
+        }
+        .card h2 {
+            color: #5c3d1e;
+            margin-bottom: 1rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .btn {
+            display: inline-block;
+            padding: 0.5rem 1rem;
+            background: #8b5a2b;
+            color: white;
+            text-decoration: none;
+            border-radius: 6px;
+            font-size: 0.9rem;
+            border: none;
+            cursor: pointer;
+        }
+        .btn:hover { background: #5c3d1e; }
+        .btn-small {
+            padding: 0.35rem 0.75rem;
+            font-size: 0.85rem;
+        }
+        .btn-danger { background: #c00; }
+        .btn-danger:hover { background: #900; }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        th, td {
+            text-align: left;
+            padding: 0.75rem;
+            border-bottom: 1px solid #e8dfd2;
+        }
+        th {
+            color: #8b5a2b;
+            font-weight: 600;
+        }
+        .actions { white-space: nowrap; }
+        .actions a { margin-right: 0.5rem; }
+        .empty {
+            color: #888;
+            font-style: italic;
+            padding: 2rem;
+            text-align: center;
+        }
+        .nav-links {
+            display: flex;
+            gap: 1rem;
+            margin-bottom: 1.5rem;
+        }
+        .nav-links a {
+            padding: 0.75rem 1.5rem;
+            background: white;
+            color: #5c3d1e;
+            text-decoration: none;
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+        }
+        .nav-links a.active {
+            background: #8b5a2b;
+            color: white;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>Civetta Admin</h1>
+        <a href="logout.php">Uitloggen</a>
+    </div>
+    
+    <div class="container">
+        <div class="nav-links">
+            <a href="index.php" class="active">Blog Posts</a>
+            <a href="../index.html" target="_blank">Bekijk Website</a>
+        </div>
+
+        <div class="card">
+            <h2>
+                Blog Posts
+                <a href="post-edit.php" class="btn">+ Nieuwe Post</a>
+            </h2>
+            
+            <?php if (empty($posts)): ?>
+                <div class="empty">Nog geen blog posts. Maak je eerste post!</div>
+            <?php else: ?>
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Datum</th>
+                            <th>Titel</th>
+                            <th>Acties</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <?php foreach ($posts as $post): ?>
+                            <tr>
+                                <td><?= date('d-m-Y', strtotime($post['post_date'])) ?></td>
+                                <td><?= htmlspecialchars($post['title']) ?></td>
+                                <td class="actions">
+                                    <a href="post-edit.php?id=<?= $post['id'] ?>" class="btn btn-small">Bewerken</a>
+                                    <a href="post-delete.php?id=<?= $post['id'] ?>" class="btn btn-small btn-danger" onclick="return confirm('Weet je zeker dat je deze post wilt verwijderen?')">Verwijderen</a>
+                                </td>
+                            </tr>
+                        <?php endforeach; ?>
+                    </tbody>
+                </table>
+            <?php endif; ?>
+        </div>
+    </div>
+</body>
+</html>
