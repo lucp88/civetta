@@ -75,6 +75,30 @@
                 <div class="funding-intro">
                     <p>Om Civetta goed te kunnen starten zijn een aantal essentiële investeringen nodig, zoals een oven, menger en andere bakkerijapparatuur. In totaal gaat het om een bedrag van ongeveer <strong>€22.500</strong>.</p>
                     <p>Een deel hiervan heb ik al zelf geïnvesteerd, maar ik heb ook besloten om een crowdfundingsactie te starten zodat mensen die dat willen een gepaste bijdrage kunnen leveren.</p>
+                    
+                    <div class="fundraiser-box" id="progress-box">
+                        <div class="fundraiser-progress">
+                            <div class="progress-bar">
+                                <div class="progress-fill" id="progress-fill" style="width: 0%">
+                                    <span class="progress-bread">🥖</span>
+                                </div>
+                            </div>
+                            <div class="progress-labels">
+                                <span>€0</span>
+                                <span>€22.500</span>
+                            </div>
+                        </div>
+                        <div class="fundraiser-stats">
+                            <div class="stat">
+                                <span class="stat-number" id="amount-raised">€0</span>
+                                <span class="stat-label">opgehaald</span>
+                            </div>
+                            <div class="stat">
+                                <span class="stat-number" id="amount-remaining">€22.500</span>
+                                <span class="stat-label">te gaan</span>
+                            </div>
+                        </div>
+                    </div>
                 </div>
 
                 <div class="funding-section">
@@ -161,7 +185,33 @@
                             <p><strong>IBAN:</strong> NL62TRIO0321131584</p>
                             <p><strong>Omschrijving:</strong> Crowdfunding – [je naam]</p>
                         </div>
-                        <p>Elke bijdrage, groot of klein, wordt enorm gewaardeerd!</p>
+                        <p style="margin-top: 1.5em;"><strong>Of betaal direct via iDEAL:</strong></p>
+                        <div class="mollie-section">
+                            <div class="mollie-options">
+                                <button type="button" class="mollie-amount-btn" data-amount="10">€10</button>
+                                <button type="button" class="mollie-amount-btn" data-amount="25">€25</button>
+                                <button type="button" class="mollie-amount-btn" data-amount="50">€50</button>
+                                <span class="mollie-custom">
+                                    <label>of</label>
+                                    <span class="custom-amount-input">
+                                        <span class="currency-symbol">€</span>
+                                        <input type="number" id="custom-amount" min="1" placeholder="...">
+                                    </span>
+                                </span>
+                            </div>
+                            <div class="mollie-submit">
+                                <button type="button" class="btn mollie-submit-btn" id="mollie-donate-btn">Doneer</button>
+                            </div>
+                        </div>
+                        <div class="mollie-fields">
+                            <div class="mollie-field">
+                                <input type="text" id="donate-name" placeholder="Je naam (optioneel)">
+                            </div>
+                            <div class="mollie-field">
+                                <input type="text" id="donate-message" placeholder="Een persoonlijk bericht (optioneel)">
+                            </div>
+                        </div>
+                        <p style="margin-top: 1.5em;">Elke bijdrage, groot of klein, wordt enorm gewaardeerd!</p>
                     </div>
                 </div>
 
@@ -188,9 +238,10 @@
         <div class="container">
             <div class="footer-content">
                 <div class="footer-info">
-                    <img src="img/logo.jpeg" alt="Civetta" class="footer-logo"><p><strong>Bakkerij Civetta</strong></p>
+                    <p><strong>Bakkerij Civetta</strong></p>
                     <p>Leersum, Utrecht</p>
                 </div>
+                <img src="img/logo.jpeg" alt="Civetta" class="footer-logo">
                 <div class="footer-contact">
                     <p><a href="mailto:laurens@bakkerij-civetta.nl">laurens@bakkerij-civetta.nl</a></p>
                 </div>
@@ -199,5 +250,106 @@
     </footer>
 
     <script src="js/main.js"></script>
+    <script>
+        (async function loadProgress() {
+            const goal = 22500;
+            try {
+                const response = await fetch('api/donations-total.php');
+                const data = await response.json();
+                if (data.success) {
+                    const raised = data.total;
+                    const remaining = Math.max(0, goal - raised);
+                    const percentage = Math.min(100, (raised / goal) * 100);
+                    
+                    document.getElementById('progress-fill').style.width = percentage + '%';
+                    document.getElementById('amount-raised').textContent = '€' + raised.toLocaleString('nl-NL', {minimumFractionDigits: 0, maximumFractionDigits: 0});
+                    document.getElementById('amount-remaining').textContent = '€' + remaining.toLocaleString('nl-NL', {minimumFractionDigits: 0, maximumFractionDigits: 0});
+                }
+            } catch (e) {}
+        })();
+    </script>
+    <script>
+        (function() {
+            const amountBtns = document.querySelectorAll('.mollie-amount-btn');
+            const customInput = document.getElementById('custom-amount');
+            const nameInput = document.getElementById('donate-name');
+            const messageInput = document.getElementById('donate-message');
+            const donateBtn = document.getElementById('mollie-donate-btn');
+            let selectedAmount = null;
+
+            function updateButton() {
+                if (selectedAmount) {
+                    donateBtn.textContent = 'Doneer €' + selectedAmount;
+                    donateBtn.title = 'Betaal €' + selectedAmount + ' via iDEAL (Mollie)';
+                } else {
+                    donateBtn.textContent = 'Doneer';
+                    donateBtn.title = '';
+                }
+            }
+
+            amountBtns.forEach(btn => {
+                btn.addEventListener('click', function() {
+                    amountBtns.forEach(b => b.classList.remove('selected'));
+                    customInput.classList.remove('selected');
+                    customInput.value = '';
+                    this.classList.add('selected');
+                    selectedAmount = this.dataset.amount;
+                    updateButton();
+                });
+            });
+
+            customInput.addEventListener('focus', function() {
+                amountBtns.forEach(b => b.classList.remove('selected'));
+                this.classList.add('selected');
+            });
+
+            customInput.addEventListener('input', function() {
+                amountBtns.forEach(b => b.classList.remove('selected'));
+                this.classList.add('selected');
+                selectedAmount = this.value || null;
+                updateButton();
+            });
+
+            donateBtn.addEventListener('click', async function() {
+                const amount = customInput.value || selectedAmount;
+                if (!amount || amount < 1) {
+                    alert('Selecteer of vul een bedrag in van minimaal €1');
+                    return;
+                }
+                
+                const name = nameInput.value.trim();
+                const message = messageInput.value.trim();
+                
+                this.textContent = 'Even geduld...';
+                this.style.pointerEvents = 'none';
+                
+                try {
+                    const response = await fetch('api/mollie.php', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ 
+                            amount: parseFloat(amount),
+                            name: name,
+                            message: message
+                        })
+                    });
+                    const data = await response.json();
+                    if (data.success && data.checkoutUrl) {
+                        window.open(data.checkoutUrl, '_blank');
+                        updateButton();
+                        this.style.pointerEvents = 'auto';
+                    } else {
+                        alert(data.error || 'Er ging iets mis');
+                        updateButton();
+                        this.style.pointerEvents = 'auto';
+                    }
+                } catch (error) {
+                    alert('Er ging iets mis');
+                    updateButton();
+                    this.style.pointerEvents = 'auto';
+                }
+            });
+        })();
+    </script>
 </body>
 </html>
