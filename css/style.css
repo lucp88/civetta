@@ -106,6 +106,21 @@ img {
     padding: 0 var(--spacing-md);
 }
 
+.page-content {
+    max-width: 750px;
+    margin: 0 auto;
+}
+
+.page-content p {
+    margin-bottom: 1.5em;
+    line-height: 1.8;
+}
+
+.page-content h3 {
+    margin-top: 1.5em;
+    margin-bottom: 1em;
+}
+
 header {
     background: var(--color-warm-white);
     position: sticky;
