@@ -111,7 +111,7 @@
                     <div v-if="loading" class="placeholder-text">Posts worden geladen...</div>
                     <div v-else-if="posts.length === 0" class="placeholder-text">Nog geen nieuws. Kom binnenkort terug!</div>
                     <template v-else>
-                        <article v-for="post in posts" :key="post.id" class="blog-post">
+                        <article v-for="(post, index) in posts" :key="post.id" class="blog-post">
                             <div class="post-header">
                                 <div class="post-date">{{ formatDate(post.post_date) }}</div>
                                 <div v-if="isAuthenticated" class="post-actions">
@@ -121,6 +121,7 @@
                             </div>
                             <h3>{{ post.title }}</h3>
                             <div v-html="formatContent(post.content)"></div>
+                            <a v-if="index === 1" href="financiering.html" class="btn" style="margin-top: 1.5rem; display: inline-block;">Doneren</a>
                         </article>
                     </template>
                 </div>
