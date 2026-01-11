@@ -152,6 +152,13 @@ requireLogin();
                 <span class="badge">Actief</span>
             </a>
 
+            <a href="donations.php" class="dashboard-card">
+                <div class="icon">💚</div>
+                <h3>Donaties</h3>
+                <p>Bekijk ontvangen crowdfunding donaties.</p>
+                <span class="badge">Actief</span>
+            </a>
+
             <div class="dashboard-card disabled">
                 <div class="icon">📦</div>
                 <h3>Bestellingen</h3>
