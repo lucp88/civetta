@@ -57,54 +57,72 @@
         <section class="blog">
             <div class="container">
                 <h2>Nieuws uit de bakkerij</h2>
-                
-                <article class="blog-post">
-                    <div class="post-date">9 januari 2026</div>
-                    <h3>Steun Civetta</h3>
-                    <p>
-                        Civetta is volop in opbouw. Een deel van de investeringen heb ik al zelf gedaan, maar om de bakkerij écht goed te starten zoek ik nog een klein steuntje in de rug.
-                    </p>
-                    <p>
-                        Wil je meedoen via een gift, voorverkoop of een combinatie daarvan?
-                    </p>
-                    <p>
-                        <a href="financiering.html" class="btn">Lees hier hoe je kunt bijdragen</a>
-                    </p>
-                </article>
+                <div id="blog-app">
+                    <div class="admin-bar" v-if="isAuthenticated">
+                        <button @click="showEditor = true; editingPost = null" class="btn-small">+ Nieuwe post</button>
+                    </div>
 
-                <article class="blog-post">
-                    <div class="post-date">9 januari 2026</div>
-                    <h3>De website is live</h3>
-                    <p>
-                        Op deze website zal ik regelmatig updates delen over wat er uit de oven komt, nieuwe recepten die ik uitprobeer, en andere wetenswaardigheden 
-                        uit de bakkerij.
-                    </p>
-                    <p>
-                        Binnenkort volgen foto's van de producten en meer informatie 
-                        over waar je ons brood kunt vinden.
-                    </p>
-                </article>
+                    <div v-if="showLogin" class="modal-overlay" @click.self="showLogin = false">
+                        <div class="modal">
+                            <h3>Admin Login</h3>
+                            <div v-if="loginError" class="error-msg">{{ loginError }}</div>
+                            <form @submit.prevent="login">
+                                <div class="form-group">
+                                    <label>Gebruikersnaam</label>
+                                    <input v-model="loginForm.username" type="text" required>
+                                </div>
+                                <div class="form-group">
+                                    <label>Wachtwoord</label>
+                                    <input v-model="loginForm.password" type="password" required>
+                                </div>
+                                <div class="modal-buttons">
+                                    <button type="submit" class="btn">Inloggen</button>
+                                    <button type="button" @click="showLogin = false" class="btn btn-outline">Annuleren</button>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
 
-                <article class="blog-post">
-                    <div class="post-date">8 januari 2026</div>
-                    <h3>Civetta: de eerste stappen!</h3>
-                    <p>
-                        Zoals sommigen van jullie misschien al weten, ben ik bezig met het opstarten van een kleine ambachtelijke bakkerij in Leersum: Civetta.
-                    </p>
-                    <p>
-                        Het idee is om bewust klein te beginnen. In de eerste fase ga ik vooral brood bakken voor restaurants in de buurt, met de focus op kwaliteit, rust en een gezonde, terugkerende omzet. Particulieren kunnen straks ook op bestelling brood afhalen. Ik doe dit niet alleen: in Leersum heb ik iemand gevonden met bakervaring die het leuk vindt om mee te helpen.
-                    </p>
-                    <p>
-                        De plek waar Civetta gaat starten is inmiddels gevonden — bij een boer aan de rand van Leersum. De verbouwing is bijna klaar en daarna volgt een korte klusperiode. Als alles meezit, kan ik over een paar maanden echt beginnen.
-                    </p>
-                    <p>
-                        De eerste stappen zijn ondertussen gezet: Civetta staat ingeschreven bij de KVK, het domein is gekocht, de eerste machines zijn aangeschaft en de eerste gesprekken met restaurants zijn veelbelovend. Meerdere zaken hebben al aangegeven interesse te hebben om samen te werken, mits de kwaliteit klopt — precies zoals het hoort.
-                    </p>
-                    <p>
-                        Dit is pas het begin, maar het voelt als een goed begin. Binnenkort deel ik hier meer.
-                    </p>
-                </article>
-                
+                    <div v-if="showEditor" class="modal-overlay" @click.self="showEditor = false">
+                        <div class="modal modal-large">
+                            <h3>{{ editingPost ? 'Post bewerken' : 'Nieuwe post' }}</h3>
+                            <form @submit.prevent="savePost">
+                                <div class="form-group">
+                                    <label>Titel</label>
+                                    <input v-model="postForm.title" type="text" required>
+                                </div>
+                                <div class="form-group">
+                                    <label>Datum</label>
+                                    <input v-model="postForm.post_date" type="date" required>
+                                </div>
+                                <div class="form-group">
+                                    <label>Inhoud</label>
+                                    <textarea v-model="postForm.content" rows="10" required></textarea>
+                                </div>
+                                <div class="modal-buttons">
+                                    <button type="submit" class="btn">Opslaan</button>
+                                    <button type="button" @click="showEditor = false" class="btn btn-outline">Annuleren</button>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
+
+                    <div v-if="loading" class="placeholder-text">Posts worden geladen...</div>
+                    <div v-else-if="posts.length === 0" class="placeholder-text">Nog geen nieuws. Kom binnenkort terug!</div>
+                    <template v-else>
+                        <article v-for="post in posts" :key="post.id" class="blog-post">
+                            <div class="post-header">
+                                <div class="post-date">{{ formatDate(post.post_date) }}</div>
+                                <div v-if="isAuthenticated" class="post-actions">
+                                    <button @click="editPost(post)" class="btn-icon" title="Bewerken">✏️</button>
+                                    <button @click="deletePost(post)" class="btn-icon" title="Verwijderen">🗑️</button>
+                                </div>
+                            </div>
+                            <h3>{{ post.title }}</h3>
+                            <div v-html="formatContent(post.content)"></div>
+                        </article>
+                    </template>
+                </div>
             </div>
         </section>
     </main>
@@ -119,10 +137,15 @@
                 <div class="footer-contact">
                     <p><a href="mailto:laurens@bakkerij-civetta.nl">laurens@bakkerij-civetta.nl</a></p>
                 </div>
+                <div class="footer-admin">
+                    <a href="javascript:void(0)" class="admin-link" id="admin-dashboard-link">Admin dashboard</a>
+                </div>
             </div>
         </div>
     </footer>
 
+    <script src="https://unpkg.com/vue@3/dist/vue.global.prod.js"></script>
     <script src="js/main.js"></script>
+    <script src="js/blog-app.js"></script>
 </body>
 </html>

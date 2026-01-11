@@ -1217,6 +1217,26 @@ footer::before {
     color: var(--color-wheat);
 }
 
+.footer-admin {
+    width: 100%;
+    text-align: center;
+    margin-top: var(--spacing-sm);
+    padding-top: var(--spacing-sm);
+    border-top: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.admin-link {
+    color: rgba(255, 255, 255, 0.4);
+    font-size: 0.75rem;
+    text-decoration: none;
+    transition: all var(--transition);
+}
+
+.admin-link:hover {
+    color: var(--color-wheat-light);
+    text-decoration: underline;
+}
+
 @media (max-width: 768px) {
     html {
         font-size: 15px;
@@ -1601,5 +1621,192 @@ footer::before {
     
     .stat-label {
         font-size: 0.8rem;
+    }
+}
+
+
+/* Admin/Blog Vue Component Styles */
+.admin-bar {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-sm);
+    margin-bottom: var(--spacing-md);
+    padding: var(--spacing-sm);
+    background: var(--color-parchment);
+    border-radius: 8px;
+    flex-wrap: wrap;
+}
+
+.admin-bar span {
+    color: var(--color-stone);
+    font-size: 0.9rem;
+}
+
+.btn-small {
+    padding: 0.5rem 1rem;
+    font-size: 0.85rem;
+    border-radius: 6px;
+    border: none;
+    cursor: pointer;
+    font-family: var(--font-body);
+    font-weight: 600;
+    transition: all var(--transition);
+    background: linear-gradient(135deg, var(--color-crust), var(--color-crust-dark));
+    color: white;
+}
+
+.btn-small:hover {
+    opacity: 0.9;
+    transform: translateY(-1px);
+}
+
+.btn-small.btn-outline {
+    background: transparent;
+    border: 2px solid var(--color-crust);
+    color: var(--color-crust);
+}
+
+.btn-small.btn-outline:hover {
+    background: var(--color-crust);
+    color: white;
+}
+
+.modal-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.5);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 1000;
+    padding: var(--spacing-sm);
+}
+
+.modal {
+    background: white;
+    padding: var(--spacing-md);
+    border-radius: 12px;
+    width: 100%;
+    max-width: 400px;
+    max-height: 90vh;
+    overflow-y: auto;
+    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
+}
+
+.modal-large {
+    max-width: 600px;
+}
+
+.modal h3 {
+    margin-bottom: var(--spacing-md);
+    color: var(--color-crust-dark);
+}
+
+.modal .form-group {
+    margin-bottom: var(--spacing-sm);
+}
+
+.modal .form-group label {
+    display: block;
+    margin-bottom: 0.5rem;
+    color: var(--color-stone);
+    font-weight: 500;
+}
+
+.modal .form-group input,
+.modal .form-group textarea {
+    width: 100%;
+    padding: 0.75rem;
+    border: 2px solid var(--color-parchment);
+    border-radius: 8px;
+    font-size: 1rem;
+    font-family: var(--font-body);
+    transition: border-color var(--transition);
+}
+
+.modal .form-group input:focus,
+.modal .form-group textarea:focus {
+    outline: none;
+    border-color: var(--color-wheat);
+}
+
+.modal .form-group textarea {
+    resize: vertical;
+    min-height: 150px;
+}
+
+.modal-buttons {
+    display: flex;
+    gap: var(--spacing-sm);
+    margin-top: var(--spacing-md);
+}
+
+.modal-buttons .btn {
+    flex: 1;
+}
+
+.btn.btn-outline {
+    background: transparent;
+    border: 2px solid var(--color-crust);
+    color: var(--color-crust);
+}
+
+.btn.btn-outline:hover {
+    background: var(--color-crust);
+    color: white;
+}
+
+.error-msg {
+    background: #fee;
+    color: #c00;
+    padding: 0.75rem;
+    border-radius: 8px;
+    margin-bottom: var(--spacing-sm);
+    text-align: center;
+    font-size: 0.9rem;
+}
+
+.post-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: var(--spacing-xs);
+}
+
+.post-actions {
+    display: flex;
+    gap: 0.5rem;
+}
+
+.btn-icon {
+    background: none;
+    border: none;
+    cursor: pointer;
+    padding: 0.25rem;
+    font-size: 1rem;
+    opacity: 0.7;
+    transition: opacity var(--transition);
+}
+
+.btn-icon:hover {
+    opacity: 1;
+}
+
+@media (max-width: 480px) {
+    .admin-bar {
+        flex-direction: column;
+        align-items: stretch;
+        text-align: center;
+    }
+    
+    .admin-bar span {
+        margin-bottom: 0.5rem;
+    }
+    
+    .modal-buttons {
+        flex-direction: column;
     }
 }
