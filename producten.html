@@ -7,6 +7,82 @@
     <link rel="stylesheet" href="css/style.css">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link href="https://fonts.googleapis.com/css2?family=Libre+Baskerville:ital,wght@0,400;0,700;1,400&family=Source+Sans+Pro:wght@400;600&display=swap" rel="stylesheet">
+    <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
+    <style>
+        .products-loading {
+            text-align: center;
+            padding: var(--spacing-lg);
+            color: var(--color-stone);
+        }
+        .products-empty {
+            text-align: center;
+            padding: var(--spacing-lg);
+            color: var(--color-stone);
+            font-style: italic;
+        }
+        .products-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+            gap: var(--spacing-md);
+        }
+        .product-card {
+            display: flex;
+            flex-direction: column;
+            background: var(--color-warm-white);
+            border-radius: 16px;
+            overflow: hidden;
+            box-shadow: 0 4px 20px rgba(139, 90, 43, 0.08);
+        }
+        .product-info {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            padding: var(--spacing-md);
+        }
+        .product-image {
+            width: 100%;
+            aspect-ratio: 4/3;
+        }
+        .product-image img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+        .product-naam {
+            font-family: var(--font-display);
+            font-size: 1.35rem;
+            color: var(--color-crust-dark);
+            margin-bottom: var(--spacing-xs);
+        }
+        .product-beschrijving {
+            color: var(--color-stone);
+            font-size: 0.95rem;
+            line-height: 1.6;
+            margin-bottom: var(--spacing-sm);
+        }
+        .product-ingredienten {
+            font-size: 0.85rem;
+            color: var(--color-sage);
+            margin-bottom: var(--spacing-sm);
+            padding: var(--spacing-xs) var(--spacing-sm);
+            background: var(--color-parchment);
+            border-radius: 6px;
+        }
+        .product-ingredienten strong {
+            color: var(--color-crust);
+        }
+        .product-footer {
+            margin-top: auto;
+            padding-top: var(--spacing-sm);
+            border-top: 1px solid var(--color-parchment);
+        }
+        .product-prijs {
+            font-family: var(--font-display);
+            font-size: 1.25rem;
+            font-weight: 700;
+            color: var(--color-crust);
+        }
+            </style>
 </head>
 <body>
     <header>
@@ -40,22 +116,39 @@
 
         <section class="products">
             <div class="container">
-                <div class="page-content">
-                    <p class="placeholder-text">Productinformatie en foto's volgen binnenkort.</p>
-                </div>
-                
-                <div class="products-grid">
-                    <!-- Producten hier toevoegen met dit format:
-                    <article class="product-card">
-                        <div class="product-image">
-                            <img src="img/producten/brood1.jpg" alt="Naam van het brood">
-                        </div>
-                        <div class="product-info">
-                            <h3>Naam van het brood</h3>
-                            <p>Beschrijving van het brood, ingrediënten, etc.</p>
-                        </div>
-                    </article>
-                    -->
+                <div id="products-app">
+                    <div v-if="loading" class="products-loading">
+                        Producten laden...
+                    </div>
+                    
+                    <div v-else-if="products.length === 0" class="products-empty">
+                        <p>Binnenkort zijn hier onze ambachtelijke producten te vinden.</p>
+                    </div>
+                    
+                    <div v-else class="products-grid">
+                        <article v-for="product in products" :key="product.id" class="product-card">
+                            <div v-if="product.foto" class="product-image">
+                                <img :src="product.foto" :alt="product.naam">
+                            </div>
+                            <div class="product-info">
+                                <h3 class="product-naam">{{ product.naam }}</h3>
+                                
+                                <p v-if="product.beschrijving" class="product-beschrijving">
+                                    {{ product.beschrijving }}
+                                </p>
+                                
+                                <div v-if="product.ingredienten" class="product-ingredienten">
+                                    <strong>Ingredienten:</strong> {{ product.ingredienten }}
+                                </div>
+                                
+                                <div class="product-footer">
+                                    <span v-if="product.prijs" class="product-prijs">
+                                        {{ formatPrice(product.prijs) }}
+                                    </span>
+                                </div>
+                            </div>
+                        </article>
+                    </div>
                 </div>
             </div>
         </section>
@@ -77,5 +170,6 @@
     </footer>
 
     <script src="js/main.js"></script>
+    <script src="js/products-app.js"></script>
 </body>
 </html>
