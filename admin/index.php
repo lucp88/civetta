@@ -159,6 +159,13 @@ requireLogin();
                 <span class="badge">Actief</span>
             </a>
 
+            <a href="products.php" class="dashboard-card">
+                <div class="icon">🥖</div>
+                <h3>Producten</h3>
+                <p>Beheer je bakkerij producten.</p>
+                <span class="badge">Actief</span>
+            </a>
+
             <div class="dashboard-card disabled">
                 <div class="icon">📦</div>
                 <h3>Bestellingen</h3>

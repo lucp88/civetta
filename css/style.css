@@ -372,6 +372,16 @@ main {
 .intro-contact {
     margin-top: var(--spacing-md);
     padding-top: var(--spacing-md);
+    display: flex;
+    gap: 1rem;
+    flex-wrap: wrap;
+    align-items: center;
+}
+
+.intro-contact h3 {
+    width: 100%;
+    font-size: 1rem;
+    margin-bottom: 0.5rem;
 }
 
 .intro-contact p {
@@ -1816,12 +1826,23 @@ footer::before {
     }
 }
 
+.ideal-details {
+    background: var(--color-parchment);
+    padding: 1.25rem;
+    border-radius: 8px;
+    margin: var(--spacing-sm) 0;
+}
+
+.ideal-details .mollie-fields {
+    margin-top: 0;
+    margin-bottom: var(--spacing-sm);
+}
+
 .mollie-section {
     display: flex;
     align-items: center;
     gap: 0.5rem;
     flex-wrap: wrap;
-    margin: var(--spacing-sm) 0;
 }
 
 .mollie-options {
@@ -1911,7 +1932,9 @@ footer::before {
 }
 
 .mollie-submit {
-    margin-left: auto;
+    width: 100%;
+    text-align: right;
+    margin-top: 0.5rem;
 }
 
 .mollie-submit-btn {

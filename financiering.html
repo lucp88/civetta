@@ -148,11 +148,50 @@
 
                 <div class="funding-section">
                     <h2>Hoe kun je meedoen?</h2>
-                    <p>Er zijn drie manieren om bij te dragen, die ook te combineren zijn.</p>
+                    <p>Er zijn drie manieren om bij te dragen, optie 1 is voor kleinere bijdrages terwijl twee en drie voor grotere giften zijn. Opties twee en drie zijn ook te combineren.</p>
                     
                     <div class="funding-option">
-                        <h3>1. Gift of Investering</h3>
-                        <p>Je kunt ervoor kiezen om Civetta te steunen via een gift. Binnen deze optie zijn er verschillende mogelijkheden:</p>
+                        <h3>1. Crowdfunding</h3>
+                        <p>Wil je Civetta steunen met een kleiner bedrag? Dat kan heel eenvoudig via iDEAL:</p>
+                        <div class="ideal-details">
+                            <div class="mollie-fields">
+                                <div class="mollie-field">
+                                    <input type="text" id="donate-name" placeholder="Je naam (optioneel)">
+                                </div>
+                                <div class="mollie-field">
+                                    <input type="text" id="donate-message" placeholder="Een persoonlijk bericht (optioneel)">
+                                </div>
+                            </div>
+                            <div class="mollie-section">
+                                <div class="mollie-options">
+                                    <button type="button" class="mollie-amount-btn" data-amount="10">€10</button>
+                                    <button type="button" class="mollie-amount-btn" data-amount="25">€25</button>
+                                    <button type="button" class="mollie-amount-btn" data-amount="50">€50</button>
+                                    <span class="mollie-custom">
+                                        <label>of</label>
+                                        <span class="custom-amount-input">
+                                            <span class="currency-symbol">€</span>
+                                            <input type="number" id="custom-amount" min="1" placeholder="...">
+                                        </span>
+                                    </span>
+                                </div>
+                                <div class="mollie-submit">
+                                    <button type="button" class="btn mollie-submit-btn" id="mollie-donate-btn">Doneer</button>
+                                </div>
+                            </div>
+                        </div>
+                        <p style="margin-top: 1.5em;">of een directe overboeking naar:</p>
+                        <div class="bank-details">
+                            <p><strong>Ten name van:</strong> Civetta</p>
+                            <p><strong>IBAN:</strong> NL62TRIO0321131584</p>
+                            <p><strong>Omschrijving:</strong> Crowdfunding – [je naam]</p>
+                        </div>
+                        <p style="margin-top: 1.5em;">Elke bijdrage, groot of klein, wordt enorm gewaardeerd!</p>
+                    </div>
+
+                    <div class="funding-option">
+                        <h3>2. Gift of Investering</h3>
+                        <p>Je kunt er ook voor kiezen om Civetta te steunen via een gift. Binnen deze optie zijn er verschillende mogelijkheden:</p>
                         <ul>
                             <li>Gift (belastingvrij tot €2.769 in 2026)</li>
                             <li>Terug te schenken bij winst (vrijblijvend, zonder verplichting)</li>
@@ -161,8 +200,8 @@
                     </div>
 
                     <div class="funding-option">
-                        <h3>2. Voorverkoop (broodtegoed)</h3>
-                        <p>Je kunt ook kiezen voor voorverkoop: je legt nu een bedrag in en koopt daar later brood mee.</p>
+                        <h3>3. Voorverkoop (broodtegoed)</h3>
+                        <p>Of kies voor voorverkoop: je legt nu een bedrag in en koopt daar later brood mee.</p>
                         <ul>
                             <li>Richtprijs brood: ± €6 (800–1000 g)</li>
                             <li>Voorbeeld: €1.000 = ca. 167 broden (± 3 jaar, 1 brood per week)</li>
@@ -174,44 +213,7 @@
 
                     <div class="funding-option highlight compact">
                         <h3>Combineren mag</h3>
-                        <p>Een combinatie is ook mogelijk, bijvoorbeeld: €500 gift + €500 broodtegoed. Desgewenst leggen we dit vast in een eenvoudige overeenkomst.</p>
-                    </div>
-
-                    <div class="funding-option">
-                        <h3>3. Crowdfunding</h3>
-                        <p>Wil je Civetta steunen met een kleiner bedrag? Dat kan heel eenvoudig via een directe overboeking naar:</p>
-                        <div class="bank-details">
-                            <p><strong>Ten name van:</strong> Civetta</p>
-                            <p><strong>IBAN:</strong> NL62TRIO0321131584</p>
-                            <p><strong>Omschrijving:</strong> Crowdfunding – [je naam]</p>
-                        </div>
-                        <p style="margin-top: 1.5em;"><strong>Of betaal direct via iDEAL:</strong></p>
-                        <div class="mollie-section">
-                            <div class="mollie-options">
-                                <button type="button" class="mollie-amount-btn" data-amount="10">€10</button>
-                                <button type="button" class="mollie-amount-btn" data-amount="25">€25</button>
-                                <button type="button" class="mollie-amount-btn" data-amount="50">€50</button>
-                                <span class="mollie-custom">
-                                    <label>of</label>
-                                    <span class="custom-amount-input">
-                                        <span class="currency-symbol">€</span>
-                                        <input type="number" id="custom-amount" min="1" placeholder="...">
-                                    </span>
-                                </span>
-                            </div>
-                            <div class="mollie-submit">
-                                <button type="button" class="btn mollie-submit-btn" id="mollie-donate-btn">Doneer</button>
-                            </div>
-                        </div>
-                        <div class="mollie-fields">
-                            <div class="mollie-field">
-                                <input type="text" id="donate-name" placeholder="Je naam (optioneel)">
-                            </div>
-                            <div class="mollie-field">
-                                <input type="text" id="donate-message" placeholder="Een persoonlijk bericht (optioneel)">
-                            </div>
-                        </div>
-                        <p style="margin-top: 1.5em;">Elke bijdrage, groot of klein, wordt enorm gewaardeerd!</p>
+                        <p>Een combinatie van optie 2 en 3 is ook mogelijk, bijvoorbeeld: €500 gift + €500 broodtegoed. Desgewenst leggen we dit vast in een eenvoudige overeenkomst.</p>
                     </div>
                 </div>
 
