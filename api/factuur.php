@@ -18,6 +18,17 @@ class FactuurPDF extends FPDF {
     }
 }
 
+function getBedrijfsGegevens($pdo) {
+    $velden = ['bedrijf_naam', 'bedrijf_contactpersoon', 'bedrijf_adres', 'bedrijf_postcode', 'bedrijf_plaats', 'bedrijf_telefoon', 'bedrijf_email', 'bedrijf_kvk', 'bedrijf_btw_id'];
+    $gegevens = [];
+    foreach ($velden as $veld) {
+        $stmt = $pdo->prepare("SELECT setting_value FROM settings WHERE setting_key = ?");
+        $stmt->execute([$veld]);
+        $gegevens[$veld] = $stmt->fetchColumn() ?: '';
+    }
+    return $gegevens;
+}
+
 function generateFactuur($pdo, $orderId, $outputPath = null) {
     $stmt = $pdo->prepare("
         SELECT bo.*, ba.bedrijfsnaam, ba.adres, ba.postcode, ba.plaats, 
@@ -38,6 +49,8 @@ function generateFactuur($pdo, $orderId, $outputPath = null) {
     $stmt = $pdo->query("SELECT setting_value FROM settings WHERE setting_key = 'btw_tarief'");
     $btwTarief = floatval($stmt->fetchColumn() ?: 9);
     
+    $bedrijf = getBedrijfsGegevens($pdo);
+    
     $totalInclBtw = floatval($order['total_amount']);
     $btwBedrag = $totalInclBtw - ($totalInclBtw / (1 + $btwTarief / 100));
     $exclBtw = $totalInclBtw - $btwBedrag;
@@ -50,32 +63,48 @@ function generateFactuur($pdo, $orderId, $outputPath = null) {
     $pdf->AddPage();
     $pdf->SetAutoPageBreak(true, 20);
     
+    $bedrijfNaam = $bedrijf['bedrijf_naam'] ?: 'Bakkerij Civetta';
+    $bedrijfPlaats = ($bedrijf['bedrijf_postcode'] || $bedrijf['bedrijf_plaats']) 
+        ? trim($bedrijf['bedrijf_postcode'] . ' ' . $bedrijf['bedrijf_plaats']) 
+        : 'Leersum, Utrecht';
+    $bedrijfEmail = $bedrijf['bedrijf_email'] ?: 'laurens@bakkerij-civetta.nl';
+    $bedrijfKvk = $bedrijf['bedrijf_kvk'] ?: '';
+    $bedrijfBtw = $bedrijf['bedrijf_btw_id'] ?: '';
+    
     $pdf->SetFont('Helvetica', 'B', 10);
-    $pdf->Cell(95, 5, 'Bakkerij Civetta', 0, 0);
+    $pdf->Cell(95, 5, $bedrijfNaam, 0, 0);
     $pdf->Cell(95, 5, 'Factuur aan:', 0, 1);
     
     $pdf->SetFont('Helvetica', '', 9);
-    $pdf->Cell(95, 5, 'Leersum, Utrecht', 0, 0);
+    $pdf->Cell(95, 5, $bedrijfPlaats, 0, 0);
     $pdf->SetFont('Helvetica', 'B', 9);
     $pdf->Cell(95, 5, $order['bedrijfsnaam'], 0, 1);
     
     $pdf->SetFont('Helvetica', '', 9);
-    $pdf->Cell(95, 5, 'laurens@bakkerij-civetta.nl', 0, 0);
+    $pdf->Cell(95, 5, $bedrijfEmail, 0, 0);
     $pdf->Cell(95, 5, $order['adres'], 0, 1);
     
-    $pdf->Cell(95, 5, 'KVK: 12345678', 0, 0);
+    if ($bedrijfKvk) {
+        $pdf->Cell(95, 5, 'KvK: ' . $bedrijfKvk, 0, 0);
+    } else {
+        $pdf->Cell(95, 5, '', 0, 0);
+    }
     $pdf->Cell(95, 5, $order['postcode'] . ' ' . $order['plaats'], 0, 1);
     
-    $pdf->Cell(95, 5, 'BTW: NL123456789B01', 0, 0);
+    if ($bedrijfBtw) {
+        $pdf->Cell(95, 5, 'BTW-id: ' . $bedrijfBtw, 0, 0);
+    } else {
+        $pdf->Cell(95, 5, '', 0, 0);
+    }
     if ($order['kvk_nummer']) {
-        $pdf->Cell(95, 5, 'KVK: ' . $order['kvk_nummer'], 0, 1);
+        $pdf->Cell(95, 5, 'KvK: ' . $order['kvk_nummer'], 0, 1);
     } else {
         $pdf->Ln();
     }
     
     $pdf->Cell(95, 5, '', 0, 0);
     if ($order['btw_id']) {
-        $pdf->Cell(95, 5, 'BTW: ' . $order['btw_id'], 0, 1);
+        $pdf->Cell(95, 5, 'BTW-id: ' . $order['btw_id'], 0, 1);
     } else {
         $pdf->Ln();
     }
@@ -160,7 +189,11 @@ function generateFactuur($pdo, $orderId, $outputPath = null) {
     $pdf->Ln(15);
     $pdf->SetFont('Helvetica', '', 8);
     $pdf->SetTextColor(128);
-    $pdf->MultiCell(0, 4, "Bakkerij Civetta | Leersum, Utrecht | laurens@bakkerij-civetta.nl\nKVK: 12345678 | BTW: NL123456789B01", 0, 'C');
+    $footerLine1 = $bedrijfNaam . ' | ' . $bedrijfPlaats . ' | ' . $bedrijfEmail;
+    $footerLine2 = '';
+    if ($bedrijfKvk) $footerLine2 .= 'KvK: ' . $bedrijfKvk;
+    if ($bedrijfBtw) $footerLine2 .= ($footerLine2 ? ' | ' : '') . 'BTW-id: ' . $bedrijfBtw;
+    $pdf->MultiCell(0, 4, $footerLine1 . ($footerLine2 ? "\n" . $footerLine2 : ''), 0, 'C');
     
     if ($outputPath) {
         $pdf->Output('F', $outputPath);

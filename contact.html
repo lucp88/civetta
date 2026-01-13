@@ -50,14 +50,14 @@
                 <div class="contact-grid">
                     <div class="contact-info">
                         <h2>Gegevens</h2>
-                        <address>
-                            <p><strong>Bakkerij Civetta</strong></p>
-                            <p>Laurens Peek</p>
-                            <p>Leersum, Utrecht</p>
-                            <p><a href="tel:+31642210308">+31 (0)6 42210308</a></p>
-                            <p><a href="mailto:laurens@bakkerij-civetta.nl">laurens@bakkerij-civetta.nl</a></p>
-                            <p class="kvk" style="margin-bottom: 0;">KvK: 98365533</p>
-                            <p class="kvk" style="margin-top: 0;">btw-id: NL005329494B60</p>
+                        <address id="bedrijfsgegevens">
+                            <p><strong id="bedrijf-naam">Bakkerij Civetta</strong></p>
+                            <p id="bedrijf-contactpersoon">Laurens Peek</p>
+                            <p id="bedrijf-plaats">Leersum, Utrecht</p>
+                            <p><a href="tel:+31642210308" id="bedrijf-telefoon-link">+31 (0)6 42210308</a></p>
+                            <p><a href="mailto:laurens@bakkerij-civetta.nl" id="bedrijf-email-link">laurens@bakkerij-civetta.nl</a></p>
+                            <p class="kvk" style="margin-bottom: 0;" id="bedrijf-kvk">KvK: 98365533</p>
+                            <p class="kvk" style="margin-top: 0;" id="bedrijf-btw">btw-id: NL005329494B60</p>
                         </address>
                         
                         <h2 class="opening-hours-title">Openingstijden</h2>
@@ -120,5 +120,27 @@
     </footer>
 
     <script src="js/main.js"></script>
+    <script>
+        fetch('api/bedrijfsgegevens.php')
+            .then(r => r.json())
+            .then(data => {
+                if (data.naam) document.getElementById('bedrijf-naam').textContent = data.naam;
+                if (data.contactpersoon) document.getElementById('bedrijf-contactpersoon').textContent = data.contactpersoon;
+                if (data.plaats) document.getElementById('bedrijf-plaats').textContent = data.plaats;
+                if (data.telefoon) {
+                    const telLink = document.getElementById('bedrijf-telefoon-link');
+                    telLink.textContent = data.telefoon;
+                    telLink.href = 'tel:' + data.telefoon.replace(/[^+\d]/g, '');
+                }
+                if (data.email) {
+                    const emailLink = document.getElementById('bedrijf-email-link');
+                    emailLink.textContent = data.email;
+                    emailLink.href = 'mailto:' + data.email;
+                }
+                if (data.kvk) document.getElementById('bedrijf-kvk').textContent = 'KvK: ' + data.kvk;
+                if (data.btw_id) document.getElementById('bedrijf-btw').textContent = 'btw-id: ' + data.btw_id;
+            })
+            .catch(() => {});
+    </script>
 </body>
 </html>

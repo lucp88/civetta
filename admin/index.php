@@ -179,6 +179,13 @@ requireLogin();
                 <p>Bekijk en beheer klant bestellingen.</p>
                 <span class="badge">Actief</span>
             </a>
+
+            <a href="settings-bedrijf.php" class="dashboard-card">
+                <div class="icon">⚙️</div>
+                <h3>Bedrijfsgegevens</h3>
+                <p>Beheer je bedrijfsgegevens voor facturen en contact.</p>
+                <span class="badge">Settings</span>
+            </a>
         </div>
 
         <div class="quick-links">
