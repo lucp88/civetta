@@ -19,7 +19,11 @@ try {
         case 'GET':
             $stmt = $pdo->query("SELECT id, naam, ingredienten, beschrijving, prijs, foto FROM products ORDER BY naam ASC");
             $products = $stmt->fetchAll();
-            echo json_encode(['success' => true, 'products' => $products]);
+            
+            $stmt = $pdo->query("SELECT setting_value FROM settings WHERE setting_key = 'btw_tarief'");
+            $btwTarief = floatval($stmt->fetchColumn() ?: 9);
+            
+            echo json_encode(['success' => true, 'products' => $products, 'btw_tarief' => $btwTarief]);
             break;
             
         case 'POST':

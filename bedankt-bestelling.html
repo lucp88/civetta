@@ -1,0 +1,318 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Komt voor de bakker! | Bakkerij Civetta</title>
+    <link rel="stylesheet" href="css/style.css">
+    <style>
+        .thank-you-page {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: var(--spacing-xl) 0;
+        }
+        .thank-you-card {
+            background: var(--color-warm-white);
+            border-radius: 20px;
+            padding: var(--spacing-xl);
+            max-width: 600px;
+            width: 100%;
+            margin: 0 auto;
+            text-align: center;
+            box-shadow: 0 8px 40px rgba(139, 90, 43, 0.12);
+        }
+        .thank-you-icon {
+            width: 80px;
+            height: 80px;
+            background: linear-gradient(135deg, #d1e7dd, #a3cfbb);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0 auto var(--spacing-md);
+            font-size: 2.5rem;
+        }
+        .thank-you-icon.pending {
+            background: linear-gradient(135deg, #fff3cd, #ffe69c);
+        }
+        .thank-you-icon.failed {
+            background: linear-gradient(135deg, #f8d7da, #f1aeb5);
+        }
+        .thank-you-card h1 {
+            color: var(--color-crust-dark);
+            margin-bottom: var(--spacing-sm);
+            font-size: 1.75rem;
+        }
+        .thank-you-card h1::after {
+            display: none;
+        }
+        .thank-you-card p {
+            color: var(--color-stone);
+            margin-bottom: var(--spacing-sm);
+            line-height: 1.7;
+        }
+        .order-details {
+            background: var(--color-parchment);
+            border-radius: 12px;
+            padding: var(--spacing-md);
+            margin: var(--spacing-md) 0;
+            text-align: left;
+        }
+        .order-details h3 {
+            font-size: 1rem;
+            margin-bottom: var(--spacing-sm);
+            color: var(--color-crust-dark);
+        }
+        .order-detail-row {
+            display: flex;
+            justify-content: space-between;
+            padding: 0.4rem 0;
+            border-bottom: 1px solid rgba(0,0,0,0.05);
+            font-size: 0.95rem;
+        }
+        .order-detail-row:last-child {
+            border-bottom: none;
+        }
+        .order-detail-row .label {
+            color: var(--color-stone);
+        }
+        .order-detail-row .value {
+            font-weight: 600;
+            color: var(--color-crust-dark);
+        }
+        .thank-you-actions {
+            display: flex;
+            gap: var(--spacing-sm);
+            justify-content: center;
+            margin-top: var(--spacing-md);
+            flex-wrap: wrap;
+        }
+        .thank-you-actions .btn {
+            padding: 0.75rem 1.5rem;
+        }
+        .btn-outline {
+            background: transparent;
+            border: 2px solid var(--color-crust);
+            color: var(--color-crust);
+        }
+        .btn-outline:hover {
+            background: var(--color-crust);
+            color: white;
+        }
+        .loading-spinner {
+            display: inline-block;
+            animation: spin 1.5s linear infinite;
+        }
+        @keyframes spin {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
+        }
+    </style>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Libre+Baskerville:ital,wght@0,400;0,700;1,400&family=Source+Sans+Pro:wght@400;600&display=swap" rel="stylesheet">
+</head>
+<body>
+    <header>
+        <nav>
+            <div class="logo">
+                <a href="index.html">Civetta</a>
+            </div>
+            <ul class="nav-links">
+                <li><a href="index.html">Home</a></li>
+                <li><a href="ons-verhaal.html">Ons Verhaal</a></li>
+                <li><a href="producten.html">Producten</a></li>
+                <li><a href="galerij.html">Galerij</a></li>
+                <li><a href="leveranciers.html">Leveranciers</a></li>
+                <li><a href="financiering.html">Crowdfunding</a></li>
+                <li><a href="contact.html">Contact</a></li>
+            </ul>
+            <button class="mobile-menu-btn" aria-label="Menu">
+                <span></span>
+                <span></span>
+                <span></span>
+            </button>
+        </nav>
+    </header>
+
+    <main>
+        <section class="page-header">
+            <h1>Bestelling</h1>
+        </section>
+
+        <section class="thank-you-page">
+            <div class="container">
+                <div id="thank-you-app" class="thank-you-card">
+                    <template v-if="loading">
+                        <div class="thank-you-icon pending">
+                            <span class="loading-spinner">&#9676;</span>
+                        </div>
+                        <h1>Broden gaan de oven in...</h1>
+                        <p>Even geduld, we verwerken uw betaling.</p>
+                    </template>
+                    
+                    <template v-else-if="status === 'failed'">
+                        <div class="thank-you-icon failed">
+                            <span>&#10007;</span>
+                        </div>
+                        <h1>Betaling niet gelukt</h1>
+                        <p>Helaas is de betaling niet geslaagd. U kunt het opnieuw proberen via uw dashboard.</p>
+                        
+                        <div v-if="order" class="order-details">
+                            <h3>Bestellingsgegevens</h3>
+                            <div class="order-detail-row">
+                                <span class="label">Bestelnummer</span>
+                                <span class="value">#{{ order.id }}</span>
+                            </div>
+                            <div class="order-detail-row">
+                                <span class="label">Leverdatum</span>
+                                <span class="value">{{ formatDate(order.delivery_date) }}</span>
+                            </div>
+                            <div class="order-detail-row">
+                                <span class="label">Totaalbedrag</span>
+                                <span class="value">{{ formatPrice(order.total_amount) }}</span>
+                            </div>
+                        </div>
+                        
+                        <div class="thank-you-actions">
+                            <a href="zakelijk-dashboard.html" class="btn">Naar Dashboard</a>
+                            <a v-if="order && order.payment_url" :href="order.payment_url" class="btn btn-outline">Opnieuw Betalen</a>
+                        </div>
+                    </template>
+                    
+                    <template v-else>
+                        <div class="thank-you-icon">
+                            <span>&#10003;</span>
+                        </div>
+                        <h1>Komt voor de bakker!</h1>
+                        <p>Bedankt voor uw bestelling! We hebben een bevestiging naar uw e-mailadres gestuurd.</p>
+                        
+                        <div v-if="order" class="order-details">
+                            <h3>Bestellingsgegevens</h3>
+                            <div class="order-detail-row">
+                                <span class="label">Bestelnummer</span>
+                                <span class="value">#{{ order.id }}</span>
+                            </div>
+                            <div class="order-detail-row">
+                                <span class="label">Leverdatum</span>
+                                <span class="value">{{ formatDate(order.delivery_date) }}</span>
+                            </div>
+                            <div class="order-detail-row">
+                                <span class="label">Totaalbedrag</span>
+                                <span class="value">{{ formatPrice(order.total_amount) }}</span>
+                            </div>
+                        </div>
+                        
+                        <div class="thank-you-actions">
+                            <a href="zakelijk-dashboard.html" class="btn">Naar Dashboard</a>
+                            <a v-if="order" :href="'api/factuur.php?order_id=' + order.id" target="_blank" class="btn btn-outline">Factuur Bekijken</a>
+                        </div>
+                    </template>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <footer>
+        <div class="container">
+            <div class="footer-content">
+                <div class="footer-info">
+                    <p><strong>Bakkerij Civetta</strong></p>
+                    <p>Leersum, Utrecht</p>
+                </div>
+                <img src="img/logo.jpeg" alt="Civetta" class="footer-logo">
+                <div class="footer-contact">
+                    <p><a href="mailto:laurens@bakkerij-civetta.nl">laurens@bakkerij-civetta.nl</a></p>
+                </div>
+            </div>
+        </div>
+    </footer>
+
+    <script src="https://unpkg.com/vue@3/dist/vue.global.prod.js"></script>
+    <script src="js/main.js"></script>
+    <script>
+        const { createApp } = Vue;
+        
+        createApp({
+            data() {
+                return {
+                    status: 'pending',
+                    order: null,
+                    loading: true,
+                    orderId: null,
+                    pollCount: 0
+                };
+            },
+            
+            async mounted() {
+                const params = new URLSearchParams(window.location.search);
+                this.status = params.get('status') || 'pending';
+                this.orderId = params.get('order_id');
+                
+                if (this.orderId) {
+                    await this.pollStatus();
+                } else {
+                    this.loading = false;
+                }
+            },
+            
+            methods: {
+                async pollStatus() {
+                    this.pollCount++;
+                    try {
+                        const response = await fetch('api/business-orders.php');
+                        const data = await response.json();
+                        if (data.success) {
+                            this.order = data.orders.find(o => o.id == this.orderId);
+                            if (this.order) {
+                                const isPaid = this.order.status === 'paid' || this.order.mollie_status === 'paid';
+                                const isFailed = this.order.status === 'cancelled' || ['failed', 'canceled', 'expired'].includes(this.order.mollie_status);
+                                
+                                if (isPaid) {
+                                    this.status = 'paid';
+                                    this.loading = false;
+                                } else if (isFailed) {
+                                    this.status = 'failed';
+                                    this.loading = false;
+                                } else if (this.pollCount < 10) {
+                                    setTimeout(() => this.pollStatus(), 2000);
+                                } else {
+                                    this.status = 'paid';
+                                    this.loading = false;
+                                }
+                            } else {
+                                this.loading = false;
+                            }
+                        }
+                    } catch (error) {
+                        this.loading = false;
+                    }
+                },
+                
+                async loadOrder(orderId) {
+                    try {
+                        const response = await fetch('api/business-orders.php');
+                        const data = await response.json();
+                        if (data.success) {
+                            this.order = data.orders.find(o => o.id == orderId);
+                        }
+                    } catch (error) {
+                        console.error('Kon bestelling niet laden');
+                    }
+                },
+                
+                formatDate(dateStr) {
+                    if (!dateStr) return '-';
+                    const date = new Date(dateStr);
+                    return date.toLocaleDateString('nl-NL', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
+                },
+                
+                formatPrice(amount) {
+                    if (!amount) return '-';
+                    return new Intl.NumberFormat('nl-NL', { style: 'currency', currency: 'EUR' }).format(amount);
+                }
+            }
+        }).mount('#thank-you-app');
+    </script>
+</body>
+</html>

@@ -1,0 +1,408 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Nieuwe Bestelling | Bakkerij Civetta</title>
+    <link rel="stylesheet" href="css/style.css">
+    <style>
+        [v-cloak] { display: none; }
+        .order-page {
+            padding: var(--spacing-lg) 0;
+            min-height: calc(100vh - 300px);
+        }
+        .order-container {
+            max-width: 900px;
+            margin: 0 auto;
+        }
+        .order-header {
+            margin-bottom: var(--spacing-lg);
+        }
+        .order-header h2 {
+            margin-bottom: var(--spacing-xs);
+        }
+        .order-header h2::after {
+            display: none;
+        }
+        .order-header p {
+            color: var(--color-stone);
+        }
+        .back-link {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            color: var(--color-crust);
+            text-decoration: none;
+            margin-bottom: var(--spacing-md);
+            font-weight: 500;
+        }
+        .back-link:hover {
+            color: var(--color-terracotta);
+        }
+        .order-grid {
+            display: grid;
+            grid-template-columns: 1fr 350px;
+            gap: var(--spacing-md);
+            align-items: start;
+        }
+        @media (max-width: 900px) {
+            .order-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+        .order-card {
+            background: var(--color-warm-white);
+            border-radius: 16px;
+            padding: var(--spacing-md);
+            box-shadow: 0 4px 20px rgba(139, 90, 43, 0.08);
+        }
+        .order-card h3 {
+            color: var(--color-crust-dark);
+            margin-bottom: var(--spacing-sm);
+            font-size: 1.1rem;
+        }
+        .products-grid {
+            display: grid;
+            gap: var(--spacing-sm);
+            max-height: 500px;
+            overflow-y: auto;
+            padding-right: var(--spacing-xs);
+        }
+        .product-item {
+            display: flex;
+            align-items: center;
+            gap: var(--spacing-sm);
+            padding: 0.6rem 0.8rem;
+            background: var(--color-parchment);
+            border-radius: 8px;
+            transition: background var(--transition);
+        }
+        .product-item:hover {
+            background: var(--color-wheat-light);
+        }
+        .product-item.selected {
+            background: var(--color-wheat-light);
+            border: 2px solid var(--color-wheat);
+        }
+        .product-image {
+            width: 60px;
+            height: 60px;
+            border-radius: 8px;
+            object-fit: cover;
+            background: var(--color-cream);
+        }
+        .product-info {
+            flex: 1;
+        }
+        .product-info h4 {
+            margin: 0 0 0.25rem 0;
+            font-size: 1rem;
+            color: var(--color-crust-dark);
+        }
+        .product-info .price {
+            color: var(--color-terracotta);
+            font-weight: 600;
+        }
+        .product-quantity {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+        .qty-btn {
+            width: 28px;
+            height: 28px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            background: white;
+            color: #333;
+            font-size: 1.1rem;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.15s ease;
+        }
+        .qty-btn:hover {
+            background: #f5f5f5;
+            border-color: #999;
+        }
+        .qty-btn:disabled {
+            background: #f9f9f9;
+            color: #ccc;
+            border-color: #e0e0e0;
+            cursor: not-allowed;
+        }
+        .qty-input {
+            width: 55px;
+            text-align: center;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            padding: 0.4rem 0.5rem;
+            font-size: 0.95rem;
+            font-family: var(--font-body);
+        }
+        .qty-input:focus {
+            outline: none;
+            border-color: var(--color-wheat);
+        }
+        .order-summary {
+            position: sticky;
+            top: var(--spacing-md);
+        }
+        .form-group {
+            margin-bottom: var(--spacing-sm);
+        }
+        .form-group label {
+            display: block;
+            margin-bottom: 0.25rem;
+            color: var(--color-stone);
+            font-weight: 500;
+            font-size: 0.9rem;
+        }
+        .form-group input,
+        .form-group textarea {
+            width: 100%;
+            padding: 0.75rem;
+            border: 2px solid var(--color-parchment);
+            border-radius: 8px;
+            font-size: 1rem;
+            font-family: var(--font-body);
+        }
+        .form-group input:focus,
+        .form-group textarea:focus {
+            outline: none;
+            border-color: var(--color-wheat);
+        }
+        .form-group textarea {
+            resize: vertical;
+            min-height: 80px;
+        }
+        .summary-items {
+            margin: var(--spacing-sm) 0;
+            padding: var(--spacing-sm) 0;
+            border-top: 1px solid var(--color-parchment);
+            border-bottom: 1px solid var(--color-parchment);
+        }
+        .summary-item {
+            display: flex;
+            justify-content: space-between;
+            padding: 0.25rem 0;
+            font-size: 0.95rem;
+        }
+        .summary-item .name {
+            color: var(--color-stone);
+        }
+        .summary-item .price {
+            font-weight: 500;
+        }
+        .summary-subtotal {
+            display: flex;
+            justify-content: space-between;
+            padding: 0.25rem 0;
+            font-size: 0.9rem;
+            color: var(--color-stone);
+        }
+        .summary-total {
+            display: flex;
+            justify-content: space-between;
+            font-size: 1.25rem;
+            font-weight: 600;
+            margin: var(--spacing-sm) 0;
+            color: var(--color-crust-dark);
+        }
+        .btn-pay {
+            width: 100%;
+            padding: 1rem;
+            font-size: 1.1rem;
+            margin-top: var(--spacing-sm);
+        }
+        .btn-pay:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+        }
+        .error-msg {
+            background: #fee;
+            color: #c00;
+            padding: 0.75rem;
+            border-radius: 8px;
+            margin-bottom: var(--spacing-sm);
+            font-size: 0.9rem;
+        }
+        .empty-cart {
+            text-align: center;
+            padding: var(--spacing-md);
+            color: var(--color-stone);
+        }
+        .loading {
+            text-align: center;
+            padding: var(--spacing-lg);
+            color: var(--color-stone);
+        }
+        .min-date-hint {
+            font-size: 0.8rem;
+            color: var(--color-stone);
+            margin-top: 0.25rem;
+        }
+    </style>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Libre+Baskerville:ital,wght@0,400;0,700;1,400&family=Source+Sans+Pro:wght@400;600&display=swap" rel="stylesheet">
+</head>
+<body>
+    <header>
+        <nav>
+            <div class="logo">
+                <a href="index.html">Civetta</a>
+            </div>
+            <ul class="nav-links">
+                <li><a href="index.html">Home</a></li>
+                <li><a href="ons-verhaal.html">Ons Verhaal</a></li>
+                <li><a href="producten.html">Producten</a></li>
+                <li><a href="galerij.html">Galerij</a></li>
+                <li><a href="leveranciers.html">Leveranciers</a></li>
+                <li><a href="financiering.html">Crowdfunding</a></li>
+                <li><a href="contact.html">Contact</a></li>
+                <li class="nav-login">
+                    <a href="zakelijk-dashboard.html" class="login-trigger active">Dashboard</a>
+                </li>
+            </ul>
+            <button class="mobile-menu-btn" aria-label="Menu">
+                <span></span>
+                <span></span>
+                <span></span>
+            </button>
+        </nav>
+    </header>
+
+    <main>
+        <section class="page-header">
+            <h1>Nieuwe Bestelling</h1>
+        </section>
+
+        <section class="order-page">
+            <div class="container">
+                <div id="order-app" v-cloak class="order-container">
+                    <a href="zakelijk-dashboard.html" class="back-link">
+                        <span>&larr;</span> Terug naar Dashboard
+                    </a>
+
+                    <div v-if="loading" class="loading">Producten laden...</div>
+                    
+                    <template v-else>
+                        <div class="order-header">
+                            <h2>Selecteer uw producten</h2>
+                            <p>Kies de producten en hoeveelheden voor uw bestelling</p>
+                        </div>
+
+                        <div class="order-grid">
+                            <div class="order-card">
+                                <h3>Beschikbare Producten</h3>
+                                <div class="products-grid">
+                                    <div v-for="product in products" 
+                                         :key="product.id" 
+                                         class="product-item"
+                                         :class="{ selected: getQuantity(product.id) > 0 }">
+                                        <img :src="product.foto || 'img/placeholder-bread.jpg'" 
+                                             :alt="product.naam" 
+                                             class="product-image"
+                                             @error="handleImageError">
+                                        <div class="product-info">
+                                            <h4>{{ product.naam }}</h4>
+                                            <div class="price" v-if="product.prijs">{{ formatPrice(product.prijs) }}</div>
+                                            <div class="price" v-else>Prijs op aanvraag</div>
+                                        </div>
+                                        <div class="product-quantity">
+                                            <button class="qty-btn" 
+                                                    @click="decreaseQty(product)"
+                                                    :disabled="getQuantity(product.id) === 0">-</button>
+                                            <input type="number" 
+                                                   class="qty-input" 
+                                                   :value="getQuantity(product.id)"
+                                                   @change="setQuantity(product, $event.target.value)"
+                                                   min="0">
+                                            <button class="qty-btn" @click="increaseQty(product)">+</button>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="order-card order-summary">
+                                <h3>Uw Bestelling</h3>
+                                
+                                <div v-if="error" class="error-msg">{{ error }}</div>
+                                
+                                <div v-if="cartItems.length === 0" class="empty-cart">
+                                    <p>Selecteer producten om te bestellen</p>
+                                </div>
+                                
+                                <template v-else>
+                                    <div class="summary-items">
+                                        <div v-for="item in cartItems" :key="item.product.id" class="summary-item">
+                                            <span class="name">{{ item.quantity }}x {{ item.product.naam }}</span>
+                                            <span class="price">{{ formatPrice(item.subtotal) }}</span>
+                                        </div>
+                                    </div>
+                                    
+                                    <div class="summary-subtotal">
+                                        <span>Excl. BTW</span>
+                                        <span>{{ formatPrice(exclBtw) }}</span>
+                                    </div>
+                                    <div class="summary-subtotal">
+                                        <span>BTW ({{ btwTarief }}%)</span>
+                                        <span>{{ formatPrice(btwBedrag) }}</span>
+                                    </div>
+                                    <div class="summary-total">
+                                        <span>Totaal incl. BTW</span>
+                                        <span>{{ formatPrice(totalAmount) }}</span>
+                                    </div>
+                                </template>
+
+                                <div class="form-group">
+                                    <label for="delivery_date">Gewenste leverdatum *</label>
+                                    <input type="date" 
+                                           id="delivery_date" 
+                                           v-model="deliveryDate" 
+                                           :min="minDeliveryDate"
+                                           required>
+                                    <p class="min-date-hint">Minimaal 2 dagen van tevoren bestellen</p>
+                                </div>
+
+                                <div class="form-group">
+                                    <label for="notes">Opmerkingen (optioneel)</label>
+                                    <textarea id="notes" 
+                                              v-model="notes" 
+                                              placeholder="Speciale wensen, leverinstructies, etc."></textarea>
+                                </div>
+
+                                <button class="btn btn-pay" 
+                                        @click="placeOrder"
+                                        :disabled="!canOrder || submitting">
+                                    {{ submitting ? 'Bezig...' : 'Bestelling Plaatsen & Betalen' }}
+                                </button>
+                            </div>
+                        </div>
+                    </template>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <footer>
+        <div class="container">
+            <div class="footer-content">
+                <div class="footer-info">
+                    <p><strong>Bakkerij Civetta</strong></p>
+                    <p>Leersum, Utrecht</p>
+                </div>
+                <img src="img/logo.jpeg" alt="Civetta" class="footer-logo">
+                <div class="footer-contact">
+                    <p><a href="mailto:laurens@bakkerij-civetta.nl">laurens@bakkerij-civetta.nl</a></p>
+                </div>
+            </div>
+        </div>
+    </footer>
+
+    <script src="https://unpkg.com/vue@3/dist/vue.global.prod.js"></script>
+    <script src="js/main.js"></script>
+    <script src="js/order-app.js"></script>
+</body>
+</html>

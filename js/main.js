@@ -15,4 +15,12 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         });
     }
+    
+    const navLogin = document.querySelector('.nav-login');
+    if (navLogin) {
+        const isLoggedIn = sessionStorage.getItem('businessAccount');
+        if (isLoggedIn) {
+            navLogin.innerHTML = '<a href="zakelijk-dashboard.html" class="login-trigger">Mijn Dashboard</a>';
+        }
+    }
 });

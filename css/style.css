@@ -211,6 +211,77 @@ nav {
     background: linear-gradient(135deg, var(--color-crust), var(--color-crust-dark));
 }
 
+.nav-login {
+    position: relative;
+}
+
+.nav-login .login-trigger {
+    cursor: pointer;
+}
+
+.nav-login .login-dropdown {
+    display: none;
+    position: absolute;
+    top: 100%;
+    right: 0;
+    background: var(--color-warm-white);
+    border-radius: 8px;
+    box-shadow: 0 4px 20px rgba(139, 90, 43, 0.15);
+    min-width: 180px;
+    padding: 0.5rem 0;
+    z-index: 200;
+    padding-top: 1rem;
+}
+
+.nav-login .login-dropdown::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 0.5rem;
+    background: transparent;
+}
+
+.nav-login .login-dropdown::after {
+    content: '';
+    position: absolute;
+    top: 2px;
+    right: 20px;
+    border-left: 8px solid transparent;
+    border-right: 8px solid transparent;
+    border-bottom: 8px solid var(--color-warm-white);
+}
+
+.nav-login .login-dropdown a {
+    display: block;
+    padding: 0.75rem 1rem;
+    color: var(--color-stone);
+    font-size: 0.9rem;
+    transition: background var(--transition), color var(--transition);
+}
+
+.nav-login .login-dropdown a:hover {
+    background: var(--color-parchment);
+    color: var(--color-crust);
+}
+
+.nav-login .login-dropdown a.disabled {
+    color: #aaa;
+    cursor: not-allowed;
+    font-style: italic;
+}
+
+.nav-login .login-dropdown a.disabled:hover {
+    background: transparent;
+    color: #aaa;
+}
+
+.nav-login:hover .login-dropdown,
+.nav-login .login-dropdown.active {
+    display: block;
+}
+
 .mobile-menu-btn {
     display: none;
     flex-direction: column;
@@ -2004,5 +2075,215 @@ footer::before {
     
     .mollie-fields {
         flex-direction: column;
+    }
+}
+
+.zakelijk-content {
+    padding: var(--spacing-lg) 0;
+}
+
+.zakelijk-intro {
+    max-width: 700px;
+    margin-bottom: var(--spacing-lg);
+}
+
+.zakelijk-intro h2 {
+    margin-bottom: var(--spacing-sm);
+}
+
+.zakelijk-intro p {
+    color: var(--color-stone);
+    font-size: 1.1rem;
+    line-height: 1.8;
+}
+
+.zakelijk-options {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    gap: var(--spacing-md);
+    max-width: 800px;
+}
+
+.zakelijk-card {
+    background: var(--color-warm-white);
+    border-radius: 16px;
+    padding: var(--spacing-md);
+    box-shadow: 0 4px 20px rgba(139, 90, 43, 0.08);
+    text-align: center;
+    transition: transform var(--transition), box-shadow var(--transition);
+    position: relative;
+}
+
+.zakelijk-card:not(.disabled):hover {
+    transform: translateY(-4px);
+    box-shadow: 0 8px 30px rgba(139, 90, 43, 0.15);
+}
+
+.zakelijk-card.disabled {
+    opacity: 0.7;
+}
+
+.zakelijk-card .card-icon {
+    font-size: 3rem;
+    margin-bottom: var(--spacing-sm);
+}
+
+.zakelijk-card h3 {
+    color: var(--color-crust-dark);
+    margin-bottom: var(--spacing-xs);
+}
+
+.zakelijk-card p {
+    color: var(--color-stone);
+    margin-bottom: var(--spacing-md);
+    font-size: 0.95rem;
+}
+
+.zakelijk-card .btn-disabled {
+    background: #ccc;
+    cursor: not-allowed;
+    box-shadow: none;
+}
+
+.zakelijk-card .btn-disabled:hover {
+    transform: none;
+    box-shadow: none;
+}
+
+.zakelijk-card .coming-soon {
+    display: block;
+    margin-top: var(--spacing-xs);
+    font-size: 0.8rem;
+    color: var(--color-stone);
+    font-style: italic;
+}
+
+.zakelijk-register {
+    max-width: 700px;
+}
+
+.register-header {
+    margin-bottom: var(--spacing-md);
+}
+
+.register-header h2 {
+    margin-bottom: var(--spacing-xs);
+}
+
+.register-header p {
+    color: var(--color-stone);
+}
+
+.back-link {
+    display: inline-block;
+    color: var(--color-crust);
+    margin-bottom: var(--spacing-sm);
+    font-size: 0.95rem;
+    cursor: pointer;
+    background: none;
+    border: none;
+    padding: 0;
+    font-family: var(--font-body);
+    transition: color var(--transition);
+}
+
+.back-link:hover {
+    color: var(--color-terracotta);
+}
+
+.register-form {
+    background: var(--color-warm-white);
+    border-radius: 16px;
+    padding: var(--spacing-md);
+    box-shadow: 0 4px 20px rgba(139, 90, 43, 0.08);
+}
+
+.form-section {
+    margin-bottom: var(--spacing-md);
+    padding-bottom: var(--spacing-md);
+    border-bottom: 1px solid var(--color-parchment);
+}
+
+.form-section:last-of-type {
+    border-bottom: none;
+    margin-bottom: var(--spacing-sm);
+    padding-bottom: 0;
+}
+
+.form-section h3 {
+    font-size: 1.1rem;
+    color: var(--color-crust);
+    margin-bottom: var(--spacing-sm);
+}
+
+.form-row {
+    display: grid;
+    grid-template-columns: 1fr 2fr;
+    gap: var(--spacing-sm);
+}
+
+.error-message {
+    background: #fee;
+    color: #c00;
+    padding: 0.75rem 1rem;
+    border-radius: 8px;
+    margin-bottom: var(--spacing-sm);
+    font-size: 0.95rem;
+}
+
+.form-actions {
+    text-align: center;
+}
+
+.form-actions .btn:disabled {
+    opacity: 0.7;
+    cursor: wait;
+}
+
+.zakelijk-success {
+    text-align: center;
+    padding: var(--spacing-lg) 0;
+    max-width: 500px;
+    margin: 0 auto;
+}
+
+.success-icon {
+    width: 80px;
+    height: 80px;
+    background: linear-gradient(135deg, var(--color-sage), #6b7460);
+    color: white;
+    font-size: 2.5rem;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 0 auto var(--spacing-md);
+}
+
+.zakelijk-success h2 {
+    margin-bottom: var(--spacing-sm);
+}
+
+.zakelijk-success p {
+    color: var(--color-stone);
+    margin-bottom: var(--spacing-md);
+    line-height: 1.8;
+}
+
+@media (max-width: 768px) {
+    .zakelijk-content {
+        padding: var(--spacing-md) 0;
+    }
+    
+    .zakelijk-options {
+        grid-template-columns: 1fr;
+    }
+    
+    .form-row {
+        grid-template-columns: 1fr;
+    }
+    
+    .register-form {
+        padding: var(--spacing-sm);
     }
 }
