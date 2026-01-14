@@ -180,6 +180,34 @@
                         </div>
                     </template>
                     
+                    <template v-else-if="status === 'pending'">
+                        <div class="thank-you-icon pending">
+                            <span>&#9203;</span>
+                        </div>
+                        <h1>Betaling wordt verwerkt</h1>
+                        <p>Uw betaling wordt nog verwerkt. Dit kan enkele minuten duren. Bekijk uw dashboard voor de actuele status.</p>
+                        
+                        <div v-if="order" class="order-details">
+                            <h3>Bestellingsgegevens</h3>
+                            <div class="order-detail-row">
+                                <span class="label">Bestelnummer</span>
+                                <span class="value">#{{ order.id }}</span>
+                            </div>
+                            <div class="order-detail-row">
+                                <span class="label">Leverdatum</span>
+                                <span class="value">{{ formatDate(order.delivery_date) }}</span>
+                            </div>
+                            <div class="order-detail-row">
+                                <span class="label">Totaalbedrag</span>
+                                <span class="value">{{ formatPrice(order.total_amount) }}</span>
+                            </div>
+                        </div>
+                        
+                        <div class="thank-you-actions">
+                            <a href="zakelijk-dashboard.html" class="btn">Naar Dashboard</a>
+                        </div>
+                    </template>
+                    
                     <template v-else>
                         <div class="thank-you-icon">
                             <span>&#10003;</span>
@@ -260,29 +288,26 @@
                 async pollStatus() {
                     this.pollCount++;
                     try {
-                        const response = await fetch('api/business-orders.php');
+                        const response = await fetch('api/order-status.php?order_id=' + this.orderId);
                         const data = await response.json();
                         if (data.success) {
-                            this.order = data.orders.find(o => o.id == this.orderId);
-                            if (this.order) {
-                                const isPaid = this.order.status === 'paid' || this.order.mollie_status === 'paid';
-                                const isFailed = this.order.status === 'cancelled' || ['failed', 'canceled', 'expired'].includes(this.order.mollie_status);
-                                
-                                if (isPaid) {
-                                    this.status = 'paid';
-                                    this.loading = false;
-                                } else if (isFailed) {
-                                    this.status = 'failed';
-                                    this.loading = false;
-                                } else if (this.pollCount < 10) {
-                                    setTimeout(() => this.pollStatus(), 2000);
-                                } else {
-                                    this.status = 'paid';
-                                    this.loading = false;
-                                }
+                            this.order = data.order;
+                            const displayStatus = data.order.display_status;
+                            
+                            if (displayStatus === 'paid') {
+                                this.status = 'paid';
+                                this.loading = false;
+                            } else if (displayStatus === 'failed') {
+                                this.status = 'failed';
+                                this.loading = false;
+                            } else if (this.pollCount < 30) {
+                                setTimeout(() => this.pollStatus(), 2000);
                             } else {
+                                this.status = 'pending';
                                 this.loading = false;
                             }
+                        } else {
+                            this.loading = false;
                         }
                     } catch (error) {
                         this.loading = false;

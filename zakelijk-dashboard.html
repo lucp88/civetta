@@ -487,7 +487,9 @@
                                                 <a v-if="order.payment_url" :href="order.payment_url" class="btn-pay-now" @click.stop>Betalen</a>
                                             </div>
                                             <div class="order-header-right">
-                                                <a :href="'api/factuur.php?order_id=' + order.id" target="_blank" class="btn-invoice" @click.stop>Factuur</a>
+                                                <a v-if="order.factuur_url" :href="order.factuur_url" target="_blank" class="btn-invoice" @click.stop>
+                                                    Factuur {{ order.factuur_nummer }}
+                                                </a>
                                                 <span class="order-toggle" :class="{ open: openOrders.includes(order.id) }">▼</span>
                                             </div>
                                         </div>

@@ -1,17 +1,31 @@
 <?php
 require_once '../admin/config.php';
 require_once 'factuur.php';
+require_once 'eboekhouden.php';
+
+function webhookLog($message) {
+    $logFile = __DIR__ . '/webhook-debug.log';
+    $timestamp = date('Y-m-d H:i:s');
+    file_put_contents($logFile, "[$timestamp] $message\n", FILE_APPEND);
+    error_log($message);
+}
+
+webhookLog("=== Mollie Webhook Called ===");
 
 $mollieApiKey = getenv('MOLLIE_API_KEY') ?: '';
 
 if (!$mollieApiKey) {
+    webhookLog("ERROR: Geen MOLLIE_API_KEY");
     http_response_code(500);
     exit;
 }
+webhookLog("Mollie API key gevonden");
 
 $paymentId = $_POST['id'] ?? '';
+webhookLog("Payment ID: $paymentId");
 
 if (!$paymentId) {
+    webhookLog("ERROR: Geen payment ID");
     http_response_code(400);
     exit;
 }
@@ -32,6 +46,27 @@ if ($httpCode !== 200) {
 }
 
 $payment = json_decode($response, true);
+$status = $payment['status'] ?? '';
+
+if (isset($payment['metadata']['type']) && $payment['metadata']['type'] === 'crowdfunding') {
+    webhookLog("Donation payment - Status: $status");
+    try {
+        $stmt = $pdo->prepare("UPDATE donations SET status = ? WHERE mollie_payment_id = ?");
+        $stmt->execute([$status, $paymentId]);
+        
+        if ($status === 'paid') {
+            $stmt = $pdo->prepare("UPDATE donations SET paid_at = NOW() WHERE mollie_payment_id = ?");
+            $stmt->execute([$paymentId]);
+            webhookLog("Donation marked as paid: $paymentId");
+        }
+        
+        http_response_code(200);
+    } catch (PDOException $e) {
+        webhookLog("Donation update error: " . $e->getMessage());
+        http_response_code(500);
+    }
+    exit;
+}
 
 if (!$payment || !isset($payment['metadata']['order_id'])) {
     http_response_code(400);
@@ -39,7 +74,7 @@ if (!$payment || !isset($payment['metadata']['order_id'])) {
 }
 
 $orderId = $payment['metadata']['order_id'];
-$status = $payment['status'];
+webhookLog("Order ID: $orderId, Status: $status");
 
 try {
     $stmt = $pdo->prepare("UPDATE business_orders SET mollie_status = ?, mollie_status_updated_at = NOW() WHERE id = ? AND mollie_payment_id = ?");
@@ -88,7 +123,66 @@ try {
             
             @mail($to, $subject, $body, $headers);
             
-            sendFactuurEmail($pdo, $orderId);
+            $eboekhoudenSettings = getEBoekhoudenSettings($pdo);
+            
+            webhookLog("e-Boekhouden settings voor order $orderId: " . json_encode($eboekhoudenSettings));
+            
+            if ($eboekhoudenSettings['facturatie_systeem'] === 'eboekhouden' && $eboekhoudenSettings['eboekhouden_api_token']) {
+                webhookLog("e-Boekhouden integratie actief - start factuur aanmaken");
+                try {
+                    $stmt = $pdo->prepare("
+                        SELECT ba.* FROM business_accounts ba 
+                        JOIN business_orders bo ON bo.account_id = ba.id 
+                        WHERE bo.id = ?
+                    ");
+                    $stmt->execute([$orderId]);
+                    $accountData = $stmt->fetch();
+                    
+                    $client = new EBoekhoudenClient($eboekhoudenSettings['eboekhouden_api_token']);
+                    
+                    $btwCode = 'LAAG_VERK_9';
+                    if (floatval($eboekhoudenSettings['btw_tarief']) == 21) {
+                        $btwCode = 'HOOG_VERK_21';
+                    }
+                    
+                    $result = $client->createFullInvoice(
+                        $accountData,
+                        $items,
+                        $eboekhoudenSettings['eboekhouden_template_id'],
+                        $eboekhoudenSettings['eboekhouden_ledger_id'],
+                        $btwCode,
+                        true
+                    );
+                    
+                    $stmt = $pdo->prepare("
+                        UPDATE business_orders 
+                        SET eboekhouden_invoice_id = ?, 
+                            eboekhouden_factuurnummer = ?, 
+                            eboekhouden_pdf_url = ?,
+                            facturatie_systeem = 'eboekhouden'
+                        WHERE id = ?
+                    ");
+                    $stmt->execute([
+                        $result['id'],
+                        $result['invoiceNumber'],
+                        $result['pdfUrl'],
+                        $orderId
+                    ]);
+                    
+                webhookLog("e-Boekhouden factuur succesvol aangemaakt voor order $orderId: " . json_encode($result));
+                    
+                } catch (Exception $e) {
+                    webhookLog("e-Boekhouden factuur fout voor order $orderId: " . $e->getMessage());
+                    sendFactuurEmail($pdo, $orderId);
+                    $stmt = $pdo->prepare("UPDATE business_orders SET facturatie_systeem = 'eigen' WHERE id = ?");
+                    $stmt->execute([$orderId]);
+                }
+            } else {
+                webhookLog("Eigen facturatie gebruikt voor order $orderId (systeem: {$eboekhoudenSettings['facturatie_systeem']}, token: " . (!empty($eboekhoudenSettings['eboekhouden_api_token']) ? 'aanwezig' : 'leeg') . ")");
+                sendFactuurEmail($pdo, $orderId);
+                $stmt = $pdo->prepare("UPDATE business_orders SET facturatie_systeem = 'eigen' WHERE id = ?");
+                $stmt->execute([$orderId]);
+            }
             
             $adminSubject = "Betaling ontvangen - Bestelling #$orderId";
             $adminBody = "Betaling ontvangen voor bestelling #$orderId van {$order['bedrijfsnaam']}.\n\n";

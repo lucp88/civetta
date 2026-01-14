@@ -24,12 +24,7 @@ switch ($method) {
             $stmt = $pdo->query("SELECT setting_value FROM settings WHERE setting_key = 'btw_tarief'");
             $btwTarief = floatval($stmt->fetchColumn() ?: 9);
             
-            $stmt = $pdo->prepare("
-                SELECT id, delivery_date, status, total_amount, notes, created_at, mollie_payment_id, mollie_status 
-                FROM business_orders 
-                WHERE account_id = ? 
-                ORDER BY created_at DESC
-            ");
+            $stmt = $pdo->prepare("SELECT * FROM business_orders WHERE account_id = ? ORDER BY created_at DESC");
             $stmt->execute([$accountId]);
             $orders = $stmt->fetchAll();
             
@@ -64,6 +59,17 @@ switch ($method) {
                         if (isset($payment['_links']['checkout']['href'])) {
                             $order['payment_url'] = $payment['_links']['checkout']['href'];
                         }
+                    }
+                }
+                
+                $isPaid = ($order['status'] === 'paid' || ($order['mollie_status'] ?? '') === 'paid');
+                if ($isPaid) {
+                    if (!empty($order['eboekhouden_pdf_url'])) {
+                        $order['factuur_url'] = $order['eboekhouden_pdf_url'];
+                        $order['factuur_nummer'] = $order['eboekhouden_factuurnummer'] ?? '';
+                    } else {
+                        $order['factuur_url'] = '/api/factuur.php?order_id=' . $order['id'] . '&action=view';
+                        $order['factuur_nummer'] = 'F' . date('Y') . '-' . str_pad($order['id'], 4, '0', STR_PAD_LEFT);
                     }
                 }
             }

@@ -54,6 +54,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $pdo->exec("ALTER TABLE business_orders ADD COLUMN IF NOT EXISTS mollie_status VARCHAR(20) NULL AFTER mollie_payment_id");
         $pdo->exec("ALTER TABLE business_orders ADD COLUMN IF NOT EXISTS mollie_status_updated_at TIMESTAMP NULL AFTER mollie_status");
         
+        $pdo->exec("ALTER TABLE business_orders ADD COLUMN IF NOT EXISTS eboekhouden_invoice_id INT NULL");
+        $pdo->exec("ALTER TABLE business_orders ADD COLUMN IF NOT EXISTS eboekhouden_factuurnummer VARCHAR(50) NULL");
+        $pdo->exec("ALTER TABLE business_orders ADD COLUMN IF NOT EXISTS eboekhouden_pdf_url TEXT NULL");
+        $pdo->exec("ALTER TABLE business_orders ADD COLUMN IF NOT EXISTS facturatie_systeem VARCHAR(20) NULL");
+        
         $pdo->exec("
             CREATE TABLE IF NOT EXISTS business_order_items (
                 id INT AUTO_INCREMENT PRIMARY KEY,

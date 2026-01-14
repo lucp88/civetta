@@ -186,6 +186,13 @@ requireLogin();
                 <p>Beheer je bedrijfsgegevens voor facturen en contact.</p>
                 <span class="badge">Settings</span>
             </a>
+
+            <a href="settings-boekhouding.php" class="dashboard-card">
+                <div class="icon">📊</div>
+                <h3>Boekhouding</h3>
+                <p>Facturatie instellingen en e-Boekhouden koppeling.</p>
+                <span class="badge">Settings</span>
+            </a>
         </div>
 
         <div class="quick-links">

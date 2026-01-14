@@ -1,5 +1,6 @@
 <?php
 header('Content-Type: application/json');
+require_once '../admin/config.php';
 
 $mollieApiKey = getenv('MOLLIE_API_KEY') ?: '';
 
@@ -61,6 +62,29 @@ curl_close($ch);
 $result = json_decode($response, true);
 
 if ($httpCode >= 200 && $httpCode < 300 && isset($result['_links']['checkout']['href'])) {
+    $paymentId = $result['id'];
+    
+    try {
+        $stmt = $pdo->prepare("INSERT INTO donations (mollie_payment_id, amount, donor_name, message, status) VALUES (?, ?, ?, ?, 'pending')");
+        $stmt->execute([$paymentId, $amount, $name ?: null, $message ?: null]);
+    } catch (PDOException $e) {
+    }
+    
+    $paymentData['redirectUrl'] = $baseUrl . '/bedankt-donatie.html?payment_id=' . $paymentId;
+    
+    $ch = curl_init('https://api.mollie.com/v2/payments/' . $paymentId);
+    curl_setopt_array($ch, [
+        CURLOPT_RETURNTRANSFER => true,
+        CURLOPT_CUSTOMREQUEST => 'PATCH',
+        CURLOPT_POSTFIELDS => json_encode(['redirectUrl' => $paymentData['redirectUrl']]),
+        CURLOPT_HTTPHEADER => [
+            'Authorization: Bearer ' . $mollieApiKey,
+            'Content-Type: application/json'
+        ]
+    ]);
+    curl_exec($ch);
+    curl_close($ch);
+    
     echo json_encode([
         'success' => true,
         'checkoutUrl' => $result['_links']['checkout']['href']
