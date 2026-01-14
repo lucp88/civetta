@@ -1,8 +1,9 @@
 <?php
-header('Content-Type: application/json');
-header('Access-Control-Allow-Origin: *');
-
 require_once '../admin/config.php';
+require_once 'cors.php';
+
+header('Content-Type: application/json');
+setCorsHeaders();
 
 try {
     $stmt = $pdo->query("SELECT COALESCE(SUM(amount), 0) as total FROM donations WHERE status = 'paid'");

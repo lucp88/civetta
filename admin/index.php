@@ -166,12 +166,26 @@ requireLogin();
                 <span class="badge">Actief</span>
             </a>
 
-            <div class="dashboard-card disabled">
+            <a href="accounts.php" class="dashboard-card">
+                <div class="icon">👥</div>
+                <h3>Accounts beheren</h3>
+                <p>Beheer zakelijke en particuliere accounts.</p>
+                <span class="badge">Actief</span>
+            </a>
+
+            <a href="orders.php" class="dashboard-card">
                 <div class="icon">📦</div>
                 <h3>Bestellingen</h3>
                 <p>Bekijk en beheer klant bestellingen.</p>
-                <span class="badge">Komt binnenkort</span>
-            </div>
+                <span class="badge">Actief</span>
+            </a>
+
+            <a href="settings-bedrijf.php" class="dashboard-card">
+                <div class="icon">⚙️</div>
+                <h3>Bedrijfsgegevens</h3>
+                <p>Beheer je bedrijfsgegevens voor facturen en contact.</p>
+                <span class="badge">Settings</span>
+            </a>
         </div>
 
         <div class="quick-links">

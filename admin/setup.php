@@ -43,6 +43,13 @@ CREATE TABLE IF NOT EXISTS orders (
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
 );
 
+CREATE TABLE IF NOT EXISTS settings (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    setting_key VARCHAR(100) NOT NULL UNIQUE,
+    setting_value TEXT,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+);
+
 CREATE TABLE IF NOT EXISTS donations (
     id INT AUTO_INCREMENT PRIMARY KEY,
     mollie_payment_id VARCHAR(50) NOT NULL UNIQUE,
@@ -52,6 +59,13 @@ CREATE TABLE IF NOT EXISTS donations (
     status VARCHAR(20) NOT NULL DEFAULT 'pending',
     paid_at TIMESTAMP NULL,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS login_attempts (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    identifier VARCHAR(255) NOT NULL,
+    attempt_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    INDEX idx_identifier_time (identifier, attempt_time)
 );
 ";
 
@@ -70,6 +84,12 @@ try {
         echo "<li><strong>Wachtwoord:</strong> civetta2026</li>";
         echo "</ul>";
         echo "<p style='color: red;'><strong>Wijzig dit wachtwoord direct na eerste login!</strong></p>";
+    }
+    
+    $stmt = $pdo->query("SELECT COUNT(*) FROM settings WHERE setting_key = 'btw_tarief'");
+    if ($stmt->fetchColumn() == 0) {
+        $pdo->prepare("INSERT INTO settings (setting_key, setting_value) VALUES (?, ?)")
+            ->execute(['btw_tarief', '9']);
     }
     
     echo "<p><a href='login.php'>Ga naar login</a></p>";

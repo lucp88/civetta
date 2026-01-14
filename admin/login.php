@@ -2,22 +2,29 @@
 require_once 'config.php';
 
 $error = '';
+$ip = $_SERVER['REMOTE_ADDR'];
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $username = trim($_POST['username'] ?? '');
     $password = $_POST['password'] ?? '';
     
-    if ($username && $password) {
+    if (!checkLoginAttempts($pdo, $ip)) {
+        $error = 'Te veel mislukte pogingen. Probeer het over 15 minuten opnieuw.';
+    } elseif ($username && $password) {
         $stmt = $pdo->prepare("SELECT * FROM users WHERE username = ?");
         $stmt->execute([$username]);
         $user = $stmt->fetch();
         
         if ($user && password_verify($password, $user['password'])) {
+            recordLoginAttempt($pdo, $ip, true);
+            regenerateSession();
             $_SESSION['admin_logged_in'] = true;
             $_SESSION['admin_user'] = $user['username'];
             header('Location: index.php');
             exit;
         } else {
+            recordLoginAttempt($pdo, $ip, false);
+            sleep(1);
             $error = 'Ongeldige gebruikersnaam of wachtwoord';
         }
     } else {

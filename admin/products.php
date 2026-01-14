@@ -2,6 +2,19 @@
 require_once 'config.php';
 requireLogin();
 
+$message = '';
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['save_settings'])) {
+    $btwTarief = floatval($_POST['btw_tarief']);
+    if ($btwTarief >= 0 && $btwTarief <= 100) {
+        $stmt = $pdo->prepare("INSERT INTO settings (setting_key, setting_value) VALUES ('btw_tarief', ?) ON DUPLICATE KEY UPDATE setting_value = ?");
+        $stmt->execute([$btwTarief, $btwTarief]);
+        $message = 'Instellingen opgeslagen.';
+    }
+}
+
+$stmt = $pdo->query("SELECT setting_value FROM settings WHERE setting_key = 'btw_tarief'");
+$btwTarief = $stmt->fetchColumn() ?: '9';
+
 $stmt = $pdo->query("SELECT * FROM products ORDER BY naam ASC");
 $products = $stmt->fetchAll();
 ?>
@@ -109,6 +122,34 @@ $products = $stmt->fetchAll();
         .price {
             font-weight: 500;
         }
+        .settings-card {
+            background: #f9f7f4;
+            border: 1px solid #e8dfd2;
+        }
+        .settings-form {
+            display: flex;
+            gap: 1rem;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+        .settings-form label {
+            font-weight: 500;
+            color: #5c3d1e;
+        }
+        .settings-form input {
+            padding: 0.5rem;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            width: 80px;
+            font-size: 1rem;
+        }
+        .alert {
+            padding: 0.75rem 1rem;
+            border-radius: 6px;
+            margin-bottom: 1rem;
+            background: #d4edda;
+            color: #155724;
+        }
     </style>
 </head>
 <body>
@@ -122,6 +163,21 @@ $products = $stmt->fetchAll();
             <a href="index.php">Dashboard</a>
             <span>›</span>
             Producten
+        </div>
+
+        <?php if ($message): ?>
+            <div class="alert"><?= htmlspecialchars($message) ?></div>
+        <?php endif; ?>
+
+        <div class="card settings-card">
+            <h2>Instellingen</h2>
+            <form method="POST" class="settings-form">
+                <input type="hidden" name="save_settings" value="1">
+                <label for="btw_tarief">BTW-tarief:</label>
+                <input type="number" id="btw_tarief" name="btw_tarief" value="<?= htmlspecialchars($btwTarief) ?>" min="0" max="100" step="0.01">
+                <span>%</span>
+                <button type="submit" class="btn btn-small">Opslaan</button>
+            </form>
         </div>
 
         <div class="card">

@@ -1,15 +1,13 @@
 <?php
-session_start();
+require_once '../admin/config.php';
+require_once 'cors.php';
+
 header('Content-Type: application/json');
-header('Access-Control-Allow-Origin: *');
-header('Access-Control-Allow-Methods: GET, POST, PUT, DELETE, OPTIONS');
-header('Access-Control-Allow-Headers: Content-Type');
+setCorsHeaders();
 
 if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
     exit(0);
 }
-
-require_once '../admin/config.php';
 
 $method = $_SERVER['REQUEST_METHOD'];
 $isAdmin = isset($_SESSION['admin_logged_in']) && $_SESSION['admin_logged_in'] === true;
@@ -19,7 +17,11 @@ try {
         case 'GET':
             $stmt = $pdo->query("SELECT id, naam, ingredienten, beschrijving, prijs, foto FROM products ORDER BY naam ASC");
             $products = $stmt->fetchAll();
-            echo json_encode(['success' => true, 'products' => $products]);
+            
+            $stmt = $pdo->query("SELECT setting_value FROM settings WHERE setting_key = 'btw_tarief'");
+            $btwTarief = floatval($stmt->fetchColumn() ?: 9);
+            
+            echo json_encode(['success' => true, 'products' => $products, 'btw_tarief' => $btwTarief]);
             break;
             
         case 'POST':
