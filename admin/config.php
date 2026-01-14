@@ -15,9 +15,13 @@ try {
         ]
     );
 } catch (PDOException $e) {
-    die("Database verbinding mislukt: " . $e->getMessage());
+    die("Database verbinding mislukt");
 }
 
+ini_set('session.cookie_httponly', 1);
+ini_set('session.cookie_secure', isset($_SERVER['HTTPS']) ? 1 : 0);
+ini_set('session.use_strict_mode', 1);
+ini_set('session.cookie_samesite', 'Strict');
 session_start();
 
 function isLoggedIn() {
@@ -29,5 +33,32 @@ function requireLogin() {
         header('Location: login.php');
         exit;
     }
+}
+
+function regenerateSession() {
+    session_regenerate_id(true);
+}
+
+define('MAX_LOGIN_ATTEMPTS', 5);
+define('LOCKOUT_TIME', 900);
+
+function checkLoginAttempts($pdo, $identifier) {
+    $stmt = $pdo->prepare("SELECT COUNT(*) FROM login_attempts WHERE identifier = ? AND attempt_time > DATE_SUB(NOW(), INTERVAL ? SECOND)");
+    $stmt->execute([$identifier, LOCKOUT_TIME]);
+    return $stmt->fetchColumn() < MAX_LOGIN_ATTEMPTS;
+}
+
+function recordLoginAttempt($pdo, $identifier, $success = false) {
+    if ($success) {
+        $stmt = $pdo->prepare("DELETE FROM login_attempts WHERE identifier = ?");
+        $stmt->execute([$identifier]);
+    } else {
+        $stmt = $pdo->prepare("INSERT INTO login_attempts (identifier, attempt_time) VALUES (?, NOW())");
+        $stmt->execute([$identifier]);
+    }
+}
+
+function cleanOldLoginAttempts($pdo) {
+    $pdo->exec("DELETE FROM login_attempts WHERE attempt_time < DATE_SUB(NOW(), INTERVAL 1 DAY)");
 }
 ?>

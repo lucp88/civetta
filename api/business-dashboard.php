@@ -1,15 +1,13 @@
 <?php
-session_start();
+require_once '../admin/config.php';
+require_once 'cors.php';
+
 header('Content-Type: application/json');
-header('Access-Control-Allow-Origin: *');
-header('Access-Control-Allow-Methods: GET, PUT, OPTIONS');
-header('Access-Control-Allow-Headers: Content-Type');
+setCorsHeaders();
 
 if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
     exit(0);
 }
-
-require_once '../admin/config.php';
 
 if (!isset($_SESSION['business_logged_in']) || !$_SESSION['business_logged_in']) {
     http_response_code(401);
