@@ -236,7 +236,7 @@ class EBoekhoudenClient {
         
         if ($sendEmail && !empty($accountData['email'])) {
             $invoiceData['email'] = [
-                'fromEmail' => 'info@civetta.nl',
+                'fromEmail' => 'info@bakkerij-civetta.nl',
                 'fromName' => 'Bakkerij Civetta',
                 'subject' => 'Uw factuur van Bakkerij Civetta',
                 'body' => 'Beste ' . ($accountData['contactpersoon'] ?? 'klant') . ',<br><br>Hartelijk dank voor uw bestelling. Bijgaand vindt u uw factuur.<br><br>Met vriendelijke groet,<br>Bakkerij Civetta'

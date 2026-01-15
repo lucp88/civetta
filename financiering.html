@@ -344,9 +344,7 @@
                     });
                     const data = await response.json();
                     if (data.success && data.checkoutUrl) {
-                        window.open(data.checkoutUrl, '_blank');
-                        updateButton();
-                        this.style.pointerEvents = 'auto';
+                        window.location.href = data.checkoutUrl;
                     } else {
                         alert(data.error || 'Er ging iets mis');
                         updateButton();

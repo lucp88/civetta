@@ -51,8 +51,23 @@ $status = $payment['status'] ?? '';
 if (isset($payment['metadata']['type']) && $payment['metadata']['type'] === 'crowdfunding') {
     webhookLog("Donation payment - Status: $status");
     try {
-        $stmt = $pdo->prepare("UPDATE donations SET status = ? WHERE mollie_payment_id = ?");
-        $stmt->execute([$status, $paymentId]);
+        $stmt = $pdo->prepare("SELECT id FROM donations WHERE mollie_payment_id = ?");
+        $stmt->execute([$paymentId]);
+        $exists = $stmt->fetch();
+        
+        if (!$exists) {
+            $amount = $payment['amount']['value'] ?? 0;
+            $name = $payment['metadata']['name'] ?? null;
+            $message = $payment['metadata']['message'] ?? null;
+            
+            $stmt = $pdo->prepare("INSERT INTO donations (mollie_payment_id, amount, donor_name, message, status) VALUES (?, ?, ?, ?, ?)");
+            $stmt->execute([$paymentId, $amount, $name, $message, $status]);
+            webhookLog("Donation record aangemaakt via webhook (was niet in DB): $paymentId, bedrag: $amount");
+        } else {
+            $stmt = $pdo->prepare("UPDATE donations SET status = ? WHERE mollie_payment_id = ?");
+            $stmt->execute([$status, $paymentId]);
+            webhookLog("Donation status updated: $paymentId -> $status");
+        }
         
         if ($status === 'paid') {
             $stmt = $pdo->prepare("UPDATE donations SET paid_at = NOW() WHERE mollie_payment_id = ?");
@@ -62,7 +77,7 @@ if (isset($payment['metadata']['type']) && $payment['metadata']['type'] === 'cro
         
         http_response_code(200);
     } catch (PDOException $e) {
-        webhookLog("Donation update error: " . $e->getMessage());
+        webhookLog("Donation error: " . $e->getMessage());
         http_response_code(500);
     }
     exit;
@@ -112,6 +127,7 @@ try {
             $body .= "Gewenste leverdatum: " . date('d-m-Y', strtotime($order['delivery_date'])) . "\n\n";
             $body .= "Producten:\n$itemsList\n";
             $body .= "Totaalbedrag: €" . number_format($order['total_amount'], 2, ',', '.') . "\n\n";
+            $body .= "Uw factuur volgt in een aparte e-mail.\n\n";
             $body .= "We nemen contact met u op om de levering te bevestigen.\n\n";
             $body .= "Met vriendelijke groet,\n";
             $body .= "Bakkerij Civetta\n";
