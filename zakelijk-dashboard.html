@@ -38,375 +38,99 @@
             background: var(--color-crust);
             color: white;
         }
-        .dashboard-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-            gap: var(--spacing-md);
-            align-items: start;
-        }
-        .dashboard-card {
-            background: var(--color-warm-white);
-            border-radius: 16px;
-            padding: var(--spacing-md);
-            box-shadow: 0 4px 20px rgba(139, 90, 43, 0.08);
-        }
-        .dashboard-card h3 {
-            color: var(--color-crust-dark);
-            margin-bottom: var(--spacing-sm);
-        }
-        .profile-details dl {
-            display: grid;
-            gap: var(--spacing-xs);
-        }
-        .profile-details dt {
-            font-size: 0.75rem;
-            color: var(--color-wheat);
-            text-transform: uppercase;
-            letter-spacing: 0.05em;
-            font-weight: 600;
-        }
-        .profile-details dd {
-            color: var(--color-stone);
-            margin-bottom: var(--spacing-xs);
-        }
-        .card-actions {
-            margin-top: var(--spacing-md);
-            padding-top: var(--spacing-sm);
-            border-top: 1px solid var(--color-parchment);
-        }
         .btn-small {
             padding: 0.5rem 1rem;
             font-size: 0.85rem;
         }
-        .orders-placeholder {
-            text-align: center;
-            padding: var(--spacing-md);
-            color: var(--color-stone);
-        }
-        .orders-placeholder p {
-            margin-bottom: var(--spacing-sm);
-        }
-        .collapsible-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            cursor: pointer;
-            user-select: none;
-        }
-        .collapsible-header h3 {
-            margin-bottom: 0;
-        }
-        .collapsible-header .toggle-icon {
-            font-size: 1.25rem;
-            transition: transform 0.3s ease;
-        }
-        .collapsible-header .toggle-icon.rotated {
-            transform: rotate(180deg);
-        }
-        .collapsible-content {
-            max-height: 0;
-            overflow: hidden;
-            transition: max-height 0.3s ease;
-        }
-        .collapsible-content.expanded {
-            max-height: 1000px;
-        }
-        .dashboard-sidebar {
-            display: flex;
-            flex-direction: column;
+        .dashboard-nav {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
             gap: var(--spacing-md);
+            margin-bottom: var(--spacing-lg);
         }
-        .btn-new-order {
+        .nav-card {
+            display: flex;
+            align-items: center;
+            gap: var(--spacing-md);
+            padding: var(--spacing-md);
+            background: var(--color-warm-white);
+            border-radius: 16px;
+            text-decoration: none;
+            color: inherit;
+            box-shadow: 0 4px 20px rgba(139, 90, 43, 0.08);
+            transition: transform 0.2s ease, box-shadow 0.2s ease;
+        }
+        .nav-card:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 8px 30px rgba(139, 90, 43, 0.15);
+        }
+        .nav-card-icon {
+            width: 60px;
+            height: 60px;
+            border-radius: 12px;
             display: flex;
             align-items: center;
             justify-content: center;
-            gap: 0.5rem;
-            padding: 1.25rem;
-            background: #d4edda;
+            font-size: 1.75rem;
+            flex-shrink: 0;
+        }
+        .nav-card-icon.green {
+            background: linear-gradient(135deg, #d4edda, #c3e6cb);
             color: #155724;
-            text-decoration: none;
-            border-radius: 16px;
+        }
+        .nav-card-icon.blue {
+            background: linear-gradient(135deg, #cce5ff, #b8daff);
+            color: #004085;
+        }
+        .nav-card-icon.purple {
+            background: linear-gradient(135deg, #e2e3ff, #c5c6fe);
+            color: #4a4b98;
+        }
+        .nav-card-content h3 {
+            margin: 0 0 0.25rem 0;
             font-size: 1.1rem;
+            color: var(--color-crust-dark);
+        }
+        .nav-card-content p {
+            margin: 0;
+            font-size: 0.9rem;
+            color: var(--color-stone);
+        }
+        .nav-card-badge {
+            background: var(--color-terracotta);
+            color: white;
+            padding: 0.2rem 0.5rem;
+            border-radius: 50px;
+            font-size: 0.75rem;
             font-weight: 600;
-            transition: background 0.2s ease, transform 0.2s ease;
-            box-shadow: 0 4px 15px rgba(0, 100, 0, 0.1);
+            margin-left: auto;
         }
-        .btn-new-order:hover {
-            background: #c3e6cb;
-            transform: translateY(-2px);
-        }
-        .btn-new-order-icon {
-            font-size: 1.4rem;
-            font-weight: 300;
-        }
-        .orders-list {
-            display: flex;
-            flex-direction: column;
+        .quick-stats {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
             gap: var(--spacing-md);
         }
-        .order-card {
-            background: white;
-            border-radius: 12px;
-            overflow: hidden;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.08);
-            border: 1px solid #e8e8e8;
-            transition: box-shadow 0.2s ease, transform 0.2s ease;
+        .stat-card {
+            background: var(--color-warm-white);
+            border-radius: 16px;
+            padding: var(--spacing-md);
+            box-shadow: 0 4px 20px rgba(139, 90, 43, 0.08);
+            text-align: center;
         }
-        .order-card:hover {
-            box-shadow: 0 4px 16px rgba(0,0,0,0.12);
-            transform: translateY(-2px);
-        }
-        .order-card-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            padding: 0.85rem 1.25rem;
-            background: linear-gradient(135deg, #f8f9fa 0%, #fff 100%);
-            border-bottom: 1px solid #eee;
-            cursor: pointer;
-            user-select: none;
-        }
-        .order-header-left {
-            display: flex;
-            align-items: center;
-            gap: 0.5rem;
-            flex-wrap: wrap;
-        }
-        .order-header-right {
-            display: flex;
-            align-items: center;
-            gap: 0.5rem;
-        }
-        .order-card-header .order-toggle {
+        .stat-card h4 {
+            margin: 0 0 0.5rem 0;
             font-size: 0.85rem;
-            color: #aaa;
-            transition: transform 0.3s ease;
-        }
-        .order-card-header .order-toggle.open {
-            transform: rotate(180deg);
-        }
-        .order-card-header .order-id {
-            font-weight: 600;
-            font-size: 0.9rem;
-            color: #333;
-        }
-        .order-status {
-            padding: 0.25rem 0.6rem;
-            border-radius: 50px;
-            font-size: 0.65rem;
-            font-weight: 600;
-            text-transform: uppercase;
-            letter-spacing: 0.3px;
-        }
-        .order-status.pending { background: linear-gradient(135deg, #fff3cd, #ffe69c); color: #856404; }
-        .order-status.paid { background: linear-gradient(135deg, #d1e7dd, #a3cfbb); color: #0f5132; }
-        .order-status.confirmed { background: linear-gradient(135deg, #cfe2ff, #9ec5fe); color: #084298; }
-        .order-status.delivered { background: linear-gradient(135deg, #d3d3d3, #b8b8b8); color: #333; }
-        .order-status.cancelled { background: linear-gradient(135deg, #f8d7da, #f1aeb5); color: #842029; }
-        .btn-pay-now {
-            display: inline-block;
-            padding: 0.25rem 0.6rem;
-            background: #28a745;
-            color: white;
-            text-decoration: none;
-            border-radius: 4px;
-            font-size: 0.65rem;
-            font-weight: 600;
-            text-transform: uppercase;
-            letter-spacing: 0.3px;
-        }
-        .btn-pay-now:hover {
-            background: #218838;
-        }
-        .btn-invoice {
-            display: inline-block;
-            padding: 0.25rem 0.6rem;
-            background: transparent;
-            color: #666;
-            text-decoration: none;
-            border: 1px solid #ddd;
-            border-radius: 4px;
-            font-size: 0.65rem;
-            font-weight: 600;
-            text-transform: uppercase;
-            letter-spacing: 0.3px;
-        }
-        .btn-invoice:hover {
-            background: #f5f5f5;
-            border-color: #ccc;
-            color: #333;
-        }
-        .order-card-body {
-            padding: 1rem 1.25rem;
-            max-height: 0;
-            overflow: hidden;
-            padding: 0 1.25rem;
-            transition: max-height 0.3s ease, padding 0.3s ease;
-        }
-        .order-card-body.open {
-            max-height: 500px;
-            padding: 1rem 1.25rem;
-        }
-        .order-meta {
-            display: flex;
-            gap: 1.5rem;
-            margin-bottom: 1rem;
-            padding-bottom: 1rem;
-            border-bottom: 1px solid #f0f0f0;
-        }
-        .order-meta-item {
-            display: flex;
-            flex-direction: column;
-            gap: 0.2rem;
-        }
-        .order-meta-label {
-            font-size: 0.7rem;
-            color: #888;
+            color: var(--color-stone);
             text-transform: uppercase;
             letter-spacing: 0.5px;
-            font-weight: 600;
         }
-        .order-meta-value {
-            font-size: 0.9rem;
-            color: #333;
-            font-weight: 500;
-        }
-        .order-meta-value.price {
+        .stat-card .value {
+            font-size: 2rem;
             font-weight: 700;
             color: var(--color-crust-dark);
         }
-        .order-products {
-            display: flex;
-            flex-direction: column;
-            gap: 0.75rem;
-        }
-        .order-product-item {
-            display: flex;
-            align-items: center;
-            gap: 0.75rem;
-            padding: 0.5rem;
-            background: #f9f9f9;
-            border-radius: 8px;
-        }
-        .order-product-img {
-            width: 50px;
-            height: 50px;
-            border-radius: 6px;
-            object-fit: cover;
-            background: #eee;
-            flex-shrink: 0;
-        }
-        .order-product-img-placeholder {
-            width: 50px;
-            height: 50px;
-            border-radius: 6px;
-            background: linear-gradient(135deg, #e8e8e8, #d0d0d0);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            color: #999;
-            font-size: 1.25rem;
-            flex-shrink: 0;
-        }
-        .order-product-info {
-            flex: 1;
-            min-width: 0;
-        }
-        .order-product-name {
-            font-weight: 600;
-            color: #333;
-            font-size: 0.9rem;
-            margin-bottom: 0.15rem;
-        }
-        .order-product-qty {
-            font-size: 0.8rem;
-            color: #666;
-        }
-        .order-product-price {
-            font-weight: 600;
-            color: var(--color-crust);
-            font-size: 0.9rem;
-            text-align: right;
-        }
-        .modal-overlay {
-            display: none;
-            position: fixed;
-            top: 0;
-            left: 0;
-            right: 0;
-            bottom: 0;
-            background: rgba(0,0,0,0.5);
-            z-index: 1000;
-            align-items: center;
-            justify-content: center;
-        }
-        .modal-overlay.active {
-            display: flex;
-        }
-        .modal {
-            background: white;
-            border-radius: 16px;
-            padding: var(--spacing-lg);
-            width: 100%;
-            max-width: 500px;
-            max-height: 90vh;
-            overflow-y: auto;
-            margin: var(--spacing-sm);
-        }
-        .modal h3 {
-            color: var(--color-crust-dark);
-            margin-bottom: var(--spacing-md);
-        }
-        .modal .form-group {
-            margin-bottom: var(--spacing-sm);
-        }
-        .modal .form-group label {
-            display: block;
-            margin-bottom: 0.25rem;
-            color: var(--color-stone);
-            font-weight: 500;
-            font-size: 0.9rem;
-        }
-        .modal .form-group input {
-            width: 100%;
-            padding: 0.75rem;
-            border: 2px solid var(--color-parchment);
-            border-radius: 8px;
-            font-size: 1rem;
-            font-family: var(--font-body);
-        }
-        .modal .form-group input:focus {
-            outline: none;
-            border-color: var(--color-wheat);
-        }
-        .modal .form-row {
-            display: grid;
-            grid-template-columns: 1fr 2fr;
-            gap: var(--spacing-sm);
-        }
-        .modal-actions {
-            display: flex;
-            gap: var(--spacing-sm);
-            margin-top: var(--spacing-md);
-        }
-        .modal-actions .btn {
-            flex: 1;
-        }
-        .error-msg {
-            background: #fee;
-            color: #c00;
-            padding: 0.75rem;
-            border-radius: 8px;
-            margin-bottom: var(--spacing-sm);
-            font-size: 0.9rem;
-        }
-        .success-msg {
-            background: #d4edda;
-            color: #155724;
-            padding: 0.75rem;
-            border-radius: 8px;
-            margin-bottom: var(--spacing-sm);
-            font-size: 0.9rem;
+        .stat-card .value.price {
+            color: var(--color-terracotta);
         }
         .loading {
             text-align: center;
@@ -417,9 +141,6 @@
             .dashboard-header {
                 flex-direction: column;
                 align-items: flex-start;
-            }
-            .modal .form-row {
-                grid-template-columns: 1fr;
             }
         }
     </style>
@@ -470,197 +191,48 @@
                             </div>
                         </div>
 
-                        <div class="dashboard-grid">
-                            <div class="dashboard-card">
-                                <h3>Mijn Bestellingen</h3>
-                                <div v-if="ordersLoading" class="loading">Bestellingen laden...</div>
-                                <div v-else-if="orders.length === 0" class="orders-placeholder">
-                                    <p>U heeft nog geen bestellingen geplaatst.</p>
-                                    <p><small>Klik op "Nieuwe Bestelling" om uw eerste bestelling te plaatsen.</small></p>
+                        <div class="dashboard-nav">
+                            <a href="bestelling-plaatsen.html" class="nav-card">
+                                <div class="nav-card-icon green">+</div>
+                                <div class="nav-card-content">
+                                    <h3>Nieuwe Bestelling</h3>
+                                    <p>Plaats een nieuwe bestelling</p>
                                 </div>
-                                <div v-else class="orders-list">
-                                    <div v-for="order in orders" :key="order.id" class="order-card">
-                                        <div class="order-card-header" @click="toggleOrder(order.id)">
-                                            <div class="order-header-left">
-                                                <span class="order-id">Bestelling #{{ order.id }}</span>
-                                                <span :class="'order-status ' + getDisplayStatus(order)">{{ getStatusLabel(getDisplayStatus(order)) }}</span>
-                                                <a v-if="order.payment_url" :href="order.payment_url" class="btn-pay-now" @click.stop>Betalen</a>
-                                            </div>
-                                            <div class="order-header-right">
-                                                <a v-if="order.factuur_url" :href="order.factuur_url" target="_blank" class="btn-invoice" @click.stop>
-                                                    Factuur {{ order.factuur_nummer }}
-                                                </a>
-                                                <span class="order-toggle" :class="{ open: openOrders.includes(order.id) }">▼</span>
-                                            </div>
-                                        </div>
-                                        <div class="order-card-body" :class="{ open: openOrders.includes(order.id) }">
-                                            <div class="order-meta">
-                                                <div class="order-meta-item">
-                                                    <span class="order-meta-label">Leverdatum</span>
-                                                    <span class="order-meta-value">{{ formatDateShort(order.delivery_date) }}</span>
-                                                </div>
-                                                <div class="order-meta-item">
-                                                    <span class="order-meta-label">Excl. BTW</span>
-                                                    <span class="order-meta-value">{{ formatPrice(order.excl_btw) }}</span>
-                                                </div>
-                                                <div class="order-meta-item">
-                                                    <span class="order-meta-label">BTW ({{ order.btw_tarief }}%)</span>
-                                                    <span class="order-meta-value">{{ formatPrice(order.btw_bedrag) }}</span>
-                                                </div>
-                                                <div class="order-meta-item">
-                                                    <span class="order-meta-label">Totaal incl. BTW</span>
-                                                    <span class="order-meta-value price">{{ formatPrice(order.total_amount) }}</span>
-                                                </div>
-                                            </div>
-                                            <div class="order-products">
-                                                <div v-for="(item, idx) in order.items" :key="idx" class="order-product-item">
-                                                    <img v-if="item.product_image" :src="item.product_image" :alt="item.product_name" class="order-product-img">
-                                                    <div v-else class="order-product-img-placeholder"></div>
-                                                    <div class="order-product-info">
-                                                        <div class="order-product-name">{{ item.product_name }}</div>
-                                                        <div class="order-product-qty">{{ item.quantity }} stuks</div>
-                                                    </div>
-                                                    <div class="order-product-price">{{ formatPrice(item.subtotal) }}</div>
-                                                </div>
-                                            </div>
-                                        </div>
-                                    </div>
+                            </a>
+                            
+                            <a href="mijn-bestellingen.html" class="nav-card">
+                                <div class="nav-card-icon blue">&#128230;</div>
+                                <div class="nav-card-content">
+                                    <h3>Mijn Bestellingen</h3>
+                                    <p>Bekijk lopende en afgeronde bestellingen</p>
                                 </div>
-                            </div>
+                                <span v-if="lopendeBestellingen > 0" class="nav-card-badge">{{ lopendeBestellingen }}</span>
+                            </a>
+                            
+                            <a href="bedrijfsgegevens.html" class="nav-card">
+                                <div class="nav-card-icon purple">&#9881;</div>
+                                <div class="nav-card-content">
+                                    <h3>Bedrijfsgegevens</h3>
+                                    <p>Beheer uw bedrijfsinformatie</p>
+                                </div>
+                            </a>
+                        </div>
 
-                            <div class="dashboard-sidebar">
-                                <a href="bestelling-plaatsen.html" class="btn-new-order">
-                                    <span class="btn-new-order-icon">+</span>
-                                    <span>Nieuwe Bestelling</span>
-                                </a>
-
-                                <div class="dashboard-card">
-                                    <div class="collapsible-header" @click="toggleDetails">
-                                        <h3>Bedrijfsgegevens</h3>
-                                    <span class="toggle-icon" :class="{ rotated: detailsExpanded }">▼</span>
-                                </div>
-                                <div class="collapsible-content" :class="{ expanded: detailsExpanded }">
-                                <div class="profile-details" style="padding-top: var(--spacing-sm);">
-                                    <dl>
-                                        <dt>Bedrijfsnaam</dt>
-                                        <dd>{{ account.bedrijfsnaam }}</dd>
-                                        
-                                        <dt>Adres</dt>
-                                        <dd>{{ account.adres }}<br>{{ account.postcode }} {{ account.plaats }}</dd>
-                                        
-                                        <dt>Contactpersoon</dt>
-                                        <dd>{{ account.contactpersoon }}</dd>
-                                        
-                                        <dt>E-mail</dt>
-                                        <dd>{{ account.email }}</dd>
-                                        
-                                        <dt>Telefoon</dt>
-                                        <dd>{{ account.telefoon || '-' }}</dd>
-                                        
-                                        <dt>KVK-nummer</dt>
-                                        <dd>{{ account.kvk_nummer || '-' }}</dd>
-                                        
-                                        <dt>BTW-ID</dt>
-                                        <dd>{{ account.btw_id || '-' }}</dd>
-                                        
-                                        <dt v-if="account.website">Website</dt>
-                                        <dd v-if="account.website"><a :href="account.website" target="_blank">{{ account.website }}</a></dd>
-                                    </dl>
-                                </div>
-                                <div class="card-actions">
-                                    <button @click="openEditModal" class="btn btn-small">Gegevens bewerken</button>
-                                    <button @click="openPasswordModal" class="btn btn-outline btn-small">Wachtwoord wijzigen</button>
-                                </div>
-                                </div>
+                        <div class="quick-stats">
+                            <div class="stat-card">
+                                <h4>Lopende Bestellingen</h4>
+                                <div class="value">{{ lopendeBestellingen }}</div>
                             </div>
+                            <div class="stat-card">
+                                <h4>Afgeronde Bestellingen</h4>
+                                <div class="value">{{ afgerondeBestellingen }}</div>
+                            </div>
+                            <div class="stat-card">
+                                <h4>Totaal Besteld</h4>
+                                <div class="value price">{{ formatPrice(totaalBesteld) }}</div>
                             </div>
                         </div>
                     </template>
-
-                    <div class="modal-overlay" :class="{ active: showEditModal }" @click.self="closeEditModal">
-                        <div class="modal">
-                            <h3>Gegevens bewerken</h3>
-                            <div v-if="editError" class="error-msg">{{ editError }}</div>
-                            <div v-if="editSuccess" class="success-msg">{{ editSuccess }}</div>
-                            <form @submit.prevent="saveProfile">
-                                <div class="form-group">
-                                    <label>Bedrijfsnaam *</label>
-                                    <input type="text" v-model="editForm.bedrijfsnaam" required>
-                                </div>
-                                <div class="form-group">
-                                    <label>Adres *</label>
-                                    <input type="text" v-model="editForm.adres" required>
-                                </div>
-                                <div class="form-row">
-                                    <div class="form-group">
-                                        <label>Postcode</label>
-                                        <input type="text" v-model="editForm.postcode">
-                                    </div>
-                                    <div class="form-group">
-                                        <label>Plaats</label>
-                                        <input type="text" v-model="editForm.plaats">
-                                    </div>
-                                </div>
-                                <div class="form-group">
-                                    <label>Contactpersoon *</label>
-                                    <input type="text" v-model="editForm.contactpersoon" required>
-                                </div>
-                                <div class="form-group">
-                                    <label>E-mail</label>
-                                    <input type="email" :value="account.email" disabled style="background: #f0f0f0; cursor: not-allowed;">
-                                    <small style="color: #888;">E-mail kan niet gewijzigd worden</small>
-                                </div>
-                                <div class="form-group">
-                                    <label>Telefoon</label>
-                                    <input type="tel" v-model="editForm.telefoon">
-                                </div>
-                                <div class="form-group">
-                                    <label>Website</label>
-                                    <input type="url" v-model="editForm.website" placeholder="https://">
-                                </div>
-                                <div class="form-row">
-                                    <div class="form-group">
-                                        <label>KVK-nummer</label>
-                                        <input type="text" v-model="editForm.kvk_nummer">
-                                    </div>
-                                    <div class="form-group">
-                                        <label>BTW-ID</label>
-                                        <input type="text" v-model="editForm.btw_id">
-                                    </div>
-                                </div>
-                                <div class="modal-actions">
-                                    <button type="button" class="btn btn-outline" @click="closeEditModal">Annuleren</button>
-                                    <button type="submit" class="btn" :disabled="saving">{{ saving ? 'Opslaan...' : 'Opslaan' }}</button>
-                                </div>
-                            </form>
-                        </div>
-                    </div>
-
-                    <div class="modal-overlay" :class="{ active: showPasswordModal }" @click.self="closePasswordModal">
-                        <div class="modal">
-                            <h3>Wachtwoord wijzigen</h3>
-                            <div v-if="passwordError" class="error-msg">{{ passwordError }}</div>
-                            <div v-if="passwordSuccess" class="success-msg">{{ passwordSuccess }}</div>
-                            <form @submit.prevent="changePassword">
-                                <div class="form-group">
-                                    <label>Huidig wachtwoord *</label>
-                                    <input type="password" v-model="passwordForm.current" required>
-                                </div>
-                                <div class="form-group">
-                                    <label>Nieuw wachtwoord * (minimaal 8 tekens)</label>
-                                    <input type="password" v-model="passwordForm.new" required minlength="8">
-                                </div>
-                                <div class="form-group">
-                                    <label>Bevestig nieuw wachtwoord *</label>
-                                    <input type="password" v-model="passwordForm.confirm" required>
-                                </div>
-                                <div class="modal-actions">
-                                    <button type="button" class="btn btn-outline" @click="closePasswordModal">Annuleren</button>
-                                    <button type="submit" class="btn" :disabled="savingPassword">{{ savingPassword ? 'Wijzigen...' : 'Wijzigen' }}</button>
-                                </div>
-                            </form>
-                        </div>
-                    </div>
                 </div>
             </div>
         </section>
@@ -683,6 +255,92 @@
 
     <script src="https://unpkg.com/vue@3/dist/vue.global.prod.js"></script>
     <script src="js/main.js"></script>
-    <script src="js/dashboard-app.js"></script>
+    <script>
+        const { createApp } = Vue;
+        
+        createApp({
+            data() {
+                return {
+                    loading: true,
+                    account: {},
+                    orders: []
+                };
+            },
+            
+            computed: {
+                lopendeBestellingen() {
+                    return this.orders.filter(o => 
+                        !['delivered', 'cancelled'].includes(o.status) && 
+                        !['delivered', 'cancelled'].includes(o.mollie_status)
+                    ).length;
+                },
+                afgerondeBestellingen() {
+                    return this.orders.filter(o => 
+                        ['delivered', 'cancelled'].includes(o.status) || 
+                        ['delivered', 'cancelled'].includes(o.mollie_status)
+                    ).length;
+                },
+                totaalBesteld() {
+                    return this.orders.reduce((sum, o) => sum + parseFloat(o.total_amount || 0), 0);
+                }
+            },
+            
+            async mounted() {
+                const stored = sessionStorage.getItem('businessAccount');
+                if (!stored) {
+                    window.location.href = 'login-bedrijven.html';
+                    return;
+                }
+                
+                await Promise.all([
+                    this.loadProfile(),
+                    this.loadOrders()
+                ]);
+            },
+            
+            methods: {
+                async loadProfile() {
+                    try {
+                        const response = await fetch('api/business-dashboard.php?action=profile');
+                        const data = await response.json();
+                        
+                        if (data.success) {
+                            this.account = data.account;
+                            this.loading = false;
+                        } else {
+                            sessionStorage.removeItem('businessAccount');
+                            window.location.href = 'login-bedrijven.html';
+                        }
+                    } catch (error) {
+                        sessionStorage.removeItem('businessAccount');
+                        window.location.href = 'login-bedrijven.html';
+                    }
+                },
+                
+                async loadOrders() {
+                    try {
+                        const response = await fetch('api/business-orders.php');
+                        const data = await response.json();
+                        if (data.success) {
+                            this.orders = data.orders;
+                        }
+                    } catch (error) {
+                        console.error('Kon bestellingen niet laden');
+                    }
+                },
+                
+                logout() {
+                    sessionStorage.removeItem('businessAccount');
+                    fetch('api/business-logout.php');
+                    window.location.href = 'index.html';
+                },
+                
+                formatPrice(amount) {
+                    if (!amount) return '€ 0,00';
+                    return new Intl.NumberFormat('nl-NL', { style: 'currency', currency: 'EUR' }).format(amount);
+                }
+            }
+        }).mount('#dashboard-app');
+    </script>
 </body>
 </html>

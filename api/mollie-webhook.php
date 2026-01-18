@@ -161,10 +161,12 @@ try {
                         $btwCode = 'HOOG_VERK_21';
                     }
                     
+                    $templateId = $eboekhoudenSettings['eboekhouden_template_id_betaald'];
+                    
                     $result = $client->createFullInvoice(
                         $accountData,
                         $items,
-                        $eboekhoudenSettings['eboekhouden_template_id'],
+                        $templateId,
                         $eboekhoudenSettings['eboekhouden_ledger_id'],
                         $btwCode,
                         true

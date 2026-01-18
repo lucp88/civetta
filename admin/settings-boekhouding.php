@@ -10,7 +10,8 @@ $testResult = null;
 $boekhoudingVelden = [
     'facturatie_systeem' => 'eigen',
     'eboekhouden_api_token' => '',
-    'eboekhouden_template_id' => '',
+    'eboekhouden_template_id_betaald' => '',
+    'eboekhouden_template_id_openstaand' => '',
     'eboekhouden_ledger_id' => '',
     'btw_tarief' => '9'
 ];
@@ -298,9 +299,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     </div>
                     
                     <div class="form-group">
-                        <label for="eboekhouden_template_id">Factuur Template ID</label>
-                        <input type="text" id="eboekhouden_template_id" name="eboekhouden_template_id" value="<?= htmlspecialchars($huidigeWaarden['eboekhouden_template_id']) ?>">
-                        <p class="help-text">ID van je factuursjabloon in e-Boekhouden</p>
+                        <label for="eboekhouden_template_id_betaald">Factuur Template ID - Betaald</label>
+                        <input type="text" id="eboekhouden_template_id_betaald" name="eboekhouden_template_id_betaald" value="<?= htmlspecialchars($huidigeWaarden['eboekhouden_template_id_betaald']) ?>">
+                        <p class="help-text">Template voor facturen die direct betaald zijn (via Mollie)</p>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="eboekhouden_template_id_openstaand">Factuur Template ID - Openstaand</label>
+                        <input type="text" id="eboekhouden_template_id_openstaand" name="eboekhouden_template_id_openstaand" value="<?= htmlspecialchars($huidigeWaarden['eboekhouden_template_id_openstaand']) ?>">
+                        <p class="help-text">Template voor facturen met betaaltermijn (betaal later)</p>
                     </div>
                     
                     <div class="form-group">

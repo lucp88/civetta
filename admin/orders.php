@@ -27,7 +27,7 @@ function berekenBtw($totaalInclBtw, $tarief) {
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['update_status'])) {
     $orderId = intval($_POST['order_id']);
     $newStatus = $_POST['status'];
-    $validStatuses = ['pending', 'paid', 'confirmed', 'delivered', 'cancelled'];
+    $validStatuses = ['pending', 'pending_invoice', 'paid', 'confirmed', 'delivered', 'cancelled'];
     
     if (in_array($newStatus, $validStatuses)) {
         $stmt = $pdo->prepare("UPDATE business_orders SET status = ? WHERE id = ?");
@@ -193,6 +193,7 @@ $totalCompleted = array_sum(array_column($completedOrders, 'total_amount'));
             text-transform: uppercase;
         }
         .status-badge.pending { background: #fff3cd; color: #856404; }
+        .status-badge.pending_invoice { background: #e2e3ff; color: #4a4b98; }
         .status-badge.paid { background: #d1e7dd; color: #0f5132; }
         .status-badge.confirmed { background: #cfe2ff; color: #084298; }
         .status-badge.delivered { background: #e2e3e5; color: #41464b; }
@@ -449,6 +450,7 @@ $totalCompleted = array_sum(array_column($completedOrders, 'total_amount'));
                                     <label>Status:</label>
                                     <select name="status">
                                         <option value="pending" <?= $order['status'] === 'pending' ? 'selected' : '' ?>>Pending</option>
+                                        <option value="pending_invoice" <?= $order['status'] === 'pending_invoice' ? 'selected' : '' ?>>Factuur verzonden</option>
                                         <option value="paid" <?= $order['status'] === 'paid' ? 'selected' : '' ?>>Betaald</option>
                                         <option value="confirmed" <?= $order['status'] === 'confirmed' ? 'selected' : '' ?>>Bevestigd</option>
                                         <option value="delivered" <?= $order['status'] === 'delivered' ? 'selected' : '' ?>>Geleverd</option>

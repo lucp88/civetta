@@ -291,7 +291,7 @@ function getEBoekhoudenClient($pdo) {
 
 function getEBoekhoudenSettings($pdo) {
     $settings = [];
-    $keys = ['facturatie_systeem', 'eboekhouden_api_token', 'eboekhouden_template_id', 'eboekhouden_ledger_id', 'btw_tarief'];
+    $keys = ['facturatie_systeem', 'eboekhouden_api_token', 'eboekhouden_template_id_betaald', 'eboekhouden_template_id_openstaand', 'eboekhouden_ledger_id', 'btw_tarief'];
     
     foreach ($keys as $key) {
         $stmt = $pdo->prepare("SELECT setting_value FROM settings WHERE setting_key = ?");

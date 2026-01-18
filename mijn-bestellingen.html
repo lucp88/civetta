@@ -1,0 +1,890 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mijn Bestellingen | Bakkerij Civetta</title>
+    <link rel="stylesheet" href="css/style.css">
+    <style>
+        [v-cloak] { display: none; }
+        .orders-page {
+            padding: var(--spacing-lg) 0;
+            min-height: calc(100vh - 300px);
+        }
+        .page-header-bar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: var(--spacing-lg);
+            flex-wrap: wrap;
+            gap: var(--spacing-sm);
+        }
+        .back-link {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            color: var(--color-crust);
+            text-decoration: none;
+            font-weight: 500;
+        }
+        .back-link:hover {
+            color: var(--color-terracotta);
+        }
+        .action-buttons {
+            display: flex;
+            gap: var(--spacing-sm);
+            flex-wrap: wrap;
+        }
+        .btn-action {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 0.75rem 1.5rem;
+            border-radius: 8px;
+            font-weight: 600;
+            text-decoration: none;
+            transition: all 0.2s ease;
+        }
+        .btn-new-order {
+            background: #d4edda;
+            color: #155724;
+        }
+        .btn-new-order:hover {
+            background: #c3e6cb;
+        }
+        .btn-new-favorite {
+            background: #fff3cd;
+            color: #856404;
+        }
+        .btn-new-favorite:hover {
+            background: #ffe69c;
+        }
+        .content-section {
+            background: var(--color-warm-white);
+            border-radius: 16px;
+            padding: var(--spacing-md);
+            box-shadow: 0 4px 20px rgba(139, 90, 43, 0.08);
+            margin-bottom: var(--spacing-lg);
+        }
+        .content-section h3 {
+            color: var(--color-crust-dark);
+            margin-bottom: var(--spacing-md);
+            padding-bottom: var(--spacing-sm);
+            border-bottom: 2px solid var(--color-parchment);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .orders-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: var(--spacing-md);
+        }
+        @media (max-width: 900px) {
+            .orders-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+        .orders-column {
+            display: flex;
+            flex-direction: column;
+            gap: var(--spacing-sm);
+        }
+        .orders-column h4 {
+            font-size: 0.9rem;
+            color: var(--color-stone);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: var(--spacing-xs);
+            padding-bottom: var(--spacing-xs);
+            border-bottom: 1px solid var(--color-parchment);
+        }
+        .orders-scroll {
+            max-height: 400px;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            gap: var(--spacing-sm);
+            padding-right: var(--spacing-xs);
+        }
+        .order-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 0.75rem 1rem;
+            background: white;
+            border-radius: 8px;
+            border: 1px solid #e8e8e8;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+        .order-row:hover {
+            border-color: var(--color-crust);
+            box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+        }
+        .order-row-info {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            flex-wrap: wrap;
+        }
+        .order-row-id {
+            font-weight: 600;
+            color: var(--color-crust-dark);
+        }
+        .order-row-date {
+            font-size: 0.85rem;
+            color: var(--color-stone);
+        }
+        .order-row-price {
+            font-weight: 600;
+            color: var(--color-crust);
+        }
+        .order-status {
+            padding: 0.2rem 0.5rem;
+            border-radius: 50px;
+            font-size: 0.6rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.3px;
+        }
+        .order-status.pending { background: linear-gradient(135deg, #fff3cd, #ffe69c); color: #856404; }
+        .order-status.pending_invoice { background: linear-gradient(135deg, #e2e3ff, #c5c6fe); color: #4a4b98; }
+        .order-status.paid { background: linear-gradient(135deg, #d1e7dd, #a3cfbb); color: #0f5132; }
+        .order-status.confirmed { background: linear-gradient(135deg, #cfe2ff, #9ec5fe); color: #084298; }
+        .order-status.delivered { background: linear-gradient(135deg, #d3d3d3, #b8b8b8); color: #333; }
+        .order-status.cancelled { background: linear-gradient(135deg, #f8d7da, #f1aeb5); color: #842029; }
+        .favorites-list {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+            gap: var(--spacing-sm);
+        }
+        .favorite-card {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 1rem;
+            background: white;
+            border-radius: 8px;
+            border: 1px solid #e8e8e8;
+            transition: all 0.2s ease;
+        }
+        .favorite-card:hover {
+            border-color: var(--color-wheat);
+            box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+        }
+        .favorite-info h4 {
+            margin: 0 0 0.25rem 0;
+            font-size: 1rem;
+            color: var(--color-crust-dark);
+        }
+        .favorite-info p {
+            margin: 0;
+            font-size: 0.85rem;
+            color: var(--color-stone);
+        }
+        .favorite-actions {
+            display: flex;
+            gap: 0.5rem;
+        }
+        .btn-icon {
+            width: 32px;
+            height: 32px;
+            border-radius: 6px;
+            border: 1px solid #ddd;
+            background: white;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.9rem;
+            transition: all 0.2s ease;
+        }
+        .btn-icon:hover {
+            background: #f5f5f5;
+            border-color: #ccc;
+        }
+        .btn-icon.use {
+            background: #d4edda;
+            border-color: #c3e6cb;
+            color: #155724;
+        }
+        .btn-icon.use:hover {
+            background: #c3e6cb;
+        }
+        .btn-icon.delete {
+            color: #dc3545;
+        }
+        .btn-icon.delete:hover {
+            background: #f8d7da;
+            border-color: #f1aeb5;
+        }
+        .btn-small {
+            padding: 0.5rem 1rem !important;
+            font-size: 0.85rem !important;
+        }
+        .empty-state {
+            text-align: center;
+            padding: var(--spacing-md);
+            color: var(--color-stone);
+        }
+        .loading {
+            text-align: center;
+            padding: var(--spacing-lg);
+            color: var(--color-stone);
+        }
+        .modal-overlay {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0,0,0,0.5);
+            z-index: 1000;
+            align-items: center;
+            justify-content: center;
+        }
+        .modal-overlay.active {
+            display: flex;
+        }
+        .modal {
+            background: white;
+            border-radius: 16px;
+            padding: var(--spacing-lg);
+            width: 100%;
+            max-width: 600px;
+            max-height: 90vh;
+            overflow-y: auto;
+            margin: var(--spacing-sm);
+        }
+        .modal h3 {
+            color: var(--color-crust-dark);
+            margin-bottom: var(--spacing-md);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .modal-close {
+            background: none;
+            border: none;
+            font-size: 1.5rem;
+            cursor: pointer;
+            color: #999;
+            line-height: 1;
+        }
+        .modal-close:hover {
+            color: #333;
+        }
+        .order-detail-meta {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+            gap: var(--spacing-sm);
+            padding: var(--spacing-md);
+            background: var(--color-parchment);
+            border-radius: 8px;
+            margin-bottom: var(--spacing-md);
+        }
+        .order-detail-meta-item {
+            text-align: center;
+        }
+        .order-detail-meta-item .label {
+            font-size: 0.7rem;
+            color: var(--color-stone);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            display: block;
+            margin-bottom: 0.25rem;
+        }
+        .order-detail-meta-item .value {
+            font-weight: 600;
+            color: var(--color-crust-dark);
+        }
+        .order-detail-meta-item .value.price {
+            color: var(--color-terracotta);
+            font-size: 1.1rem;
+        }
+        .order-products-list {
+            display: flex;
+            flex-direction: column;
+            gap: 0.75rem;
+            margin-bottom: var(--spacing-md);
+        }
+        .order-product-item {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            padding: 0.75rem;
+            background: #f9f9f9;
+            border-radius: 8px;
+        }
+        .order-product-img {
+            width: 50px;
+            height: 50px;
+            border-radius: 6px;
+            object-fit: cover;
+            background: #eee;
+            flex-shrink: 0;
+        }
+        .order-product-img-placeholder {
+            width: 50px;
+            height: 50px;
+            border-radius: 6px;
+            background: linear-gradient(135deg, #e8e8e8, #d0d0d0);
+            flex-shrink: 0;
+        }
+        .order-product-info {
+            flex: 1;
+        }
+        .order-product-name {
+            font-weight: 600;
+            color: #333;
+        }
+        .order-product-qty {
+            font-size: 0.85rem;
+            color: #666;
+        }
+        .order-product-price {
+            font-weight: 600;
+            color: var(--color-crust);
+        }
+        .modal-actions {
+            display: flex;
+            gap: var(--spacing-sm);
+            flex-wrap: wrap;
+        }
+        .modal-actions .btn {
+            flex: 1;
+            min-width: 150px;
+            text-align: center;
+            justify-content: center;
+        }
+        .btn-outline {
+            background: transparent;
+            border: 2px solid var(--color-crust);
+            color: var(--color-crust);
+        }
+        .btn-outline:hover {
+            background: var(--color-crust);
+            color: white;
+        }
+        .btn-reorder {
+            background: #d4edda;
+            color: #155724;
+            border: none;
+        }
+        .btn-reorder:hover {
+            background: #c3e6cb;
+        }
+        .recurring-card {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            padding: 1rem;
+            background: white;
+            border-radius: 8px;
+            border: 1px solid #e8e8e8;
+            transition: all 0.2s ease;
+            gap: 1rem;
+        }
+        .recurring-card:hover {
+            border-color: var(--color-wheat);
+            box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+        }
+        .recurring-info {
+            flex: 1;
+        }
+        .recurring-info h4 {
+            margin: 0 0 0.5rem 0;
+            font-size: 1rem;
+            color: var(--color-crust-dark);
+        }
+        .recurring-meta {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 1rem;
+            font-size: 0.85rem;
+            color: var(--color-stone);
+        }
+        .recurring-meta span {
+            display: flex;
+            align-items: center;
+            gap: 0.25rem;
+        }
+        .recurring-status {
+            padding: 0.2rem 0.6rem;
+            border-radius: 50px;
+            font-size: 0.7rem;
+            font-weight: 600;
+            text-transform: uppercase;
+        }
+        .recurring-status.active {
+            background: #d4edda;
+            color: #155724;
+        }
+        .recurring-status.paused {
+            background: #fff3cd;
+            color: #856404;
+        }
+        .recurring-actions {
+            display: flex;
+            gap: 0.5rem;
+            flex-wrap: wrap;
+        }
+        .btn-sm {
+            padding: 0.4rem 0.8rem;
+            font-size: 0.8rem;
+            border-radius: 6px;
+            border: 1px solid #ddd;
+            background: white;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+        .btn-sm:hover {
+            background: #f5f5f5;
+        }
+        .btn-sm.pause {
+            color: #856404;
+            border-color: #ffc107;
+        }
+        .btn-sm.resume {
+            color: #155724;
+            border-color: #28a745;
+        }
+        .btn-sm.edit {
+            color: var(--color-crust);
+        }
+        .btn-sm.cancel {
+            color: #dc3545;
+        }
+        .recurring-list {
+            display: flex;
+            flex-direction: column;
+            gap: var(--spacing-sm);
+        }
+    </style>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Libre+Baskerville:ital,wght@0,400;0,700;1,400&family=Source+Sans+Pro:wght@400;600&display=swap" rel="stylesheet">
+</head>
+<body>
+    <header>
+        <nav>
+            <div class="logo">
+                <a href="index.html">Civetta</a>
+            </div>
+            <ul class="nav-links">
+                <li><a href="index.html">Home</a></li>
+                <li><a href="ons-verhaal.html">Ons Verhaal</a></li>
+                <li><a href="producten.html">Producten</a></li>
+                <li><a href="galerij.html">Galerij</a></li>
+                <li><a href="leveranciers.html">Leveranciers</a></li>
+                <li><a href="financiering.html">Crowdfunding</a></li>
+                <li><a href="contact.html">Contact</a></li>
+                <li class="nav-login">
+                    <a href="zakelijk-dashboard.html" class="login-trigger active">Dashboard</a>
+                </li>
+            </ul>
+            <button class="mobile-menu-btn" aria-label="Menu">
+                <span></span>
+                <span></span>
+                <span></span>
+            </button>
+        </nav>
+    </header>
+
+    <main>
+        <section class="page-header">
+            <h1>Mijn Bestellingen</h1>
+        </section>
+
+        <section class="orders-page">
+            <div class="container">
+                <div id="orders-app" v-cloak>
+                    <div class="page-header-bar">
+                        <a href="zakelijk-dashboard.html" class="back-link">
+                            <span>&larr;</span> Terug naar Dashboard
+                        </a>
+                    </div>
+
+                    <div v-if="loading" class="loading">Gegevens laden...</div>
+                    
+                    <template v-else>
+                        <div class="content-section">
+                            <h3>
+                                Mijn Favorieten
+                                <a href="bestelling-plaatsen.html?mode=favorite" class="btn-action btn-new-favorite btn-small">
+                                    <span>&#9733;</span> Favoriet Samenstellen
+                                </a>
+                            </h3>
+                            <div v-if="favorites.length === 0" class="empty-state">
+                                <p>Je hebt nog geen favorieten opgeslagen</p>
+                            </div>
+                            <div v-else class="favorites-list">
+                                <div v-for="fav in favorites" :key="fav.id" class="favorite-card">
+                                    <div class="favorite-info">
+                                        <h4>{{ fav.naam }}</h4>
+                                        <p>{{ fav.items.length }} product(en)</p>
+                                    </div>
+                                    <div class="favorite-actions">
+                                        <button class="btn-icon use" @click="useFavorite(fav)" title="Bestelling plaatsen">&#10148;</button>
+                                        <button class="btn-icon delete" @click="deleteFavorite(fav.id)" title="Verwijderen">&times;</button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="content-section">
+                            <h3>Terugkerende Bestellingen</h3>
+                            <div v-if="recurringOrders.length === 0" class="empty-state">
+                                <p>Je hebt nog geen terugkerende bestellingen</p>
+                                <p style="font-size: 0.85rem; margin-top: 0.5rem;">Tip: maak een terugkerende bestelling bij het afrekenen</p>
+                            </div>
+                            <div v-else class="recurring-list">
+                                <div v-for="recurring in recurringOrders" :key="recurring.id" class="recurring-card">
+                                    <div class="recurring-info">
+                                        <h4>{{ recurring.name }}</h4>
+                                        <div class="recurring-meta">
+                                            <span>{{ getFrequencyLabel(recurring.frequency) }} op {{ getDayLabel(recurring.delivery_day) }}</span>
+                                            <span>Volgende: {{ formatDateShort(recurring.next_delivery_date) }}</span>
+                                            <span>{{ formatPrice(recurring.total_amount) }}</span>
+                                        </div>
+                                    </div>
+                                    <span :class="'recurring-status ' + (recurring.status === 'active' ? 'active' : 'paused')">
+                                        {{ recurring.status === 'active' ? 'Actief' : 'Gepauzeerd' }}
+                                    </span>
+                                    <div class="recurring-actions">
+                                        <button v-if="recurring.status === 'active'" class="btn-sm pause" @click="toggleRecurringPause(recurring)">Pauzeren</button>
+                                        <button v-else class="btn-sm resume" @click="toggleRecurringPause(recurring)">Hervatten</button>
+                                        <button class="btn-sm cancel" @click="cancelRecurring(recurring)">Stoppen</button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="content-section">
+                            <h3>
+                                Bestellingen
+                                <a href="bestelling-plaatsen.html" class="btn-action btn-new-order btn-small">
+                                    <span>+</span> Nieuwe Bestelling
+                                </a>
+                            </h3>
+                            <div class="orders-grid">
+                                <div class="orders-column">
+                                    <h4>Lopend ({{ lopendeBestellingen.length }})</h4>
+                                    <div class="orders-scroll">
+                                        <div v-if="lopendeBestellingen.length === 0" class="empty-state">
+                                            <p>Geen lopende bestellingen</p>
+                                        </div>
+                                        <div v-for="order in lopendeBestellingen" :key="order.id" 
+                                             class="order-row" @click="showOrderDetail(order)">
+                                            <div class="order-row-info">
+                                                <span class="order-row-id">#{{ order.id }}</span>
+                                                <span class="order-row-date">{{ formatDateShort(order.delivery_date) }}</span>
+                                                <span class="order-row-price">{{ formatPrice(order.total_amount) }}</span>
+                                            </div>
+                                            <span :class="'order-status ' + getDisplayStatus(order)">
+                                                {{ getStatusLabel(getDisplayStatus(order)) }}
+                                            </span>
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                <div class="orders-column">
+                                    <h4>Afgerond ({{ afgerondeBestellingen.length }})</h4>
+                                    <div class="orders-scroll">
+                                        <div v-if="afgerondeBestellingen.length === 0" class="empty-state">
+                                            <p>Nog geen afgeronde bestellingen</p>
+                                        </div>
+                                        <div v-for="order in afgerondeBestellingen" :key="order.id" 
+                                             class="order-row" @click="showOrderDetail(order)">
+                                            <div class="order-row-info">
+                                                <span class="order-row-id">#{{ order.id }}</span>
+                                                <span class="order-row-date">{{ formatDateShort(order.delivery_date) }}</span>
+                                                <span class="order-row-price">{{ formatPrice(order.total_amount) }}</span>
+                                            </div>
+                                            <span :class="'order-status ' + getDisplayStatus(order)">
+                                                {{ getStatusLabel(getDisplayStatus(order)) }}
+                                            </span>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </template>
+
+                    <div class="modal-overlay" :class="{ active: selectedOrder }" @click.self="selectedOrder = null">
+                        <div class="modal" v-if="selectedOrder">
+                            <h3>
+                                Bestelling #{{ selectedOrder.id }}
+                                <button class="modal-close" @click="selectedOrder = null">&times;</button>
+                            </h3>
+                            
+                            <div class="order-detail-meta">
+                                <div class="order-detail-meta-item">
+                                    <span class="label">Leverdatum</span>
+                                    <span class="value">{{ formatDateLong(selectedOrder.delivery_date) }}</span>
+                                </div>
+                                <div class="order-detail-meta-item">
+                                    <span class="label">Status</span>
+                                    <span :class="'order-status ' + getDisplayStatus(selectedOrder)">
+                                        {{ getStatusLabel(getDisplayStatus(selectedOrder)) }}
+                                    </span>
+                                </div>
+                                <div class="order-detail-meta-item">
+                                    <span class="label">Totaal</span>
+                                    <span class="value price">{{ formatPrice(selectedOrder.total_amount) }}</span>
+                                </div>
+                            </div>
+                            
+                            <div class="order-products-list">
+                                <div v-for="(item, idx) in selectedOrder.items" :key="idx" class="order-product-item">
+                                    <img v-if="item.product_image" :src="item.product_image" :alt="item.product_name" class="order-product-img">
+                                    <div v-else class="order-product-img-placeholder"></div>
+                                    <div class="order-product-info">
+                                        <div class="order-product-name">{{ item.product_name }}</div>
+                                        <div class="order-product-qty">{{ item.quantity }} stuks &times; {{ formatPrice(item.unit_price) }}</div>
+                                    </div>
+                                    <div class="order-product-price">{{ formatPrice(item.subtotal) }}</div>
+                                </div>
+                            </div>
+                            
+                            <div class="modal-actions">
+                                <a v-if="selectedOrder.factuur_url" :href="selectedOrder.factuur_url" target="_blank" class="btn btn-outline">
+                                    Factuur Bekijken
+                                </a>
+                                <a v-if="selectedOrder.payment_url" :href="selectedOrder.payment_url" class="btn">
+                                    Betalen
+                                </a>
+                                <button @click="reorder(selectedOrder)" class="btn btn-reorder">
+                                    Opnieuw Bestellen
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <footer>
+        <div class="container">
+            <div class="footer-content">
+                <div class="footer-info">
+                    <p><strong>Bakkerij Civetta</strong></p>
+                    <p>Leersum, Utrecht</p>
+                </div>
+                <img src="img/logo.jpeg" alt="Civetta" class="footer-logo">
+                <div class="footer-contact">
+                    <p><a href="mailto:laurens@bakkerij-civetta.nl">laurens@bakkerij-civetta.nl</a></p>
+                </div>
+            </div>
+        </div>
+    </footer>
+
+    <script src="https://unpkg.com/vue@3/dist/vue.global.prod.js"></script>
+    <script src="js/main.js"></script>
+    <script>
+        const { createApp } = Vue;
+        
+        createApp({
+            data() {
+                return {
+                    loading: true,
+                    orders: [],
+                    favorites: [],
+                    recurringOrders: [],
+                    selectedOrder: null,
+                    editingRecurring: null
+                };
+            },
+            
+            computed: {
+                lopendeBestellingen() {
+                    return this.orders
+                        .filter(o => 
+                            !['delivered', 'cancelled'].includes(o.status) && 
+                            !['delivered', 'cancelled'].includes(o.mollie_status)
+                        )
+                        .sort((a, b) => new Date(a.delivery_date) - new Date(b.delivery_date));
+                },
+                afgerondeBestellingen() {
+                    return this.orders
+                        .filter(o => 
+                            ['delivered', 'cancelled'].includes(o.status) || 
+                            ['delivered', 'cancelled'].includes(o.mollie_status)
+                        )
+                        .sort((a, b) => new Date(b.delivery_date) - new Date(a.delivery_date));
+                }
+            },
+            
+            async mounted() {
+                const stored = sessionStorage.getItem('businessAccount');
+                if (!stored) {
+                    window.location.href = 'login-bedrijven.html';
+                    return;
+                }
+                await Promise.all([
+                    this.loadOrders(),
+                    this.loadFavorites(),
+                    this.loadRecurringOrders()
+                ]);
+                this.loading = false;
+            },
+            
+            methods: {
+                async loadOrders() {
+                    try {
+                        const response = await fetch('api/business-orders.php');
+                        const data = await response.json();
+                        if (data.success) {
+                            this.orders = data.orders;
+                        }
+                    } catch (error) {
+                        console.error('Kon bestellingen niet laden');
+                    }
+                },
+                
+                async loadFavorites() {
+                    try {
+                        const response = await fetch('api/business-favorites.php');
+                        const data = await response.json();
+                        if (data.success) {
+                            this.favorites = data.favorites;
+                        }
+                    } catch (error) {
+                        console.error('Kon favorieten niet laden');
+                    }
+                },
+                
+                async loadRecurringOrders() {
+                    try {
+                        const response = await fetch('api/business-recurring.php');
+                        const data = await response.json();
+                        console.log('Recurring API response:', data);
+                        if (data.success) {
+                            this.recurringOrders = data.recurring_orders;
+                        }
+                    } catch (error) {
+                        console.error('Kon terugkerende bestellingen niet laden', error);
+                    }
+                },
+                
+                async toggleRecurringPause(recurring) {
+                    const action = recurring.status === 'active' ? 'pause' : 'resume';
+                    try {
+                        const response = await fetch('api/business-recurring.php', {
+                            method: 'PUT',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ id: recurring.id, action })
+                        });
+                        const data = await response.json();
+                        if (data.success) {
+                            await this.loadRecurringOrders();
+                        }
+                    } catch (error) {
+                        console.error('Kon status niet wijzigen');
+                    }
+                },
+                
+                async cancelRecurring(recurring) {
+                    if (!confirm('Weet je zeker dat je deze terugkerende bestelling wilt annuleren?')) return;
+                    try {
+                        const response = await fetch('api/business-recurring.php', {
+                            method: 'PUT',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ id: recurring.id, action: 'cancel' })
+                        });
+                        const data = await response.json();
+                        if (data.success) {
+                            this.recurringOrders = this.recurringOrders.filter(r => r.id !== recurring.id);
+                        }
+                    } catch (error) {
+                        console.error('Kon niet annuleren');
+                    }
+                },
+                
+                getFrequencyLabel(freq) {
+                    const labels = { 'weekly': 'Wekelijks', 'biweekly': 'Tweewekelijks', 'monthly': 'Maandelijks' };
+                    return labels[freq] || freq;
+                },
+                
+                getDayLabel(day) {
+                    const days = ['Zo', 'Ma', 'Di', 'Wo', 'Do', 'Vr', 'Za'];
+                    return days[day] || '';
+                },
+                
+                showOrderDetail(order) {
+                    this.selectedOrder = order;
+                },
+                
+                useFavorite(fav) {
+                    sessionStorage.setItem('loadFavorite', JSON.stringify(fav));
+                    window.location.href = 'bestelling-plaatsen.html';
+                },
+                
+                async deleteFavorite(id) {
+                    if (!confirm('Weet je zeker dat je deze favoriet wilt verwijderen?')) return;
+                    
+                    try {
+                        const response = await fetch('api/business-favorites.php', {
+                            method: 'DELETE',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ id })
+                        });
+                        const data = await response.json();
+                        if (data.success) {
+                            this.favorites = this.favorites.filter(f => f.id !== id);
+                        }
+                    } catch (error) {
+                        console.error('Kon favoriet niet verwijderen');
+                    }
+                },
+                
+                reorder(order) {
+                    const items = order.items.map(item => ({
+                        product_name: item.product_name,
+                        quantity: item.quantity,
+                        unit_price: item.unit_price
+                    }));
+                    sessionStorage.setItem('reorderItems', JSON.stringify(items));
+                    window.location.href = 'bestelling-plaatsen.html';
+                },
+                
+                getDisplayStatus(order) {
+                    if (order.mollie_status === 'paid') return 'paid';
+                    return order.status;
+                },
+                
+                getStatusLabel(status) {
+                    const labels = {
+                        'pending': 'In afwachting',
+                        'pending_invoice': 'Factuur verzonden',
+                        'paid': 'Betaald',
+                        'confirmed': 'Bevestigd',
+                        'delivered': 'Geleverd',
+                        'cancelled': 'Geannuleerd'
+                    };
+                    return labels[status] || status;
+                },
+                
+                formatDateShort(dateStr) {
+                    if (!dateStr) return '-';
+                    const date = new Date(dateStr);
+                    return date.toLocaleDateString('nl-NL', { weekday: 'short', day: 'numeric', month: 'short' });
+                },
+                
+                formatDateLong(dateStr) {
+                    if (!dateStr) return '-';
+                    const date = new Date(dateStr);
+                    return date.toLocaleDateString('nl-NL', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
+                },
+                
+                formatPrice(amount) {
+                    if (!amount) return '-';
+                    return new Intl.NumberFormat('nl-NL', { style: 'currency', currency: 'EUR' }).format(amount);
+                }
+            }
+        }).mount('#orders-app');
+    </script>
+</body>
+</html>

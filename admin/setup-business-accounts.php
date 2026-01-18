@@ -39,7 +39,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 id INT AUTO_INCREMENT PRIMARY KEY,
                 account_id INT NOT NULL,
                 delivery_date DATE NOT NULL,
-                status ENUM('pending', 'paid', 'confirmed', 'delivered', 'cancelled') DEFAULT 'pending',
+                status VARCHAR(30) DEFAULT 'pending',
                 total_amount DECIMAL(10,2),
                 notes TEXT,
                 mollie_payment_id VARCHAR(50) NULL,
@@ -58,6 +58,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $pdo->exec("ALTER TABLE business_orders ADD COLUMN IF NOT EXISTS eboekhouden_factuurnummer VARCHAR(50) NULL");
         $pdo->exec("ALTER TABLE business_orders ADD COLUMN IF NOT EXISTS eboekhouden_pdf_url TEXT NULL");
         $pdo->exec("ALTER TABLE business_orders ADD COLUMN IF NOT EXISTS facturatie_systeem VARCHAR(20) NULL");
+        $pdo->exec("ALTER TABLE business_orders ADD COLUMN IF NOT EXISTS payment_type VARCHAR(20) DEFAULT 'direct'");
         
         $pdo->exec("
             CREATE TABLE IF NOT EXISTS business_order_items (
@@ -67,6 +68,92 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 quantity INT NOT NULL,
                 unit_price DECIMAL(10,2),
                 FOREIGN KEY (order_id) REFERENCES business_orders(id) ON DELETE CASCADE
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+        ");
+        
+        $pdo->exec("
+            CREATE TABLE IF NOT EXISTS business_favorites (
+                id INT AUTO_INCREMENT PRIMARY KEY,
+                account_id INT NOT NULL,
+                naam VARCHAR(255) NOT NULL,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (account_id) REFERENCES business_accounts(id) ON DELETE CASCADE
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+        ");
+        
+        $pdo->exec("
+            CREATE TABLE IF NOT EXISTS business_favorite_items (
+                id INT AUTO_INCREMENT PRIMARY KEY,
+                favorite_id INT NOT NULL,
+                product_id INT NULL,
+                product_name VARCHAR(255) NOT NULL,
+                quantity INT NOT NULL,
+                unit_price DECIMAL(10,2),
+                FOREIGN KEY (favorite_id) REFERENCES business_favorites(id) ON DELETE CASCADE
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+        ");
+        
+        $pdo->exec("ALTER TABLE business_accounts ADD COLUMN IF NOT EXISTS delivery_same_as_business TINYINT(1) DEFAULT 1");
+        $pdo->exec("ALTER TABLE business_accounts ADD COLUMN IF NOT EXISTS delivery_adres VARCHAR(255) NULL");
+        $pdo->exec("ALTER TABLE business_accounts ADD COLUMN IF NOT EXISTS delivery_postcode VARCHAR(10) NULL");
+        $pdo->exec("ALTER TABLE business_accounts ADD COLUMN IF NOT EXISTS delivery_plaats VARCHAR(100) NULL");
+        $pdo->exec("ALTER TABLE business_accounts ADD COLUMN IF NOT EXISTS delivery_contactpersoon VARCHAR(255) NULL");
+        
+        $pdo->exec("
+            CREATE TABLE IF NOT EXISTS business_recurring_orders (
+                id INT AUTO_INCREMENT PRIMARY KEY,
+                account_id INT NOT NULL,
+                name VARCHAR(255) NOT NULL,
+                frequency ENUM('weekly', 'biweekly', 'monthly') NOT NULL,
+                delivery_day TINYINT NOT NULL,
+                next_delivery_date DATE NOT NULL,
+                end_date DATE NULL,
+                status ENUM('active', 'paused', 'cancelled') DEFAULT 'active',
+                notes TEXT,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+                FOREIGN KEY (account_id) REFERENCES business_accounts(id) ON DELETE CASCADE
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+        ");
+        
+        $pdo->exec("
+            CREATE TABLE IF NOT EXISTS business_recurring_order_items (
+                id INT AUTO_INCREMENT PRIMARY KEY,
+                recurring_order_id INT NOT NULL,
+                product_id INT NULL,
+                product_name VARCHAR(255) NOT NULL,
+                quantity INT NOT NULL,
+                unit_price DECIMAL(10,2),
+                FOREIGN KEY (recurring_order_id) REFERENCES business_recurring_orders(id) ON DELETE CASCADE
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+        ");
+        
+        $pdo->exec("ALTER TABLE business_orders ADD COLUMN IF NOT EXISTS recurring_order_id INT NULL");
+        $pdo->exec("ALTER TABLE business_orders ADD COLUMN IF NOT EXISTS is_auto_generated TINYINT(1) DEFAULT 0");
+        $pdo->exec("ALTER TABLE business_orders ADD COLUMN IF NOT EXISTS is_recurring TINYINT(1) DEFAULT 0");
+        $pdo->exec("ALTER TABLE business_orders ADD COLUMN IF NOT EXISTS recurring_name VARCHAR(255) NULL");
+        $pdo->exec("ALTER TABLE business_orders ADD COLUMN IF NOT EXISTS recurring_frequency VARCHAR(20) DEFAULT 'weekly'");
+        $pdo->exec("ALTER TABLE business_orders ADD COLUMN IF NOT EXISTS recurring_day TINYINT DEFAULT 1");
+        $pdo->exec("ALTER TABLE business_orders ADD COLUMN IF NOT EXISTS recurring_end_date DATE NULL");
+        $pdo->exec("ALTER TABLE business_orders ADD COLUMN IF NOT EXISTS invoice_number VARCHAR(50) NULL");
+        $pdo->exec("ALTER TABLE business_orders ADD COLUMN IF NOT EXISTS invoiced_at DATETIME NULL");
+        
+        try {
+            $pdo->exec("ALTER TABLE business_orders MODIFY COLUMN status VARCHAR(30) DEFAULT 'pending'");
+        } catch (PDOException $e) {
+        }
+        
+        $pdo->exec("
+            CREATE TABLE IF NOT EXISTS invoice_log (
+                id INT AUTO_INCREMENT PRIMARY KEY,
+                account_id INT NOT NULL,
+                invoice_number VARCHAR(50) NOT NULL,
+                total_amount DECIMAL(10,2) NOT NULL,
+                order_count INT NOT NULL,
+                period_start DATE NOT NULL,
+                period_end DATE NOT NULL,
+                created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (account_id) REFERENCES business_accounts(id) ON DELETE CASCADE
             ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
         ");
         

@@ -1,10 +1,15 @@
 const { createApp } = Vue;
 
-createApp({
+const productsApp = createApp({
+    components: {
+        'product-detail-modal': ProductDetailModal
+    },
+    
     data() {
         return {
             products: [],
-            loading: true
+            loading: true,
+            selectedProduct: null
         };
     },
     
@@ -33,6 +38,12 @@ createApp({
                 style: 'currency',
                 currency: 'EUR'
             }).format(price);
+        },
+        
+        showProductDetail(product) {
+            this.selectedProduct = product;
         }
     }
-}).mount('#products-app');
+});
+
+productsApp.mount('#products-app');

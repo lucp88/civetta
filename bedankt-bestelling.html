@@ -39,6 +39,12 @@
         .thank-you-icon.failed {
             background: linear-gradient(135deg, #f8d7da, #f1aeb5);
         }
+        .thank-you-icon.invoice {
+            background: linear-gradient(135deg, #e2e3ff, #c5c6fe);
+        }
+        .thank-you-icon.recurring {
+            background: linear-gradient(135deg, #d1e7dd, #a3cfbb);
+        }
         .thank-you-card h1 {
             color: var(--color-crust-dark);
             margin-bottom: var(--spacing-sm);
@@ -208,6 +214,63 @@
                         </div>
                     </template>
                     
+                    <template v-else-if="status === 'recurring'">
+                        <div class="thank-you-icon recurring">
+                            <span>&#8635;</span>
+                        </div>
+                        <h1>Terugkerende bestelling geplaatst!</h1>
+                        <p>Bedankt! Uw terugkerende bestelling is aangemaakt. Leveringen worden maandelijks gebundeld gefactureerd.</p>
+                        
+                        <div v-if="order" class="order-details">
+                            <h3>Bestellingsgegevens</h3>
+                            <div class="order-detail-row">
+                                <span class="label">Bestelnummer</span>
+                                <span class="value">#{{ order.id }}</span>
+                            </div>
+                            <div class="order-detail-row">
+                                <span class="label">Leverdatum</span>
+                                <span class="value">{{ formatDate(order.delivery_date) }}</span>
+                            </div>
+                            <div class="order-detail-row">
+                                <span class="label">Totaalbedrag</span>
+                                <span class="value">{{ formatPrice(order.total_amount) }}</span>
+                            </div>
+                        </div>
+                        
+                        <div class="thank-you-actions">
+                            <a href="mijn-bestellingen.html" class="btn">Naar Mijn Bestellingen</a>
+                        </div>
+                    </template>
+                    
+                    <template v-else-if="status === 'invoice_sent'">
+                        <div class="thank-you-icon invoice">
+                            <span>&#9993;</span>
+                        </div>
+                        <h1>Komt voor de bakker!</h1>
+                        <p>Bedankt voor uw bestelling! De factuur is naar uw e-mailadres verzonden. U kunt deze binnen de betaaltermijn voldoen.</p>
+                        
+                        <div v-if="order" class="order-details">
+                            <h3>Bestellingsgegevens</h3>
+                            <div class="order-detail-row">
+                                <span class="label">Bestelnummer</span>
+                                <span class="value">#{{ order.id }}</span>
+                            </div>
+                            <div class="order-detail-row">
+                                <span class="label">Leverdatum</span>
+                                <span class="value">{{ formatDate(order.delivery_date) }}</span>
+                            </div>
+                            <div class="order-detail-row">
+                                <span class="label">Totaalbedrag</span>
+                                <span class="value">{{ formatPrice(order.total_amount) }}</span>
+                            </div>
+                        </div>
+                        
+                        <div class="thank-you-actions">
+                            <a href="zakelijk-dashboard.html" class="btn">Naar Dashboard</a>
+                            <a v-if="order && order.eboekhouden_pdf_url" :href="order.eboekhouden_pdf_url" target="_blank" class="btn btn-outline">Factuur Bekijken</a>
+                        </div>
+                    </template>
+                    
                     <template v-else>
                         <div class="thank-you-icon">
                             <span>&#10003;</span>
@@ -277,7 +340,10 @@
                 this.status = params.get('status') || 'pending';
                 this.orderId = params.get('order_id');
                 
-                if (this.orderId) {
+                if ((this.status === 'invoice_sent' || this.status === 'recurring') && this.orderId) {
+                    await this.loadOrder(this.orderId);
+                    this.loading = false;
+                } else if (this.orderId) {
                     await this.pollStatus();
                 } else {
                     this.loading = false;

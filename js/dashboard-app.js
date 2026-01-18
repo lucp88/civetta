@@ -202,6 +202,7 @@ createApp({
         getStatusLabel(status) {
             const labels = {
                 'pending': 'In afwachting',
+                'pending_invoice': 'Factuur verzonden',
                 'paid': 'Betaald',
                 'confirmed': 'Bevestigd',
                 'delivered': 'Geleverd',

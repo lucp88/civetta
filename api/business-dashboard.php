@@ -42,10 +42,11 @@ switch ($method) {
                 
             } elseif ($action === 'orders') {
                 $stmt = $pdo->prepare("
-                    SELECT id, order_date, status, total_amount, notes, created_at 
+                    SELECT id, delivery_date, status, total_amount, notes, created_at,
+                           is_recurring, recurring_name, recurring_frequency, recurring_day, recurring_end_date
                     FROM business_orders 
                     WHERE account_id = ? 
-                    ORDER BY order_date DESC
+                    ORDER BY created_at DESC
                 ");
                 $stmt->execute([$accountId]);
                 $orders = $stmt->fetchAll();

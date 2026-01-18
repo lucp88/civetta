@@ -1,0 +1,776 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Bedrijfsgegevens | Bakkerij Civetta</title>
+    <link rel="stylesheet" href="css/style.css">
+    <style>
+        [v-cloak] { display: none; }
+        .profile-page {
+            padding: var(--spacing-lg) 0;
+            min-height: calc(100vh - 300px);
+        }
+        .page-header-bar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: var(--spacing-lg);
+            flex-wrap: wrap;
+            gap: var(--spacing-sm);
+        }
+        .back-link {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            color: var(--color-crust);
+            text-decoration: none;
+            font-weight: 500;
+        }
+        .back-link:hover {
+            color: var(--color-terracotta);
+        }
+        .profile-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: var(--spacing-md);
+        }
+        @media (max-width: 768px) {
+            .profile-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+        .profile-card {
+            background: var(--color-warm-white);
+            border-radius: 16px;
+            padding: var(--spacing-md);
+            box-shadow: 0 4px 20px rgba(139, 90, 43, 0.08);
+        }
+        .profile-card.full-width {
+            grid-column: 1 / -1;
+        }
+        .profile-card h3 {
+            color: var(--color-crust-dark);
+            margin-bottom: var(--spacing-md);
+            padding-bottom: var(--spacing-sm);
+            border-bottom: 2px solid var(--color-parchment);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .btn-edit {
+            width: 32px;
+            height: 32px;
+            border-radius: 6px;
+            border: 1px solid #ddd;
+            background: white;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s ease;
+        }
+        .btn-edit:hover {
+            background: var(--color-parchment);
+            border-color: var(--color-crust);
+        }
+        .btn-edit svg {
+            width: 16px;
+            height: 16px;
+            color: var(--color-crust);
+        }
+        .card-note {
+            font-size: 0.8rem;
+            color: var(--color-stone);
+            font-style: italic;
+            margin-bottom: var(--spacing-sm);
+        }
+        .profile-details dl {
+            display: grid;
+            gap: var(--spacing-sm);
+        }
+        .profile-details dt {
+            font-size: 0.75rem;
+            color: var(--color-wheat);
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            font-weight: 600;
+        }
+        .profile-details dd {
+            color: var(--color-stone);
+            margin-bottom: var(--spacing-xs);
+            font-size: 1rem;
+        }
+        .profile-details dd a {
+            color: var(--color-crust);
+        }
+        .checkbox-label {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            cursor: pointer;
+            font-weight: 500;
+            color: var(--color-crust-dark);
+            margin-bottom: var(--spacing-sm);
+        }
+        .checkbox-label input[type="checkbox"] {
+            width: 18px;
+            height: 18px;
+            accent-color: var(--color-crust);
+        }
+        .same-address-note {
+            font-size: 0.85rem;
+            color: var(--color-stone);
+            font-style: italic;
+            padding: var(--spacing-sm);
+            background: var(--color-parchment);
+            border-radius: 8px;
+        }
+        .btn-small {
+            padding: 0.5rem 1rem;
+            font-size: 0.85rem;
+        }
+        .btn-outline {
+            background: transparent;
+            border: 2px solid var(--color-crust);
+            color: var(--color-crust);
+        }
+        .btn-outline:hover {
+            background: var(--color-crust);
+            color: white;
+        }
+        .modal-overlay {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0,0,0,0.5);
+            z-index: 1000;
+            align-items: center;
+            justify-content: center;
+        }
+        .modal-overlay.active {
+            display: flex;
+        }
+        .modal {
+            background: white;
+            border-radius: 16px;
+            padding: var(--spacing-lg);
+            width: 100%;
+            max-width: 500px;
+            max-height: 90vh;
+            overflow-y: auto;
+            margin: var(--spacing-sm);
+        }
+        .modal h3 {
+            color: var(--color-crust-dark);
+            margin-bottom: var(--spacing-md);
+        }
+        .modal .form-group {
+            margin-bottom: var(--spacing-sm);
+        }
+        .modal .form-group label {
+            display: block;
+            margin-bottom: 0.25rem;
+            color: var(--color-stone);
+            font-weight: 500;
+            font-size: 0.9rem;
+        }
+        .modal .form-group input {
+            width: 100%;
+            padding: 0.75rem;
+            border: 2px solid var(--color-parchment);
+            border-radius: 8px;
+            font-size: 1rem;
+            font-family: var(--font-body);
+        }
+        .modal .form-group input:focus {
+            outline: none;
+            border-color: var(--color-wheat);
+        }
+        .modal .form-row {
+            display: grid;
+            grid-template-columns: 1fr 2fr;
+            gap: var(--spacing-sm);
+        }
+        @media (max-width: 500px) {
+            .modal .form-row {
+                grid-template-columns: 1fr;
+            }
+        }
+        .modal-actions {
+            display: flex;
+            gap: var(--spacing-sm);
+            margin-top: var(--spacing-md);
+        }
+        .modal-actions .btn {
+            flex: 1;
+        }
+        .error-msg {
+            background: #fee;
+            color: #c00;
+            padding: 0.75rem;
+            border-radius: 8px;
+            margin-bottom: var(--spacing-sm);
+            font-size: 0.9rem;
+        }
+        .success-msg {
+            background: #d4edda;
+            color: #155724;
+            padding: 0.75rem;
+            border-radius: 8px;
+            margin-bottom: var(--spacing-sm);
+            font-size: 0.9rem;
+        }
+        .loading {
+            text-align: center;
+            padding: var(--spacing-lg);
+            color: var(--color-stone);
+        }
+    </style>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Libre+Baskerville:ital,wght@0,400;0,700;1,400&family=Source+Sans+Pro:wght@400;600&display=swap" rel="stylesheet">
+</head>
+<body>
+    <header>
+        <nav>
+            <div class="logo">
+                <a href="index.html">Civetta</a>
+            </div>
+            <ul class="nav-links">
+                <li><a href="index.html">Home</a></li>
+                <li><a href="ons-verhaal.html">Ons Verhaal</a></li>
+                <li><a href="producten.html">Producten</a></li>
+                <li><a href="galerij.html">Galerij</a></li>
+                <li><a href="leveranciers.html">Leveranciers</a></li>
+                <li><a href="financiering.html">Crowdfunding</a></li>
+                <li><a href="contact.html">Contact</a></li>
+                <li class="nav-login">
+                    <a href="zakelijk-dashboard.html" class="login-trigger active">Dashboard</a>
+                </li>
+            </ul>
+            <button class="mobile-menu-btn" aria-label="Menu">
+                <span></span>
+                <span></span>
+                <span></span>
+            </button>
+        </nav>
+    </header>
+
+    <main>
+        <section class="page-header">
+            <h1>Bedrijfsgegevens</h1>
+        </section>
+
+        <section class="profile-page">
+            <div class="container">
+                <div id="profile-app" v-cloak>
+                    <div class="page-header-bar">
+                        <a href="zakelijk-dashboard.html" class="back-link">
+                            <span>&larr;</span> Terug naar Dashboard
+                        </a>
+                    </div>
+
+                    <div v-if="loading" class="loading">Gegevens laden...</div>
+                    
+                    <template v-else>
+                        <div class="profile-grid">
+                            <div class="profile-card">
+                                <h3>
+                                    Bedrijfsinformatie
+                                    <button @click="openModal('business')" class="btn-edit" title="Bewerken">
+                                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                            <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
+                                            <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
+                                        </svg>
+                                    </button>
+                                </h3>
+                                <p class="card-note">Wordt gebruikt voor facturatie</p>
+                                <div class="profile-details">
+                                    <dl>
+                                        <dt>Bedrijfsnaam</dt>
+                                        <dd>{{ account.bedrijfsnaam }}</dd>
+                                        
+                                        <dt>Adres</dt>
+                                        <dd>{{ account.adres }}<br>{{ account.postcode }} {{ account.plaats }}</dd>
+                                        
+                                        <dt>KVK-nummer</dt>
+                                        <dd>{{ account.kvk_nummer || '-' }}</dd>
+                                        
+                                        <dt>BTW-ID</dt>
+                                        <dd>{{ account.btw_id || '-' }}</dd>
+                                        
+                                        <dt v-if="account.website">Website</dt>
+                                        <dd v-if="account.website"><a :href="account.website" target="_blank">{{ account.website }}</a></dd>
+                                    </dl>
+                                </div>
+                            </div>
+
+                            <div class="profile-card">
+                                <h3>
+                                    Contactgegevens
+                                    <button @click="openModal('contact')" class="btn-edit" title="Bewerken">
+                                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                            <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
+                                            <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
+                                        </svg>
+                                    </button>
+                                </h3>
+                                <div class="profile-details">
+                                    <dl>
+                                        <dt>Contactpersoon</dt>
+                                        <dd>{{ account.contactpersoon }}</dd>
+                                        
+                                        <dt>E-mail</dt>
+                                        <dd>{{ account.email }}</dd>
+                                        
+                                        <dt>Telefoon</dt>
+                                        <dd>{{ account.telefoon || '-' }}</dd>
+                                    </dl>
+                                </div>
+                                <div style="margin-top: var(--spacing-md); padding-top: var(--spacing-sm); border-top: 1px solid var(--color-parchment);">
+                                    <button @click="openModal('password')" class="btn btn-outline btn-small">Wachtwoord wijzigen</button>
+                                </div>
+                            </div>
+
+                            <div class="profile-card full-width">
+                                <h3>
+                                    Leveringsadres
+                                    <button v-if="!account.delivery_same_as_business" @click="openModal('delivery')" class="btn-edit" title="Bewerken">
+                                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                            <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
+                                            <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
+                                        </svg>
+                                    </button>
+                                </h3>
+                                <p class="card-note">Wordt gebruikt voor het leveren van bestellingen</p>
+                                
+                                <label class="checkbox-label">
+                                    <input type="checkbox" v-model="account.delivery_same_as_business" @change="toggleDeliveryAddress">
+                                    <span>Zelfde als bedrijfsadres</span>
+                                </label>
+                                
+                                <div v-if="account.delivery_same_as_business" class="same-address-note">
+                                    Bestellingen worden geleverd op: {{ account.adres }}, {{ account.postcode }} {{ account.plaats }}
+                                </div>
+                                
+                                <div v-else class="profile-details">
+                                    <dl>
+                                        <dt>Adres</dt>
+                                        <dd>{{ account.delivery_adres || '-' }}<br>{{ account.delivery_postcode }} {{ account.delivery_plaats }}</dd>
+                                        
+                                        <dt>T.a.v.</dt>
+                                        <dd>{{ account.delivery_contactpersoon || account.contactpersoon }}</dd>
+                                    </dl>
+                                </div>
+                            </div>
+                        </div>
+                    </template>
+
+                    <div class="modal-overlay" :class="{ active: activeModal === 'business' }" @click.self="closeModal">
+                        <div class="modal">
+                            <h3>Bedrijfsinformatie bewerken</h3>
+                            <div v-if="editError" class="error-msg">{{ editError }}</div>
+                            <div v-if="editSuccess" class="success-msg">{{ editSuccess }}</div>
+                            <form @submit.prevent="saveBusinessInfo">
+                                <div class="form-group">
+                                    <label>Bedrijfsnaam *</label>
+                                    <input type="text" v-model="businessForm.bedrijfsnaam" required>
+                                </div>
+                                <div class="form-group">
+                                    <label>Adres *</label>
+                                    <input type="text" v-model="businessForm.adres" required>
+                                </div>
+                                <div class="form-row">
+                                    <div class="form-group">
+                                        <label>Postcode</label>
+                                        <input type="text" v-model="businessForm.postcode">
+                                    </div>
+                                    <div class="form-group">
+                                        <label>Plaats</label>
+                                        <input type="text" v-model="businessForm.plaats">
+                                    </div>
+                                </div>
+                                <div class="form-group">
+                                    <label>Website</label>
+                                    <input type="url" v-model="businessForm.website" placeholder="https://">
+                                </div>
+                                <div class="form-row">
+                                    <div class="form-group">
+                                        <label>KVK-nummer</label>
+                                        <input type="text" v-model="businessForm.kvk_nummer">
+                                    </div>
+                                    <div class="form-group">
+                                        <label>BTW-ID</label>
+                                        <input type="text" v-model="businessForm.btw_id">
+                                    </div>
+                                </div>
+                                <div class="modal-actions">
+                                    <button type="button" class="btn btn-outline" @click="closeModal">Annuleren</button>
+                                    <button type="submit" class="btn" :disabled="saving">{{ saving ? 'Opslaan...' : 'Opslaan' }}</button>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
+
+                    <div class="modal-overlay" :class="{ active: activeModal === 'contact' }" @click.self="closeModal">
+                        <div class="modal">
+                            <h3>Contactgegevens bewerken</h3>
+                            <div v-if="editError" class="error-msg">{{ editError }}</div>
+                            <div v-if="editSuccess" class="success-msg">{{ editSuccess }}</div>
+                            <form @submit.prevent="saveContactInfo">
+                                <div class="form-group">
+                                    <label>Contactpersoon *</label>
+                                    <input type="text" v-model="contactForm.contactpersoon" required>
+                                </div>
+                                <div class="form-group">
+                                    <label>E-mail</label>
+                                    <input type="email" :value="account.email" disabled style="background: #f0f0f0; cursor: not-allowed;">
+                                    <small style="color: #888;">E-mail kan niet gewijzigd worden</small>
+                                </div>
+                                <div class="form-group">
+                                    <label>Telefoon</label>
+                                    <input type="tel" v-model="contactForm.telefoon">
+                                </div>
+                                <div class="modal-actions">
+                                    <button type="button" class="btn btn-outline" @click="closeModal">Annuleren</button>
+                                    <button type="submit" class="btn" :disabled="saving">{{ saving ? 'Opslaan...' : 'Opslaan' }}</button>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
+
+                    <div class="modal-overlay" :class="{ active: activeModal === 'delivery' }" @click.self="closeModal">
+                        <div class="modal">
+                            <h3>Leveringsadres bewerken</h3>
+                            <div v-if="editError" class="error-msg">{{ editError }}</div>
+                            <div v-if="editSuccess" class="success-msg">{{ editSuccess }}</div>
+                            <form @submit.prevent="saveDeliveryInfo">
+                                <div class="form-group">
+                                    <label>Adres *</label>
+                                    <input type="text" v-model="deliveryForm.delivery_adres" required>
+                                </div>
+                                <div class="form-row">
+                                    <div class="form-group">
+                                        <label>Postcode</label>
+                                        <input type="text" v-model="deliveryForm.delivery_postcode">
+                                    </div>
+                                    <div class="form-group">
+                                        <label>Plaats</label>
+                                        <input type="text" v-model="deliveryForm.delivery_plaats">
+                                    </div>
+                                </div>
+                                <div class="form-group">
+                                    <label>T.a.v. (optioneel)</label>
+                                    <input type="text" v-model="deliveryForm.delivery_contactpersoon" :placeholder="account.contactpersoon">
+                                </div>
+                                <div class="modal-actions">
+                                    <button type="button" class="btn btn-outline" @click="closeModal">Annuleren</button>
+                                    <button type="submit" class="btn" :disabled="saving">{{ saving ? 'Opslaan...' : 'Opslaan' }}</button>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
+
+                    <div class="modal-overlay" :class="{ active: activeModal === 'password' }" @click.self="closeModal">
+                        <div class="modal">
+                            <h3>Wachtwoord wijzigen</h3>
+                            <div v-if="passwordError" class="error-msg">{{ passwordError }}</div>
+                            <div v-if="passwordSuccess" class="success-msg">{{ passwordSuccess }}</div>
+                            <form @submit.prevent="changePassword">
+                                <div class="form-group">
+                                    <label>Huidig wachtwoord *</label>
+                                    <input type="password" v-model="passwordForm.current" required>
+                                </div>
+                                <div class="form-group">
+                                    <label>Nieuw wachtwoord * (minimaal 8 tekens)</label>
+                                    <input type="password" v-model="passwordForm.new" required minlength="8">
+                                </div>
+                                <div class="form-group">
+                                    <label>Bevestig nieuw wachtwoord *</label>
+                                    <input type="password" v-model="passwordForm.confirm" required>
+                                </div>
+                                <div class="modal-actions">
+                                    <button type="button" class="btn btn-outline" @click="closeModal">Annuleren</button>
+                                    <button type="submit" class="btn" :disabled="savingPassword">{{ savingPassword ? 'Wijzigen...' : 'Wijzigen' }}</button>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <footer>
+        <div class="container">
+            <div class="footer-content">
+                <div class="footer-info">
+                    <p><strong>Bakkerij Civetta</strong></p>
+                    <p>Leersum, Utrecht</p>
+                </div>
+                <img src="img/logo.jpeg" alt="Civetta" class="footer-logo">
+                <div class="footer-contact">
+                    <p><a href="mailto:laurens@bakkerij-civetta.nl">laurens@bakkerij-civetta.nl</a></p>
+                </div>
+            </div>
+        </div>
+    </footer>
+
+    <script src="https://unpkg.com/vue@3/dist/vue.global.prod.js"></script>
+    <script src="js/main.js"></script>
+    <script>
+        const { createApp } = Vue;
+        
+        createApp({
+            data() {
+                return {
+                    loading: true,
+                    account: {},
+                    activeModal: null,
+                    businessForm: {},
+                    contactForm: {},
+                    deliveryForm: {},
+                    editError: '',
+                    editSuccess: '',
+                    saving: false,
+                    passwordForm: {
+                        current: '',
+                        new: '',
+                        confirm: ''
+                    },
+                    passwordError: '',
+                    passwordSuccess: '',
+                    savingPassword: false
+                };
+            },
+            
+            async mounted() {
+                const stored = sessionStorage.getItem('businessAccount');
+                if (!stored) {
+                    window.location.href = 'login-bedrijven.html';
+                    return;
+                }
+                await this.loadProfile();
+            },
+            
+            methods: {
+                async loadProfile() {
+                    try {
+                        const response = await fetch('api/business-dashboard.php?action=profile');
+                        const data = await response.json();
+                        
+                        if (data.success) {
+                            this.account = data.account;
+                            if (this.account.delivery_same_as_business === undefined) {
+                                this.account.delivery_same_as_business = true;
+                            } else {
+                                this.account.delivery_same_as_business = !!parseInt(this.account.delivery_same_as_business);
+                            }
+                            this.loading = false;
+                        } else {
+                            sessionStorage.removeItem('businessAccount');
+                            window.location.href = 'login-bedrijven.html';
+                        }
+                    } catch (error) {
+                        sessionStorage.removeItem('businessAccount');
+                        window.location.href = 'login-bedrijven.html';
+                    }
+                },
+                
+                openModal(type) {
+                    this.editError = '';
+                    this.editSuccess = '';
+                    this.passwordError = '';
+                    this.passwordSuccess = '';
+                    
+                    if (type === 'business') {
+                        this.businessForm = {
+                            bedrijfsnaam: this.account.bedrijfsnaam,
+                            adres: this.account.adres,
+                            postcode: this.account.postcode,
+                            plaats: this.account.plaats,
+                            website: this.account.website,
+                            kvk_nummer: this.account.kvk_nummer,
+                            btw_id: this.account.btw_id
+                        };
+                    } else if (type === 'contact') {
+                        this.contactForm = {
+                            contactpersoon: this.account.contactpersoon,
+                            telefoon: this.account.telefoon
+                        };
+                    } else if (type === 'delivery') {
+                        this.deliveryForm = {
+                            delivery_adres: this.account.delivery_adres || '',
+                            delivery_postcode: this.account.delivery_postcode || '',
+                            delivery_plaats: this.account.delivery_plaats || '',
+                            delivery_contactpersoon: this.account.delivery_contactpersoon || ''
+                        };
+                    } else if (type === 'password') {
+                        this.passwordForm = { current: '', new: '', confirm: '' };
+                    }
+                    
+                    this.activeModal = type;
+                },
+                
+                closeModal() {
+                    this.activeModal = null;
+                },
+                
+                async toggleDeliveryAddress() {
+                    try {
+                        await fetch('api/business-dashboard.php', {
+                            method: 'PUT',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({
+                                action: 'update_profile',
+                                delivery_same_as_business: this.account.delivery_same_as_business ? 1 : 0
+                            })
+                        });
+                    } catch (error) {
+                        console.error('Kon instelling niet opslaan');
+                    }
+                },
+                
+                async saveBusinessInfo() {
+                    this.editError = '';
+                    this.editSuccess = '';
+                    this.saving = true;
+                    
+                    try {
+                        const response = await fetch('api/business-dashboard.php', {
+                            method: 'PUT',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({
+                                action: 'update_profile',
+                                ...this.businessForm
+                            })
+                        });
+                        
+                        const data = await response.json();
+                        
+                        if (data.success) {
+                            this.editSuccess = 'Gegevens opgeslagen!';
+                            Object.assign(this.account, this.businessForm);
+                            setTimeout(() => this.closeModal(), 1500);
+                        } else {
+                            this.editError = data.error || 'Er ging iets mis';
+                        }
+                    } catch (error) {
+                        this.editError = 'Er ging iets mis';
+                    } finally {
+                        this.saving = false;
+                    }
+                },
+                
+                async saveContactInfo() {
+                    this.editError = '';
+                    this.editSuccess = '';
+                    this.saving = true;
+                    
+                    try {
+                        const response = await fetch('api/business-dashboard.php', {
+                            method: 'PUT',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({
+                                action: 'update_profile',
+                                ...this.contactForm
+                            })
+                        });
+                        
+                        const data = await response.json();
+                        
+                        if (data.success) {
+                            this.editSuccess = 'Gegevens opgeslagen!';
+                            Object.assign(this.account, this.contactForm);
+                            setTimeout(() => this.closeModal(), 1500);
+                        } else {
+                            this.editError = data.error || 'Er ging iets mis';
+                        }
+                    } catch (error) {
+                        this.editError = 'Er ging iets mis';
+                    } finally {
+                        this.saving = false;
+                    }
+                },
+                
+                async saveDeliveryInfo() {
+                    this.editError = '';
+                    this.editSuccess = '';
+                    this.saving = true;
+                    
+                    try {
+                        const response = await fetch('api/business-dashboard.php', {
+                            method: 'PUT',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({
+                                action: 'update_profile',
+                                ...this.deliveryForm,
+                                delivery_same_as_business: 0
+                            })
+                        });
+                        
+                        const data = await response.json();
+                        
+                        if (data.success) {
+                            this.editSuccess = 'Leveringsadres opgeslagen!';
+                            Object.assign(this.account, this.deliveryForm);
+                            setTimeout(() => this.closeModal(), 1500);
+                        } else {
+                            this.editError = data.error || 'Er ging iets mis';
+                        }
+                    } catch (error) {
+                        this.editError = 'Er ging iets mis';
+                    } finally {
+                        this.saving = false;
+                    }
+                },
+                
+                async changePassword() {
+                    this.passwordError = '';
+                    this.passwordSuccess = '';
+                    
+                    if (this.passwordForm.new !== this.passwordForm.confirm) {
+                        this.passwordError = 'Wachtwoorden komen niet overeen';
+                        return;
+                    }
+                    
+                    if (this.passwordForm.new.length < 8) {
+                        this.passwordError = 'Wachtwoord moet minimaal 8 tekens zijn';
+                        return;
+                    }
+                    
+                    this.savingPassword = true;
+                    
+                    try {
+                        const response = await fetch('api/business-dashboard.php', {
+                            method: 'PUT',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({
+                                action: 'change_password',
+                                current_password: this.passwordForm.current,
+                                new_password: this.passwordForm.new
+                            })
+                        });
+                        
+                        const data = await response.json();
+                        
+                        if (data.success) {
+                            this.passwordSuccess = 'Wachtwoord gewijzigd!';
+                            setTimeout(() => this.closeModal(), 1500);
+                        } else {
+                            this.passwordError = data.error || 'Er ging iets mis';
+                        }
+                    } catch (error) {
+                        this.passwordError = 'Er ging iets mis';
+                    } finally {
+                        this.savingPassword = false;
+                    }
+                }
+            }
+        }).mount('#profile-app');
+    </script>
+</body>
+</html>
