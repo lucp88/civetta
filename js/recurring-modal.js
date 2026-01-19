@@ -19,8 +19,7 @@ const RecurringModal = {
             tempFrequency: 'weekly',
             tempEndDate: '',
             tempDeliveryDate: '',
-            tempNotes: '',
-            tempIsRecurring: false
+            tempNotes: ''
         };
     },
     
@@ -32,7 +31,6 @@ const RecurringModal = {
                 this.tempEndDate = this.recurringEndDate || '';
                 this.tempDeliveryDate = this.deliveryDate || '';
                 this.tempNotes = this.deliveryNotes || '';
-                this.tempIsRecurring = this.isRecurring || false;
             }
         }
     },
@@ -49,7 +47,7 @@ const RecurringModal = {
                 endDate: this.tempEndDate,
                 deliveryDate: this.tempDeliveryDate,
                 notes: this.tempNotes,
-                isRecurring: this.tempIsRecurring
+                isRecurring: this.isRecurring
             });
         }
     },
@@ -58,7 +56,7 @@ const RecurringModal = {
         <div class="modal-overlay" v-if="show" @click.self="close">
             <div class="modal recurring-modal delivery-modal">
                 <div class="modal-header">
-                    <h3>Levering instellingen</h3>
+                    <h3>Levering wijzigen</h3>
                     <button class="modal-close" @click="close">&times;</button>
                 </div>
                 <div class="modal-body">
@@ -78,14 +76,7 @@ const RecurringModal = {
                                   placeholder="Speciale wensen, leverinstructies..."></textarea>
                     </div>
                     
-                    <div class="recurring-toggle-section">
-                        <label class="recurring-checkbox">
-                            <input type="checkbox" v-model="tempIsRecurring">
-                            <span>Dit is een terugkerende bestelling</span>
-                        </label>
-                    </div>
-                    
-                    <template v-if="tempIsRecurring">
+                    <template v-if="isRecurring">
                         <div class="recurring-fields">
                             <div class="form-group">
                                 <label for="recurring_name">Naam voor deze bestelling</label>

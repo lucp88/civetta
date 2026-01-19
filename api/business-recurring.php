@@ -23,49 +23,65 @@ switch ($method) {
         try {
             $stmt = $pdo->prepare("
                 SELECT 
-                    id,
-                    recurring_name as name,
-                    recurring_frequency as frequency,
-                    recurring_day as delivery_day,
-                    delivery_date as next_delivery_date,
-                    recurring_end_date as end_date,
-                    total_amount,
-                    status,
-                    notes,
-                    created_at
+                    recurring_group_id,
+                    MAX(recurring_name) as name,
+                    MAX(recurring_frequency) as frequency,
+                    MAX(recurring_day) as delivery_day,
+                    MAX(recurring_end_date) as end_date,
+                    MAX(recurring_confirmed_until) as confirmed_until,
+                    MIN(delivery_date) as first_delivery,
+                    MAX(delivery_date) as last_delivery,
+                    COUNT(*) as total_orders,
+                    SUM(CASE WHEN payment_status = 'paid' THEN 1 ELSE 0 END) as completed_orders,
+                    SUM(CASE WHEN is_cancelled = 1 THEN 1 ELSE 0 END) as cancelled_orders,
+                    SUM(CASE WHEN payment_status = 'pending' AND is_cancelled = 0 AND delivery_date >= CURDATE() THEN 1 ELSE 0 END) as upcoming_orders,
+                    ROUND(AVG(total_amount), 2) as amount_per_delivery,
+                    MIN(created_at) as created_at
                 FROM business_orders 
                 WHERE account_id = ? 
                 AND is_recurring = 1 
-                AND status NOT IN ('cancelled', 'invoiced')
-                ORDER BY delivery_date ASC
+                AND recurring_group_id IS NOT NULL
+                GROUP BY recurring_group_id
+                ORDER BY MIN(created_at) DESC
             ");
             $stmt->execute([$accountId]);
-            $recurring = $stmt->fetchAll();
+            $groups = $stmt->fetchAll();
             
-            foreach ($recurring as &$order) {
+            foreach ($groups as &$group) {
+                $group['is_active'] = $group['upcoming_orders'] > 0;
+                $group['needs_renewal'] = $group['confirmed_until'] && 
+                    strtotime($group['confirmed_until']) <= strtotime('+14 days') &&
+                    $group['is_active'];
+                
+                $stmt = $pdo->prepare("
+                    SELECT id, delivery_date, payment_status, payment_type, is_cancelled, total_amount
+                    FROM business_orders 
+                    WHERE recurring_group_id = ? 
+                    AND delivery_date >= CURDATE()
+                    AND is_cancelled = 0
+                    ORDER BY delivery_date ASC
+                    LIMIT 10
+                ");
+                $stmt->execute([$group['recurring_group_id']]);
+                $group['upcoming_deliveries'] = $stmt->fetchAll();
+                
                 $stmt = $pdo->prepare("
                     SELECT product_name, quantity, unit_price 
                     FROM business_order_items 
-                    WHERE order_id = ?
+                    WHERE order_id = (
+                        SELECT id FROM business_orders 
+                        WHERE recurring_group_id = ? 
+                        ORDER BY id ASC LIMIT 1
+                    )
                 ");
-                $stmt->execute([$order['id']]);
-                $order['items'] = $stmt->fetchAll();
-                
-                if ($order['status'] === 'recurring_pending') {
-                    $order['status'] = 'active';
-                }
+                $stmt->execute([$group['recurring_group_id']]);
+                $group['items'] = $stmt->fetchAll();
             }
-            unset($order);
-            
-            $debugStmt = $pdo->prepare("SELECT id, status, is_recurring, recurring_name FROM business_orders WHERE account_id = ?");
-            $debugStmt->execute([$accountId]);
-            $debugOrders = $debugStmt->fetchAll();
+            unset($group);
             
             echo json_encode([
                 'success' => true, 
-                'recurring_orders' => $recurring, 
-                'debug_account_id' => $accountId,
-                'debug_all_orders' => $debugOrders
+                'recurring_groups' => $groups
             ]);
         } catch (PDOException $e) {
             http_response_code(500);
@@ -73,188 +89,294 @@ switch ($method) {
         }
         break;
         
-    case 'POST':
-        $data = json_decode(file_get_contents('php://input'), true);
-        
-        $name = trim($data['name'] ?? '');
-        $frequency = $data['frequency'] ?? 'weekly';
-        $deliveryDay = intval($data['delivery_day'] ?? 1);
-        $items = $data['items'] ?? [];
-        $notes = trim($data['notes'] ?? '');
-        $endDate = $data['end_date'] ?? null;
-        
-        if (empty($name) || empty($items)) {
-            http_response_code(400);
-            echo json_encode(['success' => false, 'error' => 'Naam en producten zijn verplicht']);
-            exit;
-        }
-        
-        if (!in_array($frequency, ['weekly', 'biweekly', 'monthly'])) {
-            http_response_code(400);
-            echo json_encode(['success' => false, 'error' => 'Ongeldige frequentie']);
-            exit;
-        }
-        
-        $nextDeliveryDate = calculateNextDeliveryDate($frequency, $deliveryDay);
-        
-        try {
-            $pdo->beginTransaction();
-            
-            $stmt = $pdo->prepare("
-                INSERT INTO business_recurring_orders 
-                (account_id, name, frequency, delivery_day, next_delivery_date, end_date, notes, status)
-                VALUES (?, ?, ?, ?, ?, ?, ?, 'active')
-            ");
-            $stmt->execute([
-                $accountId, 
-                $name, 
-                $frequency, 
-                $deliveryDay, 
-                $nextDeliveryDate,
-                $endDate ?: null,
-                $notes
-            ]);
-            $recurringId = $pdo->lastInsertId();
-            
-            $stmt = $pdo->prepare("
-                INSERT INTO business_recurring_order_items 
-                (recurring_order_id, product_id, product_name, quantity, unit_price)
-                VALUES (?, ?, ?, ?, ?)
-            ");
-            
-            foreach ($items as $item) {
-                $stmt->execute([
-                    $recurringId,
-                    $item['product_id'] ?? null,
-                    $item['product_name'],
-                    $item['quantity'],
-                    $item['unit_price']
-                ]);
-            }
-            
-            $pdo->commit();
-            
-            echo json_encode([
-                'success' => true, 
-                'recurring_order_id' => $recurringId,
-                'next_delivery_date' => $nextDeliveryDate
-            ]);
-        } catch (PDOException $e) {
-            $pdo->rollBack();
-            http_response_code(500);
-            echo json_encode(['success' => false, 'error' => 'Database fout']);
-        }
-        break;
-        
     case 'PUT':
         $data = json_decode(file_get_contents('php://input'), true);
-        $recurringId = $data['id'] ?? null;
+        $groupId = $data['recurring_group_id'] ?? null;
         $action = $data['action'] ?? 'update';
         
-        if (!$recurringId) {
+        if (!$groupId) {
             http_response_code(400);
-            echo json_encode(['success' => false, 'error' => 'ID ontbreekt']);
+            echo json_encode(['success' => false, 'error' => 'recurring_group_id ontbreekt']);
             exit;
         }
         
-        $stmt = $pdo->prepare("SELECT * FROM business_orders WHERE id = ? AND account_id = ? AND is_recurring = 1");
-        $stmt->execute([$recurringId, $accountId]);
-        $existing = $stmt->fetch();
-        
-        if (!$existing) {
+        $stmt = $pdo->prepare("SELECT COUNT(*) FROM business_orders WHERE recurring_group_id = ? AND account_id = ?");
+        $stmt->execute([$groupId, $accountId]);
+        if ($stmt->fetchColumn() == 0) {
             http_response_code(404);
-            echo json_encode(['success' => false, 'error' => 'Terugkerende bestelling niet gevonden']);
+            echo json_encode(['success' => false, 'error' => 'Recurring groep niet gevonden']);
             exit;
         }
         
         try {
-            if ($action === 'pause') {
-                $stmt = $pdo->prepare("UPDATE business_orders SET status = 'recurring_paused' WHERE id = ?");
-                $stmt->execute([$recurringId]);
-                echo json_encode(['success' => true, 'message' => 'Bestelling gepauzeerd']);
+            if ($action === 'stop') {
+                $stmt = $pdo->prepare("
+                    UPDATE business_orders 
+                    SET is_cancelled = 1 
+                    WHERE recurring_group_id = ? 
+                    AND account_id = ?
+                    AND delivery_date > CURDATE()
+                    AND is_cancelled = 0
+                    AND payment_status = 'pending'
+                ");
+                $stmt->execute([$groupId, $accountId]);
+                $cancelled = $stmt->rowCount();
                 
-            } elseif ($action === 'resume') {
-                $nextDate = calculateNextDeliveryDate($existing['recurring_frequency'], $existing['recurring_day']);
-                $stmt = $pdo->prepare("UPDATE business_orders SET status = 'recurring_pending', delivery_date = ? WHERE id = ?");
-                $stmt->execute([$nextDate, $recurringId]);
-                echo json_encode(['success' => true, 'message' => 'Bestelling hervat', 'next_delivery_date' => $nextDate]);
+                echo json_encode([
+                    'success' => true, 
+                    'message' => "Terugkerende bestelling gestopt. $cancelled toekomstige leveringen geannuleerd."
+                ]);
                 
-            } elseif ($action === 'cancel') {
-                $stmt = $pdo->prepare("UPDATE business_orders SET status = 'cancelled' WHERE id = ?");
-                $stmt->execute([$recurringId]);
-                echo json_encode(['success' => true, 'message' => 'Bestelling geannuleerd']);
+            } elseif ($action === 'extend') {
+                $stmt = $pdo->prepare("
+                    SELECT * FROM business_orders 
+                    WHERE recurring_group_id = ? AND account_id = ?
+                    ORDER BY delivery_date DESC LIMIT 1
+                ");
+                $stmt->execute([$groupId, $accountId]);
+                $lastOrder = $stmt->fetch();
                 
-            } else {
-                $name = trim($data['name'] ?? $existing['recurring_name']);
-                $frequency = $data['frequency'] ?? $existing['recurring_frequency'];
-                $deliveryDay = intval($data['delivery_day'] ?? $existing['recurring_day']);
-                $notes = trim($data['notes'] ?? $existing['notes']);
-                $endDate = $data['end_date'] ?? $existing['recurring_end_date'];
-                $items = $data['items'] ?? null;
+                if (!$lastOrder) {
+                    throw new Exception('Geen bestaande orders gevonden');
+                }
+                
+                $stmt = $pdo->prepare("SELECT * FROM business_order_items WHERE order_id = ?");
+                $stmt->execute([$lastOrder['id']]);
+                $items = $stmt->fetchAll();
+                
+                $lastDate = new DateTime($lastOrder['delivery_date']);
+                $frequency = $lastOrder['recurring_frequency'];
+                
+                if ($frequency === 'weekly') {
+                    $lastDate->modify('+1 week');
+                } elseif ($frequency === 'biweekly') {
+                    $lastDate->modify('+2 weeks');
+                } else {
+                    $lastDate->modify('+1 month');
+                }
+                
+                $endDate = $lastOrder['recurring_end_date'];
+                $newDates = calculateExtensionDates($lastDate->format('Y-m-d'), $frequency, $endDate);
+                
+                if (empty($newDates)) {
+                    echo json_encode([
+                        'success' => false, 
+                        'error' => 'Kan niet verlengen: einddatum is bereikt of geen nieuwe datums mogelijk.'
+                    ]);
+                    exit;
+                }
+                
+                $newConfirmedUntil = end($newDates);
+                $orderIds = [];
                 
                 $pdo->beginTransaction();
                 
-                $recalculate = ($frequency !== $existing['recurring_frequency'] || $deliveryDay !== intval($existing['recurring_day']));
-                $nextDate = $recalculate ? calculateNextDeliveryDate($frequency, $deliveryDay) : $existing['delivery_date'];
-                
                 $stmt = $pdo->prepare("
-                    UPDATE business_orders 
-                    SET recurring_name = ?, recurring_frequency = ?, recurring_day = ?, delivery_date = ?, recurring_end_date = ?, notes = ?
-                    WHERE id = ?
+                    INSERT INTO business_orders (account_id, delivery_date, payment_status, total_amount, notes, payment_type, is_recurring, recurring_name, recurring_frequency, recurring_day, recurring_end_date, recurring_group_id, recurring_confirmed_until, recurring_parent_id, created_at)
+                    VALUES (?, ?, 'pending', ?, ?, 'invoice', 1, ?, ?, ?, ?, ?, ?, ?, NOW())
                 ");
-                $stmt->execute([$name, $frequency, $deliveryDay, $nextDate, $endDate ?: null, $notes, $recurringId]);
                 
-                if ($items !== null) {
-                    $pdo->prepare("DELETE FROM business_order_items WHERE order_id = ?")->execute([$recurringId]);
-                    
-                    $totalAmount = 0;
-                    $stmt = $pdo->prepare("
-                        INSERT INTO business_order_items 
-                        (order_id, product_id, product_name, quantity, unit_price)
-                        VALUES (?, ?, ?, ?, ?)
-                    ");
+                $itemStmt = $pdo->prepare("
+                    INSERT INTO business_order_items (order_id, product_name, quantity, unit_price)
+                    VALUES (?, ?, ?, ?)
+                ");
+                
+                foreach ($newDates as $date) {
+                    $stmt->execute([
+                        $accountId,
+                        $date,
+                        $lastOrder['total_amount'],
+                        $lastOrder['notes'],
+                        $lastOrder['recurring_name'],
+                        $lastOrder['recurring_frequency'],
+                        $lastOrder['recurring_day'],
+                        $lastOrder['recurring_end_date'],
+                        $groupId,
+                        $newConfirmedUntil,
+                        $lastOrder['recurring_parent_id']
+                    ]);
+                    $newOrderId = $pdo->lastInsertId();
+                    $orderIds[] = $newOrderId;
                     
                     foreach ($items as $item) {
-                        $stmt->execute([
-                            $recurringId,
-                            $item['product_id'] ?? null,
+                        $itemStmt->execute([
+                            $newOrderId,
                             $item['product_name'],
                             $item['quantity'],
                             $item['unit_price']
                         ]);
-                        $totalAmount += $item['quantity'] * $item['unit_price'];
                     }
+                }
+                
+                $pdo->prepare("
+                    UPDATE business_orders 
+                    SET recurring_confirmed_until = ? 
+                    WHERE recurring_group_id = ? AND account_id = ?
+                ")->execute([$newConfirmedUntil, $groupId, $accountId]);
+                
+                $pdo->commit();
+                
+                echo json_encode([
+                    'success' => true,
+                    'message' => count($orderIds) . ' nieuwe leveringen ingepland tot ' . date('d-m-Y', strtotime($newConfirmedUntil)),
+                    'orders_created' => count($orderIds),
+                    'confirmed_until' => $newConfirmedUntil
+                ]);
+                
+            } elseif ($action === 'update') {
+                $newItems = $data['items'] ?? null;
+                $newNotes = $data['notes'] ?? null;
+                $newName = $data['name'] ?? null;
+                $newFrequency = $data['frequency'] ?? null;
+                
+                $pdo->beginTransaction();
+                
+                $updateFields = [];
+                $updateParams = [];
+                
+                if ($newNotes !== null) {
+                    $updateFields[] = 'notes = ?';
+                    $updateParams[] = $newNotes;
+                }
+                
+                if ($newName !== null) {
+                    $updateFields[] = 'recurring_name = ?';
+                    $updateParams[] = $newName;
+                }
+                
+                if ($newFrequency !== null) {
+                    $updateFields[] = 'recurring_frequency = ?';
+                    $updateParams[] = $newFrequency;
+                }
+                
+                if (!empty($updateFields)) {
+                    $sql = "UPDATE business_orders SET " . implode(', ', $updateFields) . "
+                            WHERE recurring_group_id = ? 
+                            AND account_id = ?
+                            AND delivery_date > CURDATE()
+                            AND is_cancelled = 0
+                            AND payment_status = 'pending'";
+                    $updateParams[] = $groupId;
+                    $updateParams[] = $accountId;
+                    $pdo->prepare($sql)->execute($updateParams);
+                }
+                
+                if ($newItems !== null) {
+                    $stmt = $pdo->prepare("
+                        SELECT id FROM business_orders 
+                        WHERE recurring_group_id = ? 
+                        AND account_id = ?
+                        AND delivery_date > CURDATE()
+                        AND is_cancelled = 0
+                        AND payment_status = 'pending'
+                    ");
+                    $stmt->execute([$groupId, $accountId]);
+                    $futureOrderIds = $stmt->fetchAll(PDO::FETCH_COLUMN);
                     
-                    $pdo->prepare("UPDATE business_orders SET total_amount = ? WHERE id = ?")->execute([$totalAmount, $recurringId]);
+                    if (!empty($futureOrderIds)) {
+                        $placeholders = implode(',', array_fill(0, count($futureOrderIds), '?'));
+                        $pdo->prepare("DELETE FROM business_order_items WHERE order_id IN ($placeholders)")->execute($futureOrderIds);
+                        
+                        $totalAmount = array_reduce($newItems, fn($sum, $i) => $sum + ($i['quantity'] * $i['unit_price']), 0);
+                        $itemStmt = $pdo->prepare("INSERT INTO business_order_items (order_id, product_name, quantity, unit_price) VALUES (?, ?, ?, ?)");
+                        
+                        foreach ($futureOrderIds as $orderId) {
+                            foreach ($newItems as $item) {
+                                $itemStmt->execute([
+                                    $orderId,
+                                    $item['product_name'],
+                                    $item['quantity'],
+                                    $item['unit_price']
+                                ]);
+                            }
+                        }
+                        
+                        $pdo->prepare("UPDATE business_orders SET total_amount = ? WHERE id IN ($placeholders)")->execute(array_merge([$totalAmount], $futureOrderIds));
+                    }
                 }
                 
                 $pdo->commit();
-                echo json_encode(['success' => true, 'message' => 'Bestelling bijgewerkt', 'next_delivery_date' => $nextDate]);
+                
+                echo json_encode([
+                    'success' => true,
+                    'message' => 'Toekomstige leveringen bijgewerkt'
+                ]);
+                
+            } elseif ($action === 'update_single') {
+                $orderId = $data['order_id'] ?? null;
+                $newItems = $data['items'] ?? null;
+                $newNotes = $data['notes'] ?? null;
+                $skip = $data['skip'] ?? false;
+                
+                if (!$orderId) {
+                    http_response_code(400);
+                    echo json_encode(['success' => false, 'error' => 'order_id ontbreekt']);
+                    exit;
+                }
+                
+                $stmt = $pdo->prepare("SELECT * FROM business_orders WHERE id = ? AND account_id = ? AND recurring_group_id = ?");
+                $stmt->execute([$orderId, $accountId, $groupId]);
+                $order = $stmt->fetch();
+                
+                if (!$order) {
+                    http_response_code(404);
+                    echo json_encode(['success' => false, 'error' => 'Bestelling niet gevonden']);
+                    exit;
+                }
+                
+                if (strtotime($order['delivery_date']) <= strtotime('today')) {
+                    http_response_code(400);
+                    echo json_encode(['success' => false, 'error' => 'Kan alleen toekomstige leveringen aanpassen']);
+                    exit;
+                }
+                
+                $pdo->beginTransaction();
+                
+                if ($skip) {
+                    $pdo->prepare("UPDATE business_orders SET is_cancelled = 1 WHERE id = ?")->execute([$orderId]);
+                    $pdo->commit();
+                    echo json_encode(['success' => true, 'message' => 'Levering overgeslagen']);
+                    exit;
+                }
+                
+                if ($newNotes !== null) {
+                    $pdo->prepare("UPDATE business_orders SET notes = ? WHERE id = ?")->execute([$newNotes, $orderId]);
+                }
+                
+                if ($newItems !== null) {
+                    $pdo->prepare("DELETE FROM business_order_items WHERE order_id = ?")->execute([$orderId]);
+                    
+                    $totalAmount = array_reduce($newItems, fn($sum, $i) => $sum + ($i['quantity'] * $i['unit_price']), 0);
+                    $itemStmt = $pdo->prepare("INSERT INTO business_order_items (order_id, product_name, quantity, unit_price) VALUES (?, ?, ?, ?)");
+                    
+                    foreach ($newItems as $item) {
+                        $itemStmt->execute([
+                            $orderId,
+                            $item['product_name'],
+                            $item['quantity'],
+                            $item['unit_price']
+                        ]);
+                    }
+                    
+                    $pdo->prepare("UPDATE business_orders SET total_amount = ? WHERE id = ?")->execute([$totalAmount, $orderId]);
+                }
+                
+                $pdo->commit();
+                
+                echo json_encode([
+                    'success' => true,
+                    'message' => 'Levering bijgewerkt'
+                ]);
+                
+            } else {
+                http_response_code(400);
+                echo json_encode(['success' => false, 'error' => 'Onbekende actie: ' . $action]);
             }
-        } catch (PDOException $e) {
+            
+        } catch (Exception $e) {
             if ($pdo->inTransaction()) $pdo->rollBack();
             http_response_code(500);
-            echo json_encode(['success' => false, 'error' => 'Database fout']);
-        }
-        break;
-        
-    case 'DELETE':
-        $recurringId = $_GET['id'] ?? null;
-        
-        if (!$recurringId) {
-            http_response_code(400);
-            echo json_encode(['success' => false, 'error' => 'ID ontbreekt']);
-            exit;
-        }
-        
-        try {
-            $stmt = $pdo->prepare("UPDATE business_recurring_orders SET status = 'cancelled' WHERE id = ? AND account_id = ?");
-            $stmt->execute([$recurringId, $accountId]);
-            
-            echo json_encode(['success' => true, 'message' => 'Terugkerende bestelling geannuleerd']);
-        } catch (PDOException $e) {
-            http_response_code(500);
-            echo json_encode(['success' => false, 'error' => 'Database fout']);
+            echo json_encode(['success' => false, 'error' => 'Fout: ' . $e->getMessage()]);
         }
         break;
         
@@ -263,25 +385,28 @@ switch ($method) {
         echo json_encode(['success' => false, 'error' => 'Method not allowed']);
 }
 
-function calculateNextDeliveryDate($frequency, $deliveryDay) {
-    $today = new DateTime();
-    $minDate = (clone $today)->modify('+2 days');
+function calculateExtensionDates($startDate, $frequency, $endDate = null) {
+    $dates = [];
+    $current = new DateTime($startDate);
     
-    $daysOfWeek = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
-    $targetDay = $daysOfWeek[$deliveryDay] ?? 'monday';
+    if ($endDate) {
+        $maxDate = new DateTime($endDate);
+    } else {
+        $maxDate = (clone $current)->modify('+3 months');
+    }
     
-    $next = (clone $today)->modify("next $targetDay");
-    
-    if ($next <= $minDate) {
+    while ($current <= $maxDate) {
+        $dates[] = $current->format('Y-m-d');
+        
         if ($frequency === 'weekly') {
-            $next->modify('+1 week');
+            $current->modify('+1 week');
         } elseif ($frequency === 'biweekly') {
-            $next->modify('+2 weeks');
+            $current->modify('+2 weeks');
         } else {
-            $next->modify('+1 month');
+            $current->modify('+1 month');
         }
     }
     
-    return $next->format('Y-m-d');
+    return $dates;
 }
 ?>

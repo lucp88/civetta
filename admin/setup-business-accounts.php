@@ -99,6 +99,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $pdo->exec("ALTER TABLE business_accounts ADD COLUMN IF NOT EXISTS delivery_plaats VARCHAR(100) NULL");
         $pdo->exec("ALTER TABLE business_accounts ADD COLUMN IF NOT EXISTS delivery_contactpersoon VARCHAR(255) NULL");
         
+        // @deprecated: Deze tabellen worden NIET MEER GEBRUIKT
+        // Recurring orders worden nu opgeslagen in business_orders met is_recurring=1
+        // en gegroepeerd via recurring_group_id. Deze tabellen blijven voor backward compatibility.
         $pdo->exec("
             CREATE TABLE IF NOT EXISTS business_recurring_orders (
                 id INT AUTO_INCREMENT PRIMARY KEY,
@@ -116,6 +119,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
         ");
         
+        // @deprecated: Zie comment hierboven
         $pdo->exec("
             CREATE TABLE IF NOT EXISTS business_recurring_order_items (
                 id INT AUTO_INCREMENT PRIMARY KEY,
@@ -137,6 +141,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $pdo->exec("ALTER TABLE business_orders ADD COLUMN IF NOT EXISTS recurring_end_date DATE NULL");
         $pdo->exec("ALTER TABLE business_orders ADD COLUMN IF NOT EXISTS invoice_number VARCHAR(50) NULL");
         $pdo->exec("ALTER TABLE business_orders ADD COLUMN IF NOT EXISTS invoiced_at DATETIME NULL");
+        
+        $pdo->exec("ALTER TABLE business_orders ADD COLUMN IF NOT EXISTS recurring_group_id VARCHAR(50) NULL");
+        $pdo->exec("ALTER TABLE business_orders ADD COLUMN IF NOT EXISTS recurring_confirmed_until DATE NULL");
+        $pdo->exec("ALTER TABLE business_orders ADD COLUMN IF NOT EXISTS recurring_parent_id INT NULL");
+        $pdo->exec("ALTER TABLE business_orders ADD INDEX IF NOT EXISTS idx_recurring_group (recurring_group_id)");
+        $pdo->exec("ALTER TABLE business_orders ADD INDEX IF NOT EXISTS idx_delivery_date (delivery_date)");
         
         try {
             $pdo->exec("ALTER TABLE business_orders MODIFY COLUMN status VARCHAR(30) DEFAULT 'pending'");

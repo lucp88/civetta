@@ -438,6 +438,39 @@
         .recurring-info strong {
             color: #1a3d24;
         }
+        .recurring-inline-fields {
+            margin-top: 0.75rem;
+            padding: 1rem;
+            background: var(--color-parchment);
+            border-radius: 8px;
+        }
+        .recurring-inline-fields .form-group {
+            margin-bottom: 0.75rem;
+        }
+        .recurring-inline-fields .form-group:last-of-type {
+            margin-bottom: 0.5rem;
+        }
+        .recurring-inline-fields select {
+            width: 100%;
+            padding: 0.6rem;
+            border: 2px solid white;
+            border-radius: 6px;
+            font-size: 0.95rem;
+            font-family: var(--font-body);
+            background: white;
+        }
+        .recurring-inline-fields select:focus {
+            outline: none;
+            border-color: var(--color-wheat);
+        }
+        .recurring-inline-fields input[type="text"],
+        .recurring-inline-fields input[type="date"] {
+            background: white;
+            border: 2px solid white;
+        }
+        .recurring-inline-fields input:focus {
+            border-color: var(--color-wheat);
+        }
     </style>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link href="https://fonts.googleapis.com/css2?family=Libre+Baskerville:ital,wght@0,400;0,700;1,400&family=Source+Sans+Pro:wght@400;600&display=swap" rel="stylesheet">
@@ -613,16 +646,33 @@
                                                 <input type="radio" v-model="isRecurring" :value="false">
                                                 Eenmalig
                                             </label>
-                                            <label class="order-type-option" :class="{ selected: isRecurring }" @click.prevent="openRecurringModal">
-                                                <input type="radio" :checked="isRecurring">
+                                            <label class="order-type-option" :class="{ selected: isRecurring }">
+                                                <input type="radio" v-model="isRecurring" :value="true">
                                                 Terugkerend
                                             </label>
                                         </div>
                                         
-                                        <div v-if="isRecurring" class="recurring-summary">
-                                            <span class="recurring-badge">{{ frequencyLabel }}</span>
-                                            <span v-if="recurringEndDate" class="recurring-end">t/m {{ formatDateShort(recurringEndDate) }}</span>
-                                            <button type="button" class="btn-edit-recurring" @click="openRecurringModal">Wijzigen</button>
+                                        <div v-if="isRecurring" class="recurring-inline-fields">
+                                            <div class="form-group">
+                                                <label for="recurring_name">Naam (optioneel)</label>
+                                                <input type="text" id="recurring_name" v-model="recurringName" placeholder="Bijv. Weekbestelling kantoor">
+                                            </div>
+                                            <div class="form-group">
+                                                <label for="recurring_frequency">Frequentie *</label>
+                                                <select id="recurring_frequency" v-model="recurringFrequency">
+                                                    <option value="weekly">Wekelijks</option>
+                                                    <option value="biweekly">Tweewekelijks</option>
+                                                    <option value="monthly">Maandelijks</option>
+                                                </select>
+                                            </div>
+                                            <div class="form-group">
+                                                <label for="recurring_end_date">Einddatum (optioneel)</label>
+                                                <input type="date" id="recurring_end_date" v-model="recurringEndDate" :min="minEndDate">
+                                                <p class="field-hint">Laat leeg voor doorlopende bestelling (max 3 maanden)</p>
+                                            </div>
+                                            <div class="recurring-info">
+                                                <p>Leveringen worden <strong>maandelijks gebundeld gefactureerd</strong>.</p>
+                                            </div>
                                         </div>
                                     </div>
 
@@ -637,15 +687,6 @@
                             </div>
                         </div>
                     </template>
-                    <recurring-modal
-                        :show="showRecurringModal"
-                        :recurring-name="recurringName"
-                        :recurring-frequency="recurringFrequency"
-                        :recurring-end-date="recurringEndDate"
-                        :min-end-date="minEndDate"
-                        @close="showRecurringModal = false"
-                        @confirm="onRecurringConfirm"
-                    ></recurring-modal>
                 </div>
             </div>
         </section>
@@ -669,7 +710,6 @@
     <script src="https://unpkg.com/vue@3/dist/vue.global.prod.js"></script>
     <script src="js/main.js"></script>
     <script src="js/product-card.js"></script>
-    <script src="js/recurring-modal.js"></script>
     <script src="js/order-app.js"></script>
 </body>
 </html>

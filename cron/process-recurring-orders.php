@@ -1,10 +1,26 @@
 <?php
 /**
- * Cron job voor het verwerken van terugkerende bestellingen
+ * @deprecated Dit script is NIET MEER IN GEBRUIK
  * 
+ * Recurring orders worden nu direct aangemaakt bij het plaatsen van de bestelling
+ * in api/business-orders.php. Alle orders voor 3 maanden worden in één keer
+ * aangemaakt in de business_orders tabel.
+ * 
+ * Gebruik in plaats hiervan:
+ * - cron/recurring-renewal-reminder.php - voor verlengings-herinneringen
+ * - cron/generate-monthly-invoices.php - voor maandelijkse facturatie
+ * 
+ * Dit bestand wordt bewaard voor referentie maar mag verwijderd worden.
+ * 
+ * ============================================================================
+ * OUDE DOCUMENTATIE (niet meer van toepassing):
+ * ============================================================================
+ * Cron job voor het verwerken van terugkerende bestellingen
  * Dit script moet dagelijks draaien (bijv. om 06:00)
  * Crontab: 0 6 * * * /usr/bin/php /path/to/cron/process-recurring-orders.php
  */
+
+die("Dit script is deprecated. Recurring orders worden nu direct aangemaakt bij bestelling.\n");
 
 require_once __DIR__ . '/../admin/config.php';
 

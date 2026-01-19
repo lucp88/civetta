@@ -251,10 +251,26 @@ class EBoekhoudenClient {
         $invoiceDetails = $this->getInvoice($invoice['id']);
         $this->log("Invoice details: " . json_encode($invoiceDetails));
         
+        $pdfUrl = $invoiceDetails['urlPdfFile'] 
+            ?? $invoiceDetails['pdfUrl'] 
+            ?? $invoiceDetails['pdf_url']
+            ?? $invoiceDetails['url']
+            ?? $invoice['urlPdfFile']
+            ?? $invoice['pdfUrl']
+            ?? null;
+        
+        $invoiceNumber = $invoiceDetails['invoiceNumber'] 
+            ?? $invoiceDetails['invoice_number']
+            ?? $invoice['invoiceNumber'] 
+            ?? $invoice['invoice_number']
+            ?? null;
+        
+        $this->log("Extracted pdfUrl: " . ($pdfUrl ?? 'NULL') . ", invoiceNumber: " . ($invoiceNumber ?? 'NULL'));
+        
         return [
             'id' => $invoice['id'],
-            'invoiceNumber' => $invoiceDetails['invoiceNumber'] ?? $invoice['invoiceNumber'] ?? null,
-            'pdfUrl' => $invoiceDetails['urlPdfFile'] ?? null,
+            'invoiceNumber' => $invoiceNumber,
+            'pdfUrl' => $pdfUrl,
             'relationId' => $relationId
         ];
     }

@@ -3,8 +3,7 @@ const { createApp } = Vue;
 const app = createApp({
     components: {
         'product-card': ProductCard,
-        'product-detail-modal': ProductDetailModal,
-        'recurring-modal': RecurringModal
+        'product-detail-modal': ProductDetailModal
     },
     
     data() {
@@ -27,8 +26,7 @@ const app = createApp({
             isRecurring: false,
             recurringName: '',
             recurringFrequency: 'weekly',
-            recurringEndDate: '',
-            showRecurringModal: false
+            recurringEndDate: ''
         };
     },
     
@@ -359,18 +357,6 @@ const app = createApp({
             
             sessionStorage.setItem('checkoutData', JSON.stringify(checkoutData));
             window.location.href = 'checkout.html';
-        },
-        
-        openRecurringModal() {
-            this.showRecurringModal = true;
-        },
-        
-        onRecurringConfirm(data) {
-            this.isRecurring = true;
-            this.recurringName = data.name;
-            this.recurringFrequency = data.frequency;
-            this.recurringEndDate = data.endDate;
-            this.showRecurringModal = false;
         },
         
         formatDateShort(dateStr) {

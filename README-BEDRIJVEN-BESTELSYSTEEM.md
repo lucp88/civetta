@@ -42,8 +42,10 @@ Het bestelproces werkt als volgt:
 Zakelijke klanten kunnen vaste bestellingen instellen die automatisch worden herhaald:
 - **Frequenties**: Wekelijks, tweewekelijks of maandelijks
 - **Bezorgdag**: Vaste dag in de week
-- **Einddatum**: Optioneel, anders doorlopend
-- **Maandelijkse facturatie**: Alle leveringen worden gebundeld op één factuur
+- **Einddatum**: Optioneel, anders maximaal 3 maanden vooruit
+- **Direct aanmaken**: Bij het plaatsen worden ALLE leveringen voor de komende 3 maanden (of tot einddatum) direct aangemaakt in de database
+- **Verlengen**: 2 weken voor afloop ontvangt de klant een herinnering om te verlengen via het dashboard
+- **Maandelijkse facturatie**: Alle leveringen worden gebundeld op één factuur aan het einde van de maand
 
 ### 5. Favorieten
 Vaak bestelde productcombinaties kunnen worden opgeslagen als favoriet. Bij een nieuwe bestelling kan een favoriet worden geladen als startpunt.
@@ -135,27 +137,33 @@ Zakelijke klantgegevens.
 | approved_at | TIMESTAMP | Goedkeuringsdatum |
 
 ### business_orders
-Bestellingen van zakelijke klanten.
+Bestellingen van zakelijke klanten. Bij terugkerende bestellingen worden alle individuele leveringen als aparte orders in deze tabel opgeslagen.
 
 | Kolom | Type | Beschrijving |
 |-------|------|--------------|
 | id | INT | Primary key |
 | account_id | INT | FK naar business_accounts |
 | delivery_date | DATE | Gewenste leverdatum |
-| status | ENUM | 'pending', 'pending_invoice', 'paid', 'confirmed', 'delivered', 'cancelled' |
+| **payment_status** | VARCHAR(20) | 'pending' of 'paid' |
+| **payment_type** | VARCHAR(20) | 'mollie_direct', 'invoice' of 'cash' |
+| **is_cancelled** | TINYINT(1) | Geannuleerd flag (0/1) |
 | total_amount | DECIMAL(10,2) | Totaalbedrag incl. BTW |
 | notes | TEXT | Opmerkingen |
-| payment_type | VARCHAR(20) | 'direct' of 'later' |
 | mollie_payment_id | VARCHAR(50) | Mollie payment ID |
-| mollie_status | VARCHAR(20) | Mollie betalingsstatus |
+| mollie_status | VARCHAR(20) | Mollie betalingsstatus (audit) |
 | is_recurring | TINYINT(1) | Terugkerende bestelling flag |
 | recurring_name | VARCHAR(255) | Naam terugkerende bestelling |
 | recurring_frequency | VARCHAR(20) | 'weekly', 'biweekly', 'monthly' |
 | recurring_day | TINYINT | Dag van de week (0-6) |
-| recurring_end_date | DATE | Einddatum terugkerende bestelling |
+| recurring_end_date | DATE | Einddatum terugkerende serie |
+| **recurring_group_id** | VARCHAR(50) | Unieke ID voor alle orders in een recurring serie |
+| **recurring_confirmed_until** | DATE | Datum tot wanneer orders zijn aangemaakt |
+| **recurring_parent_id** | INT | FK naar eerste order in de serie |
 | eboekhouden_invoice_id | INT | e-Boekhouden factuur ID |
 | eboekhouden_factuurnummer | VARCHAR(50) | Factuurnummer |
 | eboekhouden_pdf_url | TEXT | URL naar PDF factuur |
+| invoice_number | VARCHAR(50) | Maandelijks factuurnummer |
+| invoiced_at | DATETIME | Datum maandelijks gefactureerd |
 | created_at | TIMESTAMP | Aanmaakdatum |
 
 ### business_order_items
@@ -280,19 +288,50 @@ Nieuwe bestelling plaatsen.
 ### Terugkerende Bestellingen
 
 #### GET /api/business-recurring.php
-Ophalen van actieve terugkerende bestellingen.
+Ophalen van recurring groepen voor ingelogd account.
 
-#### POST /api/business-recurring.php
-Nieuwe terugkerende bestelling aanmaken.
+**Response:**
+```json
+{
+  "success": true,
+  "recurring_groups": [
+    {
+      "recurring_group_id": "REC-1705234567-1",
+      "name": "Wekelijkse broodlevering",
+      "frequency": "weekly",
+      "delivery_day": 1,
+      "confirmed_until": "2024-04-15",
+      "upcoming_orders": 12,
+      "is_active": true,
+      "needs_renewal": false,
+      "items": [...],
+      "upcoming_deliveries": [...]
+    }
+  ]
+}
+```
 
 #### PUT /api/business-recurring.php
 Beheren van bestaande terugkerende bestelling.
 
+**Request:**
+```json
+{
+  "recurring_group_id": "REC-1705234567-1",
+  "action": "stop|extend|update"
+}
+```
+
 **Acties:**
-- `pause`: Pauzeren
-- `resume`: Hervatten
-- `cancel`: Annuleren
-- `update`: Gegevens wijzigen
+- `stop`: Annuleer alle toekomstige leveringen
+- `extend`: Verleng met 3 maanden (of tot einddatum)
+- `update`: Wijzig items of opmerkingen voor toekomstige leveringen
+
+**Workflow:**
+1. Bij het plaatsen van een recurring bestelling via `/api/business-orders.php` worden ALLE leveringen voor 3 maanden direct aangemaakt
+2. Alle orders krijgen dezelfde `recurring_group_id`
+3. Klant kan via dashboard stoppen, verlengen of wijzigen
+4. 2 weken voor afloop stuurt de cron een herinnering
 
 ### Favorieten
 
@@ -337,11 +376,11 @@ Favoriet verwijderen.
 - API key via environment variable `MOLLIE_API_KEY`
 
 **Workflow:**
-1. Order wordt aangemaakt met status 'pending'
+1. Order wordt aangemaakt met payment_status='pending', payment_type='mollie_direct'
 2. Mollie payment wordt gecreëerd met redirect URL
 3. Klant betaalt via Mollie checkout
 4. Webhook ontvangt betalingsupdate
-5. Bij 'paid' status: order bijwerken, factuur verzenden
+5. Bij 'paid': payment_status wordt 'paid', factuur verzonden
 
 **Webhook endpoint:** `/api/mollie-webhook.php`
 
@@ -362,20 +401,23 @@ Favoriet verwijderen.
 
 ## Cron Jobs
 
-### process-recurring-orders.php
-**Schedule:** Dagelijks om 06:00
+### ~~process-recurring-orders.php~~ (DEPRECATED)
+Dit script is **niet meer in gebruik**. Recurring orders worden nu direct aangemaakt bij het plaatsen van de bestelling in `api/business-orders.php`.
+
+### recurring-renewal-reminder.php
+**Schedule:** Dagelijks om 09:00
 ```
-0 6 * * * /usr/bin/php /path/to/cron/process-recurring-orders.php
+0 9 * * * /usr/bin/php /path/to/cron/recurring-renewal-reminder.php
 ```
 
 **Functie:**
-- Zoekt terugkerende orders met leverdatum over 2 dagen
-- Maakt automatisch nieuwe bestellingen aan
-- Berekent volgende leverdatum
-- Verstuurt notificaties
+- Zoekt recurring groepen waarvan `recurring_confirmed_until` binnen 14 dagen verloopt
+- Stuurt herinneringsmail naar klanten met link naar dashboard
+- Klant kan via dashboard verlengen (PUT action=extend)
+- Houdt bij welke herinneringen al verstuurd zijn (voorkomt spam)
 
 **CLI opties:**
-- `--dry-run`: Test zonder wijzigingen
+- `--dry-run`: Test zonder emails te versturen
 - `-v, --verbose`: Uitgebreide logging
 
 ### generate-monthly-invoices.php
@@ -450,7 +492,7 @@ MOLLIE_API_KEY=live_xxx
 
 ### Bestellingenbeheer Features
 - Overzicht lopende en afgeronde bestellingen
-- Status wijzigen (pending → paid → delivered)
+- Betaalstatus wijzigen (pending/paid) en annuleren
 - Factuur downloaden
 - Klantgegevens inzien
 
@@ -465,8 +507,9 @@ MOLLIE_API_KEY=live_xxx
    - Configureer e-Boekhouden credentials
 
 3. **Cron Jobs**
-   - Setup dagelijkse recurring orders job
-   - Setup maandelijkse facturatie job
+   - Setup dagelijkse renewal reminder job (`recurring-renewal-reminder.php`)
+   - Setup maandelijkse facturatie job (`generate-monthly-invoices.php`)
+   - **Let op:** `process-recurring-orders.php` is deprecated en hoeft niet geconfigureerd te worden
 
 4. **Directories**
    - Maak `/facturen/` directory writable

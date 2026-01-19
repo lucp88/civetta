@@ -65,16 +65,14 @@ switch ($method) {
                 $deliveryDate = $order['delivery_date'] ?? null;
                 $isPastDelivery = $deliveryDate && strtotime($deliveryDate) < strtotime('today');
                 
-                if ($isPastDelivery && !in_array($order['status'], ['delivered', 'cancelled'])) {
-                    $order['status'] = 'delivered';
-                    $pdo->prepare("UPDATE business_orders SET status = 'delivered' WHERE id = ? AND status NOT IN ('delivered', 'cancelled')")
-                        ->execute([$order['id']]);
+                if ($isPastDelivery && $order['payment_status'] === 'paid' && !$order['is_cancelled']) {
+                    // Auto-delivered logic verwijderd - niet meer nodig met nieuw model
                 }
                 
-                $isPaid = ($order['status'] === 'paid' || ($order['mollie_status'] ?? '') === 'paid');
-                $hasInvoice = ($order['status'] === 'pending_invoice' && !empty($order['eboekhouden_pdf_url']));
+                $isPaid = ($order['payment_status'] === 'paid');
+                $hasInvoice = ($order['payment_type'] === 'invoice' && !empty($order['eboekhouden_pdf_url']));
                 
-                if ($isPaid || $hasInvoice || $order['status'] === 'delivered') {
+                if ($isPaid || $hasInvoice) {
                     if (!empty($order['eboekhouden_pdf_url'])) {
                         $order['factuur_url'] = $order['eboekhouden_pdf_url'];
                         $order['factuur_nummer'] = $order['eboekhouden_factuurnummer'] ?? '';
@@ -83,6 +81,8 @@ switch ($method) {
                         $order['factuur_nummer'] = 'F' . date('Y') . '-' . str_pad($order['id'], 4, '0', STR_PAD_LEFT);
                     }
                 }
+                
+                $order['is_recurring'] = (bool)intval($order['is_recurring'] ?? 0);
             }
             unset($order);
             
@@ -126,44 +126,86 @@ switch ($method) {
             $pdo->beginTransaction();
             
             if ($isRecurring) {
-                $initialStatus = 'recurring_pending';
-            } elseif ($paymentType === 'later') {
-                $initialStatus = 'pending_invoice';
+                $recurringGroupId = 'REC-' . time() . '-' . $accountId;
+                $allDeliveryDates = calculateAllDeliveryDates($deliveryDate, $recurringFrequency, $recurringEndDate);
+                $confirmedUntil = end($allDeliveryDates);
+                
+                $orderIds = [];
+                $parentOrderId = null;
+                
+                $stmt = $pdo->prepare("
+                    INSERT INTO business_orders (account_id, delivery_date, payment_status, total_amount, notes, payment_type, is_recurring, recurring_name, recurring_frequency, recurring_day, recurring_end_date, recurring_group_id, recurring_confirmed_until, recurring_parent_id, created_at)
+                    VALUES (?, ?, 'pending', ?, ?, 'invoice', 1, ?, ?, ?, ?, ?, ?, ?, NOW())
+                ");
+                
+                $itemStmt = $pdo->prepare("
+                    INSERT INTO business_order_items (order_id, product_name, quantity, unit_price)
+                    VALUES (?, ?, ?, ?)
+                ");
+                
+                foreach ($allDeliveryDates as $index => $date) {
+                    $stmt->execute([
+                        $accountId,
+                        $date,
+                        $totalAmount,
+                        $notes,
+                        $recurringName ?: null,
+                        $recurringFrequency,
+                        $recurringDay,
+                        $recurringEndDate,
+                        $recurringGroupId,
+                        $confirmedUntil,
+                        $parentOrderId
+                    ]);
+                    $newOrderId = $pdo->lastInsertId();
+                    $orderIds[] = $newOrderId;
+                    
+                    if ($index === 0) {
+                        $parentOrderId = $newOrderId;
+                        $pdo->prepare("UPDATE business_orders SET recurring_parent_id = ? WHERE id = ?")->execute([$parentOrderId, $parentOrderId]);
+                    }
+                    
+                    foreach ($items as $item) {
+                        $itemStmt->execute([
+                            $newOrderId,
+                            $item['product_name'],
+                            $item['quantity'],
+                            $item['unit_price']
+                        ]);
+                    }
+                }
+                
+                $orderId = $parentOrderId;
+                
             } else {
-                $initialStatus = 'pending';
-            }
-            
-            $stmt = $pdo->prepare("
-                INSERT INTO business_orders (account_id, delivery_date, status, total_amount, notes, payment_type, is_recurring, recurring_name, recurring_frequency, recurring_day, recurring_end_date, created_at)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())
-            ");
-            $stmt->execute([
-                $accountId, 
-                $deliveryDate, 
-                $initialStatus, 
-                $totalAmount, 
-                $notes, 
-                $isRecurring ? 'later' : $paymentType,
-                $isRecurring ? 1 : 0,
-                $recurringName ?: null,
-                $recurringFrequency,
-                $recurringDay,
-                $recurringEndDate
-            ]);
-            $orderId = $pdo->lastInsertId();
-            
-            $stmt = $pdo->prepare("
-                INSERT INTO business_order_items (order_id, product_name, quantity, unit_price)
-                VALUES (?, ?, ?, ?)
-            ");
-            
-            foreach ($items as $item) {
+                $dbPaymentType = ($paymentType === 'later') ? 'invoice' : 'mollie_direct';
+                
+                $stmt = $pdo->prepare("
+                    INSERT INTO business_orders (account_id, delivery_date, payment_status, total_amount, notes, payment_type, is_recurring, created_at)
+                    VALUES (?, ?, 'pending', ?, ?, ?, 0, NOW())
+                ");
                 $stmt->execute([
-                    $orderId,
-                    $item['product_name'],
-                    $item['quantity'],
-                    $item['unit_price']
+                    $accountId, 
+                    $deliveryDate, 
+                    $totalAmount, 
+                    $notes, 
+                    $dbPaymentType
                 ]);
+                $orderId = $pdo->lastInsertId();
+                
+                $stmt = $pdo->prepare("
+                    INSERT INTO business_order_items (order_id, product_name, quantity, unit_price)
+                    VALUES (?, ?, ?, ?)
+                ");
+                
+                foreach ($items as $item) {
+                    $stmt->execute([
+                        $orderId,
+                        $item['product_name'],
+                        $item['quantity'],
+                        $item['unit_price']
+                    ]);
+                }
             }
             
             $pdo->commit();
@@ -189,10 +231,6 @@ switch ($method) {
                 }
             }
             
-            if ($isRecurring) {
-                $pdo->prepare("UPDATE business_orders SET is_recurring = 1 WHERE id = ?")->execute([$orderId]);
-            }
-            
             $stmt = $pdo->prepare("SELECT bedrijfsnaam, contactpersoon, email FROM business_accounts WHERE id = ?");
             $stmt->execute([$accountId]);
             $account = $stmt->fetch();
@@ -207,21 +245,25 @@ switch ($method) {
             if ($isRecurring) {
                 $frequencyLabels = ['weekly' => 'Wekelijks', 'biweekly' => 'Tweewekelijks', 'monthly' => 'Maandelijks'];
                 $frequencyLabel = $frequencyLabels[$recurringFrequency] ?? 'Wekelijks';
+                $orderCount = count($orderIds);
                 
-                $subject = "🔄 Nieuwe TERUGKERENDE bestelling van {$account['bedrijfsnaam']} (#$orderId)";
+                $subject = "🔄 Nieuwe TERUGKERENDE bestelling van {$account['bedrijfsnaam']} ({$orderCount} leveringen)";
                 $body = "Er is een nieuwe TERUGKERENDE bestelling geplaatst!\n\n";
                 $body .= "══════════════════════════════════════\n";
                 $body .= "TERUGKERENDE BESTELLING\n";
                 $body .= "══════════════════════════════════════\n\n";
-                $body .= "Bestelling #$orderId\n";
+                $body .= "Groep ID: $recurringGroupId\n";
+                $body .= "Aantal leveringen: $orderCount\n";
                 if ($recurringName) {
                     $body .= "Naam: $recurringName\n";
                 }
                 $body .= "Frequentie: $frequencyLabel\n";
+                $body .= "Eerste levering: " . date('d-m-Y', strtotime($deliveryDate)) . "\n";
+                $body .= "Laatste levering: " . date('d-m-Y', strtotime($confirmedUntil)) . "\n";
                 if ($recurringEndDate) {
-                    $body .= "Einddatum: " . date('d-m-Y', strtotime($recurringEndDate)) . "\n";
+                    $body .= "Einddatum serie: " . date('d-m-Y', strtotime($recurringEndDate)) . "\n";
                 } else {
-                    $body .= "Einddatum: Doorlopend\n";
+                    $body .= "Serie: Doorlopend (3 maanden ingepland)\n";
                 }
                 $body .= "\n";
             } else {
@@ -233,9 +275,16 @@ switch ($method) {
             $body .= "Bedrijf: {$account['bedrijfsnaam']}\n";
             $body .= "Contactpersoon: {$account['contactpersoon']}\n";
             $body .= "E-mail: {$account['email']}\n\n";
-            $body .= "Gewenste leverdatum: " . date('d-m-Y', strtotime($deliveryDate)) . "\n\n";
-            $body .= "Producten:\n$itemsList\n";
-            $body .= "Totaalbedrag: €" . number_format($totalAmount, 2, ',', '.') . "\n\n";
+            if (!$isRecurring) {
+                $body .= "Gewenste leverdatum: " . date('d-m-Y', strtotime($deliveryDate)) . "\n\n";
+            }
+            $body .= "Producten per levering:\n$itemsList\n";
+            $body .= "Bedrag per levering: €" . number_format($totalAmount, 2, ',', '.') . "\n";
+            if ($isRecurring) {
+                $body .= "Totaal ingepland: €" . number_format($totalAmount * $orderCount, 2, ',', '.') . "\n\n";
+            } else {
+                $body .= "\n";
+            }
             if ($notes) {
                 $body .= "Opmerkingen: $notes\n\n";
             }
@@ -257,7 +306,7 @@ switch ($method) {
                 $frequencyLabelCustomer = $frequencyLabels[$recurringFrequency] ?? 'Wekelijks';
                 $dayLabel = $dayLabels[$recurringDay] ?? 'maandag';
                 
-                $customerSubject = "Bevestiging terugkerende bestelling - Bakkerij Civetta";
+                $customerSubject = "Bevestiging terugkerende bestelling ({$orderCount} leveringen) - Bakkerij Civetta";
                 $customerBody = "Beste {$account['contactpersoon']},\n\n";
                 $customerBody .= "Bedankt voor uw terugkerende bestelling bij Bakkerij Civetta!\n\n";
                 $customerBody .= "══════════════════════════════════════\n";
@@ -266,23 +315,29 @@ switch ($method) {
                 if ($recurringName) {
                     $customerBody .= "Naam: $recurringName\n";
                 }
+                $customerBody .= "Aantal geplande leveringen: $orderCount\n";
                 $customerBody .= "Frequentie: $frequencyLabelCustomer\n";
                 $customerBody .= "Bezorgdag: " . ucfirst($dayLabel) . "\n";
                 $customerBody .= "Eerste levering: " . date('d-m-Y', strtotime($deliveryDate)) . "\n";
+                $customerBody .= "Laatste geplande levering: " . date('d-m-Y', strtotime($confirmedUntil)) . "\n";
                 if ($recurringEndDate) {
-                    $customerBody .= "Einddatum: " . date('d-m-Y', strtotime($recurringEndDate)) . "\n";
+                    $customerBody .= "Einddatum serie: " . date('d-m-Y', strtotime($recurringEndDate)) . "\n";
                 } else {
-                    $customerBody .= "Looptijd: Doorlopend (tot opzegging)\n";
+                    $customerBody .= "\nDeze serie is doorlopend. Twee weken voor de laatste\n";
+                    $customerBody .= "geplande levering ontvangt u een herinnering om te verlengen.\n";
                 }
                 $customerBody .= "\n";
                 $customerBody .= "Producten per levering:\n$itemsList\n";
-                $customerBody .= "Bedrag per levering: €" . number_format($totalAmount, 2, ',', '.') . "\n\n";
+                $customerBody .= "Bedrag per levering: €" . number_format($totalAmount, 2, ',', '.') . "\n";
+                $customerBody .= "Totaal ingepland: €" . number_format($totalAmount * $orderCount, 2, ',', '.') . "\n\n";
                 $customerBody .= "══════════════════════════════════════\n";
                 $customerBody .= "FACTURATIE\n";
                 $customerBody .= "══════════════════════════════════════\n\n";
                 $customerBody .= "Uw leveringen worden maandelijks gebundeld gefactureerd.\n";
                 $customerBody .= "Aan het einde van elke maand ontvangt u een verzamelfactuur\n";
                 $customerBody .= "voor alle leveringen van die maand.\n\n";
+                $customerBody .= "Beheer uw bestellingen via uw dashboard:\n";
+                $customerBody .= "https://bakkerij-civetta.nl/mijn-bestellingen.html\n\n";
                 $customerBody .= "Heeft u vragen? Neem gerust contact met ons op.\n\n";
                 $customerBody .= "Met vriendelijke groet,\n";
                 $customerBody .= "Bakkerij Civetta\n";
@@ -293,8 +348,11 @@ switch ($method) {
                 echo json_encode([
                     'success' => true,
                     'order_id' => $orderId,
+                    'recurring_group_id' => $recurringGroupId,
+                    'orders_created' => count($orderIds),
+                    'confirmed_until' => $confirmedUntil,
                     'payment_type' => 'recurring',
-                    'message' => 'Terugkerende bestelling geplaatst.'
+                    'message' => 'Terugkerende bestelling geplaatst. ' . count($orderIds) . ' leveringen ingepland tot ' . date('d-m-Y', strtotime($confirmedUntil)) . '.'
                 ]);
                 exit;
             }
@@ -332,8 +390,7 @@ switch ($method) {
                             SET eboekhouden_invoice_id = ?, 
                                 eboekhouden_factuurnummer = ?, 
                                 eboekhouden_pdf_url = ?,
-                                facturatie_systeem = 'eboekhouden',
-                                status = 'pending_invoice'
+                                facturatie_systeem = 'eboekhouden'
                             WHERE id = ?
                         ");
                         $stmt->execute([
@@ -421,6 +478,36 @@ switch ($method) {
     default:
         http_response_code(405);
         echo json_encode(['success' => false, 'error' => 'Method not allowed']);
+}
+
+function calculateAllDeliveryDates($firstDeliveryDate, $frequency, $endDate = null) {
+    $dates = [];
+    $current = new DateTime($firstDeliveryDate);
+    
+    if ($endDate) {
+        $maxDate = new DateTime($endDate);
+    } else {
+        $maxDate = (clone $current)->modify('+3 months');
+    }
+    
+    $threeMonthsFromNow = (new DateTime())->modify('+3 months');
+    if ($maxDate > $threeMonthsFromNow && !$endDate) {
+        $maxDate = $threeMonthsFromNow;
+    }
+    
+    while ($current <= $maxDate) {
+        $dates[] = $current->format('Y-m-d');
+        
+        if ($frequency === 'weekly') {
+            $current->modify('+1 week');
+        } elseif ($frequency === 'biweekly') {
+            $current->modify('+2 weeks');
+        } else {
+            $current->modify('+1 month');
+        }
+    }
+    
+    return $dates;
 }
 
 function calculateNextRecurringDate($frequency, $deliveryDay, $currentDeliveryDate) {

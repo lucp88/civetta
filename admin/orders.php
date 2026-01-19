@@ -26,12 +26,12 @@ function berekenBtw($totaalInclBtw, $tarief) {
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['update_status'])) {
     $orderId = intval($_POST['order_id']);
-    $newStatus = $_POST['status'];
-    $validStatuses = ['pending', 'pending_invoice', 'paid', 'confirmed', 'delivered', 'cancelled'];
+    $paymentStatus = $_POST['payment_status'] ?? null;
+    $isCancelled = isset($_POST['is_cancelled']) ? 1 : 0;
     
-    if (in_array($newStatus, $validStatuses)) {
-        $stmt = $pdo->prepare("UPDATE business_orders SET status = ? WHERE id = ?");
-        $stmt->execute([$newStatus, $orderId]);
+    if ($paymentStatus && in_array($paymentStatus, ['pending', 'paid'])) {
+        $stmt = $pdo->prepare("UPDATE business_orders SET payment_status = ?, is_cancelled = ? WHERE id = ?");
+        $stmt->execute([$paymentStatus, $isCancelled, $orderId]);
         header('Location: orders.php?updated=1');
         exit;
     }
@@ -41,7 +41,7 @@ $upcomingOrders = $pdo->query("
     SELECT bo.*, ba.bedrijfsnaam, ba.contactpersoon, ba.email, ba.telefoon, ba.adres, ba.postcode, ba.plaats
     FROM business_orders bo
     JOIN business_accounts ba ON bo.account_id = ba.id
-    WHERE bo.delivery_date >= CURDATE() AND bo.status NOT IN ('delivered', 'cancelled')
+    WHERE bo.delivery_date >= CURDATE() AND bo.is_cancelled = 0
     ORDER BY bo.delivery_date ASC
 ")->fetchAll();
 
@@ -49,7 +49,7 @@ $completedOrders = $pdo->query("
     SELECT bo.*, ba.bedrijfsnaam, ba.contactpersoon, ba.email, ba.telefoon, ba.adres, ba.postcode, ba.plaats
     FROM business_orders bo
     JOIN business_accounts ba ON bo.account_id = ba.id
-    WHERE bo.delivery_date < CURDATE() OR bo.status IN ('delivered', 'cancelled')
+    WHERE bo.delivery_date < CURDATE() OR bo.is_cancelled = 1
     ORDER BY bo.delivery_date DESC
     LIMIT 50
 ")->fetchAll();
@@ -193,11 +193,12 @@ $totalCompleted = array_sum(array_column($completedOrders, 'total_amount'));
             text-transform: uppercase;
         }
         .status-badge.pending { background: #fff3cd; color: #856404; }
-        .status-badge.pending_invoice { background: #e2e3ff; color: #4a4b98; }
         .status-badge.paid { background: #d1e7dd; color: #0f5132; }
-        .status-badge.confirmed { background: #cfe2ff; color: #084298; }
-        .status-badge.delivered { background: #e2e3e5; color: #41464b; }
         .status-badge.cancelled { background: #f8d7da; color: #842029; }
+        .payment-type-badge { display: inline-flex; align-items: center; gap: 4px; padding: 0.2rem 0.5rem; border-radius: 4px; font-size: 0.7rem; font-weight: 600; margin-left: 0.5rem; }
+        .payment-type-badge.mollie_direct { background: #e3f2fd; color: #1565c0; }
+        .payment-type-badge.invoice { background: #f3e5f5; color: #7b1fa2; }
+        .payment-type-badge.cash { background: #e8f5e9; color: #2e7d32; }
         .payment-method {
             display: inline-block;
             padding: 0.2rem 0.5rem;
@@ -380,7 +381,12 @@ $totalCompleted = array_sum(array_column($completedOrders, 'total_amount'));
                                     <span class="order-id">#<?= $order['id'] ?></span>
                                     <span class="customer">— <strong><?= htmlspecialchars($order['bedrijfsnaam']) ?></strong> (<?= htmlspecialchars($order['contactpersoon']) ?>)</span>
                                 </div>
-                                <span class="status-badge <?= $order['status'] ?>"><?= ucfirst($order['status']) ?></span>
+                                <?php if ($order['is_cancelled']): ?>
+                                    <span class="status-badge cancelled">Geannuleerd</span>
+                                <?php else: ?>
+                                    <span class="status-badge <?= $order['payment_status'] ?>"><?= $order['payment_status'] === 'paid' ? 'Betaald' : 'In afwachting' ?></span>
+                                    <span class="payment-type-badge <?= $order['payment_type'] ?>"><?= $order['payment_type'] === 'mollie_direct' ? 'Mollie' : ($order['payment_type'] === 'invoice' ? 'Factuur' : 'Contant') ?></span>
+                                <?php endif; ?>
                             </div>
                             <div class="order-body">
                                 <div class="order-info">
@@ -442,24 +448,22 @@ $totalCompleted = array_sum(array_column($completedOrders, 'total_amount'));
                                     <a href="<?= '../api/factuur.php?order_id=' . $order['id'] ?>" target="_blank" class="btn-factuur">Factuur</a>
                                 </div>
                             </div>
-                            <?php if (!$order['mollie_payment_id']): ?>
                             <div class="order-actions">
-                                <form method="POST" style="display: flex; gap: 0.5rem; align-items: center;">
+                                <form method="POST" style="display: flex; gap: 0.5rem; align-items: center; flex-wrap: wrap;">
                                     <input type="hidden" name="update_status" value="1">
                                     <input type="hidden" name="order_id" value="<?= $order['id'] ?>">
-                                    <label>Status:</label>
-                                    <select name="status">
-                                        <option value="pending" <?= $order['status'] === 'pending' ? 'selected' : '' ?>>Pending</option>
-                                        <option value="pending_invoice" <?= $order['status'] === 'pending_invoice' ? 'selected' : '' ?>>Factuur verzonden</option>
-                                        <option value="paid" <?= $order['status'] === 'paid' ? 'selected' : '' ?>>Betaald</option>
-                                        <option value="confirmed" <?= $order['status'] === 'confirmed' ? 'selected' : '' ?>>Bevestigd</option>
-                                        <option value="delivered" <?= $order['status'] === 'delivered' ? 'selected' : '' ?>>Geleverd</option>
-                                        <option value="cancelled" <?= $order['status'] === 'cancelled' ? 'selected' : '' ?>>Geannuleerd</option>
+                                    <label>Betaling:</label>
+                                    <select name="payment_status">
+                                        <option value="pending" <?= $order['payment_status'] === 'pending' ? 'selected' : '' ?>>In afwachting</option>
+                                        <option value="paid" <?= $order['payment_status'] === 'paid' ? 'selected' : '' ?>>Betaald</option>
                                     </select>
+                                    <label style="display: flex; align-items: center; gap: 4px;">
+                                        <input type="checkbox" name="is_cancelled" <?= $order['is_cancelled'] ? 'checked' : '' ?>>
+                                        Geannuleerd
+                                    </label>
                                     <button type="submit" class="btn-update">Bijwerken</button>
                                 </form>
                             </div>
-                            <?php endif; ?>
                         </div>
                     <?php endforeach; ?>
                 </div>
@@ -480,7 +484,12 @@ $totalCompleted = array_sum(array_column($completedOrders, 'total_amount'));
                                     <span class="order-id">#<?= $order['id'] ?></span>
                                     <span class="customer">— <strong><?= htmlspecialchars($order['bedrijfsnaam']) ?></strong></span>
                                 </div>
-                                <span class="status-badge <?= $order['status'] ?>"><?= ucfirst($order['status']) ?></span>
+                                <?php if ($order['is_cancelled']): ?>
+                                    <span class="status-badge cancelled">Geannuleerd</span>
+                                <?php else: ?>
+                                    <span class="status-badge <?= $order['payment_status'] ?>"><?= $order['payment_status'] === 'paid' ? 'Betaald' : 'In afwachting' ?></span>
+                                    <span class="payment-type-badge <?= $order['payment_type'] ?>"><?= $order['payment_type'] === 'mollie_direct' ? 'Mollie' : ($order['payment_type'] === 'invoice' ? 'Factuur' : 'Contant') ?></span>
+                                <?php endif; ?>
                             </div>
                             <div class="order-body">
                                 <div class="order-info">

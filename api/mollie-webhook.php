@@ -96,7 +96,7 @@ try {
     $stmt->execute([$status, $orderId, $paymentId]);
 
     if ($status === 'paid') {
-        $stmt = $pdo->prepare("UPDATE business_orders SET status = 'paid' WHERE id = ? AND mollie_payment_id = ?");
+        $stmt = $pdo->prepare("UPDATE business_orders SET payment_status = 'paid' WHERE id = ? AND mollie_payment_id = ?");
         $stmt->execute([$orderId, $paymentId]);
         
         $stmt = $pdo->prepare("
@@ -211,7 +211,7 @@ try {
             @mail("laurens@bakkerij-civetta.nl", $adminSubject, $adminBody, $headers);
         }
     } elseif (in_array($status, ['failed', 'canceled', 'expired'])) {
-        $stmt = $pdo->prepare("UPDATE business_orders SET status = 'cancelled' WHERE id = ? AND mollie_payment_id = ?");
+        $stmt = $pdo->prepare("UPDATE business_orders SET is_cancelled = 1 WHERE id = ? AND mollie_payment_id = ?");
         $stmt->execute([$orderId, $paymentId]);
     }
     
