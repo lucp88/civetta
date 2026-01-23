@@ -14,7 +14,11 @@ $boekhoudingVelden = [
     'eboekhouden_template_id_openstaand' => '',
     'eboekhouden_ledger_id' => '',
     'eboekhouden_debiteuren_ledger_id' => '',
-    'btw_tarief' => '9'
+    'btw_tarief' => '9',
+    'facturatie_moment' => 'op_leverdag',
+    'facturatie_uur' => '17:00',
+    'facturatie_dagen_offset' => '0',
+    'bestel_wijzig_deadline_uren' => '48'
 ];
 
 $huidigeWaarden = [];
@@ -246,6 +250,27 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             color: #5c3d1e;
             font-weight: 500;
         }
+        .form-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 1rem;
+        }
+        @media (max-width: 600px) {
+            .form-row {
+                grid-template-columns: 1fr;
+            }
+        }
+        .form-group input[type="time"] {
+            width: 100%;
+            padding: 0.75rem;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            font-size: 1rem;
+        }
+        .form-group input[type="time"]:focus {
+            outline: none;
+            border-color: #8b5a2b;
+        }
     </style>
 </head>
 <body>
@@ -326,6 +351,59 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             </div>
             
             <div class="card">
+                <h2>Automatische Facturatie</h2>
+                
+                <div class="form-group">
+                    <label>Facturatiemoment</label>
+                    <div class="radio-group">
+                        <label class="radio-option <?= $huidigeWaarden['facturatie_moment'] === 'voor_leverdag' ? 'selected' : '' ?>">
+                            <input type="radio" name="facturatie_moment" value="voor_leverdag" <?= $huidigeWaarden['facturatie_moment'] === 'voor_leverdag' ? 'checked' : '' ?>>
+                            <div class="option-content">
+                                <h3>Voor leverdag</h3>
+                                <p>Factuur wordt verstuurd X dagen voor de levering</p>
+                            </div>
+                        </label>
+                        <label class="radio-option <?= $huidigeWaarden['facturatie_moment'] === 'op_leverdag' ? 'selected' : '' ?>">
+                            <input type="radio" name="facturatie_moment" value="op_leverdag" <?= $huidigeWaarden['facturatie_moment'] === 'op_leverdag' ? 'checked' : '' ?>>
+                            <div class="option-content">
+                                <h3>Op leverdag</h3>
+                                <p>Factuur wordt verstuurd op de dag van levering</p>
+                            </div>
+                        </label>
+                        <label class="radio-option <?= $huidigeWaarden['facturatie_moment'] === 'na_leverdag' ? 'selected' : '' ?>">
+                            <input type="radio" name="facturatie_moment" value="na_leverdag" <?= $huidigeWaarden['facturatie_moment'] === 'na_leverdag' ? 'checked' : '' ?>>
+                            <div class="option-content">
+                                <h3>Na leverdag</h3>
+                                <p>Factuur wordt verstuurd X dagen na de levering</p>
+                            </div>
+                        </label>
+                    </div>
+                </div>
+                
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="facturatie_dagen_offset">Aantal dagen offset</label>
+                        <input type="number" id="facturatie_dagen_offset" name="facturatie_dagen_offset" value="<?= htmlspecialchars($huidigeWaarden['facturatie_dagen_offset']) ?>" min="0" max="30">
+                        <p class="help-text">0 = op leverdag zelf, 1 = 1 dag voor/na, etc.</p>
+                    </div>
+                    <div class="form-group">
+                        <label for="facturatie_uur">Tijdstip</label>
+                        <input type="time" id="facturatie_uur" name="facturatie_uur" value="<?= htmlspecialchars($huidigeWaarden['facturatie_uur']) ?>">
+                        <p class="help-text">Tijdstip waarop de cronjob facturen verstuurt</p>
+                    </div>
+                </div>
+                
+                <div class="form-group">
+                    <label for="bestel_wijzig_deadline_uren">Bestelling wijzigen deadline</label>
+                    <div class="input-suffix">
+                        <input type="number" id="bestel_wijzig_deadline_uren" name="bestel_wijzig_deadline_uren" value="<?= htmlspecialchars($huidigeWaarden['bestel_wijzig_deadline_uren']) ?>" min="0" max="168">
+                        <span>uren voor levering</span>
+                    </div>
+                    <p class="help-text">Klanten kunnen hun bestelling aanpassen tot dit aantal uren voor de leverdatum. Standaard: 48 uur.</p>
+                </div>
+            </div>
+            
+            <div class="card">
                 <h2>BTW Instellingen</h2>
                 
                 <div class="form-group">
@@ -345,7 +423,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     <script>
         document.querySelectorAll('input[name="facturatie_systeem"]').forEach(radio => {
             radio.addEventListener('change', function() {
-                document.querySelectorAll('.radio-option').forEach(opt => opt.classList.remove('selected'));
+                document.querySelectorAll('.radio-option').forEach(opt => {
+                    if (opt.querySelector('input[name="facturatie_systeem"]')) {
+                        opt.classList.remove('selected');
+                    }
+                });
                 this.closest('.radio-option').classList.add('selected');
                 
                 const eboekhoudenSettings = document.querySelector('.eboekhouden-settings');
@@ -354,6 +436,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 } else {
                     eboekhoudenSettings.classList.remove('active');
                 }
+            });
+        });
+        
+        document.querySelectorAll('input[name="facturatie_moment"]').forEach(radio => {
+            radio.addEventListener('change', function() {
+                document.querySelectorAll('.radio-option').forEach(opt => {
+                    if (opt.querySelector('input[name="facturatie_moment"]')) {
+                        opt.classList.remove('selected');
+                    }
+                });
+                this.closest('.radio-option').classList.add('selected');
             });
         });
     </script>

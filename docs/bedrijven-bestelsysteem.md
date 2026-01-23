@@ -38,35 +38,62 @@ Het bestelproces werkt als volgt:
 5. Optioneel: bestelling opslaan als favoriet voor hergebruik
 6. Optioneel: instellen als terugkerende bestelling
 
-### 4. Terugkerende Bestellingen
+### 4. Bestelbonnen en Facturatie
+
+Het systeem gebruikt een **twee-stappen facturatie workflow**:
+
+**Stap 1: Bestelbon bij bestelling**
+- Bij bestellingen op factuur ontvangt de klant een **bestelbon** (orderbevestiging)
+- De bestelbon bevat alle orderdetails maar is géén factuur
+- Klant kan de bestelling nog aanpassen tot de deadline
+
+**Stap 2: Automatische facturatie**
+- Op basis van de geconfigureerde instellingen wordt automatisch een factuur aangemaakt
+- Facturatie kan plaatsvinden: voor leverdag, op leverdag, of na leverdag
+- Na facturatie kan de bestelling niet meer gewijzigd worden
+
+**Configureerbare instellingen:**
+- `facturatie_moment`: 'voor', 'op', of 'na' leverdag
+- `facturatie_uur`: Tijdstip waarop cronjob draait (bijv. 06:00)
+- `facturatie_dagen_offset`: Aantal dagen offset (voor/na leverdag)
+- `bestel_wijzig_deadline_uren`: Aantal uren voor levering dat wijzigen nog mag
+
+### 5. Terugkerende Bestellingen
 Zakelijke klanten kunnen vaste bestellingen instellen die automatisch worden herhaald:
 - **Frequenties**: Wekelijks, tweewekelijks of maandelijks
 - **Bezorgdag**: Vaste dag in de week
 - **Einddatum**: Optioneel, anders maximaal 3 maanden vooruit
 - **Direct aanmaken**: Bij het plaatsen worden ALLE leveringen voor de komende 3 maanden (of tot einddatum) direct aangemaakt in de database
-- **Verlengen**: 2 weken voor afloop ontvangt de klant een herinnering om te verlengen via het dashboard
+- **Herbevestiging**: 2 weken voor afloop kan de klant via het dashboard verlengen met nog eens 3 maanden
 - **Maandelijkse facturatie**: Alle leveringen worden gebundeld op één factuur aan het einde van de maand
 
-### 5. Favorieten
+**Recurring bestelbon:**
+Bij terugkerende bestellingen ontvangt de klant een speciale bestelbon met:
+- Overzicht van alle geplande leveringen voor de komende 3 maanden
+- Totaalbedrag per levering en periode-totaal
+- Herbevestigingsdatum
+
+### 6. Favorieten
 Vaak bestelde productcombinaties kunnen worden opgeslagen als favoriet. Bij een nieuwe bestelling kan een favoriet worden geladen als startpunt.
 
-### 6. Betalingen
+### 7. Betalingen
 Het systeem ondersteunt twee betaalmethodes:
 - **Directe betaling**: Via Mollie (iDEAL, creditcard, etc.)
 - **Betalen op factuur**: Voor bedrijven met factuurafspraken
 
-### 7. Facturatie
-Facturen worden gegenereerd via twee systemen:
-- **Eigen systeem**: PDF-facturen via FPDF library
-- **e-Boekhouden integratie**: Automatische facturatie via e-Boekhouden API
+### 8. Edit Deadline
+Bestellingen kunnen alleen worden aangepast tot een bepaalde deadline:
+- Deadline wordt berekend op basis van `bestel_wijzig_deadline_uren` setting
+- Standaard: 24 uur voor de leveringsdatum
+- Na de deadline is de "Aanpassen" knop uitgeschakeld
+- Dashboard toont de deadline datum/tijd bij elke order
 
-Bij directe betaling wordt de factuur automatisch verzonden na betalingsbevestiging. Bij terugkerende bestellingen worden alle leveringen maandelijks gebundeld gefactureerd.
-
-### 8. Admin Beheer
+### 9. Admin Beheer
 De bakkerij heeft een admin panel met:
 - Overzicht van alle zakelijke accounts en aanvragen
 - Bestellingenbeheer met statusupdates
 - e-Boekhouden instellingen configureren
+- Facturatie-instellingen configureren (moment, uur, deadline)
 - BTW-tarieven en bedrijfsgegevens beheren
 
 ---
@@ -91,6 +118,7 @@ De bakkerij heeft een admin panel met:
 │  │ - login      │  │ - orders     │  │ - mollie-webhook     │   │
 │  │ - logout     │  │ - recurring  │  │ - eboekhouden        │   │
 │  │ - accounts   │  │ - favorites  │  │ - factuur            │   │
+│  │              │  │ - bestelbon  │  │                      │   │
 │  └──────────────┘  └──────────────┘  └──────────────────────┘   │
 └─────────────────────────────────────────────────────────────────┘
                               │
@@ -108,6 +136,16 @@ De bakkerij heeft een admin panel met:
 │                     External Services                            │
 │  ┌──────────────────────┐  ┌──────────────────────────────┐     │
 │  │ Mollie Payments API  │  │ e-Boekhouden API             │     │
+│  └──────────────────────┘  └──────────────────────────────┘     │
+└─────────────────────────────────────────────────────────────────┘
+                              │
+                              ▼
+┌─────────────────────────────────────────────────────────────────┐
+│                        Cron Jobs                                 │
+│  ┌──────────────────────┐  ┌──────────────────────────────┐     │
+│  │ auto-invoice.php     │  │ recurring-renewal-reminder   │     │
+│  │ (Automatische        │  │ (Herbevestiging             │     │
+│  │  facturatie)         │  │  herinneringen)             │     │
 │  └──────────────────────┘  └──────────────────────────────┘     │
 └─────────────────────────────────────────────────────────────────┘
 ```
@@ -149,9 +187,13 @@ Bestellingen van zakelijke klanten. Bij terugkerende bestellingen worden alle in
 | account_id | INT | FK naar business_accounts |
 | delivery_date | DATE | Gewenste leverdatum |
 | **delivery_address** | VARCHAR(500) | Afwijkend leveradres (per order override) |
+| **order_status** | VARCHAR(20) | 'bestelbon', 'gefactureerd', 'afgeleverd' |
 | **payment_status** | VARCHAR(20) | 'pending' of 'paid' |
-| **payment_type** | VARCHAR(20) | 'mollie_direct', 'invoice' of 'cash' |
+| **payment_type** | VARCHAR(20) | 'ideal', 'factuur' of 'cash' |
 | **is_cancelled** | TINYINT(1) | Geannuleerd flag (0/1) |
+| **bestelbon_sent_at** | DATETIME | Timestamp bestelbon verzonden |
+| **bestelbon_number** | VARCHAR(50) | Bestelbonnummer (bijv. BB-2026-00001) |
+| **can_be_edited_until** | DATETIME | Deadline voor wijzigingen |
 | total_amount | DECIMAL(10,2) | Totaalbedrag incl. BTW |
 | notes | TEXT | Opmerkingen |
 | mollie_payment_id | VARCHAR(50) | Mollie payment ID |
@@ -170,6 +212,11 @@ Bestellingen van zakelijke klanten. Bij terugkerende bestellingen worden alle in
 | invoice_number | VARCHAR(50) | Maandelijks factuurnummer |
 | invoiced_at | DATETIME | Datum maandelijks gefactureerd |
 | created_at | TIMESTAMP | Aanmaakdatum |
+
+**Order status flow:**
+1. `bestelbon` - Bestelling ontvangen, bestelbon verstuurd, nog wijzigbaar
+2. `gefactureerd` - Factuur aangemaakt via cronjob, niet meer wijzigbaar
+3. `afgeleverd` - Bestelling afgeleverd
 
 **Leveradres logica:**
 - Als `delivery_address` leeg is → API haalt adres op uit `business_accounts`
@@ -268,6 +315,13 @@ Ophalen van alle bestellingen voor ingelogd account.
 - BTW-berekening
 - Factuur URL (indien beschikbaar)
 - Betaal-URL voor openstaande Mollie betalingen
+- **can_edit**: Boolean of order nog aangepast mag worden
+- **edit_deadline**: Deadline datetime voor wijzigingen
+- **edit_deadline_formatted**: Leesbare deadline (bijv. "21 jan 2026 om 06:00")
+- **bestelbon_url**: URL naar bestelbon PDF
+- **can_renew**: Boolean of recurring serie verlengd kan worden
+- **renewal_available_from**: Datum vanaf wanneer verlengen mogelijk is
+- **is_recurring_parent**: Boolean of dit de parent order is van een serie
 
 #### POST /api/business-orders.php
 Nieuwe bestelling plaatsen.
@@ -281,9 +335,19 @@ Nieuwe bestelling plaatsen.
   "delivery_date": "2024-01-15",
   "notes": "Vroeg leveren",
   "total_amount": 35.00,
-  "payment_type": "direct",
+  "payment_type": "factuur",
   "save_as_favorite": false,
   "is_recurring": false
+}
+```
+
+**Response (betaling op factuur):**
+```json
+{
+  "success": true,
+  "order_id": 123,
+  "bestelbon_sent": true,
+  "message": "Bestelbon verzonden naar uw e-mailadres"
 }
 ```
 
@@ -296,8 +360,14 @@ Nieuwe bestelling plaatsen.
 }
 ```
 
+**Workflow bij payment_type='factuur':**
+1. Order wordt aangemaakt met `order_status='bestelbon'`
+2. `can_be_edited_until` wordt berekend
+3. Bestelbon PDF wordt gegenereerd en gemaild
+4. Cronjob maakt later de factuur aan
+
 #### PUT /api/business-orders.php
-Bestelling aanpassen of annuleren.
+Bestelling aanpassen, annuleren of recurring verlengen.
 
 **Request (update):**
 ```json
@@ -319,17 +389,46 @@ Bestelling aanpassen of annuleren.
 }
 ```
 
+**Request (recurring verlengen):**
+```json
+{
+  "order_id": 123,
+  "action": "renew_recurring"
+}
+```
+
 **Validaties:**
 - Order moet van ingelogde gebruiker zijn
 - `payment_status` mag niet 'paid' zijn
 - `is_cancelled` mag niet 1 zijn
-- `delivery_date` moet >= morgen zijn
+- `can_be_edited_until` moet in de toekomst liggen (of `delivery_date` >= morgen als fallback)
 
 **Werking bij update:**
-1. Verwijdert alle bestaande `business_order_items`
-2. Voegt nieuwe items toe
-3. Herberekent `total_amount`
-4. Update `notes` en `delivery_address`
+1. Controleert `canOrderBeEdited()` 
+2. Verwijdert alle bestaande `business_order_items`
+3. Voegt nieuwe items toe
+4. Herberekent `total_amount`
+5. Update `notes` en `delivery_address`
+
+**Werking bij renew_recurring:**
+1. Zoekt parent order van de recurring serie
+2. Controleert of verlengen beschikbaar is (2 weken voor `recurring_confirmed_until`)
+3. Maakt nieuwe orders aan voor volgende 3 maanden
+4. Update `recurring_confirmed_until` voor alle orders in de serie
+5. Stuurt recurring bestelbon met leveringsoverzicht
+
+### Bestelbonnen
+
+#### /api/bestelbon.php
+Interne functies voor bestelbon generatie.
+
+**Functies:**
+- `generateBestelbon($orderId)` - Genereert PDF bestelbon voor enkele order
+- `generateRecurringBestelbon($orderId)` - Genereert PDF met 3-maanden leveringsoverzicht
+- `sendBestelbonEmail($orderId)` - Verstuurt bestelbon per e-mail
+- `sendRecurringBestelbonEmail($orderId)` - Verstuurt recurring bestelbon per e-mail
+- `canOrderBeEdited($orderId)` - Controleert of order nog gewijzigd mag worden
+- `calculateEditDeadline($deliveryDate)` - Berekent deadline op basis van settings
 
 ### Terugkerende Bestellingen
 
@@ -350,6 +449,8 @@ Ophalen van recurring groepen voor ingelogd account.
       "upcoming_orders": 12,
       "is_active": true,
       "needs_renewal": false,
+      "can_renew": true,
+      "renewal_available_from": "2024-04-01",
       "items": [...],
       "upcoming_deliveries": [...]
     }
@@ -377,7 +478,7 @@ Beheren van bestaande terugkerende bestelling.
 1. Bij het plaatsen van een recurring bestelling via `/api/business-orders.php` worden ALLE leveringen voor 3 maanden direct aangemaakt
 2. Alle orders krijgen dezelfde `recurring_group_id`
 3. Klant kan via dashboard stoppen, verlengen of wijzigen
-4. 2 weken voor afloop stuurt de cron een herinnering
+4. 2 weken voor `recurring_confirmed_until` wordt verlengen beschikbaar in dashboard
 
 ### Favorieten
 
@@ -420,8 +521,11 @@ De order detail modal heeft twee modes:
 
 **View mode:**
 - Meta-info: leverdatum, leveradres, items, totaal
+- Order status badge (bestelbon/gefactureerd/afgeleverd)
+- Edit deadline indicator
 - Lijst van producten met prijzen
 - Acties: Aanpassen, Annuleren, Factuur, Betalen, Opnieuw bestellen
+- **Verlengen knop** bij recurring orders (indien beschikbaar)
 
 **Edit mode:**
 - Leveradres input (prefilled met account adres)
@@ -437,6 +541,8 @@ De order detail modal heeft twee modes:
 canEditOrder(order) {
     if (is_cancelled === 1) return false;
     if (payment_status === 'paid') return false;
+    if (order_status === 'gefactureerd' || order_status === 'afgeleverd') return false;
+    if (can_be_edited_until && new Date(can_be_edited_until) < new Date()) return false;
     if (delivery_date < tomorrow) return false;
     return true;
 }
@@ -450,7 +556,7 @@ canEditOrder(order) {
 - API key via environment variable `MOLLIE_API_KEY`
 
 **Workflow:**
-1. Order wordt aangemaakt met payment_status='pending', payment_type='mollie_direct'
+1. Order wordt aangemaakt met payment_status='pending', payment_type='ideal'
 2. Mollie payment wordt gecreëerd met redirect URL
 3. Klant betaalt via Mollie checkout
 4. Webhook ontvangt betalingsupdate
@@ -464,16 +570,48 @@ canEditOrder(order) {
 - `eboekhouden_api_token`: API access token
 - `eboekhouden_template_id_betaald`: Template voor betaalde facturen
 - `eboekhouden_template_id_openstaand`: Template voor openstaande facturen
-- `eboekhouden_ledger_id`: Grootboekrekening
+- `eboekhouden_ledger_id`: Omzet grootboekrekening
+- `eboekhouden_debiteuren_ledger_id`: Debiteuren grootboekrekening (1300)
 
 **Functies:**
 - Automatisch relaties aanmaken/ophalen
 - Facturen genereren en e-mailen
 - PDF URL ophalen voor downloads
+- **Facturen boeken op debiteuren** (verschijnt in mutaties en openstaande posten)
 
 **Klasse:** `EBoekhoudenClient` in `/api/eboekhouden.php`
 
+**Belangrijke methoden:**
+- `createFullInvoice()` - Maakt factuur aan en verstuurt email
+- `bookInvoiceToDebtors()` - Boekt factuur op debiteuren (mutatie)
+- `getRelations()` / `createRelation()` - Relatiebeheer
+- `getMutations()` - Ophalen mutaties
+- `getLedgers()` - Ophalen grootboekrekeningen
+
+Zie `/docs/e-boekhouden-api.md` voor volledige API documentatie.
+
 ## Cron Jobs
+
+### auto-invoice.php (NIEUW)
+**Schedule:** Dagelijks op geconfigureerd uur (bijv. 06:00)
+```
+0 6 * * * /usr/bin/php /path/to/cron/auto-invoice.php
+```
+
+**Functie:**
+- Zoekt orders die gefactureerd moeten worden op basis van `facturatie_moment` setting
+- `voor`: Orders met leverdag = morgen + offset dagen
+- `op`: Orders met leverdag = vandaag
+- `na`: Orders met leverdag = gisteren - offset dagen
+- Maakt factuur aan via e-Boekhouden of eigen systeem
+- Boekt factuur op debiteuren (voor mutaties/openstaande posten)
+- Update `order_status` naar 'gefactureerd'
+
+**Voorbeeld configuratie:**
+- `facturatie_moment = 'voor'`
+- `facturatie_dagen_offset = 1`
+- `facturatie_uur = '06:00'`
+- → Facturen worden aangemaakt 1 dag voor leverdag om 06:00
 
 ### ~~process-recurring-orders.php~~ (DEPRECATED)
 Dit script is **niet meer in gebruik**. Recurring orders worden nu direct aangemaakt bij het plaatsen van de bestelling in `api/business-orders.php`.
@@ -545,10 +683,15 @@ MOLLIE_API_KEY=live_xxx
 |-----|--------------|
 | btw_tarief | BTW percentage (9 of 21) |
 | facturatie_systeem | 'eigen' of 'eboekhouden' |
+| **facturatie_moment** | 'voor', 'op', of 'na' leverdag |
+| **facturatie_uur** | Tijdstip cronjob (bijv. '06:00') |
+| **facturatie_dagen_offset** | Dagen offset voor facturatie |
+| **bestel_wijzig_deadline_uren** | Uren voor levering dat wijzigen mag |
 | eboekhouden_api_token | API token |
 | eboekhouden_template_id_betaald | Template ID |
 | eboekhouden_template_id_openstaand | Template ID |
-| eboekhouden_ledger_id | Grootboekrekening ID |
+| eboekhouden_ledger_id | Omzet grootboekrekening ID |
+| **eboekhouden_debiteuren_ledger_id** | Debiteuren grootboekrekening ID |
 | bedrijf_naam | Bakkerij naam voor facturen |
 | bedrijf_adres | Adres voor facturen |
 | bedrijf_kvk | KVK-nummer |
@@ -561,19 +704,46 @@ MOLLIE_API_KEY=live_xxx
 |-----|---------|
 | `/admin/orders.php` | Bestellingenbeheer |
 | `/admin/accounts-bedrijven.php` | Zakelijke accounts beheren |
-| `/admin/settings-boekhouding.php` | e-Boekhouden configuratie |
+| `/admin/settings-boekhouding.php` | e-Boekhouden + facturatie configuratie |
 | `/admin/setup-business-accounts.php` | Database setup |
+
+### Facturatie Instellingen (`settings-boekhouding.php`)
+- **Facturatie moment**: Radio buttons voor 'voor/op/na leverdag'
+- **Facturatie uur**: Time picker (bijv. 06:00)
+- **Dagen offset**: Aantal dagen voor/na leverdag
+- **Wijzig deadline**: Aantal uren voor levering
 
 ### Bestellingenbeheer Features
 - Overzicht lopende en afgeronde bestellingen
+- Order status indicator (bestelbon/gefactureerd/afgeleverd)
 - Betaalstatus wijzigen (pending/paid) en annuleren
 - Factuur downloaden
 - Klantgegevens inzien
+
+## Database Migraties
+
+### 001_payment_status_model.php
+- Voegt `payment_status` kolom toe
+- Voegt `is_cancelled` kolom toe
+- Migreert oude status waarden
+
+### 002_order_status_bestelbon.php
+- Voegt `order_status` kolom toe (bestelbon/gefactureerd/afgeleverd)
+- Voegt `bestelbon_sent_at` kolom toe
+- Voegt `bestelbon_number` kolom toe
+- Voegt `can_be_edited_until` kolom toe
+- Normaliseert `payment_type` waarden naar 'ideal' en 'factuur'
+
+**Uitvoeren:**
+```bash
+php /path/to/admin/migrations/002_order_status_bestelbon.php
+```
 
 ## Deployment Checklist
 
 1. **Database**
    - Run `/admin/setup-business-accounts.php` voor tabel creatie
+   - Run migraties in `/admin/migrations/`
    - Configureer settings via admin panel
 
 2. **Environment**
@@ -581,9 +751,10 @@ MOLLIE_API_KEY=live_xxx
    - Configureer e-Boekhouden credentials
 
 3. **Cron Jobs**
-   - Setup dagelijkse renewal reminder job (`recurring-renewal-reminder.php`)
-   - Setup maandelijkse facturatie job (`generate-monthly-invoices.php`)
-   - **Let op:** `process-recurring-orders.php` is deprecated en hoeft niet geconfigureerd te worden
+   - **NIEUW**: Setup dagelijkse auto-invoice job (`cron/auto-invoice.php`)
+   - Setup dagelijkse renewal reminder job (`cron/recurring-renewal-reminder.php`)
+   - Setup maandelijkse facturatie job (`cron/generate-monthly-invoices.php`)
+   - **Let op:** `process-recurring-orders.php` is deprecated
 
 4. **Directories**
    - Maak `/facturen/` directory writable
@@ -613,3 +784,14 @@ Bevat: Mollie webhook calls, e-Boekhouden API responses
 - Check e-Boekhouden credentials
 - Verify template IDs en ledger ID
 - Check API response in webhook-debug.log
+- Check of `eboekhouden_debiteuren_ledger_id` is ingesteld
+
+**Bestelling kan niet meer gewijzigd worden:**
+- Check `can_be_edited_until` in database
+- Verify `bestel_wijzig_deadline_uren` setting
+- Check of `order_status` niet 'gefactureerd' is
+
+**Recurring verlengen werkt niet:**
+- Check `recurring_confirmed_until` datum
+- Verlengen is pas beschikbaar 2 weken voor afloop
+- Verify dat order een `recurring_group_id` heeft

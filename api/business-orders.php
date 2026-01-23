@@ -1,6 +1,7 @@
 <?php
 require_once '../admin/config.php';
 require_once 'cors.php';
+require_once 'bestelbon.php';
 
 header('Content-Type: application/json');
 setCorsHeaders();
@@ -97,6 +98,32 @@ switch ($method) {
                 }
                 
                 $order['is_recurring'] = (bool)intval($order['is_recurring'] ?? 0);
+                
+                $order['can_edit'] = canOrderBeEdited($pdo, $order['id']);
+                $deadlineHours = getWijzigDeadlineUren($pdo);
+                if ($order['delivery_date']) {
+                    $editDeadline = calculateEditDeadline($order['delivery_date'], $deadlineHours);
+                    $order['edit_deadline'] = $editDeadline->format('Y-m-d H:i:s');
+                    $order['edit_deadline_formatted'] = $editDeadline->format('d-m-Y H:i');
+                }
+                
+                if (!empty($order['bestelbon_number'])) {
+                    $order['bestelbon_url'] = '/api/bestelbon.php?order_id=' . $order['id'] . '&action=view';
+                }
+                
+                if ($order['is_recurring'] && !empty($order['recurring_group_id']) && !empty($order['recurring_confirmed_until'])) {
+                    $confirmedUntil = new DateTime($order['recurring_confirmed_until']);
+                    $twoWeeksBefore = (clone $confirmedUntil)->modify('-14 days');
+                    $now = new DateTime();
+                    
+                    $order['can_renew'] = ($now >= $twoWeeksBefore);
+                    $order['renewal_available_from'] = $twoWeeksBefore->format('Y-m-d');
+                    $order['renewal_available_from_formatted'] = $twoWeeksBefore->format('d-m-Y');
+                    
+                    if ($order['recurring_parent_id'] == $order['id'] || $order['id'] == $order['recurring_parent_id']) {
+                        $order['is_recurring_parent'] = true;
+                    }
+                }
             }
             unset($order);
             
@@ -370,6 +397,8 @@ switch ($method) {
                 
                 @mail($account['email'], $customerSubject, $customerBody, $headers);
                 
+                sendRecurringBestelbonEmail($pdo, $recurringGroupId);
+                
                 echo json_encode([
                     'success' => true,
                     'order_id' => $orderId,
@@ -377,65 +406,34 @@ switch ($method) {
                     'orders_created' => count($orderIds),
                     'confirmed_until' => $confirmedUntil,
                     'payment_type' => 'recurring',
-                    'message' => 'Terugkerende bestelling geplaatst. ' . count($orderIds) . ' leveringen ingepland tot ' . date('d-m-Y', strtotime($confirmedUntil)) . '.'
+                    'message' => 'Terugkerende bestelling geplaatst. ' . count($orderIds) . ' leveringen ingepland tot ' . date('d-m-Y', strtotime($confirmedUntil)) . '. U ontvangt een overzicht per e-mail.'
                 ]);
                 exit;
             }
             
             if ($paymentType === 'later') {
-                require_once 'eboekhouden.php';
-                $eboekhoudenSettings = getEBoekhoudenSettings($pdo);
+                $bestelbonNumber = generateBestelbonNumber($pdo, $orderId);
+                $deadlineHours = getWijzigDeadlineUren($pdo);
+                $editDeadline = calculateEditDeadline($deliveryDate, $deadlineHours);
                 
-                if ($eboekhoudenSettings['facturatie_systeem'] === 'eboekhouden' && $eboekhoudenSettings['eboekhouden_api_token']) {
-                    try {
-                        $stmt = $pdo->prepare("SELECT * FROM business_accounts WHERE id = ?");
-                        $stmt->execute([$accountId]);
-                        $accountData = $stmt->fetch();
-                        
-                        $client = new EBoekhoudenClient($eboekhoudenSettings['eboekhouden_api_token']);
-                        
-                        $btwCode = 'LAAG_VERK_9';
-                        if (floatval($eboekhoudenSettings['btw_tarief']) == 21) {
-                            $btwCode = 'HOOG_VERK_21';
-                        }
-                        
-                        $templateId = $eboekhoudenSettings['eboekhouden_template_id_openstaand'];
-                        
-                        $result = $client->createFullInvoice(
-                            $accountData,
-                            $items,
-                            $templateId,
-                            $eboekhoudenSettings['eboekhouden_ledger_id'],
-                            $btwCode,
-                            true,
-                            $eboekhoudenSettings['eboekhouden_debiteuren_ledger_id'] ?? null
-                        );
-                        
-                        $stmt = $pdo->prepare("
-                            UPDATE business_orders 
-                            SET eboekhouden_invoice_id = ?, 
-                                eboekhouden_factuurnummer = ?, 
-                                eboekhouden_pdf_url = ?,
-                                facturatie_systeem = 'eboekhouden'
-                            WHERE id = ?
-                        ");
-                        $stmt->execute([
-                            $result['id'],
-                            $result['invoiceNumber'],
-                            $result['pdfUrl'],
-                            $orderId
-                        ]);
-                        
-                    } catch (Exception $e) {
-                        error_log("e-Boekhouden factuur fout voor order $orderId (betaal later): " . $e->getMessage());
-                    }
-                }
+                $stmt = $pdo->prepare("
+                    UPDATE business_orders 
+                    SET bestelbon_number = ?,
+                        order_status = 'geplaatst',
+                        payment_type = 'factuur'
+                    WHERE id = ?
+                ");
+                $stmt->execute([$bestelbonNumber, $orderId]);
+                
+                sendBestelbonEmail($pdo, $orderId);
                 
                 echo json_encode([
                     'success' => true, 
                     'order_id' => $orderId,
-                    'payment_type' => 'later',
-                    'message' => 'Bestelling geplaatst. U ontvangt de factuur per e-mail.'
+                    'payment_type' => 'factuur',
+                    'bestelbon_number' => $bestelbonNumber,
+                    'edit_deadline' => $editDeadline->format('Y-m-d H:i:s'),
+                    'message' => 'Bestelling geplaatst. U ontvangt een bestelbon per e-mail. De factuur volgt na levering.'
                 ]);
                 exit;
             }
@@ -503,6 +501,177 @@ switch ($method) {
         
     case 'PUT':
         $data = json_decode(file_get_contents('php://input'), true);
+        $action = $data['action'] ?? 'update';
+        
+        if ($action === 'renew_recurring') {
+            $recurringGroupId = $data['recurring_group_id'] ?? '';
+            
+            if (!$recurringGroupId) {
+                http_response_code(400);
+                echo json_encode(['success' => false, 'error' => 'recurring_group_id ontbreekt']);
+                exit;
+            }
+            
+            $stmt = $pdo->prepare("
+                SELECT bo.*, ba.bedrijfsnaam, ba.contactpersoon, ba.email 
+                FROM business_orders bo
+                JOIN business_accounts ba ON bo.account_id = ba.id
+                WHERE bo.recurring_group_id = ? AND bo.account_id = ?
+                ORDER BY bo.delivery_date DESC
+                LIMIT 1
+            ");
+            $stmt->execute([$recurringGroupId, $accountId]);
+            $lastOrder = $stmt->fetch();
+            
+            if (!$lastOrder) {
+                http_response_code(404);
+                echo json_encode(['success' => false, 'error' => 'Terugkerende bestelling niet gevonden']);
+                exit;
+            }
+            
+            $stmt = $pdo->prepare("SELECT * FROM business_order_items WHERE order_id = ?");
+            $stmt->execute([$lastOrder['id']]);
+            $items = $stmt->fetchAll();
+            
+            if (empty($items)) {
+                http_response_code(400);
+                echo json_encode(['success' => false, 'error' => 'Geen producten gevonden in deze bestelling']);
+                exit;
+            }
+            
+            try {
+                $pdo->beginTransaction();
+                
+                $lastDeliveryDate = new DateTime($lastOrder['delivery_date']);
+                $frequency = $lastOrder['recurring_frequency'];
+                
+                if ($frequency === 'weekly') {
+                    $firstNewDate = (clone $lastDeliveryDate)->modify('+1 week');
+                } elseif ($frequency === 'biweekly') {
+                    $firstNewDate = (clone $lastDeliveryDate)->modify('+2 weeks');
+                } else {
+                    $firstNewDate = (clone $lastDeliveryDate)->modify('+1 month');
+                }
+                
+                $maxDate = (clone $firstNewDate)->modify('+3 months');
+                $newDeliveryDates = [];
+                $current = clone $firstNewDate;
+                
+                while ($current <= $maxDate) {
+                    $newDeliveryDates[] = $current->format('Y-m-d');
+                    
+                    if ($frequency === 'weekly') {
+                        $current->modify('+1 week');
+                    } elseif ($frequency === 'biweekly') {
+                        $current->modify('+2 weeks');
+                    } else {
+                        $current->modify('+1 month');
+                    }
+                }
+                
+                $newConfirmedUntil = end($newDeliveryDates);
+                
+                $stmt = $pdo->prepare("
+                    UPDATE business_orders 
+                    SET recurring_confirmed_until = ?
+                    WHERE recurring_group_id = ?
+                ");
+                $stmt->execute([$newConfirmedUntil, $recurringGroupId]);
+                
+                $orderStmt = $pdo->prepare("
+                    INSERT INTO business_orders (account_id, delivery_date, payment_status, total_amount, notes, payment_type, is_recurring, recurring_name, recurring_frequency, recurring_day, recurring_end_date, recurring_group_id, recurring_confirmed_until, recurring_parent_id, created_at)
+                    VALUES (?, ?, 'pending', ?, ?, 'invoice', 1, ?, ?, ?, ?, ?, ?, ?, NOW())
+                ");
+                
+                $itemStmt = $pdo->prepare("
+                    INSERT INTO business_order_items (order_id, product_name, quantity, unit_price)
+                    VALUES (?, ?, ?, ?)
+                ");
+                
+                $newOrderIds = [];
+                foreach ($newDeliveryDates as $date) {
+                    $orderStmt->execute([
+                        $accountId,
+                        $date,
+                        $lastOrder['total_amount'],
+                        $lastOrder['notes'],
+                        $lastOrder['recurring_name'],
+                        $lastOrder['recurring_frequency'],
+                        $lastOrder['recurring_day'],
+                        $lastOrder['recurring_end_date'],
+                        $recurringGroupId,
+                        $newConfirmedUntil,
+                        $lastOrder['recurring_parent_id']
+                    ]);
+                    $newOrderId = $pdo->lastInsertId();
+                    $newOrderIds[] = $newOrderId;
+                    
+                    foreach ($items as $item) {
+                        $itemStmt->execute([
+                            $newOrderId,
+                            $item['product_name'],
+                            $item['quantity'],
+                            $item['unit_price']
+                        ]);
+                    }
+                }
+                
+                $pdo->commit();
+                
+                $frequencyLabels = ['weekly' => 'wekelijks', 'biweekly' => 'tweewekelijks', 'monthly' => 'maandelijks'];
+                $frequentie = $frequencyLabels[$frequency] ?? $frequency;
+                
+                $subject = "Terugkerende bestelling verlengd - Bakkerij Civetta";
+                $body = "Beste {$lastOrder['contactpersoon']},\n\n";
+                $body .= "Uw terugkerende bestelling is succesvol verlengd!\n\n";
+                $body .= "══════════════════════════════════════\n";
+                $body .= "VERLENGING BEVESTIGD\n";
+                $body .= "══════════════════════════════════════\n\n";
+                if ($lastOrder['recurring_name']) {
+                    $body .= "Naam: {$lastOrder['recurring_name']}\n";
+                }
+                $body .= "Frequentie: $frequentie\n";
+                $body .= "Nieuwe leveringen: " . count($newOrderIds) . "\n";
+                $body .= "Eerste nieuwe levering: " . date('d-m-Y', strtotime($newDeliveryDates[0])) . "\n";
+                $body .= "Verlengd tot: " . date('d-m-Y', strtotime($newConfirmedUntil)) . "\n\n";
+                $body .= "2 weken voor de laatste geplande levering zullen wij u\n";
+                $body .= "opnieuw vragen om de bestelling te herbevestigen.\n\n";
+                $body .= "Bekijk uw bestellingen via uw dashboard:\n";
+                $body .= "https://bakkerij-civetta.nl/mijn-bestellingen.html\n\n";
+                $body .= "Met vriendelijke groet,\n";
+                $body .= "Bakkerij Civetta\n";
+                $body .= "laurens@bakkerij-civetta.nl";
+                
+                $headers = "From: noreply@bakkerij-civetta.nl\r\n";
+                $headers .= "Reply-To: laurens@bakkerij-civetta.nl\r\n";
+                $headers .= "Content-Type: text/plain; charset=UTF-8\r\n";
+                
+                @mail($lastOrder['email'], $subject, $body, $headers);
+                
+                @mail('laurens@bakkerij-civetta.nl', 
+                    "Terugkerende bestelling verlengd: {$lastOrder['bedrijfsnaam']}", 
+                    "Terugkerende bestelling verlengd\n\nBedrijf: {$lastOrder['bedrijfsnaam']}\nGroep: $recurringGroupId\nNieuwe leveringen: " . count($newOrderIds) . "\nVerlengd tot: " . date('d-m-Y', strtotime($newConfirmedUntil)),
+                    $headers
+                );
+                
+                sendRecurringBestelbonEmail($pdo, $recurringGroupId);
+                
+                echo json_encode([
+                    'success' => true,
+                    'message' => 'Terugkerende bestelling verlengd met ' . count($newOrderIds) . ' leveringen tot ' . date('d-m-Y', strtotime($newConfirmedUntil)),
+                    'new_orders' => count($newOrderIds),
+                    'confirmed_until' => $newConfirmedUntil
+                ]);
+                exit;
+                
+            } catch (PDOException $e) {
+                $pdo->rollBack();
+                http_response_code(500);
+                echo json_encode(['success' => false, 'error' => 'Database fout bij verlengen bestelling']);
+                exit;
+            }
+        }
+        
         $orderId = intval($data['order_id'] ?? 0);
         
         if (!$orderId) {
@@ -533,17 +702,14 @@ switch ($method) {
             exit;
         }
         
-        $deliveryDate = $order['delivery_date'];
-        $minEditDate = date('Y-m-d', strtotime('+1 day'));
-        if ($deliveryDate < $minEditDate) {
+        if (!canOrderBeEdited($pdo, $orderId)) {
+            $deadlineHours = getWijzigDeadlineUren($pdo);
             http_response_code(400);
-            echo json_encode(['success' => false, 'error' => 'Bestellingen voor morgen of eerder kunnen niet meer worden aangepast']);
+            echo json_encode(['success' => false, 'error' => "De wijzigingsdeadline ($deadlineHours uur voor levering) is verstreken. Deze bestelling kan niet meer worden aangepast."]);
             exit;
         }
         
         try {
-            $action = $data['action'] ?? 'update';
-            
             if ($action === 'cancel') {
                 $stmt = $pdo->prepare("UPDATE business_orders SET is_cancelled = 1 WHERE id = ?");
                 $stmt->execute([$orderId]);

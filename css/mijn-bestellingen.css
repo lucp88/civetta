@@ -184,7 +184,7 @@
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    font-size: 0.55rem;
+    font-size: 0.65rem;
     padding: 0.1rem 0.35rem;
     border-radius: 4px;
     font-weight: 600;
@@ -196,7 +196,8 @@
     color: #1565c0;
 }
 
-.payment-type-icon.invoice {
+.payment-type-icon.invoice,
+.payment-type-icon.factuur {
     background: #f3e5f5;
     color: #7b1fa2;
 }
