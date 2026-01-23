@@ -145,6 +145,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $pdo->exec("ALTER TABLE business_orders ADD COLUMN IF NOT EXISTS recurring_group_id VARCHAR(50) NULL");
         $pdo->exec("ALTER TABLE business_orders ADD COLUMN IF NOT EXISTS recurring_confirmed_until DATE NULL");
         $pdo->exec("ALTER TABLE business_orders ADD COLUMN IF NOT EXISTS recurring_parent_id INT NULL");
+        $pdo->exec("ALTER TABLE business_orders ADD COLUMN IF NOT EXISTS delivery_address VARCHAR(500) NULL");
         $pdo->exec("ALTER TABLE business_orders ADD INDEX IF NOT EXISTS idx_recurring_group (recurring_group_id)");
         $pdo->exec("ALTER TABLE business_orders ADD INDEX IF NOT EXISTS idx_delivery_date (delivery_date)");
         

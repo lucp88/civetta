@@ -24,11 +24,25 @@ switch ($method) {
             $stmt = $pdo->query("SELECT setting_value FROM settings WHERE setting_key = 'btw_tarief'");
             $btwTarief = floatval($stmt->fetchColumn() ?: 9);
             
+            $stmt = $pdo->prepare("SELECT adres, postcode, plaats, delivery_same_as_business, delivery_adres, delivery_postcode, delivery_plaats FROM business_accounts WHERE id = ?");
+            $stmt->execute([$accountId]);
+            $account = $stmt->fetch();
+            
+            if (!empty($account['delivery_same_as_business']) || $account['delivery_same_as_business'] === null) {
+                $accountAddress = trim(($account['adres'] ?? '') . ', ' . ($account['postcode'] ?? '') . ' ' . ($account['plaats'] ?? ''));
+            } else {
+                $accountAddress = trim(($account['delivery_adres'] ?? '') . ', ' . ($account['delivery_postcode'] ?? '') . ' ' . ($account['delivery_plaats'] ?? ''));
+            }
+            $accountAddress = trim($accountAddress, ', ');
+            
             $stmt = $pdo->prepare("SELECT * FROM business_orders WHERE account_id = ? ORDER BY created_at DESC");
             $stmt->execute([$accountId]);
             $orders = $stmt->fetchAll();
             
             foreach ($orders as &$order) {
+                if (empty($order['delivery_address'])) {
+                    $order['delivery_address'] = $accountAddress;
+                }
                 $stmt = $pdo->prepare("
                     SELECT boi.product_name, boi.quantity, boi.unit_price, 
                            (boi.quantity * boi.unit_price) as subtotal,
@@ -86,7 +100,18 @@ switch ($method) {
             }
             unset($order);
             
-            echo json_encode(['success' => true, 'orders' => $orders, 'btw_tarief' => $btwTarief]);
+            $bankgegevens = null;
+            $stmtBank = $pdo->query("SELECT setting_key, setting_value FROM settings WHERE setting_key IN ('bedrijf_iban', 'bedrijf_bic', 'bedrijf_rekeninghouder')");
+            $bankRows = $stmtBank->fetchAll(PDO::FETCH_KEY_PAIR);
+            if (!empty($bankRows['bedrijf_iban'])) {
+                $bankgegevens = [
+                    'iban' => $bankRows['bedrijf_iban'] ?? '',
+                    'bic' => $bankRows['bedrijf_bic'] ?? '',
+                    'naam' => $bankRows['bedrijf_rekeninghouder'] ?? ''
+                ];
+            }
+            
+            echo json_encode(['success' => true, 'orders' => $orders, 'btw_tarief' => $btwTarief, 'bankgegevens' => $bankgegevens]);
         } catch (PDOException $e) {
             http_response_code(500);
             echo json_encode(['success' => false, 'error' => 'Database fout']);
@@ -382,7 +407,8 @@ switch ($method) {
                             $templateId,
                             $eboekhoudenSettings['eboekhouden_ledger_id'],
                             $btwCode,
-                            true
+                            true,
+                            $eboekhoudenSettings['eboekhouden_debiteuren_ledger_id'] ?? null
                         );
                         
                         $stmt = $pdo->prepare("
@@ -472,6 +498,102 @@ switch ($method) {
             $pdo->rollBack();
             http_response_code(500);
             echo json_encode(['success' => false, 'error' => 'Database fout bij plaatsen bestelling']);
+        }
+        break;
+        
+    case 'PUT':
+        $data = json_decode(file_get_contents('php://input'), true);
+        $orderId = intval($data['order_id'] ?? 0);
+        
+        if (!$orderId) {
+            http_response_code(400);
+            echo json_encode(['success' => false, 'error' => 'Order ID ontbreekt']);
+            exit;
+        }
+        
+        $stmt = $pdo->prepare("SELECT * FROM business_orders WHERE id = ? AND account_id = ?");
+        $stmt->execute([$orderId, $accountId]);
+        $order = $stmt->fetch();
+        
+        if (!$order) {
+            http_response_code(404);
+            echo json_encode(['success' => false, 'error' => 'Bestelling niet gevonden']);
+            exit;
+        }
+        
+        if ($order['payment_status'] === 'paid') {
+            http_response_code(400);
+            echo json_encode(['success' => false, 'error' => 'Betaalde bestellingen kunnen niet worden aangepast']);
+            exit;
+        }
+        
+        if (intval($order['is_cancelled']) === 1) {
+            http_response_code(400);
+            echo json_encode(['success' => false, 'error' => 'Geannuleerde bestellingen kunnen niet worden aangepast']);
+            exit;
+        }
+        
+        $deliveryDate = $order['delivery_date'];
+        $minEditDate = date('Y-m-d', strtotime('+1 day'));
+        if ($deliveryDate < $minEditDate) {
+            http_response_code(400);
+            echo json_encode(['success' => false, 'error' => 'Bestellingen voor morgen of eerder kunnen niet meer worden aangepast']);
+            exit;
+        }
+        
+        try {
+            $action = $data['action'] ?? 'update';
+            
+            if ($action === 'cancel') {
+                $stmt = $pdo->prepare("UPDATE business_orders SET is_cancelled = 1 WHERE id = ?");
+                $stmt->execute([$orderId]);
+                echo json_encode(['success' => true, 'message' => 'Bestelling geannuleerd']);
+                exit;
+            }
+            
+            $pdo->beginTransaction();
+            
+            $notes = trim($data['notes'] ?? $order['notes']);
+            $deliveryAddress = trim($data['delivery_address'] ?? $order['delivery_address'] ?? '');
+            $items = $data['items'] ?? null;
+            
+            if ($items !== null && !empty($items)) {
+                $totalAmount = 0;
+                foreach ($items as $item) {
+                    $totalAmount += floatval($item['quantity']) * floatval($item['unit_price']);
+                }
+                
+                $stmt = $pdo->prepare("DELETE FROM business_order_items WHERE order_id = ?");
+                $stmt->execute([$orderId]);
+                
+                $stmt = $pdo->prepare("
+                    INSERT INTO business_order_items (order_id, product_name, quantity, unit_price)
+                    VALUES (?, ?, ?, ?)
+                ");
+                
+                foreach ($items as $item) {
+                    $stmt->execute([
+                        $orderId,
+                        $item['product_name'],
+                        intval($item['quantity']),
+                        floatval($item['unit_price'])
+                    ]);
+                }
+                
+                $stmt = $pdo->prepare("UPDATE business_orders SET notes = ?, delivery_address = ?, total_amount = ? WHERE id = ?");
+                $stmt->execute([$notes, $deliveryAddress, $totalAmount, $orderId]);
+            } else {
+                $stmt = $pdo->prepare("UPDATE business_orders SET notes = ?, delivery_address = ? WHERE id = ?");
+                $stmt->execute([$notes, $deliveryAddress, $orderId]);
+            }
+            
+            $pdo->commit();
+            echo json_encode(['success' => true, 'message' => 'Bestelling bijgewerkt']);
+            
+        } catch (PDOException $e) {
+            $pdo->rollBack();
+            http_response_code(500);
+            echo json_encode(['success' => false, 'error' => 'Database fout bij bijwerken bestelling']);
         }
         break;
         

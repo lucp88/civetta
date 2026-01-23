@@ -124,6 +124,10 @@ Zakelijke klantgegevens.
 | adres | TEXT | Straat en huisnummer |
 | postcode | VARCHAR(10) | Postcode |
 | plaats | VARCHAR(100) | Plaats |
+| **delivery_same_as_business** | TINYINT(1) | 1 = leveradres zelfde als bedrijfsadres |
+| **delivery_adres** | VARCHAR(255) | Apart leveradres (straat) |
+| **delivery_postcode** | VARCHAR(10) | Apart leveradres (postcode) |
+| **delivery_plaats** | VARCHAR(100) | Apart leveradres (plaats) |
 | contactpersoon | VARCHAR(255) | Naam contactpersoon |
 | email | VARCHAR(255) | E-mailadres (uniek) |
 | telefoon | VARCHAR(20) | Telefoonnummer |
@@ -144,6 +148,7 @@ Bestellingen van zakelijke klanten. Bij terugkerende bestellingen worden alle in
 | id | INT | Primary key |
 | account_id | INT | FK naar business_accounts |
 | delivery_date | DATE | Gewenste leverdatum |
+| **delivery_address** | VARCHAR(500) | Afwijkend leveradres (per order override) |
 | **payment_status** | VARCHAR(20) | 'pending' of 'paid' |
 | **payment_type** | VARCHAR(20) | 'mollie_direct', 'invoice' of 'cash' |
 | **is_cancelled** | TINYINT(1) | Geannuleerd flag (0/1) |
@@ -165,6 +170,12 @@ Bestellingen van zakelijke klanten. Bij terugkerende bestellingen worden alle in
 | invoice_number | VARCHAR(50) | Maandelijks factuurnummer |
 | invoiced_at | DATETIME | Datum maandelijks gefactureerd |
 | created_at | TIMESTAMP | Aanmaakdatum |
+
+**Leveradres logica:**
+- Als `delivery_address` leeg is → API haalt adres op uit `business_accounts`
+- Als `delivery_same_as_business = 1` → gebruikt `adres, postcode, plaats`
+- Als `delivery_same_as_business = 0` → gebruikt `delivery_adres, delivery_postcode, delivery_plaats`
+- Klant kan per order een afwijkend adres instellen via edit modal
 
 ### business_order_items
 Bestelregels per order.
@@ -285,6 +296,41 @@ Nieuwe bestelling plaatsen.
 }
 ```
 
+#### PUT /api/business-orders.php
+Bestelling aanpassen of annuleren.
+
+**Request (update):**
+```json
+{
+  "order_id": 123,
+  "notes": "Vroeg leveren aub",
+  "delivery_address": "Hoofdstraat 1, 1234 AB Amsterdam",
+  "items": [
+    {"product_name": "Brood", "quantity": 5, "unit_price": 3.50}
+  ]
+}
+```
+
+**Request (annuleren):**
+```json
+{
+  "order_id": 123,
+  "action": "cancel"
+}
+```
+
+**Validaties:**
+- Order moet van ingelogde gebruiker zijn
+- `payment_status` mag niet 'paid' zijn
+- `is_cancelled` mag niet 1 zijn
+- `delivery_date` moet >= morgen zijn
+
+**Werking bij update:**
+1. Verwijdert alle bestaande `business_order_items`
+2. Voegt nieuwe items toe
+3. Herberekent `total_amount`
+4. Update `notes` en `delivery_address`
+
 ### Terugkerende Bestellingen
 
 #### GET /api/business-recurring.php
@@ -363,10 +409,38 @@ Favoriet verwijderen.
 | `zakelijk-dashboard.html` | Hoofddashboard na login |
 | `bestelling-plaatsen.html` | Bestelformulier met productlijst |
 | `checkout.html` | Checkout en betaalopties |
-| `mijn-bestellingen.html` | Overzicht van bestellingen |
+| `mijn-bestellingen.html` | Overzicht van bestellingen met edit modal |
 | `bedrijfsgegevens.html` | Profiel bewerken |
 | `login-bedrijven.html` | Inlogpagina |
 | `zakelijk.html` | Accountaanvraag formulier |
+
+### Order Detail Modal (`mijn-bestellingen.html`)
+
+De order detail modal heeft twee modes:
+
+**View mode:**
+- Meta-info: leverdatum, leveradres, items, totaal
+- Lijst van producten met prijzen
+- Acties: Aanpassen, Annuleren, Factuur, Betalen, Opnieuw bestellen
+
+**Edit mode:**
+- Leveradres input (prefilled met account adres)
+- Opmerkingen textarea
+- Productenlijst met +/- knoppen
+  - Toont eerst producten die in de order zitten (ook verwijderde producten)
+  - Daarna alle beschikbare producten uit `products` tabel
+- Live totaalberekening
+- Opslaan/Annuleren buttons
+
+**Condities voor edit/cancel:**
+```javascript
+canEditOrder(order) {
+    if (is_cancelled === 1) return false;
+    if (payment_status === 'paid') return false;
+    if (delivery_date < tomorrow) return false;
+    return true;
+}
+```
 
 ## Externe Integraties
 

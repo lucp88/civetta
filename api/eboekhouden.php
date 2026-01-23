@@ -206,7 +206,38 @@ class EBoekhoudenClient {
         return $this->request('GET', '/v1/ledger');
     }
     
-    public function createFullInvoice($accountData, $orderItems, $templateId, $ledgerId, $btwCode = 'LAAG_VERK_9', $sendEmail = true) {
+    public function getMutations($params = []) {
+        return $this->request('GET', '/v1/mutation', $params);
+    }
+    
+    public function createMutation($data) {
+        return $this->request('POST', '/v1/mutation', $data);
+    }
+    
+    public function bookInvoiceToDebtors($invoiceNumber, $amountExcl, $amountIncl, $debiterenLedgerId, $omzetLedgerId, $relationId, $btwCode = 'LAAG_VERK_9', $invoiceDate = null) {
+        $invoiceDate = $invoiceDate ?? date('Y-m-d');
+        
+        $this->log("bookInvoiceToDebtors V5 - invoiceNumber: $invoiceNumber, amountExcl: $amountExcl, relationId: $relationId");
+        
+        return $this->createMutation([
+            'type' => '2',
+            'date' => $invoiceDate,
+            'ledgerId' => intval($debiterenLedgerId),
+            'invoiceNumber' => strval($invoiceNumber),
+            'relationId' => intval($relationId),
+            'inExVat' => 'EX',
+            'rows' => [
+                [
+                    'ledgerId' => intval($omzetLedgerId),
+                    'vatCode' => $btwCode,
+                    'amount' => floatval($amountExcl),
+                    'description' => 'Factuur ' . $invoiceNumber
+                ]
+            ]
+        ]);
+    }
+    
+    public function createFullInvoice($accountData, $orderItems, $templateId, $ledgerId, $btwCode = 'LAAG_VERK_9', $sendEmail = true, $debiterenLedgerId = null) {
         $this->log("createFullInvoice gestart - accountData: " . json_encode($accountData));
         $this->log("orderItems: " . json_encode($orderItems));
         $this->log("templateId: $templateId, ledgerId: $ledgerId, btwCode: $btwCode");
@@ -267,6 +298,28 @@ class EBoekhoudenClient {
         
         $this->log("Extracted pdfUrl: " . ($pdfUrl ?? 'NULL') . ", invoiceNumber: " . ($invoiceNumber ?? 'NULL'));
         
+        $totalAmountExcl = $invoiceDetails['totalExcl'] ?? 0;
+        $totalAmountIncl = $invoiceDetails['totalAmount'] ?? 0;
+        
+        if ($debiterenLedgerId) {
+            try {
+                $mutation = $this->bookInvoiceToDebtors(
+                    $invoiceNumber, 
+                    $totalAmountExcl, 
+                    $totalAmountIncl, 
+                    $debiterenLedgerId, 
+                    $ledgerId, 
+                    $relationId,
+                    $btwCode
+                );
+                $this->log("Factuur geboekt op debiteuren: " . json_encode($mutation));
+            } catch (Exception $e) {
+                $this->log("WAARSCHUWING: Kon factuur niet op debiteuren boeken: " . $e->getMessage());
+            }
+        } else {
+            $this->log("Geen debiteuren ledger ID geconfigureerd, factuur niet geboekt op debiteuren");
+        }
+        
         return [
             'id' => $invoice['id'],
             'invoiceNumber' => $invoiceNumber,
@@ -307,7 +360,7 @@ function getEBoekhoudenClient($pdo) {
 
 function getEBoekhoudenSettings($pdo) {
     $settings = [];
-    $keys = ['facturatie_systeem', 'eboekhouden_api_token', 'eboekhouden_template_id_betaald', 'eboekhouden_template_id_openstaand', 'eboekhouden_ledger_id', 'btw_tarief'];
+    $keys = ['facturatie_systeem', 'eboekhouden_api_token', 'eboekhouden_template_id_betaald', 'eboekhouden_template_id_openstaand', 'eboekhouden_ledger_id', 'eboekhouden_debiteuren_ledger_id', 'btw_tarief'];
     
     foreach ($keys as $key) {
         $stmt = $pdo->prepare("SELECT setting_value FROM settings WHERE setting_key = ?");

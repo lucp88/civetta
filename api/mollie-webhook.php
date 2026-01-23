@@ -83,6 +83,30 @@ if (isset($payment['metadata']['type']) && $payment['metadata']['type'] === 'cro
     exit;
 }
 
+if (isset($payment['metadata']['type']) && $payment['metadata']['type'] === 'invoice_payment') {
+    $orderId = $payment['metadata']['order_id'] ?? 0;
+    webhookLog("Invoice payment - Order ID: $orderId, Status: $status");
+    
+    if (!$orderId) {
+        webhookLog("ERROR: Geen order_id in invoice_payment metadata");
+        http_response_code(400);
+        exit;
+    }
+    
+    try {
+        if ($status === 'paid') {
+            $stmt = $pdo->prepare("UPDATE business_orders SET payment_status = 'paid', mollie_payment_id = ?, mollie_status = ?, mollie_status_updated_at = NOW() WHERE id = ?");
+            $stmt->execute([$paymentId, $status, $orderId]);
+            webhookLog("Invoice payment marked as paid for order $orderId");
+        }
+        http_response_code(200);
+    } catch (PDOException $e) {
+        webhookLog("Invoice payment error: " . $e->getMessage());
+        http_response_code(500);
+    }
+    exit;
+}
+
 if (!$payment || !isset($payment['metadata']['order_id'])) {
     http_response_code(400);
     exit;
@@ -169,7 +193,8 @@ try {
                         $templateId,
                         $eboekhoudenSettings['eboekhouden_ledger_id'],
                         $btwCode,
-                        true
+                        true,
+                        $eboekhoudenSettings['eboekhouden_debiteuren_ledger_id'] ?? null
                     );
                     
                     $stmt = $pdo->prepare("

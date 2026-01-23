@@ -17,9 +17,16 @@ $bedrijfsVelden = [
     'bedrijf_btw_id' => 'BTW-id'
 ];
 
+$rekeningVelden = [
+    'bedrijf_iban' => 'IBAN',
+    'bedrijf_bic' => 'BIC',
+    'bedrijf_rekeninghouder' => 'Naam rekeninghouder'
+];
+
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     try {
-        foreach ($bedrijfsVelden as $key => $label) {
+        $alleVelden = array_merge($bedrijfsVelden, $rekeningVelden);
+        foreach ($alleVelden as $key => $label) {
             $value = trim($_POST[$key] ?? '');
             $stmt = $pdo->prepare("INSERT INTO settings (setting_key, setting_value) VALUES (?, ?) ON DUPLICATE KEY UPDATE setting_value = ?");
             $stmt->execute([$key, $value, $value]);
@@ -33,7 +40,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 }
 
 $huidigeWaarden = [];
-foreach (array_keys($bedrijfsVelden) as $key) {
+$alleVelden = array_merge($bedrijfsVelden, $rekeningVelden);
+foreach (array_keys($alleVelden) as $key) {
     $stmt = $pdo->prepare("SELECT setting_value FROM settings WHERE setting_key = ?");
     $stmt->execute([$key]);
     $huidigeWaarden[$key] = $stmt->fetchColumn() ?: '';
@@ -73,6 +81,9 @@ foreach (array_keys($bedrijfsVelden) as $key) {
             max-width: 700px;
             margin: 2rem auto;
             padding: 0 1rem;
+        }
+        .card + .card {
+            margin-top: 2rem;
         }
         .card {
             background: white;
@@ -204,6 +215,34 @@ foreach (array_keys($bedrijfsVelden) as $key) {
                         <label for="bedrijf_btw_id">BTW-id</label>
                         <input type="text" id="bedrijf_btw_id" name="bedrijf_btw_id" value="<?= htmlspecialchars($huidigeWaarden['bedrijf_btw_id']) ?>">
                     </div>
+                </div>
+                
+                <button type="submit" class="btn">Opslaan</button>
+            </form>
+        </div>
+        
+        <div class="card">
+            <h2>Bedrijfsrekening (voor QR betalingen)</h2>
+            <p style="color: #666; margin-bottom: 1.5rem; font-size: 0.9rem;">Deze gegevens worden gebruikt voor het genereren van EPC QR codes waarmee klanten eenvoudig kunnen betalen via hun bank-app.</p>
+            
+            <form method="POST">
+                <?php foreach ($bedrijfsVelden as $key => $label): ?>
+                    <input type="hidden" name="<?= $key ?>" value="<?= htmlspecialchars($huidigeWaarden[$key]) ?>">
+                <?php endforeach; ?>
+                
+                <div class="form-group">
+                    <label for="bedrijf_iban">IBAN</label>
+                    <input type="text" id="bedrijf_iban" name="bedrijf_iban" value="<?= htmlspecialchars($huidigeWaarden['bedrijf_iban']) ?>" placeholder="NL00BANK0123456789">
+                </div>
+                
+                <div class="form-group">
+                    <label for="bedrijf_bic">BIC</label>
+                    <input type="text" id="bedrijf_bic" name="bedrijf_bic" value="<?= htmlspecialchars($huidigeWaarden['bedrijf_bic']) ?>" placeholder="INGBNL2A">
+                </div>
+                
+                <div class="form-group">
+                    <label for="bedrijf_rekeninghouder">Naam rekeninghouder</label>
+                    <input type="text" id="bedrijf_rekeninghouder" name="bedrijf_rekeninghouder" value="<?= htmlspecialchars($huidigeWaarden['bedrijf_rekeninghouder']) ?>" placeholder="Bakkerij Civetta">
                 </div>
                 
                 <button type="submit" class="btn">Opslaan</button>

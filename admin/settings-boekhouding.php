@@ -13,6 +13,7 @@ $boekhoudingVelden = [
     'eboekhouden_template_id_betaald' => '',
     'eboekhouden_template_id_openstaand' => '',
     'eboekhouden_ledger_id' => '',
+    'eboekhouden_debiteuren_ledger_id' => '',
     'btw_tarief' => '9'
 ];
 
@@ -314,6 +315,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         <label for="eboekhouden_ledger_id">Grootboekrekening ID (Omzet)</label>
                         <input type="text" id="eboekhouden_ledger_id" name="eboekhouden_ledger_id" value="<?= htmlspecialchars($huidigeWaarden['eboekhouden_ledger_id']) ?>">
                         <p class="help-text">Gebruik het interne ID (bijv. 48086686), niet de code (8000). Te vinden via API: /api/debug-eboekhouden.php?action=ledgers</p>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="eboekhouden_debiteuren_ledger_id">Grootboekrekening ID (Debiteuren)</label>
+                        <input type="text" id="eboekhouden_debiteuren_ledger_id" name="eboekhouden_debiteuren_ledger_id" value="<?= htmlspecialchars($huidigeWaarden['eboekhouden_debiteuren_ledger_id']) ?>">
+                        <p class="help-text">Meestal 1300 (Debiteuren). Nodig om facturen in openstaande posten te boeken.</p>
                     </div>
                 </div>
             </div>
