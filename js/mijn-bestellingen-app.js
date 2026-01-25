@@ -60,7 +60,10 @@ createApp({
                 { id: 'abnamro', name: 'ABN AMRO', useEpc: false },
                 { id: 'triodos', name: 'Triodos', useEpc: false },
                 { id: 'other', name: 'Andere bank', useEpc: false }
-            ]
+            ],
+            showCancelledOrders: false,
+            showCancelDialog: false,
+            cancellingOrder: false
         };
     },
     
@@ -78,6 +81,15 @@ createApp({
             return this.orders
                 .filter(o => Number(o.is_cancelled) === 1 || new Date(o.delivery_date) < today)
                 .sort((a, b) => new Date(b.delivery_date) - new Date(a.delivery_date));
+        },
+        afgerondeBestellingenFiltered() {
+            if (this.showCancelledOrders) {
+                return this.afgerondeBestellingen;
+            }
+            return this.afgerondeBestellingen.filter(o => Number(o.is_cancelled) !== 1);
+        },
+        cancelledOrdersCount() {
+            return this.afgerondeBestellingen.filter(o => Number(o.is_cancelled) === 1).length;
         },
         detailFormChanged() {
             if (!this.originalDetailForm) return false;
@@ -632,7 +644,20 @@ createApp({
         
         canEditOrder(order) {
             if (Number(order.is_cancelled) === 1) return false;
-            if (order.payment_status === 'paid') return false;
+            
+            const inBereiding = ['wordt_bereid', 'onderweg', 'afgeleverd'].includes(order.delivery_status);
+            if (inBereiding) return false;
+            
+            const isMolliePaid = order.payment_status === 'paid' && 
+                                 (order.payment_type === 'ideal' || order.payment_type === 'mollie_direct');
+            if (isMolliePaid) return false;
+            
+            if (typeof order.can_edit !== 'undefined') {
+                return order.can_edit;
+            }
+            if (order.edit_deadline) {
+                return new Date(order.edit_deadline) > new Date();
+            }
             const deliveryDate = new Date(order.delivery_date);
             const tomorrow = new Date();
             tomorrow.setDate(tomorrow.getDate() + 1);
@@ -641,6 +666,15 @@ createApp({
         },
         
         canCancelOrder(order) {
+            if (Number(order.is_cancelled) === 1) return false;
+            
+            const inBereiding = ['wordt_bereid', 'onderweg', 'afgeleverd'].includes(order.delivery_status);
+            if (inBereiding) return false;
+            
+            const isMolliePaid = order.payment_status === 'paid' && 
+                                 (order.payment_type === 'ideal' || order.payment_type === 'mollie_direct');
+            if (isMolliePaid) return true;
+            
             return this.canEditOrder(order);
         },
         
@@ -753,7 +787,79 @@ createApp({
             }
         },
         
+        orderHasRefund(order) {
+            if (!order) return false;
+            return order.payment_status === 'paid' && 
+                   (order.payment_type === 'ideal' || order.payment_type === 'mollie_direct') &&
+                   order.mollie_payment_id;
+        },
+        
+        getRefundStatusLabel(status) {
+            const labels = {
+                'queued': 'In wachtrij',
+                'pending': 'In behandeling',
+                'processing': 'Wordt verwerkt',
+                'refunded': 'Terugbetaald'
+            };
+            return labels[status] || status || 'Onbekend';
+        },
+        
+        getRefundStatusClass(status) {
+            if (status === 'refunded') return 'refund-completed';
+            if (['queued', 'pending', 'processing'].includes(status)) return 'refund-pending';
+            return 'refund-unknown';
+        },
+        
+        getRefundStatusIcon(status) {
+            if (status === 'refunded') return 'bi bi-check-circle-fill';
+            if (['queued', 'pending', 'processing'].includes(status)) return 'bi bi-hourglass-split';
+            return 'bi bi-question-circle';
+        },
+        
+        openCancelDialog() {
+            this.orderActionsDropdownOpen = false;
+            this.showCancelDialog = true;
+        },
+        
+        closeCancelDialog() {
+            this.showCancelDialog = false;
+        },
+        
+        async confirmCancelOrder() {
+            this.cancellingOrder = true;
+            
+            try {
+                const response = await fetch('api/business-orders.php', {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        order_id: this.selectedOrder.id,
+                        action: 'cancel'
+                    })
+                });
+                const data = await response.json();
+                if (data.success) {
+                    this.showCancelDialog = false;
+                    await this.loadOrders();
+                    this.selectedOrder = null;
+                    alert(data.message);
+                } else {
+                    alert(data.error || 'Kon niet annuleren');
+                }
+            } catch (error) {
+                console.error('Fout bij annuleren', error);
+                alert('Er ging iets mis');
+            } finally {
+                this.cancellingOrder = false;
+            }
+        },
+        
         async cancelOrder() {
+            if (this.orderHasRefund(this.selectedOrder)) {
+                this.openCancelDialog();
+                return;
+            }
+            
             if (!confirm('Weet je zeker dat je deze bestelling wilt annuleren?')) return;
             
             try {
@@ -769,6 +875,7 @@ createApp({
                 if (data.success) {
                     await this.loadOrders();
                     this.selectedOrder = null;
+                    alert(data.message);
                 } else {
                     alert(data.error || 'Kon niet annuleren');
                 }
@@ -813,21 +920,78 @@ createApp({
         
         getDisplayStatus(order) {
             if (Number(order.is_cancelled) === 1) return 'cancelled';
-            return order.payment_status;
+            if (order.payment_status === 'paid') return 'paid';
+            if (order.invoice_status === 'gefactureerd') return 'invoiced';
+            return 'bestelbon';
         },
         
         getStatusLabel(order) {
             if (Number(order.is_cancelled) === 1) return 'Geannuleerd';
-            return order.payment_status === 'paid' ? 'Betaald' : 'In afwachting';
+            if (order.payment_status === 'paid') return 'Betaald';
+            
+            const deliveryLabels = {
+                'geplaatst': 'Geplaatst',
+                'wordt_bereid': 'Wordt bereid',
+                'onderweg': 'Onderweg',
+                'afgeleverd': 'Afgeleverd'
+            };
+            
+            if (order.invoice_status === 'gefactureerd') {
+                return 'Openstaand';
+            }
+            
+            return deliveryLabels[order.delivery_status] || 'Geplaatst';
+        },
+        
+        getPaymentTypeIcon(order) {
+            if (order.payment_type === 'ideal') return 'bi bi-credit-card';
+            if (order.invoice_status === 'gefactureerd') return 'bi bi-file-earmark-text';
+            return 'bi bi-receipt';
         },
         
         getPaymentTypeLabel(type) {
             const labels = {
+                'ideal': 'iDEAL',
                 'mollie_direct': 'iDEAL',
+                'factuur': 'Factuur',
                 'invoice': 'Factuur',
                 'cash': 'Contant'
             };
             return labels[type] || type;
+        },
+        
+        getInvoiceStatusLabel(order) {
+            if (order.invoice_status === 'gefactureerd') return 'Factuur verstuurd';
+            if (order.invoice_status === 'bestelbon') return 'Bestelbon verstuurd';
+            return '';
+        },
+        
+        getDeliveryStatusLabel(order) {
+            const labels = {
+                'geplaatst': 'Geplaatst',
+                'wordt_bereid': 'Wordt bereid',
+                'onderweg': 'Onderweg',
+                'afgeleverd': 'Afgeleverd'
+            };
+            return labels[order.delivery_status] || 'Geplaatst';
+        },
+        
+        getDeliveryFlowClass(order, step) {
+            const steps = ['geplaatst', 'wordt_bereid', 'onderweg', 'afgeleverd'];
+            const currentIndex = steps.indexOf(order.delivery_status || 'geplaatst');
+            const stepIndex = steps.indexOf(step);
+            
+            if (stepIndex < currentIndex) return 'step-done';
+            if (stepIndex === currentIndex) return 'step-active';
+            return 'step-future';
+        },
+        
+        canDownloadInvoice(order) {
+            return order.invoice_status === 'gefactureerd' && (order.factuur_url || order.eboekhouden_pdf_url);
+        },
+        
+        canDownloadBestelbon(order) {
+            return order.invoice_status === 'bestelbon' && order.bestelbon_url;
         },
         
         formatDateShort(dateStr) {

@@ -85,7 +85,7 @@ function getOrdersToInvoice($pdo, $settings) {
         FROM business_orders bo
         JOIN business_accounts ba ON bo.account_id = ba.id
         WHERE bo.delivery_date = ?
-          AND bo.payment_type = 'factuur'
+          AND bo.payment_type IN ('factuur', 'invoice')
           AND (bo.eboekhouden_invoice_id IS NULL OR bo.eboekhouden_invoice_id = '')
           AND (bo.invoice_number IS NULL OR bo.invoice_number = '')
           AND (bo.is_cancelled IS NULL OR bo.is_cancelled = 0)
@@ -165,7 +165,7 @@ function createEBoekhoudenInvoice($pdo, $order, $items, $settings) {
                 eboekhouden_pdf_url = ?,
                 facturatie_systeem = 'eboekhouden',
                 invoiced_at = NOW(),
-                order_status = 'afgeleverd'
+                invoice_status = 'gefactureerd'
             WHERE id = ?
         ");
         $stmt->execute([
@@ -194,7 +194,7 @@ function createLocalInvoice($pdo, $order, $items, $settings) {
         SET invoice_number = ?,
             invoiced_at = NOW(),
             facturatie_systeem = 'eigen',
-            order_status = 'afgeleverd'
+            invoice_status = 'gefactureerd'
         WHERE id = ?
     ");
     $stmt->execute([$invoiceNumber, $orderId]);

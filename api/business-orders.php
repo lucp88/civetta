@@ -2,6 +2,7 @@
 require_once '../admin/config.php';
 require_once 'cors.php';
 require_once 'bestelbon.php';
+require_once 'mollie-refund.php';
 
 header('Content-Type: application/json');
 setCorsHeaders();
@@ -78,10 +79,14 @@ switch ($method) {
                 }
                 
                 $deliveryDate = $order['delivery_date'] ?? null;
-                $isPastDelivery = $deliveryDate && strtotime($deliveryDate) < strtotime('today');
-                
-                if ($isPastDelivery && $order['payment_status'] === 'paid' && !$order['is_cancelled']) {
-                    // Auto-delivered logic verwijderd - niet meer nodig met nieuw model
+                if ($deliveryDate) {
+                    $order['delivery_status'] = updateDeliveryStatusIfNeeded(
+                        $pdo,
+                        $order['id'],
+                        $deliveryDate,
+                        $order['delivery_status'] ?? 'geplaatst',
+                        (bool)($order['is_cancelled'] ?? false)
+                    );
                 }
                 
                 $isPaid = ($order['payment_status'] === 'paid');
@@ -98,6 +103,7 @@ switch ($method) {
                 }
                 
                 $order['is_recurring'] = (bool)intval($order['is_recurring'] ?? 0);
+                $order['is_cancelled'] = intval($order['is_cancelled'] ?? 0);
                 
                 $order['can_edit'] = canOrderBeEdited($pdo, $order['id']);
                 $deadlineHours = getWijzigDeadlineUren($pdo);
@@ -186,8 +192,8 @@ switch ($method) {
                 $parentOrderId = null;
                 
                 $stmt = $pdo->prepare("
-                    INSERT INTO business_orders (account_id, delivery_date, payment_status, total_amount, notes, payment_type, is_recurring, recurring_name, recurring_frequency, recurring_day, recurring_end_date, recurring_group_id, recurring_confirmed_until, recurring_parent_id, created_at)
-                    VALUES (?, ?, 'pending', ?, ?, 'invoice', 1, ?, ?, ?, ?, ?, ?, ?, NOW())
+                    INSERT INTO business_orders (account_id, delivery_date, payment_status, total_amount, notes, payment_type, is_recurring, recurring_name, recurring_frequency, recurring_day, recurring_end_date, recurring_group_id, recurring_confirmed_until, recurring_parent_id, invoice_status, delivery_status, created_at)
+                    VALUES (?, ?, 'pending', ?, ?, 'invoice', 1, ?, ?, ?, ?, ?, ?, ?, 'bestelbon', 'geplaatst', NOW())
                 ");
                 
                 $itemStmt = $pdo->prepare("
@@ -230,11 +236,11 @@ switch ($method) {
                 $orderId = $parentOrderId;
                 
             } else {
-                $dbPaymentType = ($paymentType === 'later') ? 'invoice' : 'mollie_direct';
+                $dbPaymentType = ($paymentType === 'later') ? 'factuur' : 'ideal';
                 
                 $stmt = $pdo->prepare("
-                    INSERT INTO business_orders (account_id, delivery_date, payment_status, total_amount, notes, payment_type, is_recurring, created_at)
-                    VALUES (?, ?, 'pending', ?, ?, ?, 0, NOW())
+                    INSERT INTO business_orders (account_id, delivery_date, payment_status, total_amount, notes, payment_type, is_recurring, invoice_status, delivery_status, created_at)
+                    VALUES (?, ?, 'pending', ?, ?, ?, 0, 'bestelbon', 'geplaatst', NOW())
                 ");
                 $stmt->execute([
                     $accountId, 
@@ -382,12 +388,6 @@ switch ($method) {
                 $customerBody .= "Producten per levering:\n$itemsList\n";
                 $customerBody .= "Bedrag per levering: €" . number_format($totalAmount, 2, ',', '.') . "\n";
                 $customerBody .= "Totaal ingepland: €" . number_format($totalAmount * $orderCount, 2, ',', '.') . "\n\n";
-                $customerBody .= "══════════════════════════════════════\n";
-                $customerBody .= "FACTURATIE\n";
-                $customerBody .= "══════════════════════════════════════\n\n";
-                $customerBody .= "Uw leveringen worden maandelijks gebundeld gefactureerd.\n";
-                $customerBody .= "Aan het einde van elke maand ontvangt u een verzamelfactuur\n";
-                $customerBody .= "voor alle leveringen van die maand.\n\n";
                 $customerBody .= "Beheer uw bestellingen via uw dashboard:\n";
                 $customerBody .= "https://bakkerij-civetta.nl/mijn-bestellingen.html\n\n";
                 $customerBody .= "Heeft u vragen? Neem gerust contact met ons op.\n\n";
@@ -420,7 +420,9 @@ switch ($method) {
                     UPDATE business_orders 
                     SET bestelbon_number = ?,
                         order_status = 'geplaatst',
-                        payment_type = 'factuur'
+                        payment_type = 'factuur',
+                        invoice_status = 'bestelbon',
+                        delivery_status = 'geplaatst'
                     WHERE id = ?
                 ");
                 $stmt->execute([$bestelbonNumber, $orderId]);
@@ -579,8 +581,8 @@ switch ($method) {
                 $stmt->execute([$newConfirmedUntil, $recurringGroupId]);
                 
                 $orderStmt = $pdo->prepare("
-                    INSERT INTO business_orders (account_id, delivery_date, payment_status, total_amount, notes, payment_type, is_recurring, recurring_name, recurring_frequency, recurring_day, recurring_end_date, recurring_group_id, recurring_confirmed_until, recurring_parent_id, created_at)
-                    VALUES (?, ?, 'pending', ?, ?, 'invoice', 1, ?, ?, ?, ?, ?, ?, ?, NOW())
+                    INSERT INTO business_orders (account_id, delivery_date, payment_status, total_amount, notes, payment_type, is_recurring, recurring_name, recurring_frequency, recurring_day, recurring_end_date, recurring_group_id, recurring_confirmed_until, recurring_parent_id, invoice_status, delivery_status, created_at)
+                    VALUES (?, ?, 'pending', ?, ?, 'invoice', 1, ?, ?, ?, ?, ?, ?, ?, 'bestelbon', 'geplaatst', NOW())
                 ");
                 
                 $itemStmt = $pdo->prepare("
@@ -690,30 +692,84 @@ switch ($method) {
             exit;
         }
         
-        if ($order['payment_status'] === 'paid') {
-            http_response_code(400);
-            echo json_encode(['success' => false, 'error' => 'Betaalde bestellingen kunnen niet worden aangepast']);
-            exit;
-        }
-        
         if (intval($order['is_cancelled']) === 1) {
             http_response_code(400);
             echo json_encode(['success' => false, 'error' => 'Geannuleerde bestellingen kunnen niet worden aangepast']);
             exit;
         }
         
-        if (!canOrderBeEdited($pdo, $orderId)) {
-            $deadlineHours = getWijzigDeadlineUren($pdo);
+        $inBereiding = in_array($order['delivery_status'], ['wordt_bereid', 'onderweg', 'afgeleverd']);
+        if ($inBereiding) {
             http_response_code(400);
-            echo json_encode(['success' => false, 'error' => "De wijzigingsdeadline ($deadlineHours uur voor levering) is verstreken. Deze bestelling kan niet meer worden aangepast."]);
+            echo json_encode(['success' => false, 'error' => 'Bestellingen in bereiding kunnen niet worden geannuleerd of aangepast']);
             exit;
         }
         
+        $isMolliePaid = $order['payment_status'] === 'paid' && 
+                        in_array($order['payment_type'], ['ideal', 'mollie_direct']);
+        
         try {
             if ($action === 'cancel') {
-                $stmt = $pdo->prepare("UPDATE business_orders SET is_cancelled = 1 WHERE id = ?");
-                $stmt->execute([$orderId]);
-                echo json_encode(['success' => true, 'message' => 'Bestelling geannuleerd']);
+                $refundResult = null;
+                $refundCheck = canRefundOrder($pdo, $orderId);
+                
+                if ($refundCheck['can_refund']) {
+                    $refundResult = createMollieRefund(
+                        $refundCheck['mollie_payment_id'],
+                        $refundCheck['amount'],
+                        "Annulering bestelling #$orderId"
+                    );
+                    
+                    if ($refundResult['success']) {
+                        $stmt = $pdo->prepare("
+                            UPDATE business_orders 
+                            SET is_cancelled = 1,
+                                mollie_refund_id = ?,
+                                mollie_refund_status = ?
+                            WHERE id = ?
+                        ");
+                        $stmt->execute([
+                            $refundResult['refund_id'],
+                            $refundResult['status'],
+                            $orderId
+                        ]);
+                    } else {
+                        echo json_encode([
+                            'success' => false, 
+                            'error' => 'Terugbetaling mislukt: ' . $refundResult['error']
+                        ]);
+                        exit;
+                    }
+                } else {
+                    $stmt = $pdo->prepare("UPDATE business_orders SET is_cancelled = 1 WHERE id = ?");
+                    $stmt->execute([$orderId]);
+                }
+                
+                sendCancellationEmail($pdo, $orderId);
+                
+                $message = 'Bestelling geannuleerd. U ontvangt een bevestiging per e-mail.';
+                if ($refundResult && $refundResult['success']) {
+                    $message = 'Bestelling geannuleerd. Het bedrag van €' . number_format($refundCheck['amount'], 2, ',', '.') . ' wordt binnen enkele werkdagen teruggestort. U ontvangt een bevestiging per e-mail.';
+                }
+                
+                echo json_encode([
+                    'success' => true, 
+                    'message' => $message,
+                    'refunded' => $refundResult ? $refundResult['success'] : false
+                ]);
+                exit;
+            }
+            
+            if ($isMolliePaid) {
+                http_response_code(400);
+                echo json_encode(['success' => false, 'error' => 'Betaalde bestellingen kunnen niet worden aangepast']);
+                exit;
+            }
+            
+            if (!canOrderBeEdited($pdo, $orderId)) {
+                $deadlineHours = getWijzigDeadlineUren($pdo);
+                http_response_code(400);
+                echo json_encode(['success' => false, 'error' => "De wijzigingsdeadline ($deadlineHours uur voor levering) is verstreken. Deze bestelling kan niet meer worden aangepast."]);
                 exit;
             }
             

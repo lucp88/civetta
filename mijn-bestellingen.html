@@ -6,6 +6,7 @@
     <title>Mijn Bestellingen | Bakkerij Civetta</title>
     <link rel="stylesheet" href="css/style.css">
     <link rel="stylesheet" href="css/mijn-bestellingen.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link href="https://fonts.googleapis.com/css2?family=Libre+Baskerville:ital,wght@0,400;0,700;1,400&family=Source+Sans+Pro:wght@400;600&display=swap" rel="stylesheet">
 </head>
@@ -74,31 +75,38 @@
                                                 <span class="order-row-date">{{ formatDateShort(order.delivery_date) }}</span>
                                                 <span class="order-row-price">{{ formatPrice(order.total_amount) }}</span>
                                             </div>
-                                            <div>
+                                            <div class="order-row-status">
                                                 <span :class="'order-status ' + getDisplayStatus(order)">{{ getStatusLabel(order) }}</span>
-                                                <span :class="'payment-type-icon ' + order.payment_type">{{ getPaymentTypeLabel(order.payment_type) }}</span>
+                                                <i :class="getPaymentTypeIcon(order)" class="status-icon"></i>
                                             </div>
                                         </div>
                                     </div>
                                 </div>
                                 
                                 <div class="orders-column">
-                                    <h4>Afgerond ({{ afgerondeBestellingen.length }})</h4>
+                                    <h4>Afgerond ({{ afgerondeBestellingenFiltered.length }})</h4>
+                                    <div class="cancelled-toggle">
+                                        <label class="toggle-switch">
+                                            <input type="checkbox" v-model="showCancelledOrders">
+                                            <span class="toggle-slider"></span>
+                                        </label>
+                                        <span class="toggle-label">Toon geannuleerd ({{ cancelledOrdersCount }})</span>
+                                    </div>
                                     <div class="orders-scroll">
-                                        <div v-if="afgerondeBestellingen.length === 0" class="empty-state">
+                                        <div v-if="afgerondeBestellingenFiltered.length === 0" class="empty-state">
                                             <p>Nog geen afgeronde bestellingen</p>
                                         </div>
-                                        <div v-for="order in afgerondeBestellingen" :key="order.id" 
-                                             :class="['order-row', { 'is-recurring': order.is_recurring }]" @click="showOrderDetail(order)">
+                                        <div v-for="order in afgerondeBestellingenFiltered" :key="order.id" 
+                                             :class="['order-row', { 'is-recurring': order.is_recurring, 'is-cancelled': Number(order.is_cancelled) === 1 }]" @click="showOrderDetail(order)">
                                             <div class="order-row-info">
                                                 <span v-if="order.is_recurring" class="recurring-icon">&#x21bb;</span>
                                                 <span class="order-row-id">#{{ order.id }}</span>
                                                 <span class="order-row-date">{{ formatDateShort(order.delivery_date) }}</span>
                                                 <span class="order-row-price">{{ formatPrice(order.total_amount) }}</span>
                                             </div>
-                                            <div>
+                                            <div class="order-row-status">
                                                 <span :class="'order-status ' + getDisplayStatus(order)">{{ getStatusLabel(order) }}</span>
-                                                <span :class="'payment-type-icon ' + order.payment_type">{{ getPaymentTypeLabel(order.payment_type) }}</span>
+                                                <i :class="getPaymentTypeIcon(order)" class="status-icon"></i>
                                             </div>
                                         </div>
                                     </div>
@@ -366,73 +374,126 @@
                                     <h3>Bestelling #{{ selectedOrder.id }}</h3>
                                     <div class="order-detail-badges">
                                         <span :class="'order-status ' + getDisplayStatus(selectedOrder)">{{ getStatusLabel(selectedOrder) }}</span>
-                                        <span :class="'payment-type-icon ' + selectedOrder.payment_type">{{ getPaymentTypeLabel(selectedOrder.payment_type) }}</span>
+                                        <i :class="getPaymentTypeIcon(selectedOrder)" class="status-icon-large"></i>
                                     </div>
                                 </div>
                                 <button class="modal-close" @click="closeOrderModal">&times;</button>
                             </div>
                             
                             <template v-if="!editingOrder">
-                                <div v-if="selectedOrder.is_recurring" style="margin-bottom: 0.75rem; padding: 0.5rem 0.75rem; background: #e8f4ea; border-radius: 6px; border-left: 3px solid #4a7c59; font-size: 0.85rem;">
-                                    <span style="color: #2d5a3d;">Terugkerend: </span>
-                                    <span style="color: #4a7c59;">
-                                        <span v-if="selectedOrder.recurring_name">{{ selectedOrder.recurring_name }} - </span>
-                                        {{ getFrequencyLabel(selectedOrder.recurring_frequency) }}
-                                    </span>
+                                <div class="order-summary-card">
+                                    <div v-if="selectedOrder.is_recurring" class="order-recurring-badge">
+                                        <i class="bi bi-arrow-repeat"></i>
+                                        <span>{{ selectedOrder.recurring_name || 'Terugkerend' }}</span>
+                                        <span class="recurring-freq">{{ getFrequencyLabel(selectedOrder.recurring_frequency) }}</span>
+                                    </div>
+                                    
+                                    <div class="order-summary-header">
+                                        <div class="order-summary-meta">
+                                            <div class="order-meta-item">
+                                                <i class="bi bi-calendar3"></i>
+                                                <span>{{ formatDateShort(selectedOrder.delivery_date) }}</span>
+                                            </div>
+                                            <div class="order-meta-item" v-if="selectedOrder.delivery_address">
+                                                <i class="bi bi-geo-alt"></i>
+                                                <span>{{ selectedOrder.delivery_address }}</span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    
+                                    <div class="order-items-list">
+                                        <div v-for="(item, idx) in selectedOrder.items" :key="idx" class="order-item-row">
+                                            <span class="item-qty">{{ item.quantity }}x</span>
+                                            <span class="item-name">{{ item.product_name }}</span>
+                                            <span class="item-price">{{ formatPrice(item.subtotal) }}</span>
+                                        </div>
+                                    </div>
+                                    
+                                    <div class="order-summary-total">
+                                        <span>Totaal incl. BTW</span>
+                                        <strong>{{ formatPrice(selectedOrder.total_amount) }}</strong>
+                                    </div>
+                                    
+                                    <div v-if="selectedOrder.notes" class="order-summary-notes">
+                                        <i class="bi bi-chat-left-text"></i>
+                                        <span>{{ selectedOrder.notes }}</span>
+                                    </div>
                                 </div>
                                 
-                                <div class="order-detail-meta-box">
-                                    <div class="order-detail-meta-row">
-                                        <div class="meta-item">
-                                            <span class="label">Levering:</span>
-                                            <span class="value">{{ formatDateShort(selectedOrder.delivery_date) }}</span>
+                                <div class="order-detail-status-flows">
+                                    <div class="status-flow-section">
+                                        <span class="flow-label">Betaling</span>
+                                        <div class="payment-flow-track">
+                                            <div :class="['payment-flow-method', selectedOrder.payment_type === 'ideal' ? 'method-ideal' : 'method-factuur']">
+                                                <i :class="selectedOrder.payment_type === 'ideal' ? 'bi bi-credit-card' : 'bi bi-receipt'"></i>
+                                                <span>{{ selectedOrder.payment_type === 'ideal' ? 'iDEAL' : 'Factuur' }}</span>
+                                            </div>
+                                            <div class="payment-flow-steps">
+                                                <div v-if="selectedOrder.payment_type === 'factuur'" :class="['payment-step', selectedOrder.invoice_status === 'gefactureerd' ? 'completed' : 'active']">
+                                                    <span class="payment-step-dot"></span>
+                                                    <span class="payment-step-label">{{ selectedOrder.invoice_status === 'gefactureerd' ? 'Verstuurd' : 'In afwachting' }}</span>
+                                                </div>
+                                                <div :class="['payment-step', selectedOrder.payment_status === 'paid' ? 'completed' : (selectedOrder.invoice_status === 'gefactureerd' || selectedOrder.payment_type === 'ideal' ? 'active' : 'pending')]">
+                                                    <span class="payment-step-dot"></span>
+                                                    <span class="payment-step-label">{{ selectedOrder.payment_status === 'paid' ? 'Betaald' : 'Openstaand' }}</span>
+                                                </div>
+                                            </div>
                                         </div>
-                                        <div class="meta-item">
-                                            <span class="label">Items:</span>
-                                            <span class="value">{{ selectedOrder.items ? selectedOrder.items.length : 0 }}</span>
-                                        </div>
-                                        <div class="meta-item">
-                                            <span class="label">Totaal:</span>
-                                            <span class="value highlight">{{ formatPrice(selectedOrder.total_amount) }}</span>
+                                    </div>
+                                    <div class="status-flow-section">
+                                        <span class="flow-label">Levering</span>
+                                        <div class="delivery-flow-track">
+                                            <div :class="['delivery-step', getDeliveryFlowClass(selectedOrder, 'geplaatst')]">
+                                                <span class="delivery-step-icon"><i class="bi bi-check2-circle"></i></span>
+                                                <span class="delivery-step-label">Geplaatst</span>
+                                            </div>
+                                            <div class="delivery-step-connector" :class="{ active: ['wordt_bereid', 'onderweg', 'afgeleverd'].includes(selectedOrder.delivery_status) }"></div>
+                                            <div :class="['delivery-step', getDeliveryFlowClass(selectedOrder, 'wordt_bereid')]">
+                                                <span class="delivery-step-icon"><i class="bi bi-fire"></i></span>
+                                                <span class="delivery-step-label">Wordt bereid</span>
+                                            </div>
+                                            <div class="delivery-step-connector" :class="{ active: ['onderweg', 'afgeleverd'].includes(selectedOrder.delivery_status) }"></div>
+                                            <div :class="['delivery-step', getDeliveryFlowClass(selectedOrder, 'onderweg')]">
+                                                <span class="delivery-step-icon"><i class="bi bi-truck"></i></span>
+                                                <span class="delivery-step-label">Onderweg</span>
+                                            </div>
+                                            <div class="delivery-step-connector" :class="{ active: selectedOrder.delivery_status === 'afgeleverd' }"></div>
+                                            <div :class="['delivery-step', getDeliveryFlowClass(selectedOrder, 'afgeleverd')]">
+                                                <span class="delivery-step-icon"><i class="bi bi-house-check"></i></span>
+                                                <span class="delivery-step-label">Afgeleverd</span>
+                                            </div>
                                         </div>
                                     </div>
                                 </div>
                                 
-                                <div class="order-detail-section">
-                                    <div class="order-detail-section-title">Producten</div>
-                                    <div v-for="(item, idx) in selectedOrder.items" :key="idx" class="order-product-card">
-                                        <div class="order-product-card-info">
-                                            <div class="order-product-card-name">{{ item.product_name }}</div>
-                                            <div class="order-product-card-details">{{ item.quantity }} x {{ formatPrice(item.unit_price) }}</div>
+                                <div v-if="Number(selectedOrder.is_cancelled) === 1 && selectedOrder.mollie_refund_id" class="refund-status-section">
+                                    <div class="refund-status-header">
+                                        <i class="bi bi-arrow-counterclockwise"></i>
+                                        <span>Terugbetaling</span>
+                                    </div>
+                                    <div class="refund-status-content">
+                                        <div class="refund-status-badge" :class="getRefundStatusClass(selectedOrder.mollie_refund_status)">
+                                            <i :class="getRefundStatusIcon(selectedOrder.mollie_refund_status)"></i>
+                                            <span>{{ getRefundStatusLabel(selectedOrder.mollie_refund_status) }}</span>
                                         </div>
-                                        <div class="order-product-card-price">
-                                            <div class="order-product-card-subtotal">{{ formatPrice(item.subtotal) }}</div>
+                                        <div class="refund-status-details">
+                                            <div class="refund-detail-row">
+                                                <span class="label">Bedrag</span>
+                                                <span class="value">{{ formatPrice(selectedOrder.total_amount) }}</span>
+                                            </div>
+                                            <div class="refund-detail-row">
+                                                <span class="label">Referentie</span>
+                                                <span class="value refund-id">{{ selectedOrder.mollie_refund_id }}</span>
+                                            </div>
                                         </div>
+                                        <p class="refund-note">De terugbetaling wordt verwerkt door Mollie en is meestal binnen 5-10 werkdagen op uw rekening.</p>
                                     </div>
-                                </div>
-                                
-                                <div class="order-detail-totals">
-                                    <span class="label">Totaal incl. BTW</span>
-                                    <span class="amount">{{ formatPrice(selectedOrder.total_amount) }}</span>
-                                </div>
-                                
-                                <div v-if="selectedOrder.delivery_address" class="order-detail-address">
-                                    <div class="order-detail-address-header">
-                                        <span class="label">Leveradres</span>
-                                    </div>
-                                    <div>{{ selectedOrder.delivery_address }}</div>
-                                </div>
-                                
-                                <div v-if="selectedOrder.notes" class="order-detail-notes">
-                                    <div class="order-detail-notes-header">
-                                        <span class="label">Opmerkingen</span>
-                                    </div>
-                                    <p>{{ selectedOrder.notes }}</p>
                                 </div>
                                 
                                 <div class="modal-actions-improved">
-                                    <button v-if="selectedOrder.payment_status === 'pending' && Number(selectedOrder.is_cancelled) !== 1" @click="openPaymentPanel" class="btn btn-pay">Betalen</button>
-                                    <a v-if="selectedOrder.factuur_url" :href="selectedOrder.factuur_url" target="_blank" class="btn btn-invoice">Factuur</a>
+                                    <button v-if="selectedOrder.payment_status === 'pending' && Number(selectedOrder.is_cancelled) !== 1 && selectedOrder.invoice_status === 'gefactureerd'" @click="openPaymentPanel" class="btn btn-pay">Betalen</button>
+                                    <a v-if="canDownloadInvoice(selectedOrder)" :href="selectedOrder.factuur_url || selectedOrder.eboekhouden_pdf_url" target="_blank" class="btn btn-invoice">Factuur</a>
+                                    <a v-else-if="canDownloadBestelbon(selectedOrder)" :href="selectedOrder.bestelbon_url" target="_blank" class="btn btn-bestelbon">Bestelbon</a>
                                     <button @click="reorder(selectedOrder)" class="btn btn-reorder-improved">Opnieuw</button>
                                     <div v-if="canEditOrder(selectedOrder) || canCancelOrder(selectedOrder)" class="order-actions-dropdown">
                                         <button class="btn btn-more" @click="toggleOrderActionsDropdown($event)">
@@ -598,6 +659,45 @@
                                     <button class="btn" @click="closePaymentPanelAndReturn">Terug naar bestellingen</button>
                                 </div>
                             </template>
+                        </div>
+                    </div>
+                    
+                    <!-- Cancel Order Dialog -->
+                    <div class="modal-overlay cancel-dialog-modal" :class="{ active: showCancelDialog }" @click.self="closeCancelDialog">
+                        <div class="modal cancel-dialog" v-if="showCancelDialog && selectedOrder">
+                            <div class="cancel-dialog-icon">
+                                <i class="bi bi-exclamation-triangle"></i>
+                            </div>
+                            <h3>Bestelling annuleren</h3>
+                            
+                            <div class="cancel-dialog-content">
+                                <p class="cancel-warning">Weet je zeker dat je bestelling <strong>#{{ selectedOrder.id }}</strong> wilt annuleren?</p>
+                                
+                                <div class="cancel-info-box">
+                                    <div class="cancel-info-row">
+                                        <i class="bi bi-x-circle"></i>
+                                        <span>Deze actie kan niet ongedaan worden gemaakt</span>
+                                    </div>
+                                    <div class="cancel-info-row refund-info">
+                                        <i class="bi bi-arrow-counterclockwise"></i>
+                                        <span>Het bedrag van <strong>{{ formatPrice(selectedOrder.total_amount) }}</strong> wordt teruggestort</span>
+                                    </div>
+                                    <div class="cancel-info-row">
+                                        <i class="bi bi-clock"></i>
+                                        <span>De terugbetaling kan enkele werkdagen duren</span>
+                                    </div>
+                                </div>
+                                
+                                <p class="cancel-note">Je ontvangt een bevestiging per e-mail zodra de annulering is verwerkt.</p>
+                            </div>
+                            
+                            <div class="cancel-dialog-actions">
+                                <button class="btn btn-outline" @click="closeCancelDialog" :disabled="cancellingOrder">Terug</button>
+                                <button class="btn btn-danger" @click="confirmCancelOrder" :disabled="cancellingOrder">
+                                    <span v-if="cancellingOrder">Bezig...</span>
+                                    <span v-else>Ja, annuleren</span>
+                                </button>
+                            </div>
                         </div>
                     </div>
                 </div>

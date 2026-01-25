@@ -65,6 +65,43 @@ function canOrderBeEdited($pdo, $orderId) {
     return $now < $deadline;
 }
 
+function calculateDeliveryStatus($deliveryDate, $deadlineHours) {
+    $now = new DateTime();
+    $delivery = new DateTime($deliveryDate);
+    $deliveryEnd = (clone $delivery)->setTime(17, 0, 0);
+    $deliveryStart = (clone $delivery)->setTime(0, 0, 0);
+    $prepDeadline = (clone $delivery)->modify("-{$deadlineHours} hours");
+    
+    if ($now >= $deliveryEnd) {
+        return 'afgeleverd';
+    }
+    
+    if ($now >= $deliveryStart && $now < $deliveryEnd) {
+        return 'onderweg';
+    }
+    
+    if ($now >= $prepDeadline) {
+        return 'wordt_bereid';
+    }
+    
+    return 'geplaatst';
+}
+
+function updateDeliveryStatusIfNeeded($pdo, $orderId, $deliveryDate, $currentStatus, $isCancelled) {
+    if ($isCancelled) return $currentStatus;
+    
+    $deadlineHours = getWijzigDeadlineUren($pdo);
+    $calculatedStatus = calculateDeliveryStatus($deliveryDate, $deadlineHours);
+    
+    if ($calculatedStatus !== $currentStatus) {
+        $stmt = $pdo->prepare("UPDATE business_orders SET delivery_status = ? WHERE id = ?");
+        $stmt->execute([$calculatedStatus, $orderId]);
+        return $calculatedStatus;
+    }
+    
+    return $currentStatus;
+}
+
 function generateBestelbon($pdo, $orderId, $outputPath = null) {
     $stmt = $pdo->prepare("
         SELECT bo.*, ba.bedrijfsnaam, ba.adres, ba.postcode, ba.plaats, 
@@ -545,6 +582,242 @@ function sendRecurringBestelbonEmail($pdo, $recurringGroupId) {
     $message .= "--$boundary--";
     
     return @mail($to, $subject, $message, $headers);
+}
+
+function generateCancelledBestelbon($pdo, $orderId, $outputPath = null) {
+    $stmt = $pdo->prepare("
+        SELECT bo.*, ba.bedrijfsnaam, ba.adres, ba.postcode, ba.plaats, 
+               ba.contactpersoon, ba.email, ba.telefoon, ba.kvk_nummer, ba.btw_id,
+               ba.delivery_same_as_business, ba.delivery_adres, ba.delivery_postcode, 
+               ba.delivery_plaats, ba.delivery_contactpersoon
+        FROM business_orders bo
+        JOIN business_accounts ba ON bo.account_id = ba.id
+        WHERE bo.id = ?
+    ");
+    $stmt->execute([$orderId]);
+    $order = $stmt->fetch();
+    
+    if (!$order) return false;
+    
+    $stmt = $pdo->prepare("SELECT product_name, quantity, unit_price FROM business_order_items WHERE order_id = ?");
+    $stmt->execute([$orderId]);
+    $items = $stmt->fetchAll();
+    
+    $stmt = $pdo->query("SELECT setting_value FROM settings WHERE setting_key = 'btw_tarief'");
+    $btwTarief = floatval($stmt->fetchColumn() ?: 9);
+    
+    $bedrijf = getBedrijfsGegevens($pdo);
+    
+    $totalInclBtw = floatval($order['total_amount']);
+    $btwBedrag = $totalInclBtw - ($totalInclBtw / (1 + $btwTarief / 100));
+    $exclBtw = $totalInclBtw - $btwBedrag;
+    
+    $bestelbonNummer = $order['bestelbon_number'] ?: generateBestelbonNumber($pdo, $orderId);
+    $besteldatum = date('d-m-Y', strtotime($order['created_at']));
+    $leverDatum = date('d-m-Y', strtotime($order['delivery_date']));
+    $annuleringsDatum = date('d-m-Y H:i');
+    
+    $pdf = new BestelbonPDF();
+    $pdf->AddPage();
+    $pdf->SetAutoPageBreak(true, 20);
+    
+    $bedrijfNaam = $bedrijf['bedrijf_naam'] ?: 'Bakkerij Civetta';
+    $bedrijfPlaats = ($bedrijf['bedrijf_postcode'] || $bedrijf['bedrijf_plaats']) 
+        ? trim($bedrijf['bedrijf_postcode'] . ' ' . $bedrijf['bedrijf_plaats']) 
+        : 'Leersum, Utrecht';
+    $bedrijfEmail = $bedrijf['bedrijf_email'] ?: 'info@bakkerij-civetta.nl';
+    
+    $pdf->SetFillColor(220, 53, 69);
+    $pdf->SetTextColor(255);
+    $pdf->SetFont('Helvetica', 'B', 14);
+    $pdf->Cell(0, 10, 'GEANNULEERD', 0, 1, 'C', true);
+    $pdf->Ln(5);
+    
+    $pdf->SetTextColor(0);
+    $pdf->SetFont('Helvetica', 'B', 10);
+    $pdf->Cell(95, 5, $bedrijfNaam, 0, 0);
+    $pdf->Cell(95, 5, 'Klant:', 0, 1);
+    
+    $pdf->SetFont('Helvetica', '', 9);
+    $pdf->Cell(95, 5, $bedrijfPlaats, 0, 0);
+    $pdf->SetFont('Helvetica', 'B', 9);
+    $pdf->Cell(95, 5, $order['bedrijfsnaam'], 0, 1);
+    
+    $pdf->SetFont('Helvetica', '', 9);
+    $pdf->Cell(95, 5, $bedrijfEmail, 0, 0);
+    $pdf->Cell(95, 5, 't.a.v. ' . $order['contactpersoon'], 0, 1);
+    
+    $pdf->Cell(95, 5, '', 0, 0);
+    $pdf->Cell(95, 5, $order['email'], 0, 1);
+    
+    $pdf->Ln(10);
+    
+    $pdf->SetFont('Helvetica', 'B', 9);
+    $pdf->Cell(45, 6, 'Bestelbonnummer:', 0, 0);
+    $pdf->SetFont('Helvetica', '', 9);
+    $pdf->Cell(45, 6, $bestelbonNummer, 0, 0);
+    $pdf->SetFont('Helvetica', 'B', 9);
+    $pdf->Cell(45, 6, 'Besteldatum:', 0, 0);
+    $pdf->SetFont('Helvetica', '', 9);
+    $pdf->Cell(45, 6, $besteldatum, 0, 1);
+    
+    $pdf->SetFont('Helvetica', 'B', 9);
+    $pdf->Cell(45, 6, 'Bestelnummer:', 0, 0);
+    $pdf->SetFont('Helvetica', '', 9);
+    $pdf->Cell(45, 6, '#' . $orderId, 0, 0);
+    $pdf->SetFont('Helvetica', 'B', 9);
+    $pdf->Cell(45, 6, 'Geannuleerd op:', 0, 0);
+    $pdf->SetFont('Helvetica', '', 9);
+    $pdf->Cell(45, 6, $annuleringsDatum, 0, 1);
+    
+    $pdf->Ln(5);
+    
+    $pdf->SetFont('Helvetica', 'B', 9);
+    $pdf->Cell(45, 6, 'Oorspronkelijke leverdatum:', 0, 0);
+    $pdf->SetFont('Helvetica', '', 9);
+    $pdf->Cell(145, 6, $leverDatum, 0, 1);
+    
+    $pdf->Ln(10);
+    
+    $pdf->SetFillColor(200, 200, 200);
+    $pdf->SetTextColor(100);
+    $pdf->SetFont('Helvetica', 'B', 9);
+    $pdf->Cell(90, 8, ' Product', 1, 0, 'L', true);
+    $pdf->Cell(25, 8, 'Aantal', 1, 0, 'C', true);
+    $pdf->Cell(35, 8, 'Prijs/stuk', 1, 0, 'R', true);
+    $pdf->Cell(40, 8, 'Totaal', 1, 1, 'R', true);
+    
+    $pdf->SetTextColor(128);
+    $pdf->SetFont('Helvetica', '', 9);
+    
+    foreach ($items as $item) {
+        $lineTotal = $item['quantity'] * $item['unit_price'];
+        $pdf->Cell(90, 7, ' ' . $item['product_name'], 1, 0, 'L');
+        $pdf->Cell(25, 7, $item['quantity'], 1, 0, 'C');
+        $pdf->Cell(35, 7, euro($item['unit_price']), 1, 0, 'R');
+        $pdf->Cell(40, 7, euro($lineTotal), 1, 1, 'R');
+    }
+    
+    $pdf->Ln(5);
+    
+    $pdf->SetTextColor(128);
+    $pdf->SetFont('Helvetica', '', 9);
+    $pdf->Cell(150, 6, 'Subtotaal excl. BTW:', 0, 0, 'R');
+    $pdf->Cell(40, 6, euro($exclBtw), 0, 1, 'R');
+    
+    $pdf->Cell(150, 6, 'BTW (' . $btwTarief . '%):', 0, 0, 'R');
+    $pdf->Cell(40, 6, euro($btwBedrag), 0, 1, 'R');
+    
+    $pdf->SetFont('Helvetica', 'B', 11);
+    $pdf->Cell(150, 8, 'Totaal incl. BTW:', 0, 0, 'R');
+    $pdf->Cell(40, 8, euro($totalInclBtw), 0, 1, 'R');
+    
+    $pdf->Ln(10);
+    
+    $pdf->SetFillColor(220, 53, 69);
+    $pdf->SetTextColor(255);
+    $pdf->SetFont('Helvetica', 'B', 10);
+    $pdf->Cell(0, 8, 'DEZE BESTELLING IS GEANNULEERD', 0, 1, 'C', true);
+    
+    $pdf->SetTextColor(0);
+    $pdf->SetFont('Helvetica', '', 9);
+    $pdf->Ln(5);
+    $pdf->MultiCell(0, 5, 'Deze bestelling is geannuleerd en zal niet worden geleverd.', 0, 'L');
+    $pdf->MultiCell(0, 5, 'Heeft u vragen? Neem dan contact met ons op.', 0, 'L');
+    
+    $pdf->SetTextColor(0);
+    $pdf->Ln(10);
+    $pdf->SetFont('Helvetica', '', 8);
+    $pdf->SetTextColor(128);
+    $footerLine1 = $bedrijfNaam . ' | ' . $bedrijfPlaats . ' | ' . $bedrijfEmail;
+    $pdf->MultiCell(0, 4, $footerLine1, 0, 'C');
+    
+    if ($outputPath) {
+        $pdf->Output('F', $outputPath);
+        return $outputPath;
+    } else {
+        return $pdf;
+    }
+}
+
+function sendCancellationEmail($pdo, $orderId) {
+    $bestelbonDir = __DIR__ . '/../bestelbonnen';
+    if (!is_dir($bestelbonDir)) {
+        mkdir($bestelbonDir, 0755, true);
+    }
+    
+    $bestelbonFile = $bestelbonDir . '/bestelbon-geannuleerd-' . $orderId . '.pdf';
+    generateCancelledBestelbon($pdo, $orderId, $bestelbonFile);
+    
+    $stmt = $pdo->prepare("
+        SELECT bo.*, ba.bedrijfsnaam, ba.contactpersoon, ba.email 
+        FROM business_orders bo 
+        JOIN business_accounts ba ON bo.account_id = ba.id 
+        WHERE bo.id = ?
+    ");
+    $stmt->execute([$orderId]);
+    $order = $stmt->fetch();
+    
+    if (!$order) return false;
+    
+    $bestelbonNummer = $order['bestelbon_number'] ?: generateBestelbonNumber($pdo, $orderId);
+    
+    $to = $order['email'];
+    $subject = "Annulering bestelling $bestelbonNummer - Bakkerij Civetta";
+    
+    $boundary = md5(time());
+    
+    $headers = "From: noreply@bakkerij-civetta.nl\r\n";
+    $headers .= "Reply-To: info@bakkerij-civetta.nl\r\n";
+    $headers .= "MIME-Version: 1.0\r\n";
+    $headers .= "Content-Type: multipart/mixed; boundary=\"$boundary\"\r\n";
+    
+    $message = "--$boundary\r\n";
+    $message .= "Content-Type: text/plain; charset=UTF-8\r\n";
+    $message .= "Content-Transfer-Encoding: 8bit\r\n\r\n";
+    $message .= "Beste {$order['contactpersoon']},\n\n";
+    $message .= "Uw bestelling is geannuleerd.\n\n";
+    $message .= "Bestelbonnummer: $bestelbonNummer\n";
+    $message .= "Bestelling: #{$orderId}\n";
+    $message .= "Oorspronkelijke leverdatum: " . date('d-m-Y', strtotime($order['delivery_date'])) . "\n\n";
+    $message .= "In de bijlage vindt u een bevestiging van de annulering.\n\n";
+    $message .= "Heeft u vragen over deze annulering? Neem dan gerust contact met ons op.\n\n";
+    $message .= "Met vriendelijke groet,\n";
+    $message .= "Bakkerij Civetta\n";
+    $message .= "info@bakkerij-civetta.nl\r\n";
+    
+    if (file_exists($bestelbonFile)) {
+        $message .= "--$boundary\r\n";
+        $message .= "Content-Type: application/pdf; name=\"annulering-$orderId.pdf\"\r\n";
+        $message .= "Content-Transfer-Encoding: base64\r\n";
+        $message .= "Content-Disposition: attachment; filename=\"annulering-$orderId.pdf\"\r\n\r\n";
+        $message .= chunk_split(base64_encode(file_get_contents($bestelbonFile))) . "\r\n";
+    }
+    $message .= "--$boundary--";
+    
+    $customerSent = @mail($to, $subject, $message, $headers);
+    
+    $adminSubject = "Bestelling geannuleerd: #{$orderId} - {$order['bedrijfsnaam']}";
+    $adminBody = "Een bestelling is geannuleerd door de klant.\n\n";
+    $adminBody .= "══════════════════════════════════════\n";
+    $adminBody .= "ANNULERING\n";
+    $adminBody .= "══════════════════════════════════════\n\n";
+    $adminBody .= "Bestelnummer: #{$orderId}\n";
+    $adminBody .= "Bestelbonnummer: $bestelbonNummer\n";
+    $adminBody .= "Bedrijf: {$order['bedrijfsnaam']}\n";
+    $adminBody .= "Contactpersoon: {$order['contactpersoon']}\n";
+    $adminBody .= "Email: {$order['email']}\n\n";
+    $adminBody .= "Oorspronkelijke leverdatum: " . date('d-m-Y', strtotime($order['delivery_date'])) . "\n";
+    $adminBody .= "Totaalbedrag: EUR " . number_format($order['total_amount'], 2, ',', '.') . "\n\n";
+    $adminBody .= "De klant heeft een bevestiging van de annulering ontvangen.\n";
+    
+    $adminHeaders = "From: noreply@bakkerij-civetta.nl\r\n";
+    $adminHeaders .= "Reply-To: {$order['email']}\r\n";
+    $adminHeaders .= "Content-Type: text/plain; charset=UTF-8\r\n";
+    
+    @mail('laurens@bakkerij-civetta.nl', $adminSubject, $adminBody, $adminHeaders);
+    
+    return $customerSent;
 }
 
 if (!isset($_GET['action']) && !isset($_GET['order_id']) && !isset($_GET['recurring_group_id'])) {

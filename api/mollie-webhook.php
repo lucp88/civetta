@@ -120,7 +120,7 @@ try {
     $stmt->execute([$status, $orderId, $paymentId]);
 
     if ($status === 'paid') {
-        $stmt = $pdo->prepare("UPDATE business_orders SET payment_status = 'paid' WHERE id = ? AND mollie_payment_id = ?");
+        $stmt = $pdo->prepare("UPDATE business_orders SET payment_status = 'paid', invoice_status = 'gefactureerd', delivery_status = 'geplaatst' WHERE id = ? AND mollie_payment_id = ?");
         $stmt->execute([$orderId, $paymentId]);
         
         $stmt = $pdo->prepare("
@@ -202,7 +202,8 @@ try {
                         SET eboekhouden_invoice_id = ?, 
                             eboekhouden_factuurnummer = ?, 
                             eboekhouden_pdf_url = ?,
-                            facturatie_systeem = 'eboekhouden'
+                            facturatie_systeem = 'eboekhouden',
+                            invoice_status = 'gefactureerd'
                         WHERE id = ?
                     ");
                     $stmt->execute([

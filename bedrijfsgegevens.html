@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Bedrijfsgegevens | Bakkerij Civetta</title>
+    <title>Account Instellingen | Bakkerij Civetta</title>
     <link rel="stylesheet" href="css/style.css">
     <style>
         [v-cloak] { display: none; }
@@ -229,6 +229,43 @@
             padding: var(--spacing-lg);
             color: var(--color-stone);
         }
+        .danger-zone {
+            border: 1px solid #f5c6cb;
+            background: linear-gradient(135deg, #fff5f5, #fff);
+        }
+        .danger-zone h3 {
+            color: #721c24;
+            border-bottom-color: #f5c6cb;
+        }
+        .btn-danger {
+            background: #dc3545;
+            color: white;
+            border: none;
+        }
+        .btn-danger:hover {
+            background: #c82333;
+        }
+        .btn-danger:disabled {
+            background: #e4606d;
+            cursor: not-allowed;
+        }
+        .modal-danger h3 {
+            color: #721c24;
+        }
+        .delete-warning {
+            background: #fff3cd;
+            border: 1px solid #ffc107;
+            border-radius: 8px;
+            padding: 1rem;
+            color: #856404;
+        }
+        .delete-warning ul {
+            margin: 0.5rem 0 0 1.5rem;
+            padding: 0;
+        }
+        .delete-warning li {
+            margin-bottom: 0.25rem;
+        }
     </style>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link href="https://fonts.googleapis.com/css2?family=Libre+Baskerville:ital,wght@0,400;0,700;1,400&family=Source+Sans+Pro:wght@400;600&display=swap" rel="stylesheet">
@@ -261,7 +298,7 @@
 
     <main>
         <section class="page-header">
-            <h1>Bedrijfsgegevens</h1>
+            <h1>Account Instellingen</h1>
         </section>
 
         <section class="profile-page">
@@ -365,6 +402,15 @@
                                         <dd>{{ account.delivery_contactpersoon || account.contactpersoon }}</dd>
                                     </dl>
                                 </div>
+                            </div>
+
+                            <div class="profile-card full-width danger-zone">
+                                <h3>Account verwijderen</h3>
+                                <p class="card-note">Let op: deze actie kan niet ongedaan worden gemaakt</p>
+                                <p style="color: var(--color-stone); margin-bottom: var(--spacing-md); font-size: 0.9rem;">
+                                    Bij het verwijderen van je account worden al je gegevens, bestellingen en favorieten permanent verwijderd.
+                                </p>
+                                <button @click="openModal('delete')" class="btn btn-danger btn-small">Account verwijderen</button>
                             </div>
                         </div>
                     </template>
@@ -499,6 +545,38 @@
                             </form>
                         </div>
                     </div>
+
+                    <div class="modal-overlay" :class="{ active: activeModal === 'delete' }" @click.self="closeModal">
+                        <div class="modal modal-danger">
+                            <h3>Account verwijderen</h3>
+                            <div v-if="deleteError" class="error-msg">{{ deleteError }}</div>
+                            <div class="delete-warning">
+                                <p><strong>Weet je zeker dat je je account wilt verwijderen?</strong></p>
+                                <p>De volgende gegevens worden permanent verwijderd:</p>
+                                <ul>
+                                    <li>Je bedrijfsgegevens en contactinformatie</li>
+                                    <li>Alle bestellingen en bestelgeschiedenis</li>
+                                    <li>Opgeslagen favorieten</li>
+                                    <li>Terugkerende bestellingen</li>
+                                </ul>
+                                <p style="margin-top: 1rem;"><strong>Deze actie kan niet ongedaan worden gemaakt.</strong></p>
+                            </div>
+                            <div class="form-group" style="margin-top: 1rem;">
+                                <label>Typ <strong>{{ account.bedrijfsnaam }}</strong> om te bevestigen:</label>
+                                <input type="text" v-model="deleteConfirmText" :placeholder="account.bedrijfsnaam">
+                            </div>
+                            <div class="form-group">
+                                <label>Wachtwoord ter bevestiging:</label>
+                                <input type="password" v-model="deletePassword" placeholder="Je wachtwoord">
+                            </div>
+                            <div class="modal-actions">
+                                <button type="button" class="btn btn-outline" @click="closeModal">Annuleren</button>
+                                <button type="button" class="btn btn-danger" @click="deleteAccount" :disabled="deletingAccount || deleteConfirmText !== account.bedrijfsnaam || !deletePassword">
+                                    {{ deletingAccount ? 'Verwijderen...' : 'Definitief verwijderen' }}
+                                </button>
+                            </div>
+                        </div>
+                    </div>
                 </div>
             </div>
         </section>
@@ -543,7 +621,11 @@
                     },
                     passwordError: '',
                     passwordSuccess: '',
-                    savingPassword: false
+                    savingPassword: false,
+                    deleteConfirmText: '',
+                    deletePassword: '',
+                    deleteError: '',
+                    deletingAccount: false
                 };
             },
             
@@ -610,6 +692,10 @@
                         };
                     } else if (type === 'password') {
                         this.passwordForm = { current: '', new: '', confirm: '' };
+                    } else if (type === 'delete') {
+                        this.deleteConfirmText = '';
+                        this.deletePassword = '';
+                        this.deleteError = '';
                     }
                     
                     this.activeModal = type;
@@ -767,6 +853,44 @@
                         this.passwordError = 'Er ging iets mis';
                     } finally {
                         this.savingPassword = false;
+                    }
+                },
+                
+                async deleteAccount() {
+                    if (this.deleteConfirmText !== this.account.bedrijfsnaam) {
+                        this.deleteError = 'Bedrijfsnaam komt niet overeen';
+                        return;
+                    }
+                    
+                    if (!this.deletePassword) {
+                        this.deleteError = 'Vul je wachtwoord in';
+                        return;
+                    }
+                    
+                    this.deletingAccount = true;
+                    this.deleteError = '';
+                    
+                    try {
+                        const response = await fetch('api/business-dashboard.php', {
+                            method: 'DELETE',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({
+                                password: this.deletePassword
+                            })
+                        });
+                        
+                        const data = await response.json();
+                        
+                        if (data.success) {
+                            sessionStorage.removeItem('businessAccount');
+                            window.location.href = 'login-bedrijven.html?deleted=1';
+                        } else {
+                            this.deleteError = data.error || 'Er ging iets mis';
+                        }
+                    } catch (error) {
+                        this.deleteError = 'Er ging iets mis';
+                    } finally {
+                        this.deletingAccount = false;
                     }
                 }
             }

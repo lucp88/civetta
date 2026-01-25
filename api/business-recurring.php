@@ -1,6 +1,7 @@
 <?php
 require_once '../admin/config.php';
 require_once 'cors.php';
+require_once 'bestelbon.php';
 
 header('Content-Type: application/json');
 setCorsHeaders();
@@ -54,7 +55,7 @@ switch ($method) {
                     $group['is_active'];
                 
                 $stmt = $pdo->prepare("
-                    SELECT id, delivery_date, payment_status, payment_type, is_cancelled, total_amount
+                    SELECT id, delivery_date, payment_status, payment_type, is_cancelled, total_amount, delivery_status
                     FROM business_orders 
                     WHERE recurring_group_id = ? 
                     AND delivery_date >= CURDATE()
@@ -63,7 +64,21 @@ switch ($method) {
                     LIMIT 10
                 ");
                 $stmt->execute([$group['recurring_group_id']]);
-                $group['upcoming_deliveries'] = $stmt->fetchAll();
+                $upcomingDeliveries = $stmt->fetchAll();
+                
+                foreach ($upcomingDeliveries as &$delivery) {
+                    if ($delivery['delivery_date']) {
+                        $delivery['delivery_status'] = updateDeliveryStatusIfNeeded(
+                            $pdo,
+                            $delivery['id'],
+                            $delivery['delivery_date'],
+                            $delivery['delivery_status'] ?? 'geplaatst',
+                            (bool)($delivery['is_cancelled'] ?? false)
+                        );
+                    }
+                }
+                unset($delivery);
+                $group['upcoming_deliveries'] = $upcomingDeliveries;
                 
                 $stmt = $pdo->prepare("
                     SELECT product_name, quantity, unit_price 
@@ -172,8 +187,8 @@ switch ($method) {
                 $pdo->beginTransaction();
                 
                 $stmt = $pdo->prepare("
-                    INSERT INTO business_orders (account_id, delivery_date, payment_status, total_amount, notes, payment_type, is_recurring, recurring_name, recurring_frequency, recurring_day, recurring_end_date, recurring_group_id, recurring_confirmed_until, recurring_parent_id, created_at)
-                    VALUES (?, ?, 'pending', ?, ?, 'invoice', 1, ?, ?, ?, ?, ?, ?, ?, NOW())
+                    INSERT INTO business_orders (account_id, delivery_date, payment_status, total_amount, notes, payment_type, is_recurring, recurring_name, recurring_frequency, recurring_day, recurring_end_date, recurring_group_id, recurring_confirmed_until, recurring_parent_id, invoice_status, delivery_status, created_at)
+                    VALUES (?, ?, 'pending', ?, ?, 'invoice', 1, ?, ?, ?, ?, ?, ?, ?, 'bestelbon', 'geplaatst', NOW())
                 ");
                 
                 $itemStmt = $pdo->prepare("

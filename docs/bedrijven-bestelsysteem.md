@@ -81,12 +81,29 @@ Het systeem ondersteunt twee betaalmethodes:
 - **Directe betaling**: Via Mollie (iDEAL, creditcard, etc.)
 - **Betalen op factuur**: Voor bedrijven met factuurafspraken
 
-### 8. Edit Deadline
-Bestellingen kunnen alleen worden aangepast tot een bepaalde deadline:
+### 8. Edit Deadline & Annuleringsregels
+
+**Factuurbestellingen:**
+- Aanpassen én annuleren mogelijk tot de bestelling in bereiding gaat
+- Na `delivery_status = 'wordt_bereid'` zijn geen wijzigingen meer mogelijk
+- Facturatie vindt plaats na levering (via cron)
+
+**Mollie betalingen (iDEAL):**
+- Aanpassen NIET mogelijk (bedrag is al betaald)
+- Annuleren WEL mogelijk tot de bestelling in bereiding gaat
+- Bij annulering wordt automatisch een Mollie refund aangemaakt
+- Klant krijgt dialog met refund-informatie te zien
+- Terugbetaling duurt enkele werkdagen
+
+**Deadline logica:**
 - Deadline wordt berekend op basis van `bestel_wijzig_deadline_uren` setting
 - Standaard: 24 uur voor de leveringsdatum
-- Na de deadline is de "Aanpassen" knop uitgeschakeld
 - Dashboard toont de deadline datum/tijd bij elke order
+
+**Blokkerende statussen voor wijzigen/annuleren:**
+- `wordt_bereid` - Bestelling is in productie
+- `onderweg` - Bestelling is onderweg naar klant
+- `afgeleverd` - Bestelling is afgeleverd
 
 ### 9. Admin Beheer
 De bakkerij heeft een admin panel met:
@@ -187,7 +204,8 @@ Bestellingen van zakelijke klanten. Bij terugkerende bestellingen worden alle in
 | account_id | INT | FK naar business_accounts |
 | delivery_date | DATE | Gewenste leverdatum |
 | **delivery_address** | VARCHAR(500) | Afwijkend leveradres (per order override) |
-| **order_status** | VARCHAR(20) | 'bestelbon', 'gefactureerd', 'afgeleverd' |
+| **invoice_status** | VARCHAR(20) | 'bestelbon' of 'gefactureerd' |
+| **delivery_status** | VARCHAR(20) | 'geplaatst', 'wordt_bereid', 'onderweg', 'afgeleverd' |
 | **payment_status** | VARCHAR(20) | 'pending' of 'paid' |
 | **payment_type** | VARCHAR(20) | 'ideal', 'factuur' of 'cash' |
 | **is_cancelled** | TINYINT(1) | Geannuleerd flag (0/1) |
@@ -198,6 +216,8 @@ Bestellingen van zakelijke klanten. Bij terugkerende bestellingen worden alle in
 | notes | TEXT | Opmerkingen |
 | mollie_payment_id | VARCHAR(50) | Mollie payment ID |
 | mollie_status | VARCHAR(20) | Mollie betalingsstatus (audit) |
+| **mollie_refund_id** | VARCHAR(50) | Mollie refund ID bij annulering |
+| **mollie_refund_status** | VARCHAR(20) | Refund status (queued/pending/processing/refunded) |
 | is_recurring | TINYINT(1) | Terugkerende bestelling flag |
 | recurring_name | VARCHAR(255) | Naam terugkerende bestelling |
 | recurring_frequency | VARCHAR(20) | 'weekly', 'biweekly', 'monthly' |
@@ -213,10 +233,25 @@ Bestellingen van zakelijke klanten. Bij terugkerende bestellingen worden alle in
 | invoiced_at | DATETIME | Datum maandelijks gefactureerd |
 | created_at | TIMESTAMP | Aanmaakdatum |
 
-**Order status flow:**
-1. `bestelbon` - Bestelling ontvangen, bestelbon verstuurd, nog wijzigbaar
-2. `gefactureerd` - Factuur aangemaakt via cronjob, niet meer wijzigbaar
-3. `afgeleverd` - Bestelling afgeleverd
+**Status model:**
+
+Het systeem gebruikt drie status velden:
+
+| Veld | Waarden | Beschrijving |
+|------|---------|-------------|
+| `invoice_status` | bestelbon, gefactureerd | Facturatie status |
+| `delivery_status` | geplaatst, wordt_bereid, onderweg, afgeleverd | Lever status |
+| `payment_status` | pending, paid | Betaal status |
+
+**Flow per betaalmethode:**
+
+*iDEAL betaling:*
+1. Order geplaatst → `invoice_status='gefactureerd'`, `payment_status='paid'` (factuur direct verstuurd)
+
+*Factuur betaling:*
+1. Order geplaatst → `invoice_status='bestelbon'`, `delivery_status='geplaatst'` (bestelbon verstuurd)
+2. Cron job → `invoice_status='gefactureerd'` (factuur aangemaakt en verstuurd)
+3. Klant betaalt → `payment_status='paid'`
 
 **Leveradres logica:**
 - Als `delivery_address` leeg is → API haalt adres op uit `business_accounts`
@@ -564,6 +599,69 @@ canEditOrder(order) {
 
 **Webhook endpoint:** `/api/mollie-webhook.php`
 
+#### Mollie Refunds bij Annulering
+
+Wanneer een Mollie-betaalde bestelling wordt geannuleerd, wordt automatisch een refund aangemaakt via de Mollie API.
+
+**Refund API endpoint:** `POST /v2/payments/{paymentId}/refunds`
+
+**Refund statussen:**
+| Status | Beschrijving |
+|--------|--------------|
+| `queued` | Refund staat in de wachtrij |
+| `pending` | Refund wordt verwerkt |
+| `processing` | Refund is onderweg naar klant |
+| `refunded` | Refund is voltooid |
+
+**Database tracking:**
+- `mollie_refund_id`: ID van de refund in Mollie
+- `mollie_refund_status`: Huidige status van de refund
+
+**Implementatie:** `/api/mollie-refund.php`
+- `createMollieRefund($paymentId, $amount, $description)` - Maakt refund aan
+- `canRefundOrder($pdo, $orderId)` - Controleert of order gerefund kan worden
+
+#### Mollie Settlements en Financiële Afhandeling
+
+**Hoe Mollie werkt:**
+1. Klant betaalt via iDEAL → geld komt binnen op Mollie balans
+2. Mollie bundelt alle betalingen in "settlements" (uitbetalingen)
+3. Settlements worden periodiek naar je bankrekening overgemaakt (bijv. dagelijks/wekelijks)
+
+**Hoe refunds werken:**
+- Refunds worden **niet** direct van je bankrekening afgeschreven
+- Refunds worden afgetrokken van je Mollie **balans**
+- Als er voldoende balans is: refund gaat direct door
+- Als balans onvoldoende is: Mollie wacht tot er nieuwe betalingen binnenkomen
+
+**Voorbeeld:**
+```
+Dag 1: €100 betaling binnen → balans = €100
+Dag 2: €50 betaling binnen → balans = €150  
+Dag 2: €30 refund → balans = €120
+Dag 3: Settlement naar bank = €120
+```
+
+**Financiële administratie bij refunds:**
+
+Omdat bij dit systeem direct een factuur wordt aangemaakt in e-Boekhouden wanneer een iDEAL betaling binnenkomt, zijn er twee scenario's bij annulering:
+
+1. **Annulering vóór settlement (geld nog niet op bankrekening):**
+   - Klant krijgt refund via Mollie
+   - Netto settlement wordt lager
+   - In boekhouding: creditfactuur aanmaken of factuur storneren
+
+2. **Annulering ná settlement (geld al op bankrekening):**
+   - Klant krijgt refund via Mollie (van toekomstige balans)
+   - Volgende settlement wordt lager
+   - In boekhouding: creditfactuur aanmaken
+
+**Aanbevolen workflow:**
+- Bij annulering met refund: handmatig creditfactuur aanmaken in e-Boekhouden
+- Of: factuurstatus in systeem bijhouden en maandelijks reconciliëren
+
+**Let op:** Het huidige systeem maakt geen automatische creditfacturen aan. Dit is een handmatige actie in e-Boekhouden.
+
 ### e-Boekhouden
 
 **Configuratie via settings tabel:**
@@ -734,9 +832,26 @@ MOLLIE_API_KEY=live_xxx
 - Voegt `can_be_edited_until` kolom toe
 - Normaliseert `payment_type` waarden naar 'ideal' en 'factuur'
 
+### 003_cron_jobs.php
+- Voegt cron job instellingen toe
+
+### 005_mollie_refund_columns.php
+- Voegt `mollie_refund_id` kolom toe (VARCHAR(50))
+- Voegt `mollie_refund_status` kolom toe (VARCHAR(20))
+- Voor tracking van refunds bij geannuleerde Mollie-bestellingen
+
+### 004_invoice_delivery_status.php
+- Voegt `invoice_status` kolom toe (bestelbon/gefactureerd)
+- Voegt `delivery_status` kolom toe (geplaatst/wordt_bereid/onderweg/afgeleverd)
+- Migreert bestaande data:
+  - iDEAL betaald → `invoice_status='gefactureerd'`
+  - Heeft factuur → `invoice_status='gefactureerd'`
+  - Leverdag in verleden → `delivery_status='afgeleverd'`
+  - Rest → `invoice_status='bestelbon'`, `delivery_status='geplaatst'`
+
 **Uitvoeren:**
 ```bash
-php /path/to/admin/migrations/002_order_status_bestelbon.php
+php /path/to/admin/migrations/004_invoice_delivery_status.php
 ```
 
 ## Deployment Checklist

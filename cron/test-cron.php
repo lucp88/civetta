@@ -51,7 +51,7 @@ function executeAutoInvoice($pdo, $targetDateStr, &$results) {
         FROM business_orders bo
         JOIN business_accounts ba ON bo.account_id = ba.id
         WHERE bo.delivery_date = ?
-          AND bo.payment_type = 'factuur'
+          AND bo.payment_type IN ('factuur', 'invoice')
           AND (bo.eboekhouden_invoice_id IS NULL OR bo.eboekhouden_invoice_id = '')
           AND (bo.invoice_number IS NULL OR bo.invoice_number = '')
           AND (bo.is_cancelled IS NULL OR bo.is_cancelled = 0)
@@ -115,7 +115,7 @@ function executeAutoInvoice($pdo, $targetDateStr, &$results) {
                 $stmt = $pdo->prepare("
                     UPDATE business_orders 
                     SET eboekhouden_invoice_id = ?, eboekhouden_factuurnummer = ?, eboekhouden_pdf_url = ?,
-                        facturatie_systeem = 'eboekhouden', invoiced_at = NOW(), order_status = 'afgeleverd'
+                        facturatie_systeem = 'eboekhouden', invoiced_at = NOW(), invoice_status = 'gefactureerd'
                     WHERE id = ?
                 ");
                 $stmt->execute([$result['id'], $result['invoiceNumber'], $result['pdfUrl'], $orderId]);
@@ -129,7 +129,7 @@ function executeAutoInvoice($pdo, $targetDateStr, &$results) {
             $invoiceNumber = 'F' . date('Y') . '-' . str_pad($orderId, 4, '0', STR_PAD_LEFT);
             $stmt = $pdo->prepare("
                 UPDATE business_orders 
-                SET invoice_number = ?, invoiced_at = NOW(), facturatie_systeem = 'eigen', order_status = 'afgeleverd'
+                SET invoice_number = ?, invoiced_at = NOW(), facturatie_systeem = 'eigen', invoice_status = 'gefactureerd'
                 WHERE id = ?
             ");
             $stmt->execute([$invoiceNumber, $orderId]);
@@ -245,7 +245,7 @@ if ($executeAction === 'auto-invoice') {
             FROM business_orders bo
             JOIN business_accounts ba ON bo.account_id = ba.id
             WHERE bo.delivery_date = ?
-              AND bo.payment_type = 'factuur'
+              AND bo.payment_type IN ('factuur', 'invoice')
               AND (bo.eboekhouden_invoice_id IS NULL OR bo.eboekhouden_invoice_id = '')
               AND (bo.invoice_number IS NULL OR bo.invoice_number = '')
               AND (bo.is_cancelled IS NULL OR bo.is_cancelled = 0)

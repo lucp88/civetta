@@ -104,9 +104,6 @@ const RecurringModal = {
                                 <p class="field-hint">Laat leeg voor doorlopende bestelling</p>
                             </div>
                             
-                            <div class="recurring-info-box">
-                                <p>Leveringen worden <strong>maandelijks gebundeld gefactureerd</strong>. U ontvangt aan het einde van elke maand een verzamelfactuur.</p>
-                            </div>
                         </div>
                     </template>
                 </div>
