@@ -60,15 +60,41 @@
                                     <span>+</span> Nieuwe Bestelling
                                 </a>
                             </h3>
+                            <div class="filter-bar">
+                                <div class="filter-group">
+                                    <button :class="['filter-btn', { active: filters.paid }]" data-filter="paid" @click="toggleFilter('paid')">
+                                        <i class="bi bi-check-circle"></i> Betaald
+                                    </button>
+                                    <button :class="['filter-btn', { active: filters.pending }]" data-filter="pending" @click="toggleFilter('pending')">
+                                        <i class="bi bi-clock"></i> Openstaand
+                                    </button>
+                                </div>
+                                <span class="filter-separator"></span>
+                                <div class="filter-group">
+                                    <button :class="['filter-btn', { active: filters.factuur }]" data-filter="factuur" @click="toggleFilter('factuur')">
+                                        <i class="bi bi-file-earmark-text"></i> Factuur
+                                    </button>
+                                    <button :class="['filter-btn', { active: filters.ideal }]" data-filter="ideal" @click="toggleFilter('ideal')">
+                                        <i class="bi bi-credit-card"></i> iDEAL
+                                    </button>
+                                </div>
+                            </div>
+                            
                             <div class="orders-grid">
                                 <div class="orders-column">
-                                    <h4>Lopend ({{ lopendeBestellingen.length }})</h4>
+                                    <h4>Lopend ({{ filteredLopendeBestellingen.length }})</h4>
                                     <div class="orders-scroll">
-                                        <div v-if="lopendeBestellingen.length === 0" class="empty-state">
+                                        <div v-if="filteredLopendeBestellingen.length === 0" class="empty-state">
                                             <p>Geen lopende bestellingen</p>
                                         </div>
-                                        <div v-for="order in lopendeBestellingen" :key="order.id" 
+                                        <div v-for="order in filteredLopendeBestellingen" :key="order.id" 
                                              :class="['order-row', { 'is-recurring': order.is_recurring }]" @click="showOrderDetail(order)">
+                                            <span v-if="order.delivery_status === 'onderweg'" class="delivery-status-badge onderweg">
+                                                <i class="bi bi-truck"></i>
+                                            </span>
+                                            <span v-else-if="order.delivery_status === 'afgeleverd'" class="delivery-status-badge afgeleverd">
+                                                <i class="bi bi-house-check"></i>
+                                            </span>
                                             <div class="order-row-info">
                                                 <span v-if="order.is_recurring" class="recurring-icon">&#x21bb;</span>
                                                 <span class="order-row-id">#{{ order.id }}</span>
@@ -84,7 +110,7 @@
                                 </div>
                                 
                                 <div class="orders-column">
-                                    <h4>Afgerond ({{ afgerondeBestellingenFiltered.length }})</h4>
+                                    <h4>Afgerond ({{ filteredAfgerondeBestellingen.length }})</h4>
                                     <div class="cancelled-toggle">
                                         <label class="toggle-switch">
                                             <input type="checkbox" v-model="showCancelledOrders">
@@ -93,11 +119,17 @@
                                         <span class="toggle-label">Toon geannuleerd ({{ cancelledOrdersCount }})</span>
                                     </div>
                                     <div class="orders-scroll">
-                                        <div v-if="afgerondeBestellingenFiltered.length === 0" class="empty-state">
+                                        <div v-if="filteredAfgerondeBestellingen.length === 0" class="empty-state">
                                             <p>Nog geen afgeronde bestellingen</p>
                                         </div>
-                                        <div v-for="order in afgerondeBestellingenFiltered" :key="order.id" 
+                                        <div v-for="order in filteredAfgerondeBestellingen" :key="order.id" 
                                              :class="['order-row', { 'is-recurring': order.is_recurring, 'is-cancelled': Number(order.is_cancelled) === 1 }]" @click="showOrderDetail(order)">
+                                            <span v-if="order.delivery_status === 'onderweg'" class="delivery-status-badge onderweg">
+                                                <i class="bi bi-truck"></i>
+                                            </span>
+                                            <span v-else-if="order.delivery_status === 'afgeleverd'" class="delivery-status-badge afgeleverd">
+                                                <i class="bi bi-house-check"></i>
+                                            </span>
                                             <div class="order-row-info">
                                                 <span v-if="order.is_recurring" class="recurring-icon">&#x21bb;</span>
                                                 <span class="order-row-id">#{{ order.id }}</span>

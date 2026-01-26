@@ -6,6 +6,8 @@ requireLogin();
 $message = '';
 $messageType = '';
 $testResult = null;
+$ledgers = [];
+$templates = [];
 
 $boekhoudingVelden = [
     'facturatie_systeem' => 'eigen',
@@ -14,6 +16,7 @@ $boekhoudingVelden = [
     'eboekhouden_template_id_openstaand' => '',
     'eboekhouden_ledger_id' => '',
     'eboekhouden_debiteuren_ledger_id' => '',
+    'eboekhouden_bank_ledger_id' => '',
     'btw_tarief' => '9',
     'facturatie_moment' => 'op_leverdag',
     'facturatie_uur' => '17:00',
@@ -44,6 +47,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         } else {
             $testResult = ['success' => false, 'message' => 'Vul eerst een API token in'];
         }
+    } elseif (isset($_POST['load_ledgers'])) {
+        // Handled via JavaScript
     } else {
         try {
             foreach (array_keys($boekhoudingVelden) as $key) {
@@ -61,6 +66,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 }
 
+if ($huidigeWaarden['facturatie_systeem'] === 'eboekhouden' && !empty($huidigeWaarden['eboekhouden_api_token'])) {
+    try {
+        $client = new EBoekhoudenClient($huidigeWaarden['eboekhouden_api_token']);
+        $ledgersResult = $client->getLedgers();
+        $ledgers = $ledgersResult['items'] ?? [];
+        
+        $templatesResult = $client->getInvoiceTemplates();
+        $templates = $templatesResult['items'] ?? $templatesResult['data'] ?? [];
+    } catch (Exception $e) {
+        // Silently fail - ledgers will just be empty
+    }
+}
 ?>
 <!DOCTYPE html>
 <html lang="nl">
@@ -271,6 +288,40 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             outline: none;
             border-color: #8b5a2b;
         }
+        .form-select {
+            width: 100%;
+            padding: 0.75rem;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            font-size: 1rem;
+            background: white;
+            cursor: pointer;
+        }
+        .form-select:focus {
+            outline: none;
+            border-color: #8b5a2b;
+        }
+        .no-ledgers-notice {
+            padding: 0.75rem;
+            background: #fff3cd;
+            border: 1px solid #ffc107;
+            border-radius: 6px;
+            margin-bottom: 1rem;
+            font-size: 0.9rem;
+            color: #856404;
+        }
+        .select-with-manual {
+            display: flex;
+            gap: 0.5rem;
+            align-items: center;
+        }
+        .select-with-manual .form-select {
+            flex: 2;
+        }
+        .select-with-manual .manual-input {
+            flex: 1;
+            min-width: 120px;
+        }
     </style>
 </head>
 <body>
@@ -325,27 +376,103 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     </div>
                     
                     <div class="form-group">
-                        <label for="eboekhouden_template_id_betaald">Factuur Template ID - Betaald</label>
+                        <label for="eboekhouden_template_id_betaald">Factuur Template - Betaald</label>
+                        <?php if (!empty($templates)): ?>
+                        <div class="select-with-manual">
+                            <select id="eboekhouden_template_id_betaald_select" class="form-select" onchange="document.getElementById('eboekhouden_template_id_betaald').value = this.value">
+                                <option value="">-- Selecteer template --</option>
+                                <?php foreach ($templates as $template): ?>
+                                <option value="<?= $template['id'] ?>" <?= $huidigeWaarden['eboekhouden_template_id_betaald'] == $template['id'] ? 'selected' : '' ?>>
+                                    <?= htmlspecialchars($template['name'] ?? $template['description'] ?? 'Template ' . $template['id']) ?>
+                                </option>
+                                <?php endforeach; ?>
+                            </select>
+                            <input type="text" id="eboekhouden_template_id_betaald" name="eboekhouden_template_id_betaald" value="<?= htmlspecialchars($huidigeWaarden['eboekhouden_template_id_betaald']) ?>" class="manual-input" placeholder="of handmatig ID">
+                        </div>
+                        <?php else: ?>
                         <input type="text" id="eboekhouden_template_id_betaald" name="eboekhouden_template_id_betaald" value="<?= htmlspecialchars($huidigeWaarden['eboekhouden_template_id_betaald']) ?>">
+                        <?php endif; ?>
                         <p class="help-text">Template voor facturen die direct betaald zijn (via Mollie)</p>
                     </div>
                     
                     <div class="form-group">
-                        <label for="eboekhouden_template_id_openstaand">Factuur Template ID - Openstaand</label>
+                        <label for="eboekhouden_template_id_openstaand">Factuur Template - Openstaand</label>
+                        <?php if (!empty($templates)): ?>
+                        <div class="select-with-manual">
+                            <select id="eboekhouden_template_id_openstaand_select" class="form-select" onchange="document.getElementById('eboekhouden_template_id_openstaand').value = this.value">
+                                <option value="">-- Selecteer template --</option>
+                                <?php foreach ($templates as $template): ?>
+                                <option value="<?= $template['id'] ?>" <?= $huidigeWaarden['eboekhouden_template_id_openstaand'] == $template['id'] ? 'selected' : '' ?>>
+                                    <?= htmlspecialchars($template['name'] ?? $template['description'] ?? 'Template ' . $template['id']) ?>
+                                </option>
+                                <?php endforeach; ?>
+                            </select>
+                            <input type="text" id="eboekhouden_template_id_openstaand" name="eboekhouden_template_id_openstaand" value="<?= htmlspecialchars($huidigeWaarden['eboekhouden_template_id_openstaand']) ?>" class="manual-input" placeholder="of handmatig ID">
+                        </div>
+                        <?php else: ?>
                         <input type="text" id="eboekhouden_template_id_openstaand" name="eboekhouden_template_id_openstaand" value="<?= htmlspecialchars($huidigeWaarden['eboekhouden_template_id_openstaand']) ?>">
+                        <?php endif; ?>
                         <p class="help-text">Template voor facturen met betaaltermijn (betaal later)</p>
                     </div>
                     
                     <div class="form-group">
-                        <label for="eboekhouden_ledger_id">Grootboekrekening ID (Omzet)</label>
+                        <label for="eboekhouden_ledger_id">Grootboekrekening (Omzet)</label>
+                        <?php if (!empty($ledgers)): ?>
+                        <div class="select-with-manual">
+                            <select id="eboekhouden_ledger_id_select" class="form-select" onchange="document.getElementById('eboekhouden_ledger_id').value = this.value">
+                                <option value="">-- Selecteer grootboek --</option>
+                                <?php foreach ($ledgers as $ledger): ?>
+                                <option value="<?= $ledger['id'] ?>" <?= $huidigeWaarden['eboekhouden_ledger_id'] == $ledger['id'] ? 'selected' : '' ?>>
+                                    <?= htmlspecialchars($ledger['code'] . ' - ' . $ledger['description']) ?>
+                                </option>
+                                <?php endforeach; ?>
+                            </select>
+                            <input type="text" id="eboekhouden_ledger_id" name="eboekhouden_ledger_id" value="<?= htmlspecialchars($huidigeWaarden['eboekhouden_ledger_id']) ?>" class="manual-input" placeholder="of handmatig ID">
+                        </div>
+                        <?php else: ?>
                         <input type="text" id="eboekhouden_ledger_id" name="eboekhouden_ledger_id" value="<?= htmlspecialchars($huidigeWaarden['eboekhouden_ledger_id']) ?>">
-                        <p class="help-text">Gebruik het interne ID (bijv. 48086686), niet de code (8000). Te vinden via API: /api/debug-eboekhouden.php?action=ledgers</p>
+                        <?php endif; ?>
+                        <p class="help-text">Meestal 8000 (Omzet). Hier wordt de omzet op geboekt.</p>
                     </div>
                     
                     <div class="form-group">
-                        <label for="eboekhouden_debiteuren_ledger_id">Grootboekrekening ID (Debiteuren)</label>
+                        <label for="eboekhouden_debiteuren_ledger_id">Grootboekrekening (Debiteuren)</label>
+                        <?php if (!empty($ledgers)): ?>
+                        <div class="select-with-manual">
+                            <select id="eboekhouden_debiteuren_ledger_id_select" class="form-select" onchange="document.getElementById('eboekhouden_debiteuren_ledger_id').value = this.value">
+                                <option value="">-- Selecteer grootboek --</option>
+                                <?php foreach ($ledgers as $ledger): ?>
+                                <option value="<?= $ledger['id'] ?>" <?= $huidigeWaarden['eboekhouden_debiteuren_ledger_id'] == $ledger['id'] ? 'selected' : '' ?>>
+                                    <?= htmlspecialchars($ledger['code'] . ' - ' . $ledger['description']) ?>
+                                </option>
+                                <?php endforeach; ?>
+                            </select>
+                            <input type="text" id="eboekhouden_debiteuren_ledger_id" name="eboekhouden_debiteuren_ledger_id" value="<?= htmlspecialchars($huidigeWaarden['eboekhouden_debiteuren_ledger_id']) ?>" class="manual-input" placeholder="of handmatig ID">
+                        </div>
+                        <?php else: ?>
                         <input type="text" id="eboekhouden_debiteuren_ledger_id" name="eboekhouden_debiteuren_ledger_id" value="<?= htmlspecialchars($huidigeWaarden['eboekhouden_debiteuren_ledger_id']) ?>">
+                        <?php endif; ?>
                         <p class="help-text">Meestal 1300 (Debiteuren). Nodig om facturen in openstaande posten te boeken.</p>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="eboekhouden_bank_ledger_id">Grootboekrekening (Bank)</label>
+                        <?php if (!empty($ledgers)): ?>
+                        <div class="select-with-manual">
+                            <select id="eboekhouden_bank_ledger_id_select" class="form-select" onchange="document.getElementById('eboekhouden_bank_ledger_id').value = this.value">
+                                <option value="">-- Selecteer grootboek --</option>
+                                <?php foreach ($ledgers as $ledger): ?>
+                                <option value="<?= $ledger['id'] ?>" <?= $huidigeWaarden['eboekhouden_bank_ledger_id'] == $ledger['id'] ? 'selected' : '' ?>>
+                                    <?= htmlspecialchars($ledger['code'] . ' - ' . $ledger['description']) ?>
+                                </option>
+                                <?php endforeach; ?>
+                            </select>
+                            <input type="text" id="eboekhouden_bank_ledger_id" name="eboekhouden_bank_ledger_id" value="<?= htmlspecialchars($huidigeWaarden['eboekhouden_bank_ledger_id']) ?>" class="manual-input" placeholder="of handmatig ID">
+                        </div>
+                        <?php else: ?>
+                        <input type="text" id="eboekhouden_bank_ledger_id" name="eboekhouden_bank_ledger_id" value="<?= htmlspecialchars($huidigeWaarden['eboekhouden_bank_ledger_id']) ?>">
+                        <?php endif; ?>
+                        <p class="help-text">Meestal 1010 (Bank). Nodig voor automatische betalingscontrole via bankmutaties.</p>
                     </div>
                 </div>
             </div>

@@ -77,6 +77,7 @@ $totalCompleted = array_sum(array_column($completedOrders, 'total_amount'));
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Bestellingen | Civetta Admin</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
     <style>
         * { box-sizing: border-box; margin: 0; padding: 0; }
         body {
@@ -307,6 +308,51 @@ $totalCompleted = array_sum(array_column($completedOrders, 'total_amount'));
             padding: 2rem;
             text-align: center;
         }
+        .filter-bar {
+            display: flex;
+            gap: 0.5rem;
+            margin-bottom: 1rem;
+            flex-wrap: wrap;
+            align-items: center;
+        }
+        .filter-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.4rem;
+            padding: 0.5rem 0.9rem;
+            border: 2px solid #e8e8e8;
+            border-radius: 20px;
+            background: white;
+            cursor: pointer;
+            font-size: 0.85rem;
+            font-weight: 500;
+            transition: all 0.2s;
+            color: #666;
+        }
+        .filter-btn:hover {
+            border-color: #8b5a2b;
+            color: #8b5a2b;
+        }
+        .filter-btn.active {
+            background: #8b5a2b;
+            border-color: #8b5a2b;
+            color: white;
+        }
+        .filter-btn i {
+            font-size: 1rem;
+        }
+        .delivery-icon {
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            padding: 0.2rem 0.5rem;
+            border-radius: 4px;
+            font-size: 0.75rem;
+            font-weight: 600;
+            background: #e3f2fd;
+            color: #1565c0;
+            margin-left: 0.5rem;
+        }
         .notes {
             background: #fffbe6;
             border: 1px solid #ffe58f;
@@ -370,12 +416,30 @@ $totalCompleted = array_sum(array_column($completedOrders, 'total_amount'));
         <div class="card">
             <h2>Lopende Bestellingen</h2>
             
+            <div class="filter-bar">
+                <button class="filter-btn active" data-filter="all" onclick="toggleFilter(this)">
+                    <i class="bi bi-grid"></i> Alles
+                </button>
+                <button class="filter-btn active" data-filter="paid" onclick="toggleFilter(this)">
+                    <i class="bi bi-check-circle"></i> Betaald
+                </button>
+                <button class="filter-btn active" data-filter="pending" onclick="toggleFilter(this)">
+                    <i class="bi bi-clock"></i> Openstaand
+                </button>
+                <button class="filter-btn active" data-filter="factuur" onclick="toggleFilter(this)">
+                    <i class="bi bi-file-earmark-text"></i> Factuur
+                </button>
+                <button class="filter-btn active" data-filter="ideal" onclick="toggleFilter(this)">
+                    <i class="bi bi-credit-card"></i> iDEAL
+                </button>
+            </div>
+            
             <?php if (empty($upcomingOrders)): ?>
                 <div class="empty">Geen lopende bestellingen.</div>
             <?php else: ?>
                 <div class="orders-grid">
                     <?php foreach ($upcomingOrders as $order): ?>
-                        <div class="order-card">
+                        <div class="order-card" data-payment-status="<?= $order['payment_status'] ?>" data-payment-type="<?= $order['payment_type'] ?>">
                             <div class="order-header">
                                 <div>
                                     <span class="order-id">#<?= $order['id'] ?></span>
@@ -386,6 +450,9 @@ $totalCompleted = array_sum(array_column($completedOrders, 'total_amount'));
                                 <?php else: ?>
                                     <span class="status-badge <?= $order['payment_status'] ?>"><?= $order['payment_status'] === 'paid' ? 'Betaald' : 'In afwachting' ?></span>
                                     <span class="payment-type-badge <?= $order['payment_type'] ?>"><?= $order['payment_type'] === 'mollie_direct' ? 'Mollie' : ($order['payment_type'] === 'invoice' ? 'Factuur' : 'Contant') ?></span>
+                                    <?php if (isset($order['delivery_status']) && $order['delivery_status'] === 'onderweg'): ?>
+                                        <span class="delivery-icon"><i class="bi bi-truck"></i> Onderweg</span>
+                                    <?php endif; ?>
                                 <?php endif; ?>
                             </div>
                             <div class="order-body">
@@ -538,5 +605,52 @@ $totalCompleted = array_sum(array_column($completedOrders, 'total_amount'));
             <?php endif; ?>
         </div>
     </div>
+
+    <script>
+    const activeFilters = {
+        paid: true,
+        pending: true,
+        factuur: true,
+        ideal: true
+    };
+
+    function toggleFilter(btn) {
+        const filter = btn.dataset.filter;
+        
+        if (filter === 'all') {
+            const allActive = Object.values(activeFilters).every(v => v);
+            Object.keys(activeFilters).forEach(key => activeFilters[key] = !allActive);
+            document.querySelectorAll('.filter-btn:not([data-filter="all"])').forEach(b => {
+                b.classList.toggle('active', !allActive);
+            });
+            btn.classList.toggle('active', !allActive);
+        } else {
+            activeFilters[filter] = !activeFilters[filter];
+            btn.classList.toggle('active');
+            
+            const allBtn = document.querySelector('.filter-btn[data-filter="all"]');
+            const allActive = Object.values(activeFilters).every(v => v);
+            allBtn.classList.toggle('active', allActive);
+        }
+        
+        applyFilters();
+    }
+
+    function applyFilters() {
+        document.querySelectorAll('.order-card').forEach(card => {
+            const paymentStatus = card.dataset.paymentStatus;
+            const paymentType = card.dataset.paymentType;
+            
+            let show = false;
+            
+            if (activeFilters.paid && paymentStatus === 'paid') show = true;
+            if (activeFilters.pending && paymentStatus === 'pending') show = true;
+            if (activeFilters.factuur && (paymentType === 'invoice' || paymentType === 'factuur')) show = true;
+            if (activeFilters.ideal && (paymentType === 'ideal' || paymentType === 'mollie_direct')) show = true;
+            
+            card.style.display = show ? '' : 'none';
+        });
+    }
+    </script>
 </body>
 </html>

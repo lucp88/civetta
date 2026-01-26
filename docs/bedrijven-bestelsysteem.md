@@ -452,6 +452,23 @@ Bestelling aanpassen, annuleren of recurring verlengen.
 4. Update `recurring_confirmed_until` voor alle orders in de serie
 5. Stuurt recurring bestelbon met leveringsoverzicht
 
+### Delivery Status
+
+#### /api/delivery-status.php
+Centrale functies voor delivery status berekening en updates.
+
+**Functies:**
+- `getWijzigDeadlineUren($pdo)` - Haalt wijzig deadline uren op uit settings
+- `calculateDeliveryStatus($deliveryDate, $deadlineHours)` - Berekent status op basis van leverdatum en huidige tijd
+- `updateDeliveryStatusIfNeeded($pdo, $orderId, $deliveryDate, $currentStatus, $isCancelled)` - Update status in database indien nodig
+- `updateAllDeliveryStatuses($pdo)` - Bulk update voor alle lopende orders (gebruikt door cron)
+
+**Status Logica:**
+- `geplaatst`: Bestelling is geplaatst, nog niet in bereiding
+- `wordt_bereid`: Binnen deadline uren voor levering (standaard 48u, gekoppeld aan `bestel_wijzig_deadline_uren`)
+- `onderweg`: Op leverdag (vanaf 00:00)
+- `afgeleverd`: Na 17:00 op leverdag
+
 ### Bestelbonnen
 
 #### /api/bestelbon.php
@@ -710,6 +727,25 @@ Zie `/docs/e-boekhouden-api.md` voor volledige API documentatie.
 - `facturatie_dagen_offset = 1`
 - `facturatie_uur = '06:00'`
 - → Facturen worden aangemaakt 1 dag voor leverdag om 06:00
+
+### update-delivery-status.php
+**Schedule:** Elk uur
+```
+0 * * * * /usr/bin/php /path/to/cron/update-delivery-status.php
+```
+
+**Functie:**
+- Update `delivery_status` van alle lopende bestellingen in de database
+- Gebruikt `api/delivery-status.php` voor centrale status berekening
+- Status transitie logica:
+  - `geplaatst`: standaard bij plaatsing
+  - `wordt_bereid`: na wijzig-deadline (standaard 48u voor levering, gekoppeld aan `bestel_wijzig_deadline_uren`)
+  - `onderweg`: op leverdag vanaf 00:00
+  - `afgeleverd`: op leverdag na 17:00
+- Zorgt dat admin dashboard altijd actuele statussen toont
+
+**Afhankelijkheden:**
+- `api/delivery-status.php` - centrale functies voor status berekening
 
 ### ~~process-recurring-orders.php~~ (DEPRECATED)
 Dit script is **niet meer in gebruik**. Recurring orders worden nu direct aangemaakt bij het plaatsen van de bestelling in `api/business-orders.php`.

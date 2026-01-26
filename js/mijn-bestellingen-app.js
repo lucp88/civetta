@@ -63,7 +63,13 @@ createApp({
             ],
             showCancelledOrders: false,
             showCancelDialog: false,
-            cancellingOrder: false
+            cancellingOrder: false,
+            filters: {
+                paid: true,
+                pending: true,
+                factuur: true,
+                ideal: true
+            }
         };
     },
     
@@ -87,6 +93,12 @@ createApp({
                 return this.afgerondeBestellingen;
             }
             return this.afgerondeBestellingen.filter(o => Number(o.is_cancelled) !== 1);
+        },
+        filteredLopendeBestellingen() {
+            return this.lopendeBestellingen.filter(o => this.matchesFilters(o));
+        },
+        filteredAfgerondeBestellingen() {
+            return this.afgerondeBestellingenFiltered.filter(o => this.matchesFilters(o));
         },
         cancelledOrdersCount() {
             return this.afgerondeBestellingen.filter(o => Number(o.is_cancelled) === 1).length;
@@ -147,6 +159,22 @@ createApp({
     },
     
     methods: {
+        toggleFilter(filter) {
+            this.filters[filter] = !this.filters[filter];
+        },
+        
+        matchesFilters(order) {
+            const isPaid = order.payment_status === 'paid';
+            const isPending = order.payment_status === 'pending';
+            const isFactuur = order.payment_type === 'factuur' || order.payment_type === 'invoice';
+            const isIdeal = order.payment_type === 'ideal' || order.payment_type === 'mollie_direct';
+            
+            const statusMatch = (this.filters.paid && isPaid) || (this.filters.pending && isPending);
+            const typeMatch = (this.filters.factuur && isFactuur) || (this.filters.ideal && isIdeal);
+            
+            return statusMatch && typeMatch;
+        },
+        
         async loadOrders() {
             try {
                 const response = await fetch('api/business-orders.php');

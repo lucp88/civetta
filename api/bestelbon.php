@@ -2,6 +2,7 @@
 session_start();
 require_once '../admin/config.php';
 require_once '../lib/fpdf.php';
+require_once __DIR__ . '/delivery-status.php';
 
 class BestelbonPDF extends FPDF {
     function Header() {
@@ -27,12 +28,6 @@ function getBedrijfsGegevens($pdo) {
         $gegevens[$veld] = $stmt->fetchColumn() ?: '';
     }
     return $gegevens;
-}
-
-function getWijzigDeadlineUren($pdo) {
-    $stmt = $pdo->prepare("SELECT setting_value FROM settings WHERE setting_key = 'bestel_wijzig_deadline_uren'");
-    $stmt->execute();
-    return intval($stmt->fetchColumn() ?: 48);
 }
 
 function generateBestelbonNumber($pdo, $orderId) {
@@ -63,43 +58,6 @@ function canOrderBeEdited($pdo, $orderId) {
     $now = new DateTime();
     
     return $now < $deadline;
-}
-
-function calculateDeliveryStatus($deliveryDate, $deadlineHours) {
-    $now = new DateTime();
-    $delivery = new DateTime($deliveryDate);
-    $deliveryEnd = (clone $delivery)->setTime(17, 0, 0);
-    $deliveryStart = (clone $delivery)->setTime(0, 0, 0);
-    $prepDeadline = (clone $delivery)->modify("-{$deadlineHours} hours");
-    
-    if ($now >= $deliveryEnd) {
-        return 'afgeleverd';
-    }
-    
-    if ($now >= $deliveryStart && $now < $deliveryEnd) {
-        return 'onderweg';
-    }
-    
-    if ($now >= $prepDeadline) {
-        return 'wordt_bereid';
-    }
-    
-    return 'geplaatst';
-}
-
-function updateDeliveryStatusIfNeeded($pdo, $orderId, $deliveryDate, $currentStatus, $isCancelled) {
-    if ($isCancelled) return $currentStatus;
-    
-    $deadlineHours = getWijzigDeadlineUren($pdo);
-    $calculatedStatus = calculateDeliveryStatus($deliveryDate, $deadlineHours);
-    
-    if ($calculatedStatus !== $currentStatus) {
-        $stmt = $pdo->prepare("UPDATE business_orders SET delivery_status = ? WHERE id = ?");
-        $stmt->execute([$calculatedStatus, $orderId]);
-        return $calculatedStatus;
-    }
-    
-    return $currentStatus;
 }
 
 function generateBestelbon($pdo, $orderId, $outputPath = null) {

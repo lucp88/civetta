@@ -225,7 +225,7 @@ class EBoekhoudenClient {
             'ledgerId' => intval($debiterenLedgerId),
             'invoiceNumber' => strval($invoiceNumber),
             'relationId' => intval($relationId),
-            'inExVat' => 'EX',
+            'inExVat' => 'IN',
             'rows' => [
                 [
                     'ledgerId' => intval($omzetLedgerId),
@@ -262,6 +262,7 @@ class EBoekhoudenClient {
             'date' => date('Y-m-d'),
             'termOfPayment' => 14,
             'templateId' => intval($templateId),
+            'inExVat' => 'IN',
             'items' => $invoiceItems
         ];
         
@@ -335,6 +336,55 @@ class EBoekhoudenClient {
         } catch (Exception $e) {
             return ['success' => false, 'message' => $e->getMessage()];
         }
+    }
+    
+    public function getBankMutations($bankLedgerId, $dateFrom = null) {
+        $params = [];
+        if ($dateFrom) {
+            $params['dateFrom'] = $dateFrom;
+        }
+        
+        $mutations = $this->getMutations($params);
+        
+        if (empty($mutations['items'])) {
+            return [];
+        }
+        
+        $bankMutations = array_filter($mutations['items'], function($mutation) use ($bankLedgerId) {
+            return intval($mutation['ledgerId'] ?? 0) === intval($bankLedgerId);
+        });
+        
+        return array_values($bankMutations);
+    }
+    
+    public function matchPaymentWithInvoice($bankMutations, $invoiceNumber, $expectedAmount) {
+        $invoiceNumber = strtolower(trim($invoiceNumber));
+        $expectedAmount = round(floatval($expectedAmount), 2);
+        
+        foreach ($bankMutations as $mutation) {
+            $amount = round(floatval($mutation['amount'] ?? 0), 2);
+            $description = strtolower($mutation['description'] ?? '');
+            $mutationInvoiceNr = strtolower($mutation['invoiceNumber'] ?? '');
+            $entryNumber = strtolower($mutation['entryNumber'] ?? '');
+            
+            if ($amount !== $expectedAmount) {
+                continue;
+            }
+            
+            if (strpos($mutationInvoiceNr, $invoiceNumber) !== false ||
+                strpos($description, $invoiceNumber) !== false ||
+                strpos($entryNumber, $invoiceNumber) !== false) {
+                return [
+                    'matched' => true,
+                    'mutation_id' => $mutation['id'] ?? null,
+                    'amount' => $amount,
+                    'date' => $mutation['date'] ?? null,
+                    'description' => $mutation['description'] ?? ''
+                ];
+            }
+        }
+        
+        return ['matched' => false];
     }
 }
 

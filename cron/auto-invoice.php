@@ -50,10 +50,12 @@ function getFacturatieSettings($pdo) {
 }
 
 function shouldRunNow($settings) {
-    $configuredHour = intval(substr($settings['facturatie_uur'] ?: '17:00', 0, 2));
-    $currentHour = intval(date('H'));
+    $configuredTime = $settings['facturatie_uur'] ?: '17:00';
+    $now = new DateTime();
+    $scheduledTime = DateTime::createFromFormat('H:i', $configuredTime);
+    $scheduledTime->setDate($now->format('Y'), $now->format('m'), $now->format('d'));
     
-    return $currentHour === $configuredHour;
+    return $now >= $scheduledTime;
 }
 
 function getOrdersToInvoice($pdo, $settings) {

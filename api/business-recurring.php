@@ -1,6 +1,7 @@
 <?php
 require_once '../admin/config.php';
 require_once 'cors.php';
+require_once 'delivery-status.php';
 require_once 'bestelbon.php';
 
 header('Content-Type: application/json');
