@@ -5,458 +5,73 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Afrekenen | Bakkerij Civetta</title>
     <link rel="stylesheet" href="css/style.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Libre+Baskerville:ital,wght@0,400;0,700;1,400&family=Source+Sans+Pro:wght@400;600&display=swap" rel="stylesheet">
     <style>
         [v-cloak] { display: none; }
+        
         .checkout-page {
-            padding: var(--spacing-lg) 0;
-            min-height: calc(100vh - 300px);
+            min-height: calc(100vh - 200px);
+            background: linear-gradient(180deg, var(--color-cream) 0%, #f5efe6 100%);
         }
-        .checkout-container {
-            max-width: 900px;
+        
+        .checkout-layout {
+            display: grid;
+            grid-template-columns: 1fr 420px;
+            gap: 0;
+            max-width: 1400px;
             margin: 0 auto;
+            min-height: calc(100vh - 200px);
         }
-        .back-link {
-            display: inline-flex;
-            align-items: center;
-            gap: 0.5rem;
-            color: var(--color-crust);
-            text-decoration: none;
-            margin-bottom: var(--spacing-md);
-            font-weight: 500;
+        
+        .checkout-main {
+            padding: var(--spacing-lg) var(--spacing-md);
+            overflow-y: auto;
+            max-width: 640px;
         }
-        .back-link:hover {
-            color: var(--color-terracotta);
-        }
-        .checkout-grid {
-            display: grid;
-            grid-template-columns: 1fr 380px;
-            gap: var(--spacing-md);
-            align-items: start;
-        }
-        @media (max-width: 900px) {
-            .checkout-grid {
-                grid-template-columns: 1fr;
-            }
-        }
-        .checkout-card {
+        
+        .checkout-sidebar {
             background: var(--color-warm-white);
-            border-radius: 16px;
-            padding: var(--spacing-md);
-            box-shadow: 0 4px 20px rgba(139, 90, 43, 0.08);
-            margin-bottom: var(--spacing-md);
-        }
-        .checkout-card h3 {
-            color: var(--color-crust-dark);
-            margin-bottom: var(--spacing-sm);
-            font-size: 1.1rem;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-        }
-        .checkout-card h3 .edit-link {
-            font-size: 0.85rem;
-            font-weight: 500;
-            color: var(--color-crust);
-            cursor: pointer;
-            text-decoration: underline;
-        }
-        .checkout-card h3 .edit-link:hover {
-            color: var(--color-terracotta);
-        }
-        .address-display {
-            color: var(--color-stone);
-            line-height: 1.6;
-        }
-        .address-display strong {
-            color: var(--color-crust-dark);
-        }
-        .delivery-info {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: var(--spacing-sm);
-        }
-        .delivery-info-item {
-            padding: var(--spacing-sm);
-            background: var(--color-parchment);
-            border-radius: 8px;
-        }
-        .delivery-info-item .label {
-            font-size: 0.75rem;
-            color: var(--color-stone);
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
-            margin-bottom: 0.25rem;
-        }
-        .delivery-info-item .value {
-            font-weight: 600;
-            color: var(--color-crust-dark);
-        }
-        .order-items {
+            border-left: 1px solid var(--color-parchment);
+            position: sticky;
+            top: 70px;
+            height: calc(100vh - 70px);
             display: flex;
             flex-direction: column;
-            gap: 0.75rem;
+            box-shadow: -4px 0 20px rgba(139, 90, 43, 0.05);
         }
-        .order-item {
-            display: flex;
-            align-items: center;
-            gap: 0.75rem;
-            padding: 0.75rem;
-            background: var(--color-parchment);
-            border-radius: 8px;
+        
+        .sidebar-header {
+            padding: var(--spacing-sm) var(--spacing-md);
+            border-bottom: 1px solid var(--color-parchment);
+            background: linear-gradient(180deg, var(--color-warm-white) 0%, #fefcfa 100%);
         }
-        .order-item-img {
-            width: 50px;
-            height: 50px;
-            border-radius: 6px;
-            object-fit: cover;
-            background: #eee;
-            flex-shrink: 0;
-        }
-        .order-item-img-placeholder {
-            width: 50px;
-            height: 50px;
-            border-radius: 6px;
-            background: linear-gradient(135deg, #e8e8e8, #d0d0d0);
-            flex-shrink: 0;
-        }
-        .order-item-info {
-            flex: 1;
-        }
-        .order-item-name {
-            font-weight: 600;
-            color: #333;
-        }
-        .order-item-qty {
-            font-size: 0.85rem;
-            color: #666;
-        }
-        .order-item-price {
-            font-weight: 600;
-            color: var(--color-crust);
-        }
-        .order-summary-sidebar {
-            position: sticky;
-            top: var(--spacing-md);
-        }
-        .summary-line {
-            display: flex;
-            justify-content: space-between;
-            padding: 0.5rem 0;
-            font-size: 0.95rem;
-            color: var(--color-stone);
-        }
-        .summary-line.total {
-            font-size: 1.25rem;
-            font-weight: 600;
-            color: var(--color-crust-dark);
-            border-top: 2px solid var(--color-parchment);
-            margin-top: var(--spacing-sm);
-            padding-top: var(--spacing-sm);
-        }
-        .payment-options {
-            margin-top: var(--spacing-md);
-        }
-        .payment-option {
-            display: flex;
-            align-items: center;
-            gap: 0.75rem;
-            padding: 1rem;
-            border: 2px solid var(--color-parchment);
-            border-radius: 8px;
-            margin-bottom: 0.75rem;
-            cursor: pointer;
-            transition: all 0.2s ease;
-        }
-        .payment-option:hover {
-            border-color: var(--color-wheat);
-        }
-        .payment-option.selected {
-            border-color: var(--color-crust);
-            background: var(--color-wheat-light);
-        }
-        .payment-option input[type="radio"] {
-            width: 20px;
-            height: 20px;
-            accent-color: var(--color-crust);
-        }
-        .payment-option-info {
-            flex: 1;
-        }
-        .payment-option-title {
-            font-weight: 600;
-            color: var(--color-crust-dark);
-        }
-        .payment-option-desc {
-            font-size: 0.85rem;
-            color: var(--color-stone);
-        }
-        .btn-checkout {
-            width: 100%;
-            padding: 1rem;
+        
+        .sidebar-header h2 {
             font-size: 1.1rem;
-            margin-top: var(--spacing-sm);
-        }
-        .btn-checkout:disabled {
-            background: #ccc;
-            cursor: not-allowed;
-        }
-        .error-msg {
-            background: #fee;
-            color: #c00;
-            padding: 0.75rem;
-            border-radius: 8px;
-            margin-bottom: var(--spacing-sm);
-            font-size: 0.9rem;
-        }
-        .loading {
-            text-align: center;
-            padding: var(--spacing-lg);
-            color: var(--color-stone);
-        }
-        .form-group {
-            margin-bottom: var(--spacing-sm);
-        }
-        .form-group label {
-            display: block;
-            margin-bottom: 0.25rem;
-            color: var(--color-stone);
-            font-weight: 500;
-            font-size: 0.9rem;
-        }
-        .form-group input,
-        .form-group textarea {
-            width: 100%;
-            padding: 0.75rem;
-            border: 2px solid var(--color-parchment);
-            border-radius: 8px;
-            font-size: 1rem;
-            font-family: var(--font-body);
-        }
-        .form-group input:focus,
-        .form-group textarea:focus {
-            outline: none;
-            border-color: var(--color-wheat);
-        }
-        .form-row {
-            display: grid;
-            grid-template-columns: 1fr 2fr;
-            gap: var(--spacing-sm);
-        }
-        @media (max-width: 500px) {
-            .form-row {
-                grid-template-columns: 1fr;
-            }
-        }
-        .edit-form {
-            margin-top: var(--spacing-sm);
-            padding-top: var(--spacing-sm);
-            border-top: 1px solid var(--color-parchment);
-        }
-        .edit-form-actions {
-            display: flex;
-            gap: var(--spacing-sm);
-            margin-top: var(--spacing-sm);
-        }
-        .btn-small {
-            padding: 0.5rem 1rem;
-            font-size: 0.85rem;
-        }
-        .btn-outline {
-            background: transparent;
-            border: 2px solid var(--color-crust);
-            color: var(--color-crust);
-        }
-        .btn-outline:hover {
-            background: var(--color-crust);
-            color: white;
-        }
-        .notes-display {
-            margin-top: var(--spacing-sm);
-            padding: var(--spacing-sm);
-            background: var(--color-parchment);
-            border-radius: 8px;
-            color: var(--color-stone);
-            font-style: italic;
-        }
-        .secure-badge {
-            display: flex;
-            align-items: center;
-            gap: 0.5rem;
-            font-size: 0.8rem;
-            color: var(--color-stone);
-            margin-top: var(--spacing-sm);
-            justify-content: center;
-        }
-        .secure-badge svg {
-            width: 16px;
-            height: 16px;
-        }
-        .recurring-section {
-            margin-top: var(--spacing-sm);
-            padding-top: var(--spacing-sm);
-            border-top: 1px solid var(--color-parchment);
-        }
-        .recurring-toggle {
-            display: flex;
-            gap: 0.75rem;
-            margin-bottom: var(--spacing-sm);
-        }
-        .recurring-option {
-            flex: 1;
-            padding: 0.75rem;
-            border: 2px solid var(--color-parchment);
-            border-radius: 8px;
-            cursor: pointer;
-            text-align: center;
-            transition: all 0.2s ease;
-            font-size: 0.9rem;
-        }
-        .recurring-option:hover {
-            border-color: var(--color-wheat);
-        }
-        .recurring-option.selected {
-            border-color: var(--color-crust);
-            background: var(--color-wheat-light);
-        }
-        .recurring-option input {
-            display: none;
-        }
-        .recurring-settings {
-            display: grid;
-            gap: var(--spacing-sm);
-            padding: var(--spacing-sm);
-            background: var(--color-parchment);
-            border-radius: 8px;
-        }
-        .recurring-settings .form-group {
-            margin-bottom: 0;
-        }
-        .recurring-settings select {
-            width: 100%;
-            padding: 0.6rem;
-            border: 2px solid white;
-            border-radius: 6px;
-            font-size: 0.95rem;
-            font-family: var(--font-body);
-            background: white;
-        }
-        .recurring-settings select:focus {
-            outline: none;
-            border-color: var(--color-wheat);
-        }
-        .recurring-hint {
-            font-size: 0.8rem;
-            color: var(--color-stone);
-            margin-top: 0.5rem;
-        }
-        .recurring-invoice-info {
-            text-align: center;
-            padding: var(--spacing-md);
-            background: linear-gradient(135deg, #e8f4ea, #d4edda);
-            border-radius: 12px;
-            margin-bottom: var(--spacing-sm);
-        }
-        .recurring-invoice-icon {
-            margin-bottom: 0.75rem;
-            color: #2d5a3d;
-        }
-        .recurring-invoice-info h4 {
-            margin: 0 0 0.75rem 0;
-            color: #2d5a3d;
-            font-size: 1.1rem;
-        }
-        .recurring-invoice-text {
-            margin: 0 0 0.5rem 0;
-            color: #2d5a3d;
-            font-size: 1rem;
-        }
-        .recurring-invoice-text strong {
-            color: #1a3d24;
-        }
-        .recurring-invoice-subtext {
             margin: 0;
-            font-size: 0.85rem;
-            color: #4a7c59;
+            color: var(--color-crust-dark);
         }
-        .recurring-details {
-            background: rgba(255,255,255,0.5);
-            border-radius: 8px;
-            padding: 0.75rem;
-            margin: 0.75rem 0;
-            text-align: left;
-        }
-        .recurring-detail-row {
-            display: flex;
-            justify-content: space-between;
-            padding: 0.25rem 0;
-            font-size: 0.9rem;
-        }
-        .recurring-detail-row .label {
-            color: #4a7c59;
-        }
-        .recurring-detail-row .value {
-            font-weight: 600;
-            color: #2d5a3d;
-        }
-        .order-type-section {
-            margin-top: 1rem;
-            padding-top: 1rem;
-            border-top: 1px solid var(--color-parchment);
-        }
-        .order-type-toggle {
-            display: flex;
-            gap: 0.5rem;
-        }
-        .order-type-option {
-            flex: 1;
-            padding: 0.6rem;
-            border: 2px solid var(--color-parchment);
-            border-radius: 6px;
-            cursor: pointer;
-            text-align: center;
-            transition: all 0.2s ease;
-            font-size: 0.85rem;
-            font-weight: 500;
-        }
-        .order-type-option:hover {
-            border-color: var(--color-wheat);
-        }
-        .order-type-option.selected {
-            border-color: var(--color-crust);
-            background: var(--color-wheat-light);
-        }
-        .order-type-option input {
+        
+        .sidebar-header h2::after {
             display: none;
         }
-        .recurring-summary-inline {
-            margin-top: 0.75rem;
+        
+        .sidebar-content {
+            flex: 1;
+            overflow: hidden;
+            padding: var(--spacing-sm) var(--spacing-md);
             display: flex;
-            align-items: center;
-            gap: 0.5rem;
-            flex-wrap: wrap;
+            flex-direction: column;
+            min-height: 0;
         }
-        .recurring-badge {
-            background: var(--color-crust);
-            color: white;
-            padding: 0.2rem 0.5rem;
-            border-radius: 4px;
-            font-size: 0.75rem;
-            font-weight: 600;
+        
+        .sidebar-footer {
+            padding: var(--spacing-sm) var(--spacing-md);
+            background: var(--color-warm-white);
         }
-        .recurring-end {
-            font-size: 0.8rem;
-            color: var(--color-stone);
-        }
-        .btn-edit-recurring {
-            background: none;
-            border: none;
-            color: var(--color-crust);
-            font-size: 0.8rem;
-            cursor: pointer;
-            text-decoration: underline;
-            padding: 0;
-        }
-        .modal-overlay {
+        
+        .address-modal-overlay {
             position: fixed;
             top: 0;
             left: 0;
@@ -467,146 +82,762 @@
             align-items: center;
             justify-content: center;
             z-index: 1000;
-            padding: 1rem;
         }
-        .recurring-modal {
+        
+        .address-modal {
             background: white;
             border-radius: 12px;
-            max-width: 420px;
-            width: 100%;
-            box-shadow: 0 10px 40px rgba(0,0,0,0.2);
+            padding: var(--spacing-md);
+            max-width: 400px;
+            width: 90%;
+            max-height: 90vh;
+            overflow-y: auto;
         }
-        .modal-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            padding: 1rem 1.25rem;
-            border-bottom: 1px solid var(--color-parchment);
+        
+        .address-modal h3 {
+            margin-bottom: var(--spacing-sm);
         }
-        .modal-header h3 {
-            margin: 0;
-            font-size: 1.1rem;
+        
+        .address-modal .form-group {
+            margin-bottom: 0.75rem;
         }
-        .modal-close {
-            background: none;
-            border: none;
-            font-size: 1.5rem;
-            cursor: pointer;
-            color: var(--color-stone);
-        }
-        .modal-body {
-            padding: 1.25rem;
-        }
-        .modal-body .form-group {
-            margin-bottom: 1rem;
-        }
-        .modal-body select,
-        .modal-body input[type="text"],
-        .modal-body input[type="date"] {
-            width: 100%;
-            padding: 0.6rem;
-            border: 1px solid var(--color-parchment);
-            border-radius: 6px;
-            font-size: 0.95rem;
-        }
-        .modal-footer {
+        
+        .address-modal-buttons {
             display: flex;
             gap: 0.75rem;
-            padding: 1rem 1.25rem;
-            border-top: 1px solid var(--color-parchment);
-            justify-content: flex-end;
+            margin-top: var(--spacing-sm);
         }
-        .btn-secondary {
+        
+        .address-modal-buttons button {
+            flex: 1;
+            padding: 0.6rem;
+            border-radius: 8px;
+            font-family: var(--font-body);
+            font-weight: 600;
+            cursor: pointer;
+        }
+        
+        .btn-cancel {
             background: var(--color-parchment);
-            color: var(--color-crust-dark);
             border: none;
-            padding: 0.6rem 1.25rem;
-            border-radius: 6px;
-            cursor: pointer;
-            font-weight: 500;
+            color: var(--color-charcoal);
         }
-        .btn-primary {
+        
+        .btn-save {
             background: var(--color-crust);
-            color: white;
             border: none;
-            padding: 0.6rem 1.25rem;
-            border-radius: 6px;
-            cursor: pointer;
+            color: white;
+        }
+        
+        .back-link {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            color: var(--color-crust);
+            text-decoration: none;
             font-weight: 500;
+            font-size: 0.9rem;
+            margin-bottom: var(--spacing-sm);
+            transition: all 0.2s ease;
         }
-        .field-hint {
-            font-size: 0.75rem;
+        
+        .back-link:hover {
+            color: var(--color-terracotta);
+            gap: 0.75rem;
+        }
+        
+        .back-link svg {
+            width: 16px;
+            height: 16px;
+        }
+        
+        .page-intro {
+            margin-bottom: var(--spacing-md);
+        }
+        
+        .page-intro h1 {
+            font-size: 1.75rem;
+            margin-bottom: 0.25rem;
+            color: var(--color-crust-dark);
+        }
+        
+        .page-intro .subtitle {
             color: var(--color-stone);
-            margin-top: 0.25rem;
+            font-size: 0.95rem;
         }
-        .recurring-info-box {
-            margin-top: 0.5rem;
-            padding: 0.75rem;
-            background: #e8f4ea;
-            border-radius: 8px;
+        
+        .checkout-card {
+            background: var(--color-warm-white);
+            border-radius: 12px;
+            padding: var(--spacing-md);
+            box-shadow: 0 2px 12px rgba(139, 90, 43, 0.06);
+            margin-bottom: var(--spacing-sm);
+        }
+        
+        .checkout-card.primary {
+            border: 2px solid var(--color-wheat);
+        }
+        
+        .checkout-card h3 {
+            font-size: 1rem;
+            color: var(--color-crust-dark);
+            margin-bottom: var(--spacing-sm);
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+        
+        .checkout-card h3 .icon {
+            width: 18px;
+            height: 18px;
+            color: var(--color-terracotta);
+        }
+        
+        .form-group {
+            margin-bottom: var(--spacing-sm);
+        }
+        
+        .form-group:last-child {
+            margin-bottom: 0;
+        }
+        
+        .form-group label {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
             font-size: 0.85rem;
-            color: #2d5a3d;
+            font-weight: 600;
+            color: var(--color-stone);
+            margin-bottom: 0.35rem;
         }
-        .recurring-info-box p {
-            margin: 0;
+        
+        .form-group label .optional {
+            font-weight: 400;
+            color: var(--color-stone);
+            opacity: 0.7;
         }
-        .recurring-indicator {
-            margin-top: 1rem;
-            padding: 0.75rem;
-            background: linear-gradient(135deg, #e8f4ea, #d4edda);
+        
+        .form-group input,
+        .form-group textarea,
+        .form-group select {
+            width: 100%;
+            padding: 0.7rem 0.9rem;
+            border: 2px solid var(--color-parchment);
             border-radius: 8px;
-            border: 1px solid #a3cfbb;
+            font-size: 0.95rem;
+            font-family: var(--font-body);
+            background: white;
+            transition: border-color 0.2s ease;
         }
-        .recurring-indicator-header {
+        
+        .form-group input:focus,
+        .form-group textarea:focus,
+        .form-group select:focus {
+            outline: none;
+            border-color: var(--color-wheat);
+        }
+        
+        .form-group input.valid {
+            border-color: #22c55e;
+        }
+        
+        .date-hint {
+            display: flex;
+            align-items: center;
+            gap: 0.4rem;
+            font-size: 0.8rem;
+            color: var(--color-stone);
+            margin-top: 0.35rem;
+        }
+        
+        .date-hint.valid {
+            color: #22c55e;
+        }
+        
+        .date-hint svg {
+            width: 14px;
+            height: 14px;
+        }
+        
+        .form-group textarea {
+            resize: vertical;
+            min-height: 60px;
+        }
+        
+        .form-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 0.75rem;
+        }
+        
+        .recurring-card {
+            background: #f8f6f3;
+            border: 1px dashed var(--color-parchment);
+        }
+        
+        .recurring-checkbox {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            cursor: pointer;
+            font-size: 0.95rem;
+            color: var(--color-charcoal);
+        }
+        
+        .recurring-checkbox input {
+            width: 20px;
+            height: 20px;
+            accent-color: var(--color-crust);
+            cursor: pointer;
+        }
+        
+        .recurring-checkbox-label {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+        
+        .recurring-checkbox-label .icon {
+            width: 18px;
+            height: 18px;
+            color: var(--color-stone);
+        }
+        
+        .recurring-options {
+            margin-top: var(--spacing-sm);
+            padding-top: var(--spacing-sm);
+            border-top: 1px solid var(--color-parchment);
+            animation: slideDown 0.2s ease;
+        }
+        
+        .recurring-options .form-group {
+            margin-bottom: 0.6rem;
+        }
+        
+        .recurring-hint {
+            font-size: 0.8rem;
+            color: var(--color-stone);
+            margin-top: 0.5rem;
+        }
+        
+        .recurring-reassure {
+            font-size: 0.8rem;
+            color: var(--color-stone);
+            margin-top: 0.5rem;
+            font-style: italic;
+        }
+        
+        @keyframes slideDown {
+            from { opacity: 0; transform: translateY(-8px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        
+        .order-summary-card {
+            background: var(--color-warm-white);
+        }
+        
+        .order-summary-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 0.75rem;
+        }
+        
+        .order-summary-header h3 {
+            margin-bottom: 0;
+        }
+        
+        .order-summary-header .edit-link {
+            font-size: 0.85rem;
+            color: var(--color-crust);
+            text-decoration: underline;
+            cursor: pointer;
+        }
+        
+        .order-summary-header .edit-link:hover {
+            color: var(--color-terracotta);
+        }
+        
+        .order-summary-list {
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+        }
+        
+        .order-summary-item {
             display: flex;
             justify-content: space-between;
             align-items: center;
-            margin-bottom: 0.25rem;
-        }
-        .recurring-indicator-badge {
-            font-weight: 600;
-            color: #2d5a3d;
             font-size: 0.9rem;
+            color: var(--color-charcoal);
+            padding: 0.4rem 0;
         }
-        .recurring-indicator-details {
-            font-size: 0.85rem;
-            color: #4a7c59;
+        
+        .order-summary-item .name {
+            flex: 1;
         }
-        .recurring-toggle-section {
-            margin: 1rem 0;
-            padding: 0.75rem;
-            background: var(--color-parchment);
-            border-radius: 8px;
+        
+        .order-summary-item .qty {
+            color: var(--color-stone);
+            margin: 0 1rem;
         }
-        .recurring-checkbox {
+        
+        .order-summary-item .price {
+            font-weight: 500;
+        }
+        
+        .favorite-option {
+            background: transparent;
+            border: none;
+            box-shadow: none;
+            padding: var(--spacing-sm);
+        }
+        
+        .favorite-checkbox {
             display: flex;
             align-items: center;
             gap: 0.5rem;
             cursor: pointer;
-            font-weight: 500;
+            font-size: 0.9rem;
+            color: var(--color-stone);
         }
-        .recurring-checkbox input {
-            width: 18px;
-            height: 18px;
+        
+        .favorite-checkbox input {
+            width: 16px;
+            height: 16px;
             accent-color: var(--color-crust);
+            cursor: pointer;
         }
-        .recurring-fields {
-            margin-top: 1rem;
-            padding-top: 1rem;
+        
+        .favorite-hint {
+            font-size: 0.8rem;
+            color: var(--color-stone);
+            opacity: 0.8;
+            margin-left: 1.5rem;
+        }
+        
+        .favorite-input {
+            margin-top: 0.5rem;
+            margin-left: 1.5rem;
+        }
+        
+        .favorite-input input {
+            padding: 0.5rem 0.75rem;
+            font-size: 0.9rem;
+        }
+        
+        .sidebar-section {
+            margin-bottom: var(--spacing-sm);
+            padding-bottom: var(--spacing-sm);
+            border-bottom: 1px solid var(--color-parchment);
+        }
+        
+        .sidebar-section:last-child {
+            border-bottom: none;
+            margin-bottom: 0;
+            padding-bottom: 0;
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            min-height: 0;
+        }
+        
+        .delivery-info-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 1rem;
+        }
+        
+        .delivery-info-row .sidebar-subsection {
+            flex: 1;
+        }
+        
+        .sidebar-subsection-title {
+            font-size: 0.7rem;
+            font-weight: 600;
+            color: var(--color-stone);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin: 0 0 0.25rem 0;
+        }
+        
+        .sidebar-address-compact {
+            font-size: 0.85rem;
+            color: var(--color-charcoal);
+            line-height: 1.4;
+        }
+        
+        .edit-address-link {
+            display: inline-block;
+            font-size: 0.75rem;
+            color: var(--color-crust);
+            text-decoration: underline;
+            cursor: pointer;
+            margin-top: 0.25rem;
+        }
+        
+        .edit-address-link:hover {
+            color: var(--color-terracotta);
+        }
+        
+        .sidebar-products-list {
+            flex: 1;
+            overflow-y: auto;
+        }
+        
+        .summary-items {
+            display: flex;
+            flex-direction: column;
+        }
+        
+        .summary-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 0.6rem 0;
+            border-bottom: 1px solid var(--color-parchment);
+        }
+        
+        .summary-item:last-child {
+            border-bottom: none;
+        }
+        
+        .summary-item .name {
+            flex: 1;
+            font-size: 0.9rem;
+            color: var(--color-charcoal);
+        }
+        
+        .summary-item .name .qty {
+            font-weight: 600;
+            color: var(--color-crust);
+        }
+        
+        .summary-item .name .gewicht {
+            font-size: 0.8rem;
+            color: var(--color-sage);
+        }
+        
+        .summary-item .price {
+            font-weight: 600;
+            font-size: 0.9rem;
+            color: var(--color-crust-dark);
+            margin-left: 1rem;
+        }
+        
+        .payment-card {
+            background: var(--color-cream);
+            border-radius: 10px;
+            padding: var(--spacing-sm);
+        }
+        
+        .sidebar-section-title {
+            font-size: 0.75rem;
+            font-weight: 600;
+            color: var(--color-stone);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin: 0 0 0.4rem 0;
+        }
+        
+        .sidebar-info {
+            font-size: 0.9rem;
+            color: var(--color-charcoal);
+            line-height: 1.5;
+        }
+        
+        .sidebar-info strong {
+            color: var(--color-crust-dark);
+        }
+        
+        .sidebar-info .muted {
+            color: var(--color-stone);
+            font-size: 0.85rem;
+        }
+        
+        .sidebar-address {
+            font-size: 0.9rem;
+            color: var(--color-charcoal);
+            line-height: 1.5;
+        }
+        
+        .sidebar-address strong {
+            color: var(--color-crust-dark);
+            display: block;
+        }
+        
+        .cart-totals {
+            margin-bottom: var(--spacing-sm);
+        }
+        
+        .total-row {
+            display: flex;
+            justify-content: space-between;
+            font-size: 0.85rem;
+            color: var(--color-stone);
+            padding: 0.25rem 0;
+        }
+        
+        .total-row.grand-total {
+            font-size: 1.1rem;
+            font-weight: 700;
+            color: var(--color-crust-dark);
+            padding-top: 0.5rem;
+            margin-top: 0.25rem;
             border-top: 1px solid var(--color-parchment);
         }
-        .delivery-modal .modal-body textarea {
-            width: 100%;
-            padding: 0.6rem;
-            border: 1px solid var(--color-parchment);
+        
+        .payment-section {
+            margin-bottom: var(--spacing-sm);
+        }
+        
+        .payment-label {
+            font-size: 0.75rem;
+            font-weight: 600;
+            color: var(--color-stone);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: 0.4rem;
+        }
+        
+        .payment-toggle {
+            display: flex;
+            background: var(--color-parchment);
+            border-radius: 8px;
+            padding: 3px;
+        }
+        
+        .payment-toggle-btn {
+            flex: 1;
+            padding: 0.5rem;
+            border: none;
             border-radius: 6px;
-            font-size: 0.95rem;
+            background: transparent;
             font-family: var(--font-body);
-            resize: vertical;
+            font-size: 0.85rem;
+            font-weight: 600;
+            color: var(--color-stone);
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+        
+        .payment-toggle-btn.active {
+            background: white;
+            color: var(--color-crust);
+            box-shadow: 0 1px 4px rgba(0,0,0,0.08);
+        }
+        
+        .payment-info {
+            font-size: 0.85rem;
+            color: var(--color-stone);
+            padding: 0.5rem 0;
+        }
+        
+        .checkout-btn {
+            width: 100%;
+            padding: 0.875rem;
+            font-size: 1rem;
+            font-weight: 600;
+            border: none;
+            border-radius: 10px;
+            background: linear-gradient(135deg, var(--color-crust), var(--color-crust-dark));
+            color: white;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 15px rgba(139, 90, 43, 0.25);
+        }
+        
+        .checkout-btn:hover:not(:disabled) {
+            transform: translateY(-1px);
+            box-shadow: 0 6px 20px rgba(139, 90, 43, 0.35);
+        }
+        
+        .checkout-btn:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+            box-shadow: none;
+        }
+        
+        .secure-badge {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.4rem;
+            font-size: 0.75rem;
+            color: var(--color-stone);
+            margin-top: 0.75rem;
+        }
+        
+        .secure-badge svg {
+            width: 14px;
+            height: 14px;
+        }
+        
+        .error-banner {
+            background: #fef2f2;
+            border: 1px solid #fecaca;
+            color: #dc2626;
+            padding: 0.6rem 0.75rem;
+            border-radius: 8px;
+            margin-bottom: var(--spacing-sm);
+            font-size: 0.85rem;
+            display: flex;
+            align-items: center;
+            gap: 0.4rem;
+        }
+        
+        .date-prompt {
+            text-align: center;
+            padding: 0.5rem;
+            background: var(--color-wheat-light);
+            border-radius: 6px;
+            font-size: 0.85rem;
+            color: var(--color-crust-dark);
+            margin-bottom: var(--spacing-sm);
+        }
+        
+        .loading-state {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: var(--spacing-xl);
+            color: var(--color-stone);
+        }
+        
+        .loading-spinner {
+            width: 36px;
+            height: 36px;
+            border: 3px solid var(--color-parchment);
+            border-top-color: var(--color-crust);
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+            margin-bottom: var(--spacing-sm);
+        }
+        
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+        
+        .empty-state {
+            text-align: center;
+            padding: var(--spacing-lg);
+        }
+        
+        .empty-state h3 {
+            margin-bottom: 0.5rem;
+        }
+        
+        .empty-state a {
+            color: var(--color-crust);
+        }
+        
+        @media (max-width: 1024px) {
+            .checkout-layout {
+                grid-template-columns: 1fr;
+            }
+            
+            .checkout-main {
+                padding: var(--spacing-md);
+                padding-bottom: 220px;
+                max-width: 100%;
+            }
+            
+            .checkout-sidebar {
+                position: fixed;
+                bottom: 0;
+                left: 0;
+                right: 0;
+                top: auto;
+                height: auto;
+                max-height: 75vh;
+                border-left: none;
+                border-top: 1px solid var(--color-parchment);
+                border-radius: 20px 20px 0 0;
+                box-shadow: 0 -4px 30px rgba(139, 90, 43, 0.15);
+                transform: translateY(calc(100% - 140px));
+                transition: transform 0.3s ease;
+                z-index: 100;
+            }
+            
+            .checkout-sidebar.expanded {
+                transform: translateY(0);
+            }
+            
+            .sidebar-toggle {
+                display: flex;
+                align-items: center;
+                justify-content: space-between;
+                padding: var(--spacing-sm) var(--spacing-md);
+                cursor: pointer;
+                background: var(--color-warm-white);
+                border-radius: 20px 20px 0 0;
+            }
+            
+            .sidebar-toggle h2 {
+                font-size: 1rem;
+                margin: 0;
+                color: var(--color-crust-dark);
+            }
+            
+            .sidebar-toggle h2::after {
+                display: none;
+            }
+            
+            .sidebar-toggle-price {
+                font-weight: 700;
+                color: var(--color-crust);
+                font-size: 1.1rem;
+            }
+            
+            .sidebar-toggle-icon {
+                transition: transform 0.3s ease;
+                color: var(--color-stone);
+            }
+            
+            .checkout-sidebar.expanded .sidebar-toggle-icon {
+                transform: rotate(180deg);
+            }
+            
+            .sidebar-header {
+                display: none;
+            }
+            
+            .sidebar-content {
+                overscroll-behavior: contain;
+                -webkit-overflow-scrolling: touch;
+            }
+            
+            .sidebar-footer {
+                padding-bottom: calc(var(--spacing-sm) + env(safe-area-inset-bottom));
+            }
+        }
+        
+        @media (min-width: 1025px) {
+            .sidebar-toggle {
+                display: none;
+            }
+        }
+        
+        @media (max-width: 600px) {
+            .checkout-main {
+                padding: var(--spacing-sm);
+                padding-bottom: 220px;
+            }
+            
+            .page-intro h1 {
+                font-size: 1.4rem;
+            }
+            
+            .checkout-card {
+                padding: var(--spacing-sm);
+            }
+            
+            .form-row {
+                grid-template-columns: 1fr;
+            }
         }
     </style>
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link href="https://fonts.googleapis.com/css2?family=Libre+Baskerville:ital,wght@0,400;0,700;1,400&family=Source+Sans+Pro:wght@400;600&display=swap" rel="stylesheet">
 </head>
 <body>
     <header>
@@ -635,223 +866,231 @@
     </header>
 
     <main>
-        <section class="page-header">
-            <h1>Afrekenen</h1>
-        </section>
-
         <section class="checkout-page">
-            <div class="container">
-                <div id="checkout-app" v-cloak class="checkout-container">
-                    <a href="bestelling-plaatsen.html" class="back-link">
-                        <span>&larr;</span> Terug naar bestelling
-                    </a>
-
-                    <div v-if="loading" class="loading">Gegevens laden...</div>
-                    
-                    <div v-else-if="!orderData" class="checkout-card">
-                        <p>Geen bestelling gevonden. <a href="bestelling-plaatsen.html">Ga terug naar bestellen</a></p>
+            <div id="checkout-app" v-cloak>
+                <div v-if="loading" class="loading-state">
+                    <div class="loading-spinner"></div>
+                    <p>Laden...</p>
+                </div>
+                
+                <div v-else-if="!orderData" class="checkout-main" style="max-width: 500px; margin: 0 auto;">
+                    <div class="checkout-card empty-state">
+                        <h3>Geen bestelling gevonden</h3>
+                        <p><a href="bestelling-plaatsen.html">Ga terug naar bestellen</a></p>
                     </div>
-
-                    <template v-else>
-                        <div class="checkout-grid">
-                            <div class="checkout-main">
-                                <div class="checkout-card">
-                                    <h3>
-                                        Afleveradres
-                                        <span class="edit-link" @click="editingAddress = !editingAddress">
-                                            {{ editingAddress ? 'Annuleren' : 'Wijzigen' }}
-                                        </span>
-                                    </h3>
-                                    
-                                    <div v-if="!editingAddress" class="address-display">
-                                        <strong>{{ deliveryAddress.bedrijfsnaam }}</strong><br>
-                                        t.a.v. {{ deliveryAddress.contactpersoon }}<br>
-                                        {{ deliveryAddress.adres }}<br>
-                                        {{ deliveryAddress.postcode }} {{ deliveryAddress.plaats }}
-                                    </div>
-                                    
-                                    <div v-else class="edit-form">
-                                        <div class="form-group">
-                                            <label>Bedrijfsnaam</label>
-                                            <input type="text" v-model="deliveryAddress.bedrijfsnaam">
-                                        </div>
-                                        <div class="form-group">
-                                            <label>T.a.v.</label>
-                                            <input type="text" v-model="deliveryAddress.contactpersoon">
-                                        </div>
-                                        <div class="form-group">
-                                            <label>Adres</label>
-                                            <input type="text" v-model="deliveryAddress.adres">
-                                        </div>
-                                        <div class="form-row">
-                                            <div class="form-group">
-                                                <label>Postcode</label>
-                                                <input type="text" v-model="deliveryAddress.postcode">
-                                            </div>
-                                            <div class="form-group">
-                                                <label>Plaats</label>
-                                                <input type="text" v-model="deliveryAddress.plaats">
-                                            </div>
-                                        </div>
-                                        <div class="edit-form-actions">
-                                            <button class="btn btn-small" @click="editingAddress = false">Opslaan</button>
-                                        </div>
-                                    </div>
+                </div>
+                
+                <div v-else class="checkout-layout">
+                    <div class="checkout-main">
+                        <a href="bestelling-plaatsen.html" class="back-link">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M19 12H5M12 19l-7-7 7-7"/>
+                            </svg>
+                            Terug naar bestelling
+                        </a>
+                        
+                        <div class="page-intro">
+                            <h1>Nog één stap</h1>
+                            <p class="subtitle">Kies je leverdatum en rond je bestelling af</p>
+                        </div>
+                        
+                        <div class="checkout-card primary">
+                            <h3>
+                                <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <rect x="3" y="4" width="18" height="18" rx="2" ry="2"/>
+                                    <line x1="16" y1="2" x2="16" y2="6"/>
+                                    <line x1="8" y1="2" x2="8" y2="6"/>
+                                    <line x1="3" y1="10" x2="21" y2="10"/>
+                                </svg>
+                                Levering
+                            </h3>
+                            <div class="form-group">
+                                <label>Leverdatum</label>
+                                <input type="date" v-model="deliveryDate" :min="minDeliveryDateStr" :class="{ valid: deliveryDate }">
+                                <div v-if="!deliveryDate" class="date-hint">
+                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                        <circle cx="12" cy="12" r="10"/>
+                                        <path d="M12 6v6l4 2"/>
+                                    </svg>
+                                    Selecteer wanneer je bestelling bezorgd moet worden
                                 </div>
-
-                                <div class="checkout-card">
-                                    <h3>
-                                        Levering
-                                        <span class="edit-link" @click="openDeliveryModal">Wijzigen</span>
-                                    </h3>
-                                    
-                                    <div class="delivery-info">
-                                        <div class="delivery-info-item">
-                                            <div class="label">Leverdatum</div>
-                                            <div class="value">{{ formatDateLong(orderData.delivery_date) }}</div>
-                                        </div>
-                                        <div class="delivery-info-item">
-                                            <div class="label">Aantal producten</div>
-                                            <div class="value">{{ totalItems }} stuks</div>
-                                        </div>
-                                    </div>
-                                    <div v-if="orderData.notes" class="notes-display">
-                                        <strong>Opmerkingen:</strong> {{ orderData.notes }}
-                                    </div>
-                                    
-                                    <div v-if="isRecurring" class="recurring-indicator">
-                                        <div class="recurring-indicator-header">
-                                            <span class="recurring-indicator-badge">Terugkerende bestelling</span>
-                                        </div>
-                                        <div class="recurring-indicator-details">
-                                            <span v-if="recurringName">{{ recurringName }} · </span>
-                                            <span>{{ frequencyLabel }}</span>
-                                            <span v-if="recurringEndDate"> · t/m {{ formatDate(recurringEndDate) }}</span>
-                                        </div>
-                                    </div>
+                                <div v-else class="date-hint valid">
+                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                        <polyline points="20 6 9 17 4 12"/>
+                                    </svg>
+                                    {{ formatDateNL(deliveryDate) }}
                                 </div>
-
-                                <div class="checkout-card">
-                                    <h3>Producten</h3>
-                                    <div class="order-items">
-                                        <div v-for="item in orderData.items" :key="item.product_id" class="order-item">
-                                            <img v-if="item.product_image" :src="item.product_image" :alt="item.product_name" class="order-item-img">
-                                            <div v-else class="order-item-img-placeholder"></div>
-                                            <div class="order-item-info">
-                                                <div class="order-item-name">{{ item.product_name }}</div>
-                                                <div class="order-item-qty">{{ item.quantity }} stuks x {{ formatPrice(item.unit_price) }}</div>
-                                            </div>
-                                            <div class="order-item-price">{{ formatPrice(item.quantity * item.unit_price) }}</div>
+                            </div>
+                            <div class="form-group">
+                                <label>Opmerkingen <span class="optional">(optioneel)</span></label>
+                                <textarea v-model="notes" placeholder="Leverinstructies, speciale wensen..." rows="2"></textarea>
+                            </div>
+                        </div>
+                        
+                        <div class="checkout-card recurring-card">
+                            <label class="recurring-checkbox">
+                                <input type="checkbox" v-model="isRecurring">
+                                <span class="recurring-checkbox-label">
+                                    <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                        <polyline points="23 4 23 10 17 10"/>
+                                        <polyline points="1 20 1 14 7 14"/>
+                                        <path d="M3.51 9a9 9 0 0114.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0020.49 15"/>
+                                    </svg>
+                                    Dit is een terugkerende bestelling
+                                </span>
+                            </label>
+                            <p v-if="!isRecurring" class="recurring-reassure">Je kunt dit later altijd aanpassen of stopzetten.</p>
+                            
+                            <div v-if="isRecurring" class="recurring-options">
+                                <div class="form-group">
+                                    <label>Frequentie</label>
+                                    <select v-model="recurringFrequency">
+                                        <option value="weekly">Wekelijks</option>
+                                        <option value="biweekly">Tweewekelijks</option>
+                                        <option value="monthly">Maandelijks</option>
+                                    </select>
+                                </div>
+                                <div class="form-group">
+                                    <label>Naam <span class="optional">(optioneel)</span></label>
+                                    <input type="text" v-model="recurringName" placeholder="Bijv. Kantoorlevering">
+                                </div>
+                                <p class="recurring-hint">Je kunt dit later altijd aanpassen in je dashboard.</p>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <aside class="checkout-sidebar" :class="{ expanded: sidebarExpanded }">
+                        <div class="sidebar-toggle" @click="sidebarExpanded = !sidebarExpanded">
+                            <h2>Samenvatting</h2>
+                            <span class="sidebar-toggle-price">{{ formatPrice(orderData.total_amount) }}</span>
+                            <svg class="sidebar-toggle-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M18 15l-6-6-6 6"/>
+                            </svg>
+                        </div>
+                        
+                        <div class="sidebar-header">
+                            <h2>Samenvatting</h2>
+                        </div>
+                        
+                        <div class="sidebar-content">
+                            <div class="sidebar-section">
+                                <div class="delivery-info-row">
+                                    <div class="sidebar-subsection">
+                                        <h5 class="sidebar-subsection-title">Levering</h5>
+                                        <div class="sidebar-info">
+                                            <strong v-if="deliveryDate">{{ formatDateNL(deliveryDate) }}</strong>
+                                            <span v-else class="muted">Nog te kiezen</span>
                                         </div>
+                                    </div>
+                                    <div class="sidebar-subsection">
+                                        <h5 class="sidebar-subsection-title">Afleveradres</h5>
+                                        <div class="sidebar-address-compact">
+                                            {{ deliveryAddress.adres }}<br>
+                                            {{ deliveryAddress.postcode }} {{ deliveryAddress.plaats }}
+                                        </div>
+                                        <a class="edit-address-link" @click="showAddressModal = true">Wijzigen</a>
                                     </div>
                                 </div>
                             </div>
-
-                            <div class="order-summary-sidebar">
-                                <div class="checkout-card">
-                                    <h3>Overzicht</h3>
-                                    
-                                    <div v-if="error" class="error-msg">{{ error }}</div>
-                                    
-                                    <div class="summary-line">
-                                        <span>Subtotaal (excl. BTW)</span>
-                                        <span>{{ formatPrice(exclBtw) }}</span>
-                                    </div>
-                                    <div class="summary-line">
-                                        <span>BTW ({{ btwTarief }}%)</span>
-                                        <span>{{ formatPrice(btwBedrag) }}</span>
-                                    </div>
-                                    <div class="summary-line total">
-                                        <span>Totaal</span>
-                                        <span>{{ formatPrice(orderData.total_amount) }}</span>
-                                    </div>
-
-                                    <template v-if="!isRecurring">
-                                        <div class="payment-options">
-                                            <label class="payment-option" :class="{ selected: paymentType === 'direct' }">
-                                                <input type="radio" v-model="paymentType" value="direct">
-                                                <div class="payment-option-info">
-                                                    <div class="payment-option-title">Direct betalen</div>
-                                                    <div class="payment-option-desc">Via iDEAL, creditcard of andere methode</div>
-                                                </div>
-                                            </label>
-                                            <label class="payment-option" :class="{ selected: paymentType === 'later' }">
-                                                <input type="radio" v-model="paymentType" value="later">
-                                                <div class="payment-option-info">
-                                                    <div class="payment-option-title">Betaal later (op factuur)</div>
-                                                    <div class="payment-option-desc">Betaal binnen 14 dagen na levering</div>
-                                                </div>
-                                            </label>
+                            
+                            <div class="sidebar-section">
+                                <h4 class="sidebar-section-title">Bestelling <a href="bestelling-plaatsen.html" class="edit-address-link" style="margin-left: 0.5rem;">Wijzigen</a></h4>
+                                <div class="sidebar-products-list">
+                                    <div class="summary-items">
+                                        <div v-for="item in orderData.items" :key="item.product_id + '-' + (item.variant_id || '')" class="summary-item">
+                                            <span class="name"><span class="qty">{{ item.quantity }}×</span> {{ item.product_name }}</span>
+                                            <span class="price">{{ formatPrice(item.quantity * item.unit_price) }}</span>
                                         </div>
-
-                                        <button class="btn btn-checkout" 
-                                                @click="placeOrder"
-                                                :disabled="submitting">
-                                            {{ submitting ? 'Bezig met verwerken...' : (paymentType === 'direct' ? 'Betalen' : 'Bestelling plaatsen') }}
-                                        </button>
-                                        
-                                        <div class="secure-badge">
-                                            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor">
-                                                <path d="M12 1L3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V5l-9-4zm0 10.99h7c-.53 4.12-3.28 7.79-7 8.94V12H5V6.3l7-3.11v8.8z"/>
-                                            </svg>
-                                            Veilig betalen via Mollie
-                                        </div>
-                                    </template>
-
-                                    <template v-else>
-                                        <div class="recurring-invoice-info">
-                                            <div class="recurring-invoice-icon">
-                                                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" width="32" height="32">
-                                                    <path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-7 3c1.93 0 3.5 1.57 3.5 3.5S13.93 13 12 13s-3.5-1.57-3.5-3.5S10.07 6 12 6zm7 13H5v-.23c0-.62.28-1.2.76-1.58C7.47 15.82 9.64 15 12 15s4.53.82 6.24 2.19c.48.38.76.97.76 1.58V19z"/>
-                                                </svg>
-                                            </div>
-                                            <h4>Terugkerende Bestelling</h4>
-                                            
-                                            <div class="recurring-details">
-                                                <div class="recurring-detail-row" v-if="recurringName">
-                                                    <span class="label">Naam:</span>
-                                                    <span class="value">{{ recurringName }}</span>
-                                                </div>
-                                                <div class="recurring-detail-row">
-                                                    <span class="label">Frequentie:</span>
-                                                    <span class="value">{{ frequencyLabel }}</span>
-                                                </div>
-                                                <div class="recurring-detail-row">
-                                                    <span class="label">Bezorgdag:</span>
-                                                    <span class="value">{{ dayLabel }}</span>
-                                                </div>
-                                                <div class="recurring-detail-row" v-if="recurringEndDate">
-                                                    <span class="label">Einddatum:</span>
-                                                    <span class="value">{{ formatDate(recurringEndDate) }}</span>
-                                                </div>
-                                            </div>
-                                            
-                                        </div>
-
-                                        <button class="btn btn-checkout" 
-                                                @click="placeOrder"
-                                                :disabled="submitting">
-                                            {{ submitting ? 'Bezig met verwerken...' : 'Plaats Bestelling' }}
-                                        </button>
-                                    </template>
+                                    </div>
                                 </div>
                             </div>
                         </div>
-                    </template>
-                    
-                    <recurring-modal
-                        :show="showDeliveryModal"
-                        :recurring-name="recurringName"
-                        :recurring-frequency="recurringFrequency"
-                        :recurring-end-date="recurringEndDate"
-                        :min-end-date="minEndDate"
-                        :delivery-date="orderData?.delivery_date"
-                        :delivery-notes="orderData?.notes"
-                        :min-delivery-date="minDeliveryDate"
-                        :is-recurring="isRecurring"
-                        @close="showDeliveryModal = false"
-                        @confirm="onDeliveryConfirm"
-                    ></recurring-modal>
+                        
+                        <div class="sidebar-footer">
+                            <div v-if="error" class="error-banner">
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <circle cx="12" cy="12" r="10"/>
+                                    <line x1="12" y1="8" x2="12" y2="12"/>
+                                    <line x1="12" y1="16" x2="12.01" y2="16"/>
+                                </svg>
+                                {{ error }}
+                            </div>
+                            
+                            <div class="payment-card">
+                                <div class="cart-totals">
+                                    <div class="total-row">
+                                        <span>Subtotaal excl. BTW</span>
+                                        <span>{{ formatPrice(exclBtw) }}</span>
+                                    </div>
+                                    <div class="total-row">
+                                        <span>BTW ({{ btwTarief }}%)</span>
+                                        <span>{{ formatPrice(btwBedrag) }}</span>
+                                    </div>
+                                    <div class="total-row grand-total">
+                                        <span>Totaal</span>
+                                        <span>{{ formatPrice(orderData.total_amount) }}</span>
+                                    </div>
+                                </div>
+                                
+                                <div v-if="isRecurring" class="payment-section">
+                                    <p class="payment-info">Terugkerende bestellingen worden op factuur betaald.</p>
+                                </div>
+                                
+                                <div v-else class="payment-section">
+                                    <div class="payment-label">Betaalmethode</div>
+                                    <div class="payment-toggle">
+                                        <button type="button" 
+                                                class="payment-toggle-btn" 
+                                                :class="{ active: paymentType === 'direct' }"
+                                                @click="paymentType = 'direct'">
+                                            iDEAL / Direct
+                                        </button>
+                                        <button type="button" 
+                                                class="payment-toggle-btn" 
+                                                :class="{ active: paymentType === 'later' }"
+                                                @click="paymentType = 'later'">
+                                            Op factuur
+                                        </button>
+                                    </div>
+                                </div>
+                                
+                                <button class="checkout-btn" 
+                                        @click="placeOrder"
+                                        :disabled="!canOrder || submitting">
+                                    {{ submitting ? 'Verwerken...' : buttonText }}
+                                </button>
+                                
+                                <div class="secure-badge">
+                                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor">
+                                        <path d="M12 1L3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V5l-9-4zm0 10.99h7c-.53 4.12-3.28 7.79-7 8.94V12H5V6.3l7-3.11v8.8z"/>
+                                    </svg>
+                                    Veilig betalen via Mollie
+                                </div>
+                            </div>
+                        </div>
+                    </aside>
+                </div>
+                
+                <div v-if="showAddressModal" class="address-modal-overlay" @click.self="showAddressModal = false">
+                    <div class="address-modal">
+                        <h3>Afleveradres wijzigen</h3>
+                        <div class="form-group">
+                            <label>Adres</label>
+                            <input type="text" v-model="editAddress.adres">
+                        </div>
+                        <div class="form-group">
+                            <label>Postcode</label>
+                            <input type="text" v-model="editAddress.postcode">
+                        </div>
+                        <div class="form-group">
+                            <label>Plaats</label>
+                            <input type="text" v-model="editAddress.plaats">
+                        </div>
+                        <div class="address-modal-buttons">
+                            <button type="button" class="btn-cancel" @click="showAddressModal = false">Annuleren</button>
+                            <button type="button" class="btn-save" @click="saveAddress">Opslaan</button>
+                        </div>
+                    </div>
                 </div>
             </div>
         </section>
@@ -874,232 +1113,189 @@
 
     <script src="https://unpkg.com/vue@3/dist/vue.global.prod.js"></script>
     <script src="js/main.js"></script>
-    <script src="js/recurring-modal.js"></script>
     <script>
-        const { createApp } = Vue;
+    const { createApp } = Vue;
+    
+    createApp({
+        data() {
+            return {
+                loading: true,
+                orderData: null,
+                account: null,
+                deliveryAddress: {},
+                deliveryDate: '',
+                notes: '',
+                paymentType: 'direct',
+                submitting: false,
+                error: '',
+                btwTarief: 9,
+                isRecurring: false,
+                recurringName: '',
+                recurringFrequency: 'weekly',
+                saveAsFavorite: false,
+                favoriteName: '',
+                sidebarExpanded: false,
+                showAddressModal: false,
+                editAddress: {}
+            };
+        },
         
-        createApp({
-            components: {
-                'recurring-modal': RecurringModal
+        computed: {
+            minDeliveryDateStr() {
+                const date = new Date();
+                date.setDate(date.getDate() + 2);
+                return date.toISOString().split('T')[0];
             },
             
-            data() {
-                return {
-                    loading: true,
-                    orderData: null,
-                    account: null,
-                    deliveryAddress: {},
-                    editingAddress: false,
-                    paymentType: 'direct',
-                    submitting: false,
-                    error: '',
-                    btwTarief: 9,
-                    isRecurring: false,
-                    recurringName: '',
-                    recurringFrequency: 'weekly',
-                    recurringDay: 1,
-                    recurringEndDate: '',
-                    showDeliveryModal: false
-                };
+            totalItems() {
+                if (!this.orderData?.items) return 0;
+                return this.orderData.items.reduce((sum, item) => sum + item.quantity, 0);
             },
             
-            computed: {
-                minDeliveryDate() {
-                    const date = new Date();
-                    date.setDate(date.getDate() + 2);
-                    return date.toISOString().split('T')[0];
-                },
-                
-                totalItems() {
-                    if (!this.orderData?.items) return 0;
-                    return this.orderData.items.reduce((sum, item) => sum + item.quantity, 0);
-                },
-                
-                btwBedrag() {
-                    if (!this.orderData) return 0;
-                    return this.orderData.total_amount - (this.orderData.total_amount / (1 + this.btwTarief / 100));
-                },
-                
-                exclBtw() {
-                    if (!this.orderData) return 0;
-                    return this.orderData.total_amount - this.btwBedrag;
-                },
-                
-                minEndDate() {
-                    const date = new Date();
-                    date.setMonth(date.getMonth() + 1);
-                    return date.toISOString().split('T')[0];
-                },
-                
-                frequencyText() {
-                    const texts = {
-                        'weekly': 'elke week',
-                        'biweekly': 'elke 2 weken',
-                        'monthly': 'elke maand'
-                    };
-                    return texts[this.recurringFrequency] || 'elke week';
-                },
-                
-                frequencyLabel() {
-                    const labels = {
-                        'weekly': 'Wekelijks',
-                        'biweekly': 'Tweewekelijks',
-                        'monthly': 'Maandelijks'
-                    };
-                    return labels[this.recurringFrequency] || 'Wekelijks';
-                },
-                
-                dayLabel() {
-                    const days = {
-                        0: 'Zondag',
-                        1: 'Maandag',
-                        2: 'Dinsdag',
-                        3: 'Woensdag',
-                        4: 'Donderdag',
-                        5: 'Vrijdag',
-                        6: 'Zaterdag'
-                    };
-                    if (this.orderData?.delivery_date) {
-                        const dayNum = new Date(this.orderData.delivery_date).getDay();
-                        return days[dayNum] || 'Maandag';
-                    }
-                    return days[this.recurringDay] || 'Maandag';
-                }
+            btwBedrag() {
+                if (!this.orderData) return 0;
+                return this.orderData.total_amount - (this.orderData.total_amount / (1 + this.btwTarief / 100));
             },
             
-            async mounted() {
-                const stored = sessionStorage.getItem('businessAccount');
-                if (!stored) {
-                    window.location.href = 'login-bedrijven.html';
-                    return;
-                }
-                
-                const checkoutData = sessionStorage.getItem('checkoutData');
-                if (!checkoutData) {
-                    this.loading = false;
-                    return;
-                }
-                
-                this.orderData = JSON.parse(checkoutData);
-                this.isRecurring = this.orderData.isRecurring || false;
-                this.recurringName = this.orderData.recurringName || '';
-                this.recurringFrequency = this.orderData.recurringFrequency || 'weekly';
-                this.recurringDay = this.orderData.recurringDay || 1;
-                this.recurringEndDate = this.orderData.recurringEndDate || '';
-                
-                await this.loadAccount();
+            exclBtw() {
+                if (!this.orderData) return 0;
+                return this.orderData.total_amount - this.btwBedrag;
+            },
+            
+            canOrder() {
+                return this.deliveryDate && this.orderData?.items?.length > 0;
+            },
+            
+            buttonText() {
+                if (!this.deliveryDate) return 'Kies eerst een datum';
+                if (this.isRecurring) return 'Bestelling plaatsen';
+                return this.paymentType === 'direct' ? 'Betalen' : 'Bestelling plaatsen';
+            }
+        },
+        
+        async mounted() {
+            const stored = sessionStorage.getItem('businessAccount');
+            if (!stored) {
+                window.location.href = 'login-bedrijven.html';
+                return;
+            }
+            
+            const checkoutData = sessionStorage.getItem('checkoutData');
+            if (!checkoutData) {
                 this.loading = false;
+                return;
+            }
+            
+            const parsedData = JSON.parse(checkoutData);
+            this.orderData = parsedData;
+            if (parsedData.save_as_favorite) {
+                this.saveAsFavorite = parsedData.save_as_favorite;
+                this.favoriteName = parsedData.favorite_name || '';
+            }
+            await this.loadAccount();
+            this.loading = false;
+        },
+        
+        methods: {
+            async loadAccount() {
+                try {
+                    const response = await fetch('api/business-dashboard.php?action=profile');
+                    const data = await response.json();
+                    
+                    if (data.success) {
+                        this.account = data.account;
+                        const acc = data.account;
+                        const useBusiness = acc.delivery_same_as_business === undefined || !!parseInt(acc.delivery_same_as_business);
+                        
+                        this.deliveryAddress = {
+                            bedrijfsnaam: acc.bedrijfsnaam,
+                            contactpersoon: useBusiness ? acc.contactpersoon : (acc.delivery_contactpersoon || acc.contactpersoon),
+                            adres: useBusiness ? acc.adres : (acc.delivery_adres || acc.adres),
+                            postcode: useBusiness ? acc.postcode : (acc.delivery_postcode || acc.postcode),
+                            plaats: useBusiness ? acc.plaats : (acc.delivery_plaats || acc.plaats)
+                        };
+                        
+                        this.editAddress = { ...this.deliveryAddress };
+                    }
+                } catch (error) {
+                    console.error('Kon account niet laden');
+                }
             },
             
-            methods: {
-                async loadAccount() {
-                    try {
-                        const response = await fetch('api/business-dashboard.php?action=profile');
-                        const data = await response.json();
-                        
-                        if (data.success) {
-                            this.account = data.account;
-                            const acc = data.account;
-                            const useBusiness = acc.delivery_same_as_business === undefined || !!parseInt(acc.delivery_same_as_business);
-                            
-                            this.deliveryAddress = {
-                                bedrijfsnaam: acc.bedrijfsnaam,
-                                contactpersoon: useBusiness ? acc.contactpersoon : (acc.delivery_contactpersoon || acc.contactpersoon),
-                                adres: useBusiness ? acc.adres : (acc.delivery_adres || acc.adres),
-                                postcode: useBusiness ? acc.postcode : (acc.delivery_postcode || acc.postcode),
-                                plaats: useBusiness ? acc.plaats : (acc.delivery_plaats || acc.plaats)
-                            };
-                        }
-                    } catch (error) {
-                        console.error('Kon account niet laden');
-                    }
-                },
+            formatPrice(amount) {
+                return new Intl.NumberFormat('nl-NL', { style: 'currency', currency: 'EUR' }).format(amount);
+            },
+            
+            formatDateNL(dateStr) {
+                const date = new Date(dateStr);
+                const day = date.toLocaleDateString('nl-NL', { weekday: 'long' });
+                const formatted = date.toLocaleDateString('nl-NL', { day: 'numeric', month: 'long' });
+                return day.charAt(0).toUpperCase() + day.slice(1) + ' ' + formatted;
+            },
+            
+            saveAddress() {
+                this.deliveryAddress.adres = this.editAddress.adres;
+                this.deliveryAddress.postcode = this.editAddress.postcode;
+                this.deliveryAddress.plaats = this.editAddress.plaats;
+                this.showAddressModal = false;
+            },
+            
+            async placeOrder() {
+                this.error = '';
                 
-                formatPrice(amount) {
-                    return new Intl.NumberFormat('nl-NL', { style: 'currency', currency: 'EUR' }).format(amount);
-                },
+                if (!this.deliveryDate) {
+                    this.error = 'Kies een leverdatum';
+                    return;
+                }
                 
-                formatDateLong(dateStr) {
-                    if (!dateStr) return '-';
-                    const date = new Date(dateStr);
-                    return date.toLocaleDateString('nl-NL', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
-                },
+                this.submitting = true;
                 
-                formatDate(dateStr) {
-                    if (!dateStr) return '';
-                    try {
-                        const date = new Date(dateStr);
-                        if (isNaN(date.getTime())) return '';
-                        return date.toLocaleDateString('nl-NL', { day: 'numeric', month: 'short', year: 'numeric' });
-                    } catch (e) {
-                        return '';
-                    }
-                },
-                
-                async placeOrder() {
-                    this.error = '';
-                    this.submitting = true;
+                try {
+                    const recurringDay = new Date(this.deliveryDate).getDay();
                     
-                    try {
-                        const response = await fetch('api/business-orders.php', {
-                            method: 'POST',
-                            headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({
-                                items: this.orderData.items,
-                                delivery_date: this.orderData.delivery_date,
-                                notes: this.orderData.notes,
-                                total_amount: this.orderData.total_amount,
-                                payment_type: this.isRecurring ? 'recurring' : this.paymentType,
-                                delivery_address: this.deliveryAddress,
-                                save_as_favorite: this.orderData.saveAsFavorite,
-                                favorite_name: this.orderData.favoriteName,
-                                is_recurring: this.isRecurring,
-                                recurring_name: this.recurringName,
-                                recurring_frequency: this.recurringFrequency,
-                                recurring_day: this.orderData.delivery_date ? new Date(this.orderData.delivery_date).getDay() : this.recurringDay,
-                                recurring_end_date: this.recurringEndDate || null
-                            })
-                        });
+                    const response = await fetch('api/business-orders.php', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            items: this.orderData.items,
+                            delivery_date: this.deliveryDate,
+                            delivery_time: 'ochtend',
+                            notes: this.notes,
+                            total_amount: this.orderData.total_amount,
+                            payment_type: this.isRecurring ? 'recurring' : this.paymentType,
+                            delivery_address: this.deliveryAddress,
+                            save_as_favorite: this.saveAsFavorite,
+                            favorite_name: this.favoriteName,
+                            is_recurring: this.isRecurring,
+                            recurring_name: this.recurringName,
+                            recurring_frequency: this.recurringFrequency,
+                            recurring_day: recurringDay,
+                            recurring_end_date: null
+                        })
+                    });
+                    
+                    const data = await response.json();
+                    
+                    if (data.success) {
+                        sessionStorage.removeItem('checkoutData');
                         
-                        const data = await response.json();
-                        
-                        if (data.success) {
-                            sessionStorage.removeItem('checkoutData');
-                            
-                            if (data.payment_url) {
-                                window.location.href = data.payment_url;
-                            } else {
-                                const status = this.isRecurring ? 'recurring' : (this.paymentType === 'later' ? 'invoice_sent' : 'success');
-                                window.location.href = 'bedankt-bestelling.html?order_id=' + data.order_id + '&status=' + status;
-                            }
+                        if (data.payment_url) {
+                            window.location.href = data.payment_url;
                         } else {
-                            this.error = data.error || 'Er ging iets mis bij het plaatsen van de bestelling';
+                            const status = this.isRecurring ? 'recurring' : (this.paymentType === 'later' ? 'invoice_sent' : 'success');
+                            window.location.href = 'bedankt-bestelling.html?order_id=' + data.order_id + '&status=' + status;
                         }
-                    } catch (error) {
-                        this.error = 'Er ging iets mis. Probeer het opnieuw.';
-                    } finally {
-                        this.submitting = false;
+                    } else {
+                        this.error = data.error || 'Er ging iets mis bij het plaatsen van de bestelling';
                     }
-                },
-                
-                openDeliveryModal() {
-                    this.showDeliveryModal = true;
-                },
-                
-                onDeliveryConfirm(data) {
-                    this.orderData.delivery_date = data.deliveryDate;
-                    this.orderData.notes = data.notes;
-                    this.isRecurring = data.isRecurring;
-                    if (data.isRecurring) {
-                        this.recurringName = data.name;
-                        this.recurringFrequency = data.frequency;
-                        this.recurringEndDate = data.endDate;
-                        this.recurringDay = data.deliveryDate ? new Date(data.deliveryDate).getDay() : 1;
-                    }
-                    this.showDeliveryModal = false;
+                } catch (error) {
+                    this.error = 'Er ging iets mis. Probeer het opnieuw.';
+                } finally {
+                    this.submitting = false;
                 }
             }
-        }).mount('#checkout-app');
+        }
+    }).mount('#checkout-app');
     </script>
 </body>
 </html>

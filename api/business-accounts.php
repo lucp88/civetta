@@ -1,6 +1,7 @@
 <?php
 require_once '../admin/config.php';
 require_once 'cors.php';
+require_once __DIR__ . '/email-templates.php';
 
 header('Content-Type: application/json');
 setCorsHeaders();
@@ -141,25 +142,8 @@ switch ($method) {
                 $stmt = $pdo->prepare("UPDATE business_accounts SET status = 'approved', approved_at = NOW(), password_hash = ? WHERE id = ?");
                 $stmt->execute([$passwordHash, $id]);
                 
-                $to = $account['email'];
-                $subject = "Uw zakelijk account bij Bakkerij Civetta is goedgekeurd!";
-                $body = "Beste " . $account['contactpersoon'] . ",\n\n";
-                $body .= "Goed nieuws! Uw zakelijke accountaanvraag voor " . $account['bedrijfsnaam'] . " is goedgekeurd.\n\n";
-                $body .= "U kunt nu inloggen op ons zakelijk portaal met de volgende gegevens:\n\n";
-                $body .= "Inlogpagina: https://bakkerij-civetta.nl/login-bedrijven.html\n";
-                $body .= "Gebruikersnaam: " . $account['email'] . "\n";
-                $body .= "Wachtwoord: " . $password . "\n\n";
-                $body .= "Wij raden u aan om uw wachtwoord te wijzigen na de eerste keer inloggen.\n\n";
-                $body .= "Heeft u vragen? Neem gerust contact met ons op.\n\n";
-                $body .= "Met vriendelijke groet,\n";
-                $body .= "Bakkerij Civetta\n";
-                $body .= "laurens@bakkerij-civetta.nl";
-                
-                $headers = "From: noreply@bakkerij-civetta.nl\r\n";
-                $headers .= "Reply-To: laurens@bakkerij-civetta.nl\r\n";
-                $headers .= "Content-Type: text/plain; charset=UTF-8\r\n";
-                
-                @mail($to, $subject, $body, $headers);
+                $htmlBody = buildAccountApprovedEmail($account, $password);
+                sendHtmlEmail($account['email'], "Welkom bij Bakkerij Civetta - Uw account is goedgekeurd!", $htmlBody);
                 
                 echo json_encode(['success' => true, 'message' => 'Account goedgekeurd en e-mail met inloggegevens verzonden']);
             } elseif ($action === 'reject') {
@@ -210,20 +194,8 @@ switch ($method) {
                 $stmt = $pdo->prepare("UPDATE business_accounts SET password_hash = ? WHERE id = ?");
                 $stmt->execute([$passwordHash, $id]);
                 
-                $to = $account['email'];
-                $subject = "Nieuw wachtwoord voor uw Bakkerij Civetta account";
-                $body = "Beste " . $account['contactpersoon'] . ",\n\n";
-                $body .= "Er is een nieuw wachtwoord aangemaakt voor uw account.\n\n";
-                $body .= "Uw nieuwe inloggegevens:\n";
-                $body .= "Gebruikersnaam: " . $account['email'] . "\n";
-                $body .= "Wachtwoord: " . $password . "\n\n";
-                $body .= "Met vriendelijke groet,\n";
-                $body .= "Bakkerij Civetta";
-                
-                $headers = "From: noreply@bakkerij-civetta.nl\r\n";
-                $headers .= "Content-Type: text/plain; charset=UTF-8\r\n";
-                
-                @mail($to, $subject, $body, $headers);
+                $htmlBody = buildPasswordResetEmail($account, $password);
+                sendHtmlEmail($account['email'], "Nieuw wachtwoord - Bakkerij Civetta", $htmlBody);
                 
                 echo json_encode(['success' => true, 'message' => 'Nieuw wachtwoord verzonden naar ' . $account['email']]);
             } else {

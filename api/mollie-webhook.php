@@ -171,12 +171,13 @@ try {
                 webhookLog("e-Boekhouden integratie actief - start factuur aanmaken");
                 try {
                     $stmt = $pdo->prepare("
-                        SELECT ba.* FROM business_accounts ba 
+                        SELECT ba.*, bo.delivery_date FROM business_accounts ba 
                         JOIN business_orders bo ON bo.account_id = ba.id 
                         WHERE bo.id = ?
                     ");
                     $stmt->execute([$orderId]);
                     $accountData = $stmt->fetch();
+                    $accountData['btw_tarief'] = floatval($eboekhoudenSettings['btw_tarief'] ?? 9);
                     
                     $client = new EBoekhoudenClient($eboekhoudenSettings['eboekhouden_api_token']);
                     

@@ -3,6 +3,7 @@ session_start();
 require_once '../admin/config.php';
 require_once '../lib/fpdf.php';
 require_once __DIR__ . '/delivery-status.php';
+require_once __DIR__ . '/email-templates.php';
 
 class BestelbonPDF extends FPDF {
     function Header() {
@@ -422,7 +423,8 @@ function sendBestelbonEmail($pdo, $orderId) {
     generateBestelbon($pdo, $orderId, $bestelbonFile);
     
     $stmt = $pdo->prepare("
-        SELECT bo.*, ba.bedrijfsnaam, ba.contactpersoon, ba.email 
+        SELECT bo.*, ba.bedrijfsnaam, ba.contactpersoon, ba.email, ba.adres, ba.postcode, ba.plaats,
+               ba.delivery_same_as_business, ba.delivery_adres, ba.delivery_postcode, ba.delivery_plaats
         FROM business_orders bo 
         JOIN business_accounts ba ON bo.account_id = ba.id 
         WHERE bo.id = ?
@@ -439,45 +441,39 @@ function sendBestelbonEmail($pdo, $orderId) {
         $stmt->execute([$bestelbonNummer, $orderId]);
     }
     
+    $stmt = $pdo->prepare("SELECT product_name, quantity, unit_price FROM business_order_items WHERE order_id = ?");
+    $stmt->execute([$orderId]);
+    $items = $stmt->fetchAll();
+    
+    $stmt = $pdo->query("SELECT setting_value FROM settings WHERE setting_key = 'btw_tarief'");
+    $btwTarief = floatval($stmt->fetchColumn() ?: 9);
+    
     $deadlineHours = getWijzigDeadlineUren($pdo);
     $editDeadline = calculateEditDeadline($order['delivery_date'], $deadlineHours);
+    $order['can_be_edited_until'] = $editDeadline->format('Y-m-d H:i:s');
+    
+    if (!$order['delivery_same_as_business']) {
+        $order['delivery_adres'] = $order['delivery_adres'] ?: $order['adres'];
+        $order['delivery_postcode'] = $order['delivery_postcode'] ?: $order['postcode'];
+        $order['delivery_plaats'] = $order['delivery_plaats'] ?: $order['plaats'];
+    } else {
+        $order['delivery_adres'] = $order['adres'];
+        $order['delivery_postcode'] = $order['postcode'];
+        $order['delivery_plaats'] = $order['plaats'];
+    }
+    
+    $bedrijf = getBedrijfsGegevens($pdo);
+    
+    $htmlBody = buildOrderConfirmationEmail($order, $items, $bedrijf, $btwTarief);
     
     $to = $order['email'];
-    $subject = "Bestelbon $bestelbonNummer - Bakkerij Civetta";
+    $subject = "Bestelbevestiging $bestelbonNummer - Bakkerij Civetta";
     
-    $boundary = md5(time());
+    $attachments = [
+        ['path' => $bestelbonFile, 'name' => "bestelbon-$orderId.pdf", 'type' => 'application/pdf']
+    ];
     
-    $headers = "From: noreply@bakkerij-civetta.nl\r\n";
-    $headers .= "Reply-To: info@bakkerij-civetta.nl\r\n";
-    $headers .= "MIME-Version: 1.0\r\n";
-    $headers .= "Content-Type: multipart/mixed; boundary=\"$boundary\"\r\n";
-    
-    $message = "--$boundary\r\n";
-    $message .= "Content-Type: text/plain; charset=UTF-8\r\n";
-    $message .= "Content-Transfer-Encoding: 8bit\r\n\r\n";
-    $message .= "Beste {$order['contactpersoon']},\n\n";
-    $message .= "Bedankt voor uw bestelling! In de bijlage vindt u uw bestelbon.\n\n";
-    $message .= "Bestelbonnummer: $bestelbonNummer\n";
-    $message .= "Bestelling: #{$orderId}\n";
-    $message .= "Leverdatum: " . date('d-m-Y', strtotime($order['delivery_date'])) . "\n";
-    $message .= "Totaalbedrag: EUR " . number_format($order['total_amount'], 2, ',', '.') . "\n\n";
-    $message .= "BELANGRIJK:\n";
-    $message .= "- Deze bestelling kan gewijzigd worden tot " . $editDeadline->format('d-m-Y H:i') . "\n";
-    $message .= "- Wijzigingen kunt u doorvoeren via uw dashboard\n";
-    $message .= "- De factuur ontvangt u na levering\n";
-    $message .= "- Wilt u direct betalen? Dat kan via uw dashboard\n\n";
-    $message .= "Met vriendelijke groet,\n";
-    $message .= "Bakkerij Civetta\n";
-    $message .= "info@bakkerij-civetta.nl\r\n";
-    
-    $message .= "--$boundary\r\n";
-    $message .= "Content-Type: application/pdf; name=\"bestelbon-$orderId.pdf\"\r\n";
-    $message .= "Content-Transfer-Encoding: base64\r\n";
-    $message .= "Content-Disposition: attachment; filename=\"bestelbon-$orderId.pdf\"\r\n\r\n";
-    $message .= chunk_split(base64_encode(file_get_contents($bestelbonFile))) . "\r\n";
-    $message .= "--$boundary--";
-    
-    return @mail($to, $subject, $message, $headers);
+    return sendHtmlEmail($to, $subject, $htmlBody, $attachments);
 }
 
 function sendRecurringBestelbonEmail($pdo, $recurringGroupId) {
@@ -502,44 +498,35 @@ function sendRecurringBestelbonEmail($pdo, $recurringGroupId) {
     
     if (!$order || !file_exists($bestelbonFile)) return false;
     
+    $stmt = $pdo->prepare("SELECT product_name, quantity, unit_price FROM business_order_items WHERE order_id = ?");
+    $stmt->execute([$order['id']]);
+    $items = $stmt->fetchAll();
+    
+    $stmt = $pdo->prepare("
+        SELECT id, delivery_date, total_amount, order_status
+        FROM business_orders
+        WHERE recurring_group_id = ?
+        AND delivery_date >= CURDATE()
+        ORDER BY delivery_date ASC
+    ");
+    $stmt->execute([$recurringGroupId]);
+    $upcomingOrders = $stmt->fetchAll();
+    
+    $stmt = $pdo->query("SELECT setting_value FROM settings WHERE setting_key = 'btw_tarief'");
+    $btwTarief = floatval($stmt->fetchColumn() ?: 9);
+    
+    $bedrijf = getBedrijfsGegevens($pdo);
+    
+    $htmlBody = buildRecurringConfirmationEmail($order, $items, $upcomingOrders, $bedrijf, $btwTarief);
+    
     $to = $order['email'];
     $subject = "Terugkerende bestelling bevestigd - Bakkerij Civetta";
     
-    $boundary = md5(time());
+    $attachments = [
+        ['path' => $bestelbonFile, 'name' => 'overzicht-terugkerende-bestelling.pdf', 'type' => 'application/pdf']
+    ];
     
-    $headers = "From: noreply@bakkerij-civetta.nl\r\n";
-    $headers .= "Reply-To: info@bakkerij-civetta.nl\r\n";
-    $headers .= "MIME-Version: 1.0\r\n";
-    $headers .= "Content-Type: multipart/mixed; boundary=\"$boundary\"\r\n";
-    
-    $frequentieLabels = ['weekly' => 'wekelijks', 'biweekly' => 'tweewekelijks', 'monthly' => 'maandelijks'];
-    $frequentie = $frequentieLabels[$order['recurring_frequency']] ?? $order['recurring_frequency'];
-    
-    $message = "--$boundary\r\n";
-    $message .= "Content-Type: text/plain; charset=UTF-8\r\n";
-    $message .= "Content-Transfer-Encoding: 8bit\r\n\r\n";
-    $message .= "Beste {$order['contactpersoon']},\n\n";
-    $message .= "Uw terugkerende bestelling is bevestigd!\n\n";
-    $message .= "Naam: " . ($order['recurring_name'] ?: 'Terugkerende bestelling') . "\n";
-    $message .= "Frequentie: $frequentie\n";
-    $message .= "Eerste levering: " . date('d-m-Y', strtotime($order['delivery_date'])) . "\n\n";
-    $message .= "In de bijlage vindt u een overzicht van alle ingeplande leveringen voor de komende 3 maanden.\n\n";
-    $message .= "BELANGRIJK:\n";
-    $message .= "- Individuele leveringen kunnen gewijzigd worden via uw dashboard\n";
-    $message .= "- 2 weken voor het einde van de 3 maanden vragen wij u om herbevestiging\n";
-    $message .= "- Na elke levering ontvangt u een factuur\n\n";
-    $message .= "Met vriendelijke groet,\n";
-    $message .= "Bakkerij Civetta\n";
-    $message .= "info@bakkerij-civetta.nl\r\n";
-    
-    $message .= "--$boundary\r\n";
-    $message .= "Content-Type: application/pdf; name=\"overzicht-terugkerende-bestelling.pdf\"\r\n";
-    $message .= "Content-Transfer-Encoding: base64\r\n";
-    $message .= "Content-Disposition: attachment; filename=\"overzicht-terugkerende-bestelling.pdf\"\r\n\r\n";
-    $message .= chunk_split(base64_encode(file_get_contents($bestelbonFile))) . "\r\n";
-    $message .= "--$boundary--";
-    
-    return @mail($to, $subject, $message, $headers);
+    return sendHtmlEmail($to, $subject, $htmlBody, $attachments);
 }
 
 function generateCancelledBestelbon($pdo, $orderId, $outputPath = null) {
@@ -718,62 +705,33 @@ function sendCancellationEmail($pdo, $orderId) {
     
     if (!$order) return false;
     
+    $stmt = $pdo->prepare("SELECT product_name, quantity, unit_price FROM business_order_items WHERE order_id = ?");
+    $stmt->execute([$orderId]);
+    $items = $stmt->fetchAll();
+    
+    $stmt = $pdo->query("SELECT setting_value FROM settings WHERE setting_key = 'btw_tarief'");
+    $btwTarief = floatval($stmt->fetchColumn() ?: 9);
+    
     $bestelbonNummer = $order['bestelbon_number'] ?: generateBestelbonNumber($pdo, $orderId);
+    
+    $bedrijf = getBedrijfsGegevens($pdo);
+    
+    $htmlBody = buildCancellationEmail($order, $items, $bedrijf, $btwTarief);
     
     $to = $order['email'];
     $subject = "Annulering bestelling $bestelbonNummer - Bakkerij Civetta";
     
-    $boundary = md5(time());
-    
-    $headers = "From: noreply@bakkerij-civetta.nl\r\n";
-    $headers .= "Reply-To: info@bakkerij-civetta.nl\r\n";
-    $headers .= "MIME-Version: 1.0\r\n";
-    $headers .= "Content-Type: multipart/mixed; boundary=\"$boundary\"\r\n";
-    
-    $message = "--$boundary\r\n";
-    $message .= "Content-Type: text/plain; charset=UTF-8\r\n";
-    $message .= "Content-Transfer-Encoding: 8bit\r\n\r\n";
-    $message .= "Beste {$order['contactpersoon']},\n\n";
-    $message .= "Uw bestelling is geannuleerd.\n\n";
-    $message .= "Bestelbonnummer: $bestelbonNummer\n";
-    $message .= "Bestelling: #{$orderId}\n";
-    $message .= "Oorspronkelijke leverdatum: " . date('d-m-Y', strtotime($order['delivery_date'])) . "\n\n";
-    $message .= "In de bijlage vindt u een bevestiging van de annulering.\n\n";
-    $message .= "Heeft u vragen over deze annulering? Neem dan gerust contact met ons op.\n\n";
-    $message .= "Met vriendelijke groet,\n";
-    $message .= "Bakkerij Civetta\n";
-    $message .= "info@bakkerij-civetta.nl\r\n";
-    
+    $attachments = [];
     if (file_exists($bestelbonFile)) {
-        $message .= "--$boundary\r\n";
-        $message .= "Content-Type: application/pdf; name=\"annulering-$orderId.pdf\"\r\n";
-        $message .= "Content-Transfer-Encoding: base64\r\n";
-        $message .= "Content-Disposition: attachment; filename=\"annulering-$orderId.pdf\"\r\n\r\n";
-        $message .= chunk_split(base64_encode(file_get_contents($bestelbonFile))) . "\r\n";
+        $attachments[] = ['path' => $bestelbonFile, 'name' => "annulering-$orderId.pdf", 'type' => 'application/pdf'];
     }
-    $message .= "--$boundary--";
     
-    $customerSent = @mail($to, $subject, $message, $headers);
+    $customerSent = sendHtmlEmail($to, $subject, $htmlBody, $attachments);
     
-    $adminSubject = "Bestelling geannuleerd: #{$orderId} - {$order['bedrijfsnaam']}";
-    $adminBody = "Een bestelling is geannuleerd door de klant.\n\n";
-    $adminBody .= "══════════════════════════════════════\n";
-    $adminBody .= "ANNULERING\n";
-    $adminBody .= "══════════════════════════════════════\n\n";
-    $adminBody .= "Bestelnummer: #{$orderId}\n";
-    $adminBody .= "Bestelbonnummer: $bestelbonNummer\n";
-    $adminBody .= "Bedrijf: {$order['bedrijfsnaam']}\n";
-    $adminBody .= "Contactpersoon: {$order['contactpersoon']}\n";
-    $adminBody .= "Email: {$order['email']}\n\n";
-    $adminBody .= "Oorspronkelijke leverdatum: " . date('d-m-Y', strtotime($order['delivery_date'])) . "\n";
-    $adminBody .= "Totaalbedrag: EUR " . number_format($order['total_amount'], 2, ',', '.') . "\n\n";
-    $adminBody .= "De klant heeft een bevestiging van de annulering ontvangen.\n";
+    $adminHtmlBody = buildAdminOrderNotificationEmail($order, $items, false, $bedrijf);
+    $adminHtmlBody = str_replace('Bestelling gewijzigd', 'Bestelling geannuleerd', $adminHtmlBody);
     
-    $adminHeaders = "From: noreply@bakkerij-civetta.nl\r\n";
-    $adminHeaders .= "Reply-To: {$order['email']}\r\n";
-    $adminHeaders .= "Content-Type: text/plain; charset=UTF-8\r\n";
-    
-    @mail('laurens@bakkerij-civetta.nl', $adminSubject, $adminBody, $adminHeaders);
+    sendHtmlEmail('laurens@bakkerij-civetta.nl', "Bestelling geannuleerd: #{$orderId} - {$order['bedrijfsnaam']}", $adminHtmlBody, [], $order['email']);
     
     return $customerSent;
 }

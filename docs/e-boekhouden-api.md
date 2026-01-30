@@ -105,6 +105,7 @@ POST /v1/invoice
     "date": "2026-01-21",
     "termOfPayment": 14,
     "templateId": 1486769,
+    "inExVat": "IN",
     "items": [
         {
             "description": "Product omschrijving",
@@ -118,7 +119,7 @@ POST /v1/invoice
         "fromEmail": "info@example.nl",
         "fromName": "Bedrijfsnaam",
         "subject": "Uw factuur",
-        "body": "HTML body van de email"
+        "body": "<html>...</html>"
     }
 }
 ```
@@ -129,8 +130,46 @@ POST /v1/invoice
 | date | string | Ja | Factuurdatum (YYYY-MM-DD) |
 | termOfPayment | integer | Ja | Betaaltermijn in dagen |
 | templateId | integer | Ja | ID van het factuurtemplate |
+| inExVat | string | Ja | "IN" (incl. BTW) of "EX" (excl. BTW) |
 | items | array | Ja | Array met factuurregels |
 | email | object | Nee | Email instellingen (indien meegegeven wordt factuur gemaild) |
+
+**Email object velden:**
+
+| Veld | Type | Verplicht | Beschrijving |
+|------|------|-----------|--------------|
+| fromEmail | string | Ja | Afzender email |
+| fromName | string | Ja | Afzender naam |
+| subject | string | Ja | Email onderwerp |
+| body | string | Ja | HTML body van de email (volledige HTML met styling) |
+
+**HTML Email Body:**
+
+De `body` ondersteunt volledige HTML inclusief inline CSS styling. Civetta gebruikt de `buildInvoiceEmailBody()` functie uit `api/email-templates.php` om een gestylde HTML email te genereren met:
+- Header met bakkerij branding
+- Klantgegevens en factuurnummer
+- Producttabel met prijzen
+- BTW berekening en totalen
+- Footer met contactgegevens
+
+Voorbeeld van de HTML structuur:
+```html
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+    <style>/* inline CSS styles */</style>
+</head>
+<body>
+    <div class="email-wrapper">
+        <div class="email-header">...</div>
+        <div class="email-body">
+            <!-- Begroeting, factuurgegevens, producttabel -->
+        </div>
+        <div class="email-footer">...</div>
+    </div>
+</body>
+</html>
+```
 
 **Item velden:**
 
@@ -330,9 +369,10 @@ GET /v1/invoicetemplate
 1. **Alle ID's zijn integers** - Gebruik `intval()` bij het meegeven van ID's
 2. **Bedragen zijn floats** - Gebruik `floatval()` voor bedragen
 3. **Type bij mutaties is een string** - Gebruik `"2"` niet `2`
-4. **inExVat is verplicht bij mutaties** - Meestal "EX" voor excl. BTW
+4. **inExVat is verplicht** - Bij facturen en mutaties: "IN" (incl. BTW) of "EX" (excl. BTW)
 5. **rows array is verplicht bij mutaties** - Minimaal 1 regel
 6. **relationId is verplicht bij mutaties** - Ook al geef je invoiceNumber mee
+7. **Email body ondersteunt HTML** - Volledige HTML met inline CSS styling voor mooie factuuremails
 
 ---
 

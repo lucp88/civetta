@@ -11,6 +11,7 @@ const app = createApp({
             loading: true,
             products: [],
             cart: {},
+            variantCart: [],
             deliveryDate: '',
             notes: '',
             error: '',
@@ -38,16 +39,44 @@ const app = createApp({
         },
         
         cartItems() {
-            return Object.entries(this.cart)
+            const items = [];
+            
+            Object.entries(this.cart)
                 .filter(([id, qty]) => qty > 0)
-                .map(([id, qty]) => {
+                .forEach(([id, qty]) => {
                     const product = this.products.find(p => p.id == id);
-                    return {
-                        product,
-                        quantity: qty,
-                        subtotal: (product?.prijs || 0) * qty
-                    };
+                    if (product) {
+                        items.push({
+                            key: `product-${id}`,
+                            product,
+                            quantity: qty,
+                            variantId: null,
+                            gewicht: null,
+                            prijs: product.prijs,
+                            subtotal: (product.prijs || 0) * qty
+                        });
+                    }
                 });
+            
+            this.variantCart.forEach((item, index) => {
+                const product = this.products.find(p => p.id == item.productId);
+                if (product) {
+                    const variant = product.variants?.find(v => v.id == item.variantId);
+                    if (variant) {
+                        items.push({
+                            key: `variant-${index}`,
+                            product,
+                            quantity: item.quantity,
+                            variantId: item.variantId,
+                            gewicht: variant.gewicht,
+                            prijs: variant.prijs,
+                            subtotal: variant.prijs * item.quantity
+                        });
+                    }
+                }
+            });
+            
+            return items;
         },
         
         totalAmount() {
@@ -110,7 +139,7 @@ const app = createApp({
                 const response = await fetch('api/products.php');
                 const data = await response.json();
                 if (data.success) {
-                    this.products = data.products.filter(p => p.prijs && p.prijs > 0);
+                    this.products = data.products.filter(p => (p.prijs && p.prijs > 0) || (p.variants && p.variants.length > 0));
                     if (data.btw_tarief) {
                         this.btwTarief = data.btw_tarief;
                     }
@@ -152,43 +181,43 @@ const app = createApp({
         },
         
         loadFavoriteItems(items, name) {
-            const newCart = {};
+            this.cart = {};
+            this.variantCart = [];
+            
             items.forEach(item => {
                 let product = null;
                 if (item.product_id) {
                     product = this.products.find(p => p.id == item.product_id);
                 }
                 if (!product && item.product_name) {
+                    const baseName = item.product_name.replace(/\s*\(\d+g\)$/, '');
                     product = this.products.find(p => 
-                        p.naam.toLowerCase() === item.product_name.toLowerCase()
+                        p.naam.toLowerCase() === baseName.toLowerCase()
                     );
                 }
                 if (product) {
-                    newCart[product.id] = parseInt(item.quantity) || 0;
+                    if (item.variant_id && product.variants?.length > 0) {
+                        this.variantCart.push({
+                            productId: product.id,
+                            variantId: item.variant_id,
+                            quantity: parseInt(item.quantity) || 1
+                        });
+                    } else if (product.variants?.length > 0) {
+                        this.variantCart.push({
+                            productId: product.id,
+                            variantId: product.variants[0].id,
+                            quantity: parseInt(item.quantity) || 1
+                        });
+                    } else {
+                        this.cart[product.id] = parseInt(item.quantity) || 0;
+                    }
                 }
             });
-            this.cart = newCart;
             this.loadedName = name;
         },
         
         loadReorderItems(items) {
-            const newCart = {};
-            items.forEach(item => {
-                let product = null;
-                if (item.product_id) {
-                    product = this.products.find(p => p.id == item.product_id);
-                }
-                if (!product && item.product_name) {
-                    product = this.products.find(p => 
-                        p.naam.toLowerCase() === item.product_name.toLowerCase()
-                    );
-                }
-                if (product) {
-                    newCart[product.id] = parseInt(item.quantity) || 0;
-                }
-            });
-            this.cart = newCart;
-            this.loadedName = 'Vorige bestelling';
+            this.loadFavoriteItems(items, 'Vorige bestelling');
             this.selectedFavoriteId = '';
         },
         
@@ -205,16 +234,25 @@ const app = createApp({
         
         clearLoaded() {
             this.cart = {};
+            this.variantCart = [];
             this.loadedName = '';
             this.selectedFavoriteId = '';
         },
         
         getQuantity(productId) {
-            return this.cart[productId] || 0;
+            let total = this.cart[productId] || 0;
+            this.variantCart.forEach(item => {
+                if (item.productId == productId) {
+                    total += item.quantity;
+                }
+            });
+            return total;
         },
         
-        setQuantity(product, value) {
-            const qty = Math.max(0, parseInt(value) || 0);
+        setQuantityDirect(product, qty) {
+            if (product.variants?.length > 0) {
+                return;
+            }
             if (qty === 0) {
                 delete this.cart[product.id];
             } else {
@@ -223,20 +261,54 @@ const app = createApp({
             this.cart = { ...this.cart };
         },
         
-        increaseQty(product) {
-            const current = this.getQuantity(product.id);
-            this.cart[product.id] = current + 1;
-            this.cart = { ...this.cart };
+        addVariantToCart({ product, variant, quantity }) {
+            const existing = this.variantCart.findIndex(
+                item => item.productId == product.id && item.variantId == variant.id
+            );
+            
+            if (existing >= 0) {
+                this.variantCart[existing].quantity += quantity;
+            } else {
+                this.variantCart.push({
+                    productId: product.id,
+                    variantId: variant.id,
+                    quantity
+                });
+            }
+            this.variantCart = [...this.variantCart];
         },
         
-        decreaseQty(product) {
-            const current = this.getQuantity(product.id);
-            if (current > 0) {
-                if (current === 1) {
-                    delete this.cart[product.id];
-                } else {
-                    this.cart[product.id] = current - 1;
+        removeCartItem(item) {
+            if (item.variantId) {
+                const index = this.variantCart.findIndex(
+                    v => v.productId == item.product.id && v.variantId == item.variantId
+                );
+                if (index >= 0) {
+                    this.variantCart.splice(index, 1);
+                    this.variantCart = [...this.variantCart];
                 }
+            } else {
+                delete this.cart[item.product.id];
+                this.cart = { ...this.cart };
+            }
+        },
+        
+        updateCartItemQty(item, newQty) {
+            if (newQty <= 0) {
+                this.removeCartItem(item);
+                return;
+            }
+            
+            if (item.variantId) {
+                const index = this.variantCart.findIndex(
+                    v => v.productId == item.product.id && v.variantId == item.variantId
+                );
+                if (index >= 0) {
+                    this.variantCart[index].quantity = newQty;
+                    this.variantCart = [...this.variantCart];
+                }
+            } else {
+                this.cart[item.product.id] = newQty;
                 this.cart = { ...this.cart };
             }
         },
@@ -249,17 +321,25 @@ const app = createApp({
             e.target.src = 'img/placeholder-bread.jpg';
         },
         
-        setQuantityDirect(product, qty) {
-            if (qty === 0) {
-                delete this.cart[product.id];
-            } else {
-                this.cart[product.id] = qty;
-            }
-            this.cart = { ...this.cart };
-        },
-        
         showProductDetail(product) {
             this.selectedProduct = product;
+        },
+        
+        buildCheckoutItems() {
+            return this.cartItems.map(item => {
+                let productName = item.product.naam;
+                if (item.gewicht) {
+                    productName = `${item.product.naam} (${item.gewicht}g)`;
+                }
+                return {
+                    product_id: item.product.id,
+                    product_name: productName,
+                    product_image: item.product.foto,
+                    quantity: item.quantity,
+                    unit_price: item.prijs,
+                    variant_id: item.variantId
+                };
+            });
         },
         
         async saveFavorite() {
@@ -273,12 +353,7 @@ const app = createApp({
             this.submitting = true;
             
             try {
-                const items = this.cartItems.map(item => ({
-                    product_id: item.product.id,
-                    product_name: item.product.naam,
-                    quantity: item.quantity,
-                    unit_price: item.product.prijs
-                }));
+                const items = this.buildCheckoutItems();
                 
                 const response = await fetch('api/business-favorites.php', {
                     method: 'POST',
@@ -305,12 +380,7 @@ const app = createApp({
         
         async saveFavoriteQuiet() {
             try {
-                const items = this.cartItems.map(item => ({
-                    product_id: item.product.id,
-                    product_name: item.product.naam,
-                    quantity: item.quantity,
-                    unit_price: item.product.prijs
-                }));
+                const items = this.buildCheckoutItems();
                 
                 await fetch('api/business-favorites.php', {
                     method: 'POST',
@@ -331,13 +401,7 @@ const app = createApp({
                 return;
             }
             
-            const items = this.cartItems.map(item => ({
-                product_id: item.product.id,
-                product_name: item.product.naam,
-                product_image: item.product.foto,
-                quantity: item.quantity,
-                unit_price: item.product.prijs
-            }));
+            const items = this.buildCheckoutItems();
             
             const recurringDay = this.deliveryDate ? new Date(this.deliveryDate).getDay() : 1;
             

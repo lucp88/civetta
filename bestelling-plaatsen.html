@@ -5,475 +5,733 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Nieuwe Bestelling | Bakkerij Civetta</title>
     <link rel="stylesheet" href="css/style.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Libre+Baskerville:ital,wght@0,400;0,700;1,400&family=Source+Sans+Pro:wght@400;600&display=swap" rel="stylesheet">
     <style>
         [v-cloak] { display: none; }
+        
         .order-page {
-            padding: var(--spacing-lg) 0;
-            min-height: calc(100vh - 300px);
+            min-height: calc(100vh - 200px);
+            background: linear-gradient(180deg, var(--color-cream) 0%, #f5efe6 100%);
         }
-        .order-container {
-            max-width: 900px;
+        
+        .order-layout {
+            display: grid;
+            grid-template-columns: 1fr 420px;
+            gap: 0;
+            max-width: 1400px;
             margin: 0 auto;
+            min-height: calc(100vh - 200px);
         }
-        .order-header {
-            margin-bottom: var(--spacing-lg);
+        
+        .products-panel {
+            padding: var(--spacing-lg) var(--spacing-md);
+            overflow-y: auto;
         }
-        .order-header h2 {
-            margin-bottom: var(--spacing-xs);
+        
+        .cart-panel {
+            background: var(--color-warm-white);
+            border-left: 1px solid var(--color-parchment);
+            position: sticky;
+            top: 70px;
+            height: calc(100vh - 70px);
+            display: flex;
+            flex-direction: column;
+            box-shadow: -4px 0 20px rgba(139, 90, 43, 0.05);
         }
-        .order-header h2::after {
+        
+        .panel-header {
+            padding: var(--spacing-md);
+            border-bottom: 1px solid var(--color-parchment);
+            background: linear-gradient(180deg, var(--color-warm-white) 0%, #fefcfa 100%);
+        }
+        
+        .panel-header h2 {
+            font-size: 1.5rem;
+            margin: 0;
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+        }
+        
+        .panel-header h2::after {
             display: none;
         }
-        .order-header p {
-            color: var(--color-stone);
+        
+        .cart-count {
+            background: var(--color-crust);
+            color: white;
+            font-size: 0.8rem;
+            font-family: var(--font-body);
+            font-weight: 600;
+            padding: 0.25rem 0.6rem;
+            border-radius: 12px;
+            min-width: 24px;
+            text-align: center;
         }
+        
+        .page-intro {
+            margin-bottom: var(--spacing-md);
+        }
+        
+        .page-intro h1 {
+            font-size: 2rem;
+            margin-bottom: 0.5rem;
+            background: linear-gradient(135deg, var(--color-crust-dark), var(--color-crust));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+        
+        .page-intro p {
+            color: var(--color-stone);
+            font-size: 1.05rem;
+        }
+        
         .back-link {
             display: inline-flex;
             align-items: center;
             gap: 0.5rem;
             color: var(--color-crust);
             text-decoration: none;
-            margin-bottom: var(--spacing-md);
             font-weight: 500;
+            font-size: 0.95rem;
+            margin-bottom: var(--spacing-sm);
+            transition: all 0.2s ease;
         }
+        
         .back-link:hover {
             color: var(--color-terracotta);
-        }
-        .order-grid {
-            display: grid;
-            grid-template-columns: 1fr 350px;
-            gap: var(--spacing-md);
-            align-items: start;
-        }
-        @media (max-width: 900px) {
-            .order-grid {
-                grid-template-columns: 1fr;
-            }
-        }
-        .order-card {
-            background: var(--color-warm-white);
-            border-radius: 16px;
-            padding: var(--spacing-md);
-            box-shadow: 0 4px 20px rgba(139, 90, 43, 0.08);
-        }
-        .order-card h3 {
-            color: var(--color-crust-dark);
-            margin-bottom: var(--spacing-sm);
-            font-size: 1.1rem;
-        }
-        .products-grid {
-            display: grid;
-            gap: var(--spacing-sm);
-            max-height: 600px;
-            overflow-y: auto;
-            padding-right: var(--spacing-xs);
-        }
-        .order-summary {
-            position: sticky;
-            top: var(--spacing-md);
-        }
-        .form-group {
-            margin-bottom: var(--spacing-sm);
-        }
-        .form-group label {
-            display: block;
-            margin-bottom: 0.25rem;
-            color: var(--color-stone);
-            font-weight: 500;
-            font-size: 0.9rem;
-        }
-        .form-group input,
-        .form-group textarea {
-            width: 100%;
-            padding: 0.75rem;
-            border: 2px solid var(--color-parchment);
-            border-radius: 8px;
-            font-size: 1rem;
-            font-family: var(--font-body);
-        }
-        .form-group input:focus,
-        .form-group textarea:focus {
-            outline: none;
-            border-color: var(--color-wheat);
-        }
-        .form-group textarea {
-            resize: vertical;
-            min-height: 80px;
-        }
-        .summary-items {
-            margin: var(--spacing-sm) 0;
-            padding: var(--spacing-sm) 0;
-            border-top: 1px solid var(--color-parchment);
-            border-bottom: 1px solid var(--color-parchment);
-        }
-        .summary-item {
-            display: flex;
-            justify-content: space-between;
-            padding: 0.25rem 0;
-            font-size: 0.95rem;
-        }
-        .summary-item .name {
-            color: var(--color-stone);
-        }
-        .summary-item .price {
-            font-weight: 500;
-        }
-        .summary-subtotal {
-            display: flex;
-            justify-content: space-between;
-            padding: 0.25rem 0;
-            font-size: 0.9rem;
-            color: var(--color-stone);
-        }
-        .summary-total {
-            display: flex;
-            justify-content: space-between;
-            font-size: 1.25rem;
-            font-weight: 600;
-            margin: var(--spacing-sm) 0;
-            color: var(--color-crust-dark);
-        }
-        .order-buttons {
-            display: flex;
-            flex-direction: column;
             gap: 0.75rem;
-            margin-top: var(--spacing-sm);
         }
-        .btn-pay, .btn-pay-later {
-            width: 100%;
-            padding: 1rem;
-            font-size: 1.1rem;
+        
+        .back-link svg {
+            width: 18px;
+            height: 18px;
         }
-        .btn-pay:disabled, .btn-pay-later:disabled {
-            background: #ccc;
-            cursor: not-allowed;
-        }
-        .btn-pay-later {
-            background: transparent;
-            border: 2px solid var(--color-crust);
-            color: var(--color-crust);
-        }
-        .btn-pay-later:hover:not(:disabled) {
-            background: var(--color-crust);
-            color: white;
-        }
-        .error-msg {
-            background: #fee;
-            color: #c00;
-            padding: 0.75rem;
-            border-radius: 8px;
-            margin-bottom: var(--spacing-sm);
-            font-size: 0.9rem;
-        }
-        .empty-cart {
-            text-align: center;
-            padding: var(--spacing-md);
-            color: var(--color-stone);
-        }
-        .loading {
-            text-align: center;
-            padding: var(--spacing-lg);
-            color: var(--color-stone);
-        }
-        .min-date-hint {
-            font-size: 0.8rem;
-            color: var(--color-stone);
-            margin-top: 0.25rem;
-        }
-        .btn-save-favorite {
-            background: #fff3cd;
-            color: #856404;
-            border: none;
-            width: 100%;
-            padding: 1rem;
-            font-size: 1.1rem;
-        }
-        .btn-save-favorite:hover {
-            background: #ffe69c;
-        }
-        .btn-save-favorite:disabled {
-            background: #ccc;
-            cursor: not-allowed;
-        }
-        .load-favorite-dropdown {
+        
+        .favorite-loader {
+            background: var(--color-warm-white);
+            border-radius: 12px;
+            padding: var(--spacing-sm);
             margin-bottom: var(--spacing-md);
-        }
-        .load-favorite-dropdown label {
-            display: block;
-            margin-bottom: 0.5rem;
-            font-weight: 600;
-            color: var(--color-crust-dark);
-        }
-        .favorite-select-wrapper {
             display: flex;
             align-items: center;
-            gap: 0.5rem;
+            gap: var(--spacing-sm);
+            box-shadow: 0 2px 12px rgba(139, 90, 43, 0.06);
         }
-        .favorite-select-wrapper select {
+        
+        .favorite-loader label {
+            font-weight: 600;
+            color: var(--color-crust-dark);
+            white-space: nowrap;
+            font-size: 0.9rem;
+        }
+        
+        .favorite-loader select {
             flex: 1;
-            padding: 0.75rem;
+            padding: 0.6rem 1rem;
             border: 2px solid var(--color-parchment);
             border-radius: 8px;
-            font-size: 1rem;
+            font-size: 0.95rem;
             font-family: var(--font-body);
             background: white;
+            cursor: pointer;
+            transition: border-color 0.2s ease;
         }
-        .favorite-select-wrapper select:focus {
+        
+        .favorite-loader select:focus {
             outline: none;
             border-color: var(--color-wheat);
         }
-        .btn-clear-favorite {
-            width: 38px;
-            height: 38px;
+        
+        .btn-clear {
+            width: 36px;
+            height: 36px;
             border: 2px solid var(--color-parchment);
             border-radius: 8px;
             background: white;
             color: #999;
-            font-size: 1.2rem;
+            font-size: 1.25rem;
             cursor: pointer;
             display: flex;
             align-items: center;
             justify-content: center;
             transition: all 0.2s ease;
         }
-        .btn-clear-favorite:hover {
-            border-color: #dc3545;
-            color: #dc3545;
-            background: #fff5f5;
+        
+        .btn-clear:hover {
+            border-color: #e74c3c;
+            color: #e74c3c;
+            background: #fef5f5;
         }
-        .empty-hint {
-            color: var(--color-stone);
-            font-size: 0.9rem;
-        }
-        .empty-hint a {
-            color: var(--color-crust);
-            text-decoration: underline;
-        }
-        .checkbox-group {
-            margin: var(--spacing-sm) 0;
-        }
-        .checkbox-label {
-            display: flex;
-            align-items: center;
-            gap: 0.5rem;
-            cursor: pointer;
-            font-weight: 500;
-            color: var(--color-crust-dark);
-        }
-        .checkbox-label input[type="checkbox"] {
-            width: 18px;
-            height: 18px;
-            accent-color: var(--color-crust);
-        }
-        .order-type-section {
-            margin: var(--spacing-sm) 0;
-            padding-top: var(--spacing-sm);
-            border-top: 1px solid var(--color-parchment);
-        }
-        .order-type-section .form-label {
-            display: block;
-            margin-bottom: 0.5rem;
-            font-weight: 600;
-            color: var(--color-crust-dark);
-            font-size: 0.9rem;
-        }
-        .order-type-toggle {
-            display: flex;
-            gap: 0.75rem;
-        }
-        .order-type-option {
-            flex: 1;
-            padding: 0.75rem;
-            border: 2px solid var(--color-parchment);
-            border-radius: 8px;
-            cursor: pointer;
-            text-align: center;
-            transition: all 0.2s ease;
-            font-size: 0.9rem;
-            font-weight: 500;
-        }
-        .order-type-option:hover {
-            border-color: var(--color-wheat);
-        }
-        .order-type-option.selected {
-            border-color: var(--color-crust);
-            background: var(--color-wheat-light);
-        }
-        .order-type-option input {
-            display: none;
-        }
-        .recurring-summary {
-            margin-top: 0.75rem;
-            display: flex;
-            align-items: center;
-            gap: 0.5rem;
-            flex-wrap: wrap;
-        }
-        .recurring-badge {
-            background: var(--color-crust);
-            color: white;
-            padding: 0.25rem 0.5rem;
-            border-radius: 4px;
-            font-size: 0.8rem;
-            font-weight: 600;
-        }
-        .recurring-end {
-            font-size: 0.85rem;
-            color: var(--color-stone);
-        }
-        .btn-edit-recurring {
-            background: none;
-            border: none;
-            color: var(--color-crust);
-            font-size: 0.85rem;
-            cursor: pointer;
-            text-decoration: underline;
-            padding: 0;
-        }
-        .btn-edit-recurring:hover {
-            color: var(--color-crust-dark);
-        }
-        .modal-overlay {
-            position: fixed;
-            top: 0;
-            left: 0;
-            right: 0;
-            bottom: 0;
-            background: rgba(0,0,0,0.5);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            z-index: 1000;
-            padding: 1rem;
-        }
-        .recurring-modal {
-            background: white;
-            border-radius: 12px;
-            max-width: 420px;
-            width: 100%;
-            box-shadow: 0 10px 40px rgba(0,0,0,0.2);
-        }
-        .modal-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            padding: 1rem 1.25rem;
-            border-bottom: 1px solid var(--color-parchment);
-        }
-        .modal-header h3 {
-            margin: 0;
+        
+        .products-section h3 {
             font-size: 1.1rem;
             color: var(--color-crust-dark);
-        }
-        .modal-close {
-            background: none;
-            border: none;
-            font-size: 1.5rem;
-            cursor: pointer;
-            color: var(--color-stone);
-            line-height: 1;
-        }
-        .modal-body {
-            padding: 1.25rem;
-        }
-        .modal-body .form-group {
-            margin-bottom: 1rem;
-        }
-        .modal-body .form-group:last-child {
-            margin-bottom: 0;
-        }
-        .modal-body select,
-        .modal-body input[type="text"],
-        .modal-body input[type="date"] {
-            width: 100%;
-            padding: 0.6rem;
-            border: 1px solid var(--color-parchment);
-            border-radius: 6px;
-            font-size: 0.95rem;
-        }
-        .modal-footer {
+            margin-bottom: var(--spacing-sm);
             display: flex;
-            gap: 0.75rem;
-            padding: 1rem 1.25rem;
-            border-top: 1px solid var(--color-parchment);
-            justify-content: flex-end;
+            align-items: center;
+            gap: 0.5rem;
         }
-        .btn-secondary {
-            background: var(--color-parchment);
-            color: var(--color-crust-dark);
-            border: none;
-            padding: 0.6rem 1.25rem;
-            border-radius: 6px;
-            cursor: pointer;
-            font-weight: 500;
+        
+        .products-section h3::before {
+            content: '';
+            width: 4px;
+            height: 20px;
+            background: linear-gradient(180deg, var(--color-wheat), var(--color-terracotta));
+            border-radius: 2px;
         }
-        .btn-primary {
-            background: var(--color-crust);
-            color: white;
-            border: none;
-            padding: 0.6rem 1.25rem;
-            border-radius: 6px;
-            cursor: pointer;
-            font-weight: 500;
+        
+        .products-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+            gap: var(--spacing-sm);
         }
-        .btn-primary:hover {
-            background: var(--color-crust-dark);
+        
+        .cart-content {
+            flex: 1;
+            overflow-y: auto;
+            padding: var(--spacing-sm) var(--spacing-md);
         }
-        .field-hint {
-            font-size: 0.75rem;
+        
+        .cart-empty {
+            text-align: center;
+            padding: var(--spacing-lg) var(--spacing-md);
             color: var(--color-stone);
-            margin-top: 0.25rem;
         }
-        .recurring-info {
-            margin-top: 0.75rem;
-            padding: 0.75rem;
-            background: #e8f4ea;
-            border-radius: 8px;
-            font-size: 0.85rem;
-            color: #2d5a3d;
+        
+        .cart-empty-icon {
+            font-size: 3rem;
+            margin-bottom: var(--spacing-sm);
+            opacity: 0.4;
         }
-        .recurring-info p {
-            margin: 0;
-        }
-        .recurring-info strong {
-            color: #1a3d24;
-        }
-        .recurring-inline-fields {
-            margin-top: 0.75rem;
-            padding: 1rem;
-            background: var(--color-parchment);
-            border-radius: 8px;
-        }
-        .recurring-inline-fields .form-group {
-            margin-bottom: 0.75rem;
-        }
-        .recurring-inline-fields .form-group:last-of-type {
+        
+        .cart-empty h3 {
+            font-size: 1.1rem;
             margin-bottom: 0.5rem;
         }
-        .recurring-inline-fields select {
-            width: 100%;
-            padding: 0.6rem;
-            border: 2px solid white;
+        
+        .cart-empty p {
+            font-size: 0.9rem;
+            opacity: 0.8;
+        }
+        
+        .cart-items {
+            display: flex;
+            flex-direction: column;
+            gap: 0.75rem;
+        }
+        
+        .cart-item {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            padding: 0.75rem;
+            background: var(--color-cream);
+            border-radius: 10px;
+            transition: all 0.2s ease;
+        }
+        
+        .cart-item:hover {
+            background: var(--color-parchment);
+        }
+        
+        .cart-item-image {
+            width: 50px;
+            height: 50px;
+            border-radius: 8px;
+            object-fit: cover;
+            flex-shrink: 0;
+        }
+        
+        .cart-item-info {
+            flex: 1;
+            min-width: 0;
+        }
+        
+        .cart-item-name {
+            font-weight: 600;
+            font-size: 0.9rem;
+            color: var(--color-charcoal);
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        
+        .cart-item-variant {
+            font-size: 0.8rem;
+            color: var(--color-sage);
+        }
+        
+        .cart-item-price {
+            font-size: 0.85rem;
+            color: var(--color-stone);
+        }
+        
+        .cart-item-controls {
+            display: flex;
+            align-items: center;
+            gap: 0.35rem;
+        }
+        
+        .qty-btn {
+            width: 28px;
+            height: 28px;
+            border: 1px solid var(--color-parchment);
             border-radius: 6px;
+            background: white;
+            color: var(--color-crust);
+            font-size: 1rem;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.15s ease;
+        }
+        
+        .qty-btn:hover {
+            background: var(--color-crust);
+            color: white;
+            border-color: var(--color-crust);
+        }
+        
+        .qty-display {
+            min-width: 28px;
+            text-align: center;
+            font-weight: 600;
+            font-size: 0.95rem;
+        }
+        
+        .btn-remove {
+            width: 28px;
+            height: 28px;
+            border: none;
+            border-radius: 6px;
+            background: transparent;
+            color: #ccc;
+            font-size: 1.1rem;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.15s ease;
+            margin-left: 0.25rem;
+        }
+        
+        .btn-remove:hover {
+            background: #fee;
+            color: #e74c3c;
+        }
+        
+        .cart-footer {
+            padding: var(--spacing-md);
+            border-top: 1px solid var(--color-parchment);
+            background: var(--color-warm-white);
+        }
+        
+        .cart-form {
+            margin-bottom: var(--spacing-sm);
+        }
+        
+        .form-group {
+            margin-bottom: var(--spacing-sm);
+        }
+        
+        .form-group label {
+            display: block;
+            font-size: 0.85rem;
+            font-weight: 600;
+            color: var(--color-stone);
+            margin-bottom: 0.35rem;
+        }
+        
+        .form-group input,
+        .form-group textarea,
+        .form-group select {
+            width: 100%;
+            padding: 0.7rem 0.9rem;
+            border: 2px solid var(--color-parchment);
+            border-radius: 8px;
             font-size: 0.95rem;
             font-family: var(--font-body);
             background: white;
+            transition: border-color 0.2s ease;
         }
-        .recurring-inline-fields select:focus {
+        
+        .form-group input:focus,
+        .form-group textarea:focus,
+        .form-group select:focus {
             outline: none;
             border-color: var(--color-wheat);
         }
-        .recurring-inline-fields input[type="text"],
-        .recurring-inline-fields input[type="date"] {
-            background: white;
-            border: 2px solid white;
+        
+        .form-group textarea {
+            resize: vertical;
+            min-height: 70px;
         }
-        .recurring-inline-fields input:focus {
+        
+        .form-hint {
+            font-size: 0.75rem;
+            color: var(--color-stone);
+            margin-top: 0.25rem;
+            opacity: 0.8;
+        }
+        
+        .form-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 0.75rem;
+        }
+        
+        .order-type-toggle {
+            display: flex;
+            background: var(--color-parchment);
+            border-radius: 8px;
+            padding: 4px;
+        }
+        
+        .order-type-btn {
+            flex: 1;
+            padding: 0.6rem;
+            border: none;
+            border-radius: 6px;
+            background: transparent;
+            font-family: var(--font-body);
+            font-size: 0.9rem;
+            font-weight: 600;
+            color: var(--color-stone);
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+        
+        .order-type-btn.active {
+            background: white;
+            color: var(--color-crust);
+            box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+        }
+        
+        .recurring-options {
+            margin-top: 0.75rem;
+            padding: 0.75rem;
+            background: var(--color-cream);
+            border-radius: 8px;
+            animation: slideDown 0.2s ease;
+        }
+        
+        @keyframes slideDown {
+            from { opacity: 0; transform: translateY(-8px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        
+        .recurring-options .form-group {
+            margin-bottom: 0.6rem;
+        }
+        
+        .recurring-options .form-group:last-child {
+            margin-bottom: 0;
+        }
+        
+        .checkbox-option {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            cursor: pointer;
+            font-size: 0.9rem;
+            color: var(--color-stone);
+        }
+        
+        .checkbox-option input {
+            width: 18px;
+            height: 18px;
+            accent-color: var(--color-crust);
+            cursor: pointer;
+        }
+        
+        .save-favorite-section {
+            margin-bottom: var(--spacing-sm);
+            padding: 0.75rem;
+            background: #faf9f7;
+            border-radius: 10px;
+            border: 1px dashed var(--color-parchment);
+        }
+        
+        .save-favorite-toggle {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            cursor: pointer;
+            font-size: 0.9rem;
+            color: var(--color-charcoal);
+        }
+        
+        .save-favorite-toggle input {
+            width: 18px;
+            height: 18px;
+            accent-color: var(--color-crust);
+            cursor: pointer;
+        }
+        
+        .save-favorite-toggle svg {
+            width: 16px;
+            height: 16px;
+            color: var(--color-stone);
+        }
+        
+        .save-favorite-input {
+            margin-top: 0.5rem;
+        }
+        
+        .save-favorite-input input {
+            width: 100%;
+            padding: 0.5rem 0.75rem;
+            border: 1px solid var(--color-parchment);
+            border-radius: 6px;
+            font-size: 0.85rem;
+            font-family: var(--font-body);
+        }
+        
+        .save-favorite-input input:focus {
+            outline: none;
             border-color: var(--color-wheat);
         }
+        
+        .cart-totals {
+            background: var(--color-cream);
+            border-radius: 10px;
+            padding: var(--spacing-sm);
+            margin-bottom: var(--spacing-sm);
+        }
+        
+        .total-row {
+            display: flex;
+            justify-content: space-between;
+            font-size: 0.9rem;
+            color: var(--color-stone);
+            padding: 0.35rem 0;
+        }
+        
+        .total-row.grand-total {
+            font-size: 1.15rem;
+            font-weight: 700;
+            color: var(--color-crust-dark);
+            padding-top: 0.6rem;
+            margin-top: 0.4rem;
+            border-top: 2px solid var(--color-parchment);
+        }
+        
+        .checkout-btn {
+            width: 100%;
+            padding: 1rem;
+            font-size: 1.1rem;
+            font-weight: 600;
+            border: none;
+            border-radius: 10px;
+            background: linear-gradient(135deg, var(--color-crust), var(--color-crust-dark));
+            color: white;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 15px rgba(139, 90, 43, 0.25);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.5rem;
+        }
+        
+        .checkout-btn:hover:not(:disabled) {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(139, 90, 43, 0.35);
+        }
+        
+        .checkout-btn:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+            box-shadow: none;
+        }
+        
+        .checkout-btn svg {
+            width: 20px;
+            height: 20px;
+        }
+        
+        .error-banner {
+            background: #fef2f2;
+            border: 1px solid #fecaca;
+            color: #dc2626;
+            padding: 0.75rem 1rem;
+            border-radius: 8px;
+            margin-bottom: var(--spacing-sm);
+            font-size: 0.9rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+        
+        .loading-state {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: var(--spacing-xl);
+            color: var(--color-stone);
+        }
+        
+        .loading-spinner {
+            width: 40px;
+            height: 40px;
+            border: 3px solid var(--color-parchment);
+            border-top-color: var(--color-crust);
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+            margin-bottom: var(--spacing-sm);
+        }
+        
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+        
+        @media (max-width: 1024px) {
+            .order-layout {
+                grid-template-columns: 1fr;
+            }
+            
+            .cart-panel {
+                position: fixed;
+                bottom: 0;
+                left: 0;
+                right: 0;
+                top: auto;
+                height: auto;
+                max-height: 70vh;
+                border-left: none;
+                border-top: 1px solid var(--color-parchment);
+                border-radius: 20px 20px 0 0;
+                box-shadow: 0 -4px 30px rgba(139, 90, 43, 0.15);
+                transform: translateY(calc(100% - 70px));
+                transition: transform 0.3s ease;
+                z-index: 100;
+            }
+            
+            .cart-panel.expanded {
+                transform: translateY(0);
+            }
+            
+            .cart-panel .cart-content {
+                overscroll-behavior: contain;
+                -webkit-overflow-scrolling: touch;
+            }
+            
+            .cart-panel-toggle {
+                display: flex;
+                flex-direction: column;
+                align-items: center;
+                padding: var(--spacing-xs) var(--spacing-md) var(--spacing-sm);
+                cursor: pointer;
+                background: var(--color-warm-white);
+                border-radius: 20px 20px 0 0;
+            }
+            
+            .drag-handle {
+                width: 36px;
+                height: 4px;
+                background: var(--color-parchment);
+                border-radius: 2px;
+                margin-bottom: 0.5rem;
+                transition: background 0.2s ease;
+            }
+            
+            .cart-panel:not(.expanded) .drag-handle {
+                animation: pulse-handle 2s ease-in-out infinite;
+            }
+            
+            @keyframes pulse-handle {
+                0%, 100% { background: var(--color-parchment); transform: scaleX(1); }
+                50% { background: var(--color-crust); transform: scaleX(1.2); }
+            }
+            
+            .cart-panel-toggle-content {
+                display: flex;
+                align-items: center;
+                justify-content: space-between;
+                width: 100%;
+            }
+            
+            .cart-panel-toggle h2 {
+                font-size: 1.1rem;
+                margin: 0;
+                display: flex;
+                align-items: center;
+                gap: 0.5rem;
+            }
+            
+            .cart-panel-toggle h2::after {
+                display: none;
+            }
+            
+            .cart-panel-toggle .toggle-price {
+                font-weight: 700;
+                color: var(--color-crust);
+                font-size: 1.1rem;
+            }
+            
+            .cart-panel-toggle .toggle-icon {
+                transition: transform 0.3s ease;
+            }
+            
+            .cart-panel.expanded .toggle-icon {
+                transform: rotate(180deg);
+            }
+            
+            .swipe-hint {
+                font-size: 0.7rem;
+                color: var(--color-stone);
+                text-align: center;
+                margin-top: 0.25rem;
+                opacity: 0.8;
+            }
+            
+            .cart-panel.expanded .swipe-hint {
+                display: none;
+            }
+            
+            .products-panel {
+                padding-bottom: 100px;
+            }
+            
+            .panel-header {
+                display: none;
+            }
+        }
+        
+        @media (min-width: 1025px) {
+            .cart-panel-toggle {
+                display: none;
+            }
+        }
+        
+        @media (max-width: 600px) {
+            .products-panel {
+                padding: var(--spacing-sm);
+            }
+            
+            .page-intro h1 {
+                font-size: 1.5rem;
+            }
+            
+            .products-grid {
+                grid-template-columns: 1fr;
+            }
+            
+            .favorite-loader {
+                flex-direction: column;
+                align-items: stretch;
+            }
+            
+            .form-row {
+                grid-template-columns: 1fr;
+            }
+        }
     </style>
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link href="https://fonts.googleapis.com/css2?family=Libre+Baskerville:ital,wght@0,400;0,700;1,400&family=Source+Sans+Pro:wght@400;600&display=swap" rel="stylesheet">
 </head>
 <body>
     <header>
@@ -503,187 +761,182 @@
 
     <main>
         <section class="order-page">
-            <div class="container">
-                <div id="order-app" v-cloak class="order-container">
-                    <section class="page-header">
-                        <h1>{{ isFavoriteMode ? 'Favoriet Samenstellen' : 'Nieuwe Bestelling' }}</h1>
-                    </section>
-                    <a href="mijn-bestellingen.html" class="back-link">
-                        <span>&larr;</span> Terug naar Bestellingen
-                    </a>
-
-                    <div v-if="loading" class="loading">Producten laden...</div>
+            <div id="order-app" v-cloak>
+                <div v-if="loading" class="loading-state">
+                    <div class="loading-spinner"></div>
+                    <p>Producten laden...</p>
+                </div>
+                
+                <div v-else class="order-layout">
+                    <div class="products-panel">
+                        <a href="mijn-bestellingen.html" class="back-link">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M19 12H5M12 19l-7-7 7-7"/>
+                            </svg>
+                            Terug naar bestellingen
+                        </a>
+                        
+                        <div class="page-intro">
+                            <h1>{{ isFavoriteMode ? 'Favoriet samenstellen' : 'Nieuwe bestelling' }}</h1>
+                            <p v-if="isFavoriteMode">Stel uw favoriete bestelling samen en sla deze op voor later</p>
+                            <p v-else>Selecteer producten en hoeveelheden voor uw bestelling</p>
+                        </div>
+                        
+                        <div v-if="!isFavoriteMode && favorites.length > 0" class="favorite-loader">
+                            <label>Favoriet laden:</label>
+                            <select v-model="selectedFavoriteId" @change="loadFavoriteFromSelect($event)">
+                                <option value="">Kies een favoriet...</option>
+                                <option v-for="fav in favorites" :key="fav.id" :value="fav.id">
+                                    {{ fav.naam }} ({{ fav.items.length }} producten)
+                                </option>
+                            </select>
+                            <button v-if="selectedFavoriteId" type="button" class="btn-clear" @click="clearLoaded" title="Selectie wissen">
+                                &times;
+                            </button>
+                        </div>
+                        
+                        <div class="products-section">
+                            <h3>Beschikbare producten</h3>
+                            <div class="products-grid">
+                                <product-card
+                                    v-for="product in products"
+                                    :key="product.id"
+                                    :product="product"
+                                    :show-quantity="true"
+                                    :quantity="getQuantity(product.id)"
+                                    @update:quantity="setQuantityDirect(product, $event)"
+                                    @add-to-cart="addVariantToCart"
+                                    @show-detail="showProductDetail">
+                                </product-card>
+                            </div>
+                        </div>
+                        
+                        <product-detail-modal
+                            :product="selectedProduct"
+                            @close="selectedProduct = null">
+                        </product-detail-modal>
+                    </div>
                     
-                    <template v-else>
-                        <div class="order-header">
-                            <h2>Selecteer uw producten</h2>
-                            <p v-if="isFavoriteMode">Stel uw favoriete bestelling samen en sla deze op</p>
-                            <p v-else>Kies de producten en hoeveelheden voor uw bestelling</p>
+                    <aside class="cart-panel" :class="{ expanded: cartExpanded }">
+                        <div class="cart-panel-toggle" @click="cartExpanded = !cartExpanded">
+                            <div class="drag-handle"></div>
+                            <div class="cart-panel-toggle-content">
+                                <h2>
+                                    <span>Winkelwagen</span>
+                                    <span class="cart-count">{{ cartItems.length }}</span>
+                                </h2>
+                                <span class="toggle-price">{{ formatPrice(totalAmount) }}</span>
+                                <svg class="toggle-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <path d="M18 15l-6-6-6 6"/>
+                                </svg>
+                            </div>
+                            <span class="swipe-hint">Tik om te openen</span>
                         </div>
-
-                        <div v-if="!isFavoriteMode" class="load-favorite-dropdown">
-                            <label>Laad een favoriet</label>
-                            <div class="favorite-select-wrapper">
-                                <select v-model="selectedFavoriteId" @change="loadFavoriteFromSelect($event)">
-                                    <option value="">Selecteer een favoriet...</option>
-                                    <option v-if="favorites.length === 0" value="" disabled>Je hebt nog geen favorieten</option>
-                                    <option v-for="fav in favorites" :key="fav.id" :value="fav.id">
-                                        {{ fav.naam }} ({{ fav.items.length }} producten)
-                                    </option>
-                                </select>
-                                <button v-if="selectedFavoriteId" type="button" class="btn-clear-favorite" @click="clearLoaded" title="Selectie wissen">&times;</button>
+                        
+                        <div class="panel-header">
+                            <h2>
+                                <span>Winkelwagen</span>
+                                <span class="cart-count" v-if="cartItems.length > 0">{{ cartItems.length }}</span>
+                            </h2>
+                        </div>
+                        
+                        <div class="cart-content">
+                            <div v-if="cartItems.length === 0" class="cart-empty">
+                                <div class="cart-empty-icon">🛒</div>
+                                <h3>Nog geen producten</h3>
+                                <p>Klik op producten om ze toe te voegen</p>
+                            </div>
+                            
+                            <div v-else class="cart-items">
+                                <div v-for="item in cartItems" :key="item.key" class="cart-item">
+                                    <img :src="item.product.foto || 'img/placeholder-bread.jpg'" 
+                                         :alt="item.product.naam" 
+                                         class="cart-item-image"
+                                         @error="handleImageError">
+                                    <div class="cart-item-info">
+                                        <div class="cart-item-name">{{ item.product.naam }}</div>
+                                        <div v-if="item.gewicht" class="cart-item-variant">{{ item.gewicht }}g</div>
+                                        <div class="cart-item-price">{{ formatPrice(item.prijs) }} p/st</div>
+                                    </div>
+                                    <div class="cart-item-controls">
+                                        <button class="qty-btn" @click="updateCartItemQty(item, item.quantity - 1)">-</button>
+                                        <span class="qty-display">{{ item.quantity }}</span>
+                                        <button class="qty-btn" @click="updateCartItemQty(item, item.quantity + 1)">+</button>
+                                        <button class="btn-remove" @click="removeCartItem(item)">&times;</button>
+                                    </div>
+                                </div>
                             </div>
                         </div>
-
-                        <div class="order-grid">
-                            <div class="order-card">
-                                <h3>Beschikbare Producten</h3>
-                                <div class="products-grid">
-                                    <product-card
-                                        v-for="product in products"
-                                        :key="product.id"
-                                        :product="product"
-                                        :show-quantity="true"
-                                        :quantity="getQuantity(product.id)"
-                                        @update:quantity="setQuantityDirect(product, $event)"
-                                        @show-detail="showProductDetail">
-                                    </product-card>
-                                </div>
-                                
-                                <product-detail-modal
-                                    :product="selectedProduct"
-                                    @close="selectedProduct = null">
-                                </product-detail-modal>
+                        
+                        <div class="cart-footer">
+                            <div v-if="error" class="error-banner">
+                                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <circle cx="12" cy="12" r="10"/>
+                                    <line x1="12" y1="8" x2="12" y2="12"/>
+                                    <line x1="12" y1="16" x2="12.01" y2="16"/>
+                                </svg>
+                                {{ error }}
                             </div>
-
-                            <div class="order-card order-summary">
-                                <h3>{{ isFavoriteMode ? 'Uw Favoriet' : 'Uw Bestelling' }}</h3>
-                                
-                                <div v-if="error" class="error-msg">{{ error }}</div>
-                                
-                                <div v-if="cartItems.length === 0" class="empty-cart">
-                                    <p>Selecteer producten om te bestellen</p>
-                                </div>
-                                
-                                <template v-else>
-                                    <div class="summary-items">
-                                        <div v-for="item in cartItems" :key="item.product.id" class="summary-item">
-                                            <span class="name">{{ item.quantity }}x {{ item.product.naam }}</span>
-                                            <span class="price">{{ formatPrice(item.subtotal) }}</span>
-                                        </div>
-                                    </div>
-                                    
-                                    <div class="summary-subtotal">
-                                        <span>Excl. BTW</span>
-                                        <span>{{ formatPrice(exclBtw) }}</span>
-                                    </div>
-                                    <div class="summary-subtotal">
-                                        <span>BTW ({{ btwTarief }}%)</span>
-                                        <span>{{ formatPrice(btwBedrag) }}</span>
-                                    </div>
-                                    <div class="summary-total">
-                                        <span>Totaal incl. BTW</span>
-                                        <span>{{ formatPrice(totalAmount) }}</span>
-                                    </div>
-                                </template>
-
-                                <template v-if="isFavoriteMode">
+                            
+                            <template v-if="isFavoriteMode">
+                                <div class="cart-form">
                                     <div class="form-group">
                                         <label for="favorite_name">Naam voor deze favoriet *</label>
                                         <input type="text" 
                                                id="favorite_name" 
                                                v-model="favoriteName" 
-                                               placeholder="Bijv. Weekbestelling, Maandaglevering"
-                                               required>
-                                    </div>
-
-                                    <div class="order-buttons">
-                                        <button class="btn btn-save-favorite" 
-                                                @click="saveFavorite"
-                                                :disabled="!canSaveFavorite || submitting">
-                                            {{ submitting ? 'Opslaan...' : 'Favoriet Opslaan' }}
-                                        </button>
-                                    </div>
-                                </template>
-
-                                <template v-else>
-                                    <div class="form-group">
-                                        <label for="delivery_date">Gewenste leverdatum *</label>
-                                        <input type="date" 
-                                               id="delivery_date" 
-                                               v-model="deliveryDate" 
-                                               :min="minDeliveryDate"
-                                               required>
-                                        <p class="min-date-hint">Minimaal 2 dagen van tevoren bestellen</p>
-                                    </div>
-
-                                    <div class="form-group">
-                                        <label for="notes">Opmerkingen (optioneel)</label>
-                                        <textarea id="notes" 
-                                                  v-model="notes" 
-                                                  placeholder="Speciale wensen, leverinstructies, etc."></textarea>
-                                    </div>
-
-                                    <div class="form-group checkbox-group">
-                                        <label class="checkbox-label">
-                                            <input type="checkbox" v-model="saveAsFavorite">
-                                            <span>Ook opslaan als favoriet</span>
-                                        </label>
-                                    </div>
-
-                                    <div v-if="saveAsFavorite" class="form-group">
-                                        <label for="favorite_name_order">Naam voor favoriet</label>
-                                        <input type="text" 
-                                               id="favorite_name_order" 
-                                               v-model="favoriteName" 
                                                placeholder="Bijv. Weekbestelling, Maandaglevering">
                                     </div>
-
-                                    <div class="order-type-section">
-                                        <label class="form-label">Type bestelling</label>
-                                        <div class="order-type-toggle">
-                                            <label class="order-type-option" :class="{ selected: !isRecurring }">
-                                                <input type="radio" v-model="isRecurring" :value="false">
-                                                Eenmalig
-                                            </label>
-                                            <label class="order-type-option" :class="{ selected: isRecurring }">
-                                                <input type="radio" v-model="isRecurring" :value="true">
-                                                Terugkerend
-                                            </label>
-                                        </div>
-                                        
-                                        <div v-if="isRecurring" class="recurring-inline-fields">
-                                            <div class="form-group">
-                                                <label for="recurring_name">Naam (optioneel)</label>
-                                                <input type="text" id="recurring_name" v-model="recurringName" placeholder="Bijv. Weekbestelling kantoor">
-                                            </div>
-                                            <div class="form-group">
-                                                <label for="recurring_frequency">Frequentie *</label>
-                                                <select id="recurring_frequency" v-model="recurringFrequency">
-                                                    <option value="weekly">Wekelijks</option>
-                                                    <option value="biweekly">Tweewekelijks</option>
-                                                    <option value="monthly">Maandelijks</option>
-                                                </select>
-                                            </div>
-                                            <div class="form-group">
-                                                <label for="recurring_end_date">Einddatum (optioneel)</label>
-                                                <input type="date" id="recurring_end_date" v-model="recurringEndDate" :min="minEndDate">
-                                                <p class="field-hint">Laat leeg voor doorlopende bestelling (max 3 maanden)</p>
-                                            </div>
-                                        </div>
+                                </div>
+                                
+                                <button class="checkout-btn" 
+                                        @click="saveFavorite"
+                                        :disabled="!canSaveFavorite || submitting">
+                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                        <path d="M19 21H5a2 2 0 01-2-2V5a2 2 0 012-2h11l5 5v11a2 2 0 01-2 2z"/>
+                                        <polyline points="17,21 17,13 7,13 7,21"/>
+                                        <polyline points="7,3 7,8 15,8"/>
+                                    </svg>
+                                    {{ submitting ? 'Opslaan...' : 'Favoriet opslaan' }}
+                                </button>
+                            </template>
+                            
+                            <template v-else>
+                                <div v-if="cartItems.length > 0" class="save-favorite-section">
+                                    <label class="save-favorite-toggle">
+                                        <input type="checkbox" v-model="saveAsFavorite">
+                                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                            <path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"/>
+                                        </svg>
+                                        <span>Opslaan als favoriet</span>
+                                    </label>
+                                    <div v-if="saveAsFavorite" class="save-favorite-input">
+                                        <input type="text" v-model="favoriteName" placeholder="Naam voor favoriet...">
                                     </div>
-
-                                    <div class="order-buttons">
-                                        <button class="btn btn-pay" 
-                                                @click="goToCheckout"
-                                                :disabled="!canOrder">
-                                            Naar Afrekenen
-                                        </button>
+                                </div>
+                                
+                                <div class="cart-totals">
+                                    <div class="total-row">
+                                        <span>{{ totalItemCount }} producten</span>
+                                        <span>{{ formatPrice(exclBtw) }} excl.</span>
                                     </div>
-                                </template>
-                            </div>
+                                    <div class="total-row grand-total">
+                                        <span>Totaal incl. BTW</span>
+                                        <span>{{ formatPrice(totalAmount) }}</span>
+                                    </div>
+                                </div>
+                                
+                                <button class="checkout-btn" 
+                                        @click="goToCheckout"
+                                        :disabled="cartItems.length === 0">
+                                    Bestellen
+                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                        <path d="M5 12h14M12 5l7 7-7 7"/>
+                                    </svg>
+                                </button>
+                            </template>
                         </div>
-                    </template>
+                    </aside>
                 </div>
             </div>
         </section>
@@ -706,7 +959,415 @@
 
     <script src="https://unpkg.com/vue@3/dist/vue.global.prod.js"></script>
     <script src="js/main.js"></script>
-    <script src="js/product-card.js"></script>
-    <script src="js/order-app.js"></script>
+    <script src="js/product-card.js?v=5"></script>
+    <script>
+    const { createApp } = Vue;
+
+    const app = createApp({
+        components: {
+            'product-card': ProductCard,
+            'product-detail-modal': ProductDetailModal
+        },
+        
+        data() {
+            return {
+                loading: true,
+                products: [],
+                cart: {},
+                variantCart: [],
+                deliveryDate: '',
+                notes: '',
+                error: '',
+                submitting: false,
+                btwTarief: 9,
+                isFavoriteMode: false,
+                favoriteName: '',
+                favorites: [],
+                loadedName: '',
+                selectedFavoriteId: '',
+                saveAsFavorite: false,
+                selectedProduct: null,
+                isRecurring: false,
+                recurringName: '',
+                recurringFrequency: 'weekly',
+                recurringEndDate: '',
+                cartExpanded: false
+            };
+        },
+        
+        computed: {
+            minDeliveryDate() {
+                const date = new Date();
+                date.setDate(date.getDate() + 2);
+                return date.toISOString().split('T')[0];
+            },
+            
+            cartItems() {
+                const items = [];
+                
+                Object.entries(this.cart)
+                    .filter(([id, qty]) => qty > 0)
+                    .forEach(([id, qty]) => {
+                        const product = this.products.find(p => p.id == id);
+                        if (product) {
+                            items.push({
+                                key: `product-${id}`,
+                                product,
+                                quantity: qty,
+                                variantId: null,
+                                gewicht: null,
+                                prijs: product.prijs,
+                                subtotal: (product.prijs || 0) * qty
+                            });
+                        }
+                    });
+                
+                this.variantCart.forEach((item, index) => {
+                    const product = this.products.find(p => p.id == item.productId);
+                    if (product) {
+                        const variant = product.variants?.find(v => v.id == item.variantId);
+                        if (variant) {
+                            items.push({
+                                key: `variant-${index}`,
+                                product,
+                                quantity: item.quantity,
+                                variantId: item.variantId,
+                                gewicht: variant.gewicht,
+                                prijs: variant.prijs,
+                                subtotal: variant.prijs * item.quantity
+                            });
+                        }
+                    }
+                });
+                
+                return items;
+            },
+            
+            totalAmount() {
+                return this.cartItems.reduce((sum, item) => sum + item.subtotal, 0);
+            },
+            
+            btwBedrag() {
+                return this.totalAmount - (this.totalAmount / (1 + this.btwTarief / 100));
+            },
+            
+            exclBtw() {
+                return this.totalAmount - this.btwBedrag;
+            },
+            
+            canOrder() {
+                return this.cartItems.length > 0 && this.totalAmount > 0;
+            },
+            
+            totalItemCount() {
+                return this.cartItems.reduce((sum, item) => sum + item.quantity, 0);
+            },
+            
+            canSaveFavorite() {
+                return this.cartItems.length > 0 && this.favoriteName.trim();
+            },
+            
+            minEndDate() {
+                const date = new Date();
+                date.setMonth(date.getMonth() + 1);
+                return date.toISOString().split('T')[0];
+            }
+        },
+        
+        async mounted() {
+            const stored = sessionStorage.getItem('businessAccount');
+            if (!stored) {
+                window.location.href = 'login-bedrijven.html';
+                return;
+            }
+            
+            const params = new URLSearchParams(window.location.search);
+            this.isFavoriteMode = params.get('mode') === 'favorite';
+            
+            await this.loadProducts();
+            
+            if (!this.isFavoriteMode) {
+                await this.loadFavorites();
+                this.checkForPreloadedData();
+            }
+        },
+        
+        methods: {
+            async loadProducts() {
+                try {
+                    const response = await fetch('api/products.php');
+                    const data = await response.json();
+                    if (data.success) {
+                        this.products = data.products.filter(p => (p.prijs && p.prijs > 0) || (p.variants && p.variants.length > 0));
+                        if (data.btw_tarief) {
+                            this.btwTarief = data.btw_tarief;
+                        }
+                    }
+                } catch (error) {
+                    this.error = 'Kon producten niet laden';
+                } finally {
+                    this.loading = false;
+                }
+            },
+            
+            async loadFavorites() {
+                try {
+                    const response = await fetch('api/business-favorites.php');
+                    const data = await response.json();
+                    if (data.success) {
+                        this.favorites = data.favorites;
+                    }
+                } catch (error) {
+                    console.error('Kon favorieten niet laden');
+                }
+            },
+            
+            checkForPreloadedData() {
+                const checkoutData = sessionStorage.getItem('checkoutData');
+                if (checkoutData) {
+                    const data = JSON.parse(checkoutData);
+                    if (data.items && data.items.length > 0) {
+                        this.loadReorderItems(data.items);
+                        return;
+                    }
+                }
+                
+                const favoriteData = sessionStorage.getItem('loadFavorite');
+                if (favoriteData) {
+                    sessionStorage.removeItem('loadFavorite');
+                    const fav = JSON.parse(favoriteData);
+                    this.loadFavoriteItems(fav.items, fav.naam);
+                    return;
+                }
+                
+                const reorderData = sessionStorage.getItem('reorderItems');
+                if (reorderData) {
+                    sessionStorage.removeItem('reorderItems');
+                    const items = JSON.parse(reorderData);
+                    this.loadReorderItems(items);
+                }
+            },
+            
+            loadFavoriteItems(items, name) {
+                this.cart = {};
+                this.variantCart = [];
+                
+                items.forEach(item => {
+                    let product = null;
+                    if (item.product_id) {
+                        product = this.products.find(p => p.id == item.product_id);
+                    }
+                    if (!product && item.product_name) {
+                        const baseName = item.product_name.replace(/\s*\(\d+g\)$/, '');
+                        product = this.products.find(p => 
+                            p.naam.toLowerCase() === baseName.toLowerCase()
+                        );
+                    }
+                    if (product) {
+                        if (item.variant_id && product.variants?.length > 0) {
+                            this.variantCart.push({
+                                productId: product.id,
+                                variantId: item.variant_id,
+                                quantity: parseInt(item.quantity) || 1
+                            });
+                        } else if (product.variants?.length > 0) {
+                            this.variantCart.push({
+                                productId: product.id,
+                                variantId: product.variants[0].id,
+                                quantity: parseInt(item.quantity) || 1
+                            });
+                        } else {
+                            this.cart[product.id] = parseInt(item.quantity) || 0;
+                        }
+                    }
+                });
+                this.loadedName = name;
+            },
+            
+            loadReorderItems(items) {
+                this.loadFavoriteItems(items, 'Vorige bestelling');
+                this.selectedFavoriteId = '';
+            },
+            
+            loadFavoriteFromSelect(event) {
+                const favId = event.target.value;
+                if (!favId) return;
+                
+                const fav = this.favorites.find(f => f.id == favId);
+                if (fav) {
+                    this.loadFavoriteItems(fav.items, fav.naam);
+                    this.selectedFavoriteId = favId;
+                }
+            },
+            
+            clearLoaded() {
+                this.cart = {};
+                this.variantCart = [];
+                this.loadedName = '';
+                this.selectedFavoriteId = '';
+            },
+            
+            getQuantity(productId) {
+                let total = this.cart[productId] || 0;
+                this.variantCart.forEach(item => {
+                    if (item.productId == productId) {
+                        total += item.quantity;
+                    }
+                });
+                return total;
+            },
+            
+            setQuantityDirect(product, qty) {
+                if (product.variants?.length > 0) {
+                    return;
+                }
+                if (qty === 0) {
+                    delete this.cart[product.id];
+                } else {
+                    this.cart[product.id] = qty;
+                }
+                this.cart = { ...this.cart };
+            },
+            
+            addVariantToCart({ product, variant, quantity }) {
+                const existing = this.variantCart.findIndex(
+                    item => item.productId == product.id && item.variantId == variant.id
+                );
+                
+                if (existing >= 0) {
+                    this.variantCart[existing].quantity += quantity;
+                } else {
+                    this.variantCart.push({
+                        productId: product.id,
+                        variantId: variant.id,
+                        quantity
+                    });
+                }
+                this.variantCart = [...this.variantCart];
+            },
+            
+            removeCartItem(item) {
+                if (item.variantId) {
+                    const index = this.variantCart.findIndex(
+                        v => v.productId == item.product.id && v.variantId == item.variantId
+                    );
+                    if (index >= 0) {
+                        this.variantCart.splice(index, 1);
+                        this.variantCart = [...this.variantCart];
+                    }
+                } else {
+                    delete this.cart[item.product.id];
+                    this.cart = { ...this.cart };
+                }
+            },
+            
+            updateCartItemQty(item, newQty) {
+                if (newQty <= 0) {
+                    this.removeCartItem(item);
+                    return;
+                }
+                
+                if (item.variantId) {
+                    const index = this.variantCart.findIndex(
+                        v => v.productId == item.product.id && v.variantId == item.variantId
+                    );
+                    if (index >= 0) {
+                        this.variantCart[index].quantity = newQty;
+                        this.variantCart = [...this.variantCart];
+                    }
+                } else {
+                    this.cart[item.product.id] = newQty;
+                    this.cart = { ...this.cart };
+                }
+            },
+            
+            formatPrice(amount) {
+                return new Intl.NumberFormat('nl-NL', { style: 'currency', currency: 'EUR' }).format(amount);
+            },
+            
+            handleImageError(e) {
+                e.target.src = 'img/placeholder-bread.jpg';
+            },
+            
+            showProductDetail(product) {
+                this.selectedProduct = product;
+            },
+            
+            buildCheckoutItems() {
+                return this.cartItems.map(item => {
+                    let productName = item.product.naam;
+                    if (item.gewicht) {
+                        productName = `${item.product.naam} (${item.gewicht}g)`;
+                    }
+                    return {
+                        product_id: item.product.id,
+                        product_name: productName,
+                        product_image: item.product.foto,
+                        quantity: item.quantity,
+                        unit_price: item.prijs,
+                        variant_id: item.variantId
+                    };
+                });
+            },
+            
+            async saveFavorite() {
+                this.error = '';
+                
+                if (!this.canSaveFavorite) {
+                    this.error = 'Selecteer minimaal één product en geef een naam op';
+                    return;
+                }
+                
+                this.submitting = true;
+                
+                try {
+                    const items = this.buildCheckoutItems();
+                    
+                    const response = await fetch('api/business-favorites.php', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            naam: this.favoriteName,
+                            items
+                        })
+                    });
+                    
+                    const data = await response.json();
+                    
+                    if (data.success) {
+                        window.location.href = 'mijn-bestellingen.html';
+                    } else {
+                        this.error = data.error || 'Er ging iets mis bij het opslaan';
+                    }
+                } catch (error) {
+                    this.error = 'Er ging iets mis. Probeer het opnieuw.';
+                } finally {
+                    this.submitting = false;
+                }
+            },
+            
+            goToCheckout() {
+                if (!this.canOrder) {
+                    this.error = 'Selecteer minimaal één product';
+                    return;
+                }
+                
+                const items = this.buildCheckoutItems();
+                
+                const checkoutData = {
+                    items,
+                    total_amount: this.totalAmount,
+                    save_as_favorite: this.saveAsFavorite,
+                    favorite_name: this.favoriteName
+                };
+                
+                sessionStorage.setItem('checkoutData', JSON.stringify(checkoutData));
+                window.location.href = 'checkout.html';
+            }
+        }
+    });
+
+    app.mount('#order-app');
+    </script>
 </body>
 </html>

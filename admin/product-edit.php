@@ -9,6 +9,7 @@ if (!is_dir($uploadDir)) {
 
 $id = $_GET['id'] ?? null;
 $product = null;
+$variants = [];
 $error = '';
 $success = '';
 
@@ -20,6 +21,10 @@ if ($id) {
         header('Location: products.php');
         exit;
     }
+    
+    $stmt = $pdo->prepare("SELECT * FROM product_variants WHERE product_id = ? ORDER BY gewicht ASC");
+    $stmt->execute([$id]);
+    $variants = $stmt->fetchAll();
 }
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
@@ -28,6 +33,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $beschrijving = trim($_POST['beschrijving'] ?? '');
     $prijs = $_POST['prijs'] !== '' ? floatval($_POST['prijs']) : null;
     $foto = $product['foto'] ?? '';
+    
+    $variantGewichten = $_POST['variant_gewicht'] ?? [];
+    $variantPrijzen = $_POST['variant_prijs'] ?? [];
     
     if (isset($_FILES['foto_upload']) && $_FILES['foto_upload']['error'] === UPLOAD_ERR_OK) {
         $allowedTypes = ['image/jpeg', 'image/png', 'image/webp'];
@@ -53,19 +61,26 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             if ($id) {
                 $stmt = $pdo->prepare("UPDATE products SET naam = ?, ingredienten = ?, beschrijving = ?, prijs = ?, foto = ? WHERE id = ?");
                 $stmt->execute([$naam, $ingredienten, $beschrijving, $prijs, $foto, $id]);
-                header('Location: products.php');
-                exit;
             } else {
                 $stmt = $pdo->prepare("INSERT INTO products (naam, ingredienten, beschrijving, prijs, foto) VALUES (?, ?, ?, ?, ?)");
                 $stmt->execute([$naam, $ingredienten, $beschrijving, $prijs, $foto]);
-                header('Location: products.php');
-                exit;
                 $id = $pdo->lastInsertId();
             }
             
-            $stmt = $pdo->prepare("SELECT * FROM products WHERE id = ?");
-            $stmt->execute([$id]);
-            $product = $stmt->fetch();
+            $pdo->prepare("DELETE FROM product_variants WHERE product_id = ?")->execute([$id]);
+            
+            for ($i = 0; $i < count($variantGewichten); $i++) {
+                $gewicht = intval($variantGewichten[$i] ?? 0);
+                $variantPrijs = floatval($variantPrijzen[$i] ?? 0);
+                
+                if ($gewicht > 0 && $variantPrijs > 0) {
+                    $stmt = $pdo->prepare("INSERT INTO product_variants (product_id, gewicht, prijs) VALUES (?, ?, ?)");
+                    $stmt->execute([$id, $gewicht, $variantPrijs]);
+                }
+            }
+            
+            header('Location: products.php');
+            exit;
         } catch (PDOException $e) {
             $error = 'Fout bij opslaan: ' . $e->getMessage();
         }
@@ -320,6 +335,57 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             font-weight: 700;
             color: #8b5a2b;
         }
+        .variant-row {
+            display: flex;
+            gap: 0.5rem;
+            margin-bottom: 0.5rem;
+            align-items: center;
+        }
+        .variant-row input[type="number"] {
+            width: 120px;
+        }
+        .variant-row .variant-price {
+            width: 120px;
+        }
+        .variant-row .variant-price input {
+            width: 100%;
+        }
+        .btn-remove-variant {
+            width: 32px;
+            height: 32px;
+            border: none;
+            background: #c00;
+            color: white;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 1.2rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .btn-remove-variant:hover {
+            background: #900;
+        }
+        .btn-add-variant {
+            margin-top: 0.5rem;
+        }
+        .btn-small {
+            padding: 0.4rem 0.8rem;
+            font-size: 0.85rem;
+        }
+        .preview-variants {
+            margin-top: 0.5rem;
+        }
+        .preview-variant {
+            display: flex;
+            justify-content: space-between;
+            font-size: 0.9rem;
+            padding: 0.25rem 0;
+            color: #5c3d1e;
+        }
+        .preview-variant .gewicht {
+            color: #666;
+        }
     </style>
 </head>
 <body>
@@ -367,11 +433,28 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 </div>
                 
                 <div class="form-group">
-                    <label for="prijs">Prijs</label>
+                    <label for="prijs">Standaard Prijs</label>
                     <div class="price-input">
                         <input type="number" id="prijs" name="prijs" step="0.01" min="0" value="<?= $product['prijs'] ?? '' ?>">
                     </div>
-                    <p class="help">Laat leeg als prijs nog niet bekend is</p>
+                    <p class="help">Basisprijs (wordt overschreven als er gewichtsvarianten zijn)</p>
+                </div>
+                
+                <div class="form-group">
+                    <label>Gewichtsvarianten</label>
+                    <p class="help">Voeg varianten toe met verschillende gewichten en prijzen</p>
+                    <div id="variants-container">
+                        <?php foreach ($variants as $variant): ?>
+                        <div class="variant-row">
+                            <input type="number" name="variant_gewicht[]" placeholder="Gewicht (g)" value="<?= $variant['gewicht'] ?>" min="1">
+                            <div class="price-input variant-price">
+                                <input type="number" name="variant_prijs[]" step="0.01" min="0" placeholder="Prijs" value="<?= $variant['prijs'] ?>">
+                            </div>
+                            <button type="button" class="btn-remove-variant" onclick="this.parentElement.remove(); updatePreviewVariants();">×</button>
+                        </div>
+                        <?php endforeach; ?>
+                    </div>
+                    <button type="button" class="btn btn-small btn-add-variant" onclick="addVariant()">+ Gewichtsoptie toevoegen</button>
                 </div>
                 
                 <div class="form-group">
@@ -411,6 +494,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                             </div>
                             <div class="preview-footer">
                                 <span class="preview-prijs" id="preview-prijs"><?= $product['prijs'] ? '€ ' . number_format($product['prijs'], 2, ',', '.') : '' ?></span>
+                                <div class="preview-variants" id="preview-variants">
+                                    <?php foreach ($variants as $variant): ?>
+                                    <div class="preview-variant">
+                                        <span class="gewicht"><?= $variant['gewicht'] ?>g</span>
+                                        <span class="prijs">€ <?= number_format($variant['prijs'], 2, ',', '.') ?></span>
+                                    </div>
+                                    <?php endforeach; ?>
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -439,6 +530,40 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 };
                 reader.readAsDataURL(file);
             }
+        });
+        
+        function addVariant() {
+            const container = document.getElementById('variants-container');
+            const row = document.createElement('div');
+            row.className = 'variant-row';
+            row.innerHTML = `
+                <input type="number" name="variant_gewicht[]" placeholder="Gewicht (g)" min="1" oninput="updatePreviewVariants()">
+                <div class="price-input variant-price">
+                    <input type="number" name="variant_prijs[]" step="0.01" min="0" placeholder="Prijs" oninput="updatePreviewVariants()">
+                </div>
+                <button type="button" class="btn-remove-variant" onclick="this.parentElement.remove(); updatePreviewVariants();">×</button>
+            `;
+            container.appendChild(row);
+        }
+        
+        function updatePreviewVariants() {
+            const gewichten = document.querySelectorAll('input[name="variant_gewicht[]"]');
+            const prijzen = document.querySelectorAll('input[name="variant_prijs[]"]');
+            const container = document.getElementById('preview-variants');
+            
+            let html = '';
+            for (let i = 0; i < gewichten.length; i++) {
+                const g = gewichten[i].value;
+                const p = parseFloat(prijzen[i].value);
+                if (g && p) {
+                    html += `<div class="preview-variant"><span class="gewicht">${g}g</span><span class="prijs">€ ${p.toFixed(2).replace('.', ',')}</span></div>`;
+                }
+            }
+            container.innerHTML = html;
+        }
+        
+        document.querySelectorAll('input[name="variant_gewicht[]"], input[name="variant_prijs[]"]').forEach(el => {
+            el.addEventListener('input', updatePreviewVariants);
         });
     </script>
     </div>

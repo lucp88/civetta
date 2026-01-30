@@ -1,4 +1,6 @@
 <?php
+require_once __DIR__ . '/email-templates.php';
+
 class EBoekhoudenClient {
     private $apiToken;
     private $baseUrl = 'https://api.e-boekhouden.nl';
@@ -267,11 +269,15 @@ class EBoekhoudenClient {
         ];
         
         if ($sendEmail && !empty($accountData['email'])) {
+            $deliveryDate = $accountData['delivery_date'] ?? null;
+            $btwTarief = $accountData['btw_tarief'] ?? 9;
+            $htmlBody = buildInvoiceEmailBody($accountData, $orderItems, null, $deliveryDate, $btwTarief);
+            
             $invoiceData['email'] = [
                 'fromEmail' => 'info@bakkerij-civetta.nl',
                 'fromName' => 'Bakkerij Civetta',
                 'subject' => 'Uw factuur van Bakkerij Civetta',
-                'body' => 'Beste ' . ($accountData['contactpersoon'] ?? 'klant') . ',<br><br>Hartelijk dank voor uw bestelling. Bijgaand vindt u uw factuur.<br><br>Met vriendelijke groet,<br>Bakkerij Civetta'
+                'body' => $htmlBody
             ];
         }
         

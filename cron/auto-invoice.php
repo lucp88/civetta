@@ -138,7 +138,9 @@ function createEBoekhoudenInvoice($pdo, $order, $items, $settings) {
             'plaats' => $order['plaats'],
             'telefoon' => $order['telefoon'],
             'kvk_nummer' => $order['kvk_nummer'],
-            'btw_id' => $order['btw_id']
+            'btw_id' => $order['btw_id'],
+            'delivery_date' => $order['delivery_date'],
+            'btw_tarief' => floatval($settings['btw_tarief'] ?? 9)
         ];
         
         $orderItems = [];

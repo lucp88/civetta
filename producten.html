@@ -86,6 +86,19 @@
             font-weight: 700;
             color: var(--color-crust);
         }
+        .product-card-full .card-variants {
+            display: flex;
+            align-items: baseline;
+            gap: 0.75rem;
+            flex-wrap: wrap;
+        }
+        .product-card-full .card-variants .card-price {
+            margin-right: 0;
+        }
+        .product-card-full .variant-others {
+            font-size: 0.75rem;
+            color: var(--color-stone);
+        }
     </style>
 </head>
 <body>
@@ -149,7 +162,13 @@
                                 </p>
                                 
                                 <div class="card-footer">
-                                    <span v-if="product.prijs" class="card-price">
+                                    <div v-if="product.variants && product.variants.length > 0" class="card-variants">
+                                        <span class="card-price">{{ formatPrice(getLowestPrice(product)) }}</span>
+                                        <span v-if="product.variants.length > 1" class="variant-others">
+                                            {{ getOtherVariants(product) }}
+                                        </span>
+                                    </div>
+                                    <span v-else-if="product.prijs" class="card-price">
                                         {{ formatPrice(product.prijs) }}
                                     </span>
                                 </div>
@@ -182,7 +201,7 @@
     </footer>
 
     <script src="js/main.js"></script>
-    <script src="js/product-card.js"></script>
-    <script src="js/products-app.js"></script>
+    <script src="js/product-card.js?v=3"></script>
+    <script src="js/products-app.js?v=2"></script>
 </body>
 </html>

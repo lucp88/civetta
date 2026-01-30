@@ -2,7 +2,14 @@
 require_once 'config.php';
 requireLogin();
 
-$stmt = $pdo->query("SELECT * FROM products ORDER BY naam ASC");
+$stmt = $pdo->query("
+    SELECT p.*, 
+           GROUP_CONCAT(CONCAT(pv.gewicht, 'g: €', FORMAT(pv.prijs, 2, 'nl_NL')) ORDER BY pv.gewicht SEPARATOR ' | ') as variants_display
+    FROM products p
+    LEFT JOIN product_variants pv ON p.id = pv.product_id
+    GROUP BY p.id
+    ORDER BY p.naam ASC
+");
 $products = $stmt->fetchAll();
 ?>
 <!DOCTYPE html>
@@ -175,7 +182,7 @@ $products = $stmt->fetchAll();
                             <tr>
                                 <td><?= htmlspecialchars($product['naam']) ?></td>
                                 <td><?= htmlspecialchars(substr($product['beschrijving'] ?? '', 0, 50)) ?><?= strlen($product['beschrijving'] ?? '') > 50 ? '...' : '' ?></td>
-                                <td class="price"><?= $product['prijs'] ? '€' . number_format($product['prijs'], 2, ',', '.') : '-' ?></td>
+                                <td class="price"><?= $product['variants_display'] ? $product['variants_display'] : ($product['prijs'] ? '€' . number_format($product['prijs'], 2, ',', '.') : '-') ?></td>
                                 <td class="actions">
                                     <a href="product-edit.php?id=<?= $product['id'] ?>" class="btn btn-small">Bewerken</a>
                                     <a href="product-delete.php?id=<?= $product['id'] ?>" class="btn btn-small btn-danger" onclick="return confirm('Weet je zeker dat je dit product wilt verwijderen?')">Verwijderen</a>

@@ -14,10 +14,42 @@ const ProductCard = {
         }
     },
     
-    emits: ['update:quantity', 'show-detail'],
+    emits: ['update:quantity', 'add-to-cart', 'show-detail'],
+    
+    data() {
+        return {
+            selectedVariantId: null,
+            addQuantity: 1
+        };
+    },
+    
+    computed: {
+        hasVariants() {
+            return this.product.variants && this.product.variants.length > 0;
+        },
+        currentVariant() {
+            if (!this.hasVariants) return null;
+            return this.product.variants.find(v => v.id == this.selectedVariantId) || this.product.variants[0];
+        }
+    },
+    
+    mounted() {
+        if (this.hasVariants) {
+            this.selectedVariantId = this.product.variants[0].id;
+        }
+    },
     
     template: `
         <div class="product-card-modern" :class="{ selected: quantity > 0 }">
+            <button v-if="hasVariants && showQuantity" class="btn-add-cart" @click.stop="addToCart" title="Toevoegen aan bestelling">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M5 7h14l-1.5 9h-11L5 7z"/>
+                    <path d="M5 7l-.5-3H2"/>
+                    <path d="M8 20a1 1 0 1 0 0-2 1 1 0 0 0 0 2z"/>
+                    <path d="M16 20a1 1 0 1 0 0-2 1 1 0 0 0 0 2z"/>
+                </svg>
+                <span class="plus">+</span>
+            </button>
             <div class="product-card-image" @click="$emit('show-detail', product)">
                 <img :src="product.foto || 'img/placeholder-bread.jpg'" 
                      :alt="product.naam"
@@ -27,20 +59,45 @@ const ProductCard = {
                 <h4 class="product-card-title" @click="$emit('show-detail', product)">
                     {{ product.naam }}
                 </h4>
-                <div class="product-card-price" v-if="product.prijs">
-                    {{ formatPrice(product.prijs) }}
-                </div>
-                <div class="product-card-price" v-else>Prijs op aanvraag</div>
                 
-                <div v-if="showQuantity" class="product-card-quantity">
-                    <button class="qty-btn" @click="decrease" :disabled="quantity === 0">-</button>
-                    <input type="number" 
-                           class="qty-input" 
-                           :value="quantity" 
-                           @change="setQuantity($event.target.value)"
-                           min="0">
-                    <button class="qty-btn" @click="increase">+</button>
+                <!-- Product MET varianten: dropdown + qty -->
+                <template v-if="hasVariants && showQuantity">
+                    <div class="product-card-variant-row">
+                        <select v-model="selectedVariantId" class="variant-select">
+                            <option v-for="v in product.variants" :key="v.id" :value="v.id">
+                                {{ v.gewicht }}g - {{ formatPrice(v.prijs) }}
+                            </option>
+                        </select>
+                        <div class="add-qty-group">
+                            <button class="qty-btn-small" @click="addQuantity = Math.max(1, addQuantity - 1)">-</button>
+                            <input type="number" v-model.number="addQuantity" min="1" class="qty-input-small">
+                            <button class="qty-btn-small" @click="addQuantity++">+</button>
+                        </div>
+                    </div>
+                </template>
+                
+                <!-- Product MET varianten maar ZONDER quantity controls (producten pagina) -->
+                <div v-else-if="hasVariants" class="product-card-price">
+                    {{ formatPriceRange() }}
                 </div>
+                
+                <!-- Product ZONDER varianten -->
+                <template v-else>
+                    <div v-if="product.prijs" class="product-card-price">
+                        {{ formatPrice(product.prijs) }}
+                    </div>
+                    <div v-else class="product-card-price">Prijs op aanvraag</div>
+                    
+                    <div v-if="showQuantity" class="product-card-quantity">
+                        <button class="qty-btn" @click="decrease" :disabled="quantity === 0">-</button>
+                        <input type="number" 
+                               class="qty-input" 
+                               :value="quantity" 
+                               @change="setQuantity($event.target.value)"
+                               min="0">
+                        <button class="qty-btn" @click="increase">+</button>
+                    </div>
+                </template>
             </div>
         </div>
     `,
@@ -48,6 +105,15 @@ const ProductCard = {
     methods: {
         formatPrice(amount) {
             return new Intl.NumberFormat('nl-NL', { style: 'currency', currency: 'EUR' }).format(amount);
+        },
+        
+        formatPriceRange() {
+            if (!this.hasVariants) return '';
+            const prices = this.product.variants.map(v => v.prijs);
+            const min = Math.min(...prices);
+            const max = Math.max(...prices);
+            if (min === max) return this.formatPrice(min);
+            return `${this.formatPrice(min)} - ${this.formatPrice(max)}`;
         },
         
         handleImageError(e) {
@@ -67,6 +133,17 @@ const ProductCard = {
         setQuantity(value) {
             const qty = Math.max(0, parseInt(value) || 0);
             this.$emit('update:quantity', qty);
+        },
+        
+        addToCart() {
+            if (this.addQuantity > 0 && this.currentVariant) {
+                this.$emit('add-to-cart', {
+                    product: this.product,
+                    variant: this.currentVariant,
+                    quantity: this.addQuantity
+                });
+                this.addQuantity = 1;
+            }
         }
     }
 };
@@ -80,6 +157,12 @@ const ProductDetailModal = {
     },
     
     emits: ['close'],
+    
+    computed: {
+        hasVariants() {
+            return this.product && this.product.variants && this.product.variants.length > 0;
+        }
+    },
     
     template: `
         <div class="product-modal-overlay" :class="{ active: product }" @click.self="$emit('close')">
@@ -101,7 +184,13 @@ const ProductDetailModal = {
                         <strong>Ingrediënten:</strong> {{ product.ingredienten }}
                     </div>
                     
-                    <div class="product-modal-price" v-if="product.prijs">
+                    <div v-if="hasVariants" class="product-modal-variants">
+                        <div v-for="v in product.variants" :key="v.id" class="product-modal-variant">
+                            <span class="variant-gewicht">{{ v.gewicht }}g</span>
+                            <span class="variant-prijs">{{ formatPrice(v.prijs) }}</span>
+                        </div>
+                    </div>
+                    <div v-else-if="product.prijs" class="product-modal-price">
                         {{ formatPrice(product.prijs) }}
                     </div>
                 </div>
@@ -125,6 +214,7 @@ const productCardStyles = `
         box-shadow: 0 2px 8px rgba(0,0,0,0.06);
         transition: all 0.2s ease;
         border: 2px solid transparent;
+        position: relative;
     }
     .product-card-modern:hover {
         box-shadow: 0 4px 16px rgba(0,0,0,0.1);
@@ -139,6 +229,40 @@ const productCardStyles = `
         flex-shrink: 0;
         cursor: pointer;
         overflow: hidden;
+        position: relative;
+    }
+    .btn-add-cart {
+        position: absolute;
+        top: 6px;
+        right: 6px;
+        width: 28px;
+        height: 28px;
+        border: none;
+        border-radius: 4px;
+        background: #2d5a27;
+        color: white;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        box-shadow: 0 2px 6px rgba(0,0,0,0.2);
+        transition: all 0.15s ease;
+    }
+    .btn-add-cart:hover {
+        background: #3d7a37;
+        transform: scale(1.1);
+    }
+    .btn-add-cart svg {
+        width: 14px;
+        height: 14px;
+    }
+    .btn-add-cart .plus {
+        position: absolute;
+        top: 2px;
+        right: 2px;
+        font-size: 10px;
+        font-weight: bold;
+        line-height: 1;
     }
     .product-card-image img {
         width: 100%;
@@ -221,6 +345,85 @@ const productCardStyles = `
     .product-card-quantity .qty-input:focus {
         outline: none;
         border-color: var(--color-wheat);
+    }
+    
+    /* Variant row styling */
+    .product-card-variant-row {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        margin-top: 0.5rem;
+        flex-wrap: wrap;
+    }
+    .product-card-variant-row .variant-select {
+        flex: 1;
+        min-width: 120px;
+        padding: 0.4rem 0.5rem;
+        border: 1px solid #ddd;
+        border-radius: 6px;
+        font-size: 0.85rem;
+        color: var(--color-crust-dark);
+        background: white;
+        cursor: pointer;
+    }
+    .product-card-variant-row .variant-select:focus {
+        outline: none;
+        border-color: var(--color-wheat);
+    }
+    .add-qty-group {
+        display: flex;
+        align-items: center;
+        gap: 0.25rem;
+    }
+    .qty-btn-small {
+        width: 26px;
+        height: 26px;
+        border: 1px solid #ddd;
+        border-radius: 4px;
+        background: white;
+        color: #333;
+        font-size: 1rem;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+    .qty-btn-small:hover {
+        background: var(--color-parchment);
+        border-color: var(--color-crust);
+    }
+    .qty-input-small {
+        width: 40px;
+        text-align: center;
+        border: 1px solid #ddd;
+        border-radius: 4px;
+        padding: 0.25rem;
+        font-size: 0.9rem;
+        font-weight: 600;
+        color: var(--color-crust-dark);
+        -moz-appearance: textfield;
+    }
+    .qty-input-small::-webkit-outer-spin-button,
+    .qty-input-small::-webkit-inner-spin-button {
+        -webkit-appearance: none;
+        margin: 0;
+    }
+    .btn-add {
+        width: 32px;
+        height: 32px;
+        border: none;
+        border-radius: 6px;
+        background: var(--color-crust);
+        color: white;
+        font-size: 1.2rem;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        transition: background 0.15s ease;
+    }
+    .btn-add:hover {
+        background: var(--color-crust-dark);
     }
 
     .product-modal-overlay {
@@ -307,6 +510,24 @@ const productCardStyles = `
         font-family: var(--font-display);
         font-size: 1.35rem;
         font-weight: 700;
+        color: var(--color-crust);
+    }
+    .product-modal-variants {
+        margin-top: 1rem;
+    }
+    .product-modal-variant {
+        display: flex;
+        justify-content: space-between;
+        padding: 0.5rem 0.75rem;
+        background: var(--color-parchment);
+        border-radius: 6px;
+        margin-bottom: 0.5rem;
+    }
+    .product-modal-variant .variant-gewicht {
+        color: var(--color-stone);
+    }
+    .product-modal-variant .variant-prijs {
+        font-weight: 600;
         color: var(--color-crust);
     }
 `;

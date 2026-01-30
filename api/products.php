@@ -18,6 +18,22 @@ try {
             $stmt = $pdo->query("SELECT id, naam, ingredienten, beschrijving, prijs, foto FROM products ORDER BY naam ASC");
             $products = $stmt->fetchAll();
             
+            $variantStmt = $pdo->query("SELECT id, product_id, gewicht, prijs FROM product_variants ORDER BY gewicht ASC");
+            $allVariants = $variantStmt->fetchAll();
+            
+            $variantsByProduct = [];
+            foreach ($allVariants as $v) {
+                $variantsByProduct[$v['product_id']][] = [
+                    'id' => (int)$v['id'],
+                    'gewicht' => (int)$v['gewicht'],
+                    'prijs' => (float)$v['prijs']
+                ];
+            }
+            
+            foreach ($products as &$product) {
+                $product['variants'] = $variantsByProduct[$product['id']] ?? [];
+            }
+            
             $stmt = $pdo->query("SELECT setting_value FROM settings WHERE setting_key = 'btw_tarief'");
             $btwTarief = floatval($stmt->fetchColumn() ?: 9);
             
