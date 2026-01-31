@@ -360,44 +360,6 @@ switch ($method) {
             @mail($to, $subject, $body, $headers);
             
             if ($isRecurring) {
-                $frequencyLabels = ['weekly' => 'Wekelijks', 'biweekly' => 'Tweewekelijks', 'monthly' => 'Maandelijks'];
-                $dayLabels = [0 => 'zondag', 1 => 'maandag', 2 => 'dinsdag', 3 => 'woensdag', 4 => 'donderdag', 5 => 'vrijdag', 6 => 'zaterdag'];
-                $frequencyLabelCustomer = $frequencyLabels[$recurringFrequency] ?? 'Wekelijks';
-                $dayLabel = $dayLabels[$recurringDay] ?? 'maandag';
-                
-                $customerSubject = "Bevestiging terugkerende bestelling ({$orderCount} leveringen) - Bakkerij Civetta";
-                $customerBody = "Beste {$account['contactpersoon']},\n\n";
-                $customerBody .= "Bedankt voor uw terugkerende bestelling bij Bakkerij Civetta!\n\n";
-                $customerBody .= "══════════════════════════════════════\n";
-                $customerBody .= "TERUGKERENDE BESTELLING\n";
-                $customerBody .= "══════════════════════════════════════\n\n";
-                if ($recurringName) {
-                    $customerBody .= "Naam: $recurringName\n";
-                }
-                $customerBody .= "Aantal geplande leveringen: $orderCount\n";
-                $customerBody .= "Frequentie: $frequencyLabelCustomer\n";
-                $customerBody .= "Bezorgdag: " . ucfirst($dayLabel) . "\n";
-                $customerBody .= "Eerste levering: " . date('d-m-Y', strtotime($deliveryDate)) . "\n";
-                $customerBody .= "Laatste geplande levering: " . date('d-m-Y', strtotime($confirmedUntil)) . "\n";
-                if ($recurringEndDate) {
-                    $customerBody .= "Einddatum serie: " . date('d-m-Y', strtotime($recurringEndDate)) . "\n";
-                } else {
-                    $customerBody .= "\nDeze serie is doorlopend. Twee weken voor de laatste\n";
-                    $customerBody .= "geplande levering ontvangt u een herinnering om te verlengen.\n";
-                }
-                $customerBody .= "\n";
-                $customerBody .= "Producten per levering:\n$itemsList\n";
-                $customerBody .= "Bedrag per levering: €" . number_format($totalAmount, 2, ',', '.') . "\n";
-                $customerBody .= "Totaal ingepland: €" . number_format($totalAmount * $orderCount, 2, ',', '.') . "\n\n";
-                $customerBody .= "Beheer uw bestellingen via uw dashboard:\n";
-                $customerBody .= "https://bakkerij-civetta.nl/mijn-bestellingen.html\n\n";
-                $customerBody .= "Heeft u vragen? Neem gerust contact met ons op.\n\n";
-                $customerBody .= "Met vriendelijke groet,\n";
-                $customerBody .= "Bakkerij Civetta\n";
-                $customerBody .= "laurens@bakkerij-civetta.nl";
-                
-                @mail($account['email'], $customerSubject, $customerBody, $headers);
-                
                 sendRecurringBestelbonEmail($pdo, $recurringGroupId);
                 
                 echo json_encode([
@@ -620,42 +582,6 @@ switch ($method) {
                 }
                 
                 $pdo->commit();
-                
-                $frequencyLabels = ['weekly' => 'wekelijks', 'biweekly' => 'tweewekelijks', 'monthly' => 'maandelijks'];
-                $frequentie = $frequencyLabels[$frequency] ?? $frequency;
-                
-                $subject = "Terugkerende bestelling verlengd - Bakkerij Civetta";
-                $body = "Beste {$lastOrder['contactpersoon']},\n\n";
-                $body .= "Uw terugkerende bestelling is succesvol verlengd!\n\n";
-                $body .= "══════════════════════════════════════\n";
-                $body .= "VERLENGING BEVESTIGD\n";
-                $body .= "══════════════════════════════════════\n\n";
-                if ($lastOrder['recurring_name']) {
-                    $body .= "Naam: {$lastOrder['recurring_name']}\n";
-                }
-                $body .= "Frequentie: $frequentie\n";
-                $body .= "Nieuwe leveringen: " . count($newOrderIds) . "\n";
-                $body .= "Eerste nieuwe levering: " . date('d-m-Y', strtotime($newDeliveryDates[0])) . "\n";
-                $body .= "Verlengd tot: " . date('d-m-Y', strtotime($newConfirmedUntil)) . "\n\n";
-                $body .= "2 weken voor de laatste geplande levering zullen wij u\n";
-                $body .= "opnieuw vragen om de bestelling te herbevestigen.\n\n";
-                $body .= "Bekijk uw bestellingen via uw dashboard:\n";
-                $body .= "https://bakkerij-civetta.nl/mijn-bestellingen.html\n\n";
-                $body .= "Met vriendelijke groet,\n";
-                $body .= "Bakkerij Civetta\n";
-                $body .= "laurens@bakkerij-civetta.nl";
-                
-                $headers = "From: noreply@bakkerij-civetta.nl\r\n";
-                $headers .= "Reply-To: laurens@bakkerij-civetta.nl\r\n";
-                $headers .= "Content-Type: text/plain; charset=UTF-8\r\n";
-                
-                @mail($lastOrder['email'], $subject, $body, $headers);
-                
-                @mail('laurens@bakkerij-civetta.nl', 
-                    "Terugkerende bestelling verlengd: {$lastOrder['bedrijfsnaam']}", 
-                    "Terugkerende bestelling verlengd\n\nBedrijf: {$lastOrder['bedrijfsnaam']}\nGroep: $recurringGroupId\nNieuwe leveringen: " . count($newOrderIds) . "\nVerlengd tot: " . date('d-m-Y', strtotime($newConfirmedUntil)),
-                    $headers
-                );
                 
                 sendRecurringBestelbonEmail($pdo, $recurringGroupId);
                 

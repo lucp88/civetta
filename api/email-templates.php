@@ -4,10 +4,10 @@ function getEmailStyles() {
     return '
         body { margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; background-color: #f5f2ed; }
         .email-wrapper { max-width: 600px; margin: 0 auto; background: #ffffff; }
-        .email-header { background: linear-gradient(135deg, #8b5a2b, #5c3d1e); padding: 30px 40px; text-align: center; }
+        .email-header { background: linear-gradient(135deg, #8b5a2b, #5c3d1e); padding: 25px 40px 20px; text-align: center; }
         .email-header img { max-width: 180px; height: auto; }
-        .email-header h1 { color: #ffffff; margin: 15px 0 0 0; font-size: 24px; font-weight: 600; letter-spacing: 1px; }
-        .email-body { padding: 40px; color: #333333; line-height: 1.6; }
+        .email-header h1 { color: #ffffff; margin: 10px 0 0 0; font-size: 24px; font-weight: 600; letter-spacing: 1px; }
+        .email-body { padding: 30px 40px; color: #333333; line-height: 1.6; }
         .email-body h2 { color: #5c3d1e; font-size: 22px; margin: 0 0 20px 0; }
         .email-body p { margin: 0 0 15px 0; font-size: 15px; }
         .greeting { font-size: 16px; color: #5c3d1e; }
@@ -71,6 +71,7 @@ function getEmailHeader($title = '') {
 <body>
     <div class="email-wrapper">
         <div class="email-header">
+            <img src="https://bakkerij-civetta.nl/img/logo.jpeg" alt="Bakkerij Civetta" style="max-width: 120px; height: auto; border-radius: 50%;">
             <h1>Bakkerij Civetta</h1>
         </div>';
 }

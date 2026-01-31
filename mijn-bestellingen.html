@@ -154,6 +154,9 @@
                             </div>
                             <div v-else class="recurring-list">
                                 <div v-for="group in recurringGroups" :key="group.recurring_group_id" class="recurring-card">
+                                    <div class="recurring-type-badge" :class="group.end_date ? 'type-fixed' : 'type-rolling'">
+                                        {{ group.end_date ? 'Vaste einddatum' : 'Doorlopend' }}
+                                    </div>
                                     <div class="recurring-info">
                                         <h4>{{ group.name || 'Terugkerende bestelling' }}</h4>
                                         <div class="recurring-meta">
@@ -165,10 +168,11 @@
                                             <span v-if="group.upcoming_deliveries && group.upcoming_deliveries.length > 0">
                                                 Volgende: {{ formatDateShort(group.upcoming_deliveries[0].delivery_date) }}
                                             </span>
-                                            <span>Actief tot: {{ formatDateShort(group.confirmed_until) }}</span>
+                                            <span v-if="group.end_date">Eindigt op: {{ formatDateShort(group.end_date) }}</span>
+                                            <span v-else>Bevestigd tot: {{ formatDateShort(group.confirmed_until) }}</span>
                                         </div>
-                                        <div v-if="group.needs_renewal" class="renewal-warning" style="margin-top: 0.5rem; padding: 0.5rem; background: #fff3cd; border-radius: 4px; font-size: 0.85rem; color: #856404;">
-                                            Deze serie loopt bijna af - verleng om door te gaan
+                                        <div v-if="group.needs_renewal && !group.end_date" class="renewal-warning" style="margin-top: 0.5rem; padding: 0.5rem; background: #fff3cd; border-radius: 4px; font-size: 0.85rem; color: #856404;">
+                                            &#x1F504; Verlenging nodig - bevestig om door te gaan met leveringen
                                         </div>
                                     </div>
                                     <span :class="'recurring-status ' + (group.is_active ? 'active' : 'paused')">

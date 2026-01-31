@@ -5,839 +5,10 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Afrekenen | Bakkerij Civetta</title>
     <link rel="stylesheet" href="css/style.css">
+    <link rel="stylesheet" href="css/order-shared.css?v=1">
+    <link rel="stylesheet" href="css/checkout.css?v=1">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link href="https://fonts.googleapis.com/css2?family=Libre+Baskerville:ital,wght@0,400;0,700;1,400&family=Source+Sans+Pro:wght@400;600&display=swap" rel="stylesheet">
-    <style>
-        [v-cloak] { display: none; }
-        
-        .checkout-page {
-            min-height: calc(100vh - 200px);
-            background: linear-gradient(180deg, var(--color-cream) 0%, #f5efe6 100%);
-        }
-        
-        .checkout-layout {
-            display: grid;
-            grid-template-columns: 1fr 420px;
-            gap: 0;
-            max-width: 1400px;
-            margin: 0 auto;
-            min-height: calc(100vh - 200px);
-        }
-        
-        .checkout-main {
-            padding: var(--spacing-lg) var(--spacing-md);
-            overflow-y: auto;
-            max-width: 640px;
-        }
-        
-        .checkout-sidebar {
-            background: var(--color-warm-white);
-            border-left: 1px solid var(--color-parchment);
-            position: sticky;
-            top: 70px;
-            height: calc(100vh - 70px);
-            display: flex;
-            flex-direction: column;
-            box-shadow: -4px 0 20px rgba(139, 90, 43, 0.05);
-        }
-        
-        .sidebar-header {
-            padding: var(--spacing-sm) var(--spacing-md);
-            border-bottom: 1px solid var(--color-parchment);
-            background: linear-gradient(180deg, var(--color-warm-white) 0%, #fefcfa 100%);
-        }
-        
-        .sidebar-header h2 {
-            font-size: 1.1rem;
-            margin: 0;
-            color: var(--color-crust-dark);
-        }
-        
-        .sidebar-header h2::after {
-            display: none;
-        }
-        
-        .sidebar-content {
-            flex: 1;
-            overflow: hidden;
-            padding: var(--spacing-sm) var(--spacing-md);
-            display: flex;
-            flex-direction: column;
-            min-height: 0;
-        }
-        
-        .sidebar-footer {
-            padding: var(--spacing-sm) var(--spacing-md);
-            background: var(--color-warm-white);
-        }
-        
-        .address-modal-overlay {
-            position: fixed;
-            top: 0;
-            left: 0;
-            right: 0;
-            bottom: 0;
-            background: rgba(0,0,0,0.5);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            z-index: 1000;
-        }
-        
-        .address-modal {
-            background: white;
-            border-radius: 12px;
-            padding: var(--spacing-md);
-            max-width: 400px;
-            width: 90%;
-            max-height: 90vh;
-            overflow-y: auto;
-        }
-        
-        .address-modal h3 {
-            margin-bottom: var(--spacing-sm);
-        }
-        
-        .address-modal .form-group {
-            margin-bottom: 0.75rem;
-        }
-        
-        .address-modal-buttons {
-            display: flex;
-            gap: 0.75rem;
-            margin-top: var(--spacing-sm);
-        }
-        
-        .address-modal-buttons button {
-            flex: 1;
-            padding: 0.6rem;
-            border-radius: 8px;
-            font-family: var(--font-body);
-            font-weight: 600;
-            cursor: pointer;
-        }
-        
-        .btn-cancel {
-            background: var(--color-parchment);
-            border: none;
-            color: var(--color-charcoal);
-        }
-        
-        .btn-save {
-            background: var(--color-crust);
-            border: none;
-            color: white;
-        }
-        
-        .back-link {
-            display: inline-flex;
-            align-items: center;
-            gap: 0.5rem;
-            color: var(--color-crust);
-            text-decoration: none;
-            font-weight: 500;
-            font-size: 0.9rem;
-            margin-bottom: var(--spacing-sm);
-            transition: all 0.2s ease;
-        }
-        
-        .back-link:hover {
-            color: var(--color-terracotta);
-            gap: 0.75rem;
-        }
-        
-        .back-link svg {
-            width: 16px;
-            height: 16px;
-        }
-        
-        .page-intro {
-            margin-bottom: var(--spacing-md);
-        }
-        
-        .page-intro h1 {
-            font-size: 1.75rem;
-            margin-bottom: 0.25rem;
-            color: var(--color-crust-dark);
-        }
-        
-        .page-intro .subtitle {
-            color: var(--color-stone);
-            font-size: 0.95rem;
-        }
-        
-        .checkout-card {
-            background: var(--color-warm-white);
-            border-radius: 12px;
-            padding: var(--spacing-md);
-            box-shadow: 0 2px 12px rgba(139, 90, 43, 0.06);
-            margin-bottom: var(--spacing-sm);
-        }
-        
-        .checkout-card.primary {
-            border: 2px solid var(--color-wheat);
-        }
-        
-        .checkout-card h3 {
-            font-size: 1rem;
-            color: var(--color-crust-dark);
-            margin-bottom: var(--spacing-sm);
-            display: flex;
-            align-items: center;
-            gap: 0.5rem;
-        }
-        
-        .checkout-card h3 .icon {
-            width: 18px;
-            height: 18px;
-            color: var(--color-terracotta);
-        }
-        
-        .form-group {
-            margin-bottom: var(--spacing-sm);
-        }
-        
-        .form-group:last-child {
-            margin-bottom: 0;
-        }
-        
-        .form-group label {
-            display: flex;
-            align-items: center;
-            gap: 0.5rem;
-            font-size: 0.85rem;
-            font-weight: 600;
-            color: var(--color-stone);
-            margin-bottom: 0.35rem;
-        }
-        
-        .form-group label .optional {
-            font-weight: 400;
-            color: var(--color-stone);
-            opacity: 0.7;
-        }
-        
-        .form-group input,
-        .form-group textarea,
-        .form-group select {
-            width: 100%;
-            padding: 0.7rem 0.9rem;
-            border: 2px solid var(--color-parchment);
-            border-radius: 8px;
-            font-size: 0.95rem;
-            font-family: var(--font-body);
-            background: white;
-            transition: border-color 0.2s ease;
-        }
-        
-        .form-group input:focus,
-        .form-group textarea:focus,
-        .form-group select:focus {
-            outline: none;
-            border-color: var(--color-wheat);
-        }
-        
-        .form-group input.valid {
-            border-color: #22c55e;
-        }
-        
-        .date-hint {
-            display: flex;
-            align-items: center;
-            gap: 0.4rem;
-            font-size: 0.8rem;
-            color: var(--color-stone);
-            margin-top: 0.35rem;
-        }
-        
-        .date-hint.valid {
-            color: #22c55e;
-        }
-        
-        .date-hint svg {
-            width: 14px;
-            height: 14px;
-        }
-        
-        .form-group textarea {
-            resize: vertical;
-            min-height: 60px;
-        }
-        
-        .form-row {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 0.75rem;
-        }
-        
-        .recurring-card {
-            background: #f8f6f3;
-            border: 1px dashed var(--color-parchment);
-        }
-        
-        .recurring-checkbox {
-            display: flex;
-            align-items: center;
-            gap: 0.75rem;
-            cursor: pointer;
-            font-size: 0.95rem;
-            color: var(--color-charcoal);
-        }
-        
-        .recurring-checkbox input {
-            width: 20px;
-            height: 20px;
-            accent-color: var(--color-crust);
-            cursor: pointer;
-        }
-        
-        .recurring-checkbox-label {
-            display: flex;
-            align-items: center;
-            gap: 0.5rem;
-        }
-        
-        .recurring-checkbox-label .icon {
-            width: 18px;
-            height: 18px;
-            color: var(--color-stone);
-        }
-        
-        .recurring-options {
-            margin-top: var(--spacing-sm);
-            padding-top: var(--spacing-sm);
-            border-top: 1px solid var(--color-parchment);
-            animation: slideDown 0.2s ease;
-        }
-        
-        .recurring-options .form-group {
-            margin-bottom: 0.6rem;
-        }
-        
-        .recurring-hint {
-            font-size: 0.8rem;
-            color: var(--color-stone);
-            margin-top: 0.5rem;
-        }
-        
-        .recurring-reassure {
-            font-size: 0.8rem;
-            color: var(--color-stone);
-            margin-top: 0.5rem;
-            font-style: italic;
-        }
-        
-        @keyframes slideDown {
-            from { opacity: 0; transform: translateY(-8px); }
-            to { opacity: 1; transform: translateY(0); }
-        }
-        
-        .order-summary-card {
-            background: var(--color-warm-white);
-        }
-        
-        .order-summary-header {
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            margin-bottom: 0.75rem;
-        }
-        
-        .order-summary-header h3 {
-            margin-bottom: 0;
-        }
-        
-        .order-summary-header .edit-link {
-            font-size: 0.85rem;
-            color: var(--color-crust);
-            text-decoration: underline;
-            cursor: pointer;
-        }
-        
-        .order-summary-header .edit-link:hover {
-            color: var(--color-terracotta);
-        }
-        
-        .order-summary-list {
-            display: flex;
-            flex-direction: column;
-            gap: 0.5rem;
-        }
-        
-        .order-summary-item {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            font-size: 0.9rem;
-            color: var(--color-charcoal);
-            padding: 0.4rem 0;
-        }
-        
-        .order-summary-item .name {
-            flex: 1;
-        }
-        
-        .order-summary-item .qty {
-            color: var(--color-stone);
-            margin: 0 1rem;
-        }
-        
-        .order-summary-item .price {
-            font-weight: 500;
-        }
-        
-        .favorite-option {
-            background: transparent;
-            border: none;
-            box-shadow: none;
-            padding: var(--spacing-sm);
-        }
-        
-        .favorite-checkbox {
-            display: flex;
-            align-items: center;
-            gap: 0.5rem;
-            cursor: pointer;
-            font-size: 0.9rem;
-            color: var(--color-stone);
-        }
-        
-        .favorite-checkbox input {
-            width: 16px;
-            height: 16px;
-            accent-color: var(--color-crust);
-            cursor: pointer;
-        }
-        
-        .favorite-hint {
-            font-size: 0.8rem;
-            color: var(--color-stone);
-            opacity: 0.8;
-            margin-left: 1.5rem;
-        }
-        
-        .favorite-input {
-            margin-top: 0.5rem;
-            margin-left: 1.5rem;
-        }
-        
-        .favorite-input input {
-            padding: 0.5rem 0.75rem;
-            font-size: 0.9rem;
-        }
-        
-        .sidebar-section {
-            margin-bottom: var(--spacing-sm);
-            padding-bottom: var(--spacing-sm);
-            border-bottom: 1px solid var(--color-parchment);
-        }
-        
-        .sidebar-section:last-child {
-            border-bottom: none;
-            margin-bottom: 0;
-            padding-bottom: 0;
-            flex: 1;
-            display: flex;
-            flex-direction: column;
-            min-height: 0;
-        }
-        
-        .delivery-info-row {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 1rem;
-        }
-        
-        .delivery-info-row .sidebar-subsection {
-            flex: 1;
-        }
-        
-        .sidebar-subsection-title {
-            font-size: 0.7rem;
-            font-weight: 600;
-            color: var(--color-stone);
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
-            margin: 0 0 0.25rem 0;
-        }
-        
-        .sidebar-address-compact {
-            font-size: 0.85rem;
-            color: var(--color-charcoal);
-            line-height: 1.4;
-        }
-        
-        .edit-address-link {
-            display: inline-block;
-            font-size: 0.75rem;
-            color: var(--color-crust);
-            text-decoration: underline;
-            cursor: pointer;
-            margin-top: 0.25rem;
-        }
-        
-        .edit-address-link:hover {
-            color: var(--color-terracotta);
-        }
-        
-        .sidebar-products-list {
-            flex: 1;
-            overflow-y: auto;
-        }
-        
-        .summary-items {
-            display: flex;
-            flex-direction: column;
-        }
-        
-        .summary-item {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            padding: 0.6rem 0;
-            border-bottom: 1px solid var(--color-parchment);
-        }
-        
-        .summary-item:last-child {
-            border-bottom: none;
-        }
-        
-        .summary-item .name {
-            flex: 1;
-            font-size: 0.9rem;
-            color: var(--color-charcoal);
-        }
-        
-        .summary-item .name .qty {
-            font-weight: 600;
-            color: var(--color-crust);
-        }
-        
-        .summary-item .name .gewicht {
-            font-size: 0.8rem;
-            color: var(--color-sage);
-        }
-        
-        .summary-item .price {
-            font-weight: 600;
-            font-size: 0.9rem;
-            color: var(--color-crust-dark);
-            margin-left: 1rem;
-        }
-        
-        .payment-card {
-            background: var(--color-cream);
-            border-radius: 10px;
-            padding: var(--spacing-sm);
-        }
-        
-        .sidebar-section-title {
-            font-size: 0.75rem;
-            font-weight: 600;
-            color: var(--color-stone);
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
-            margin: 0 0 0.4rem 0;
-        }
-        
-        .sidebar-info {
-            font-size: 0.9rem;
-            color: var(--color-charcoal);
-            line-height: 1.5;
-        }
-        
-        .sidebar-info strong {
-            color: var(--color-crust-dark);
-        }
-        
-        .sidebar-info .muted {
-            color: var(--color-stone);
-            font-size: 0.85rem;
-        }
-        
-        .sidebar-address {
-            font-size: 0.9rem;
-            color: var(--color-charcoal);
-            line-height: 1.5;
-        }
-        
-        .sidebar-address strong {
-            color: var(--color-crust-dark);
-            display: block;
-        }
-        
-        .cart-totals {
-            margin-bottom: var(--spacing-sm);
-        }
-        
-        .total-row {
-            display: flex;
-            justify-content: space-between;
-            font-size: 0.85rem;
-            color: var(--color-stone);
-            padding: 0.25rem 0;
-        }
-        
-        .total-row.grand-total {
-            font-size: 1.1rem;
-            font-weight: 700;
-            color: var(--color-crust-dark);
-            padding-top: 0.5rem;
-            margin-top: 0.25rem;
-            border-top: 1px solid var(--color-parchment);
-        }
-        
-        .payment-section {
-            margin-bottom: var(--spacing-sm);
-        }
-        
-        .payment-label {
-            font-size: 0.75rem;
-            font-weight: 600;
-            color: var(--color-stone);
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
-            margin-bottom: 0.4rem;
-        }
-        
-        .payment-toggle {
-            display: flex;
-            background: var(--color-parchment);
-            border-radius: 8px;
-            padding: 3px;
-        }
-        
-        .payment-toggle-btn {
-            flex: 1;
-            padding: 0.5rem;
-            border: none;
-            border-radius: 6px;
-            background: transparent;
-            font-family: var(--font-body);
-            font-size: 0.85rem;
-            font-weight: 600;
-            color: var(--color-stone);
-            cursor: pointer;
-            transition: all 0.2s ease;
-        }
-        
-        .payment-toggle-btn.active {
-            background: white;
-            color: var(--color-crust);
-            box-shadow: 0 1px 4px rgba(0,0,0,0.08);
-        }
-        
-        .payment-info {
-            font-size: 0.85rem;
-            color: var(--color-stone);
-            padding: 0.5rem 0;
-        }
-        
-        .checkout-btn {
-            width: 100%;
-            padding: 0.875rem;
-            font-size: 1rem;
-            font-weight: 600;
-            border: none;
-            border-radius: 10px;
-            background: linear-gradient(135deg, var(--color-crust), var(--color-crust-dark));
-            color: white;
-            cursor: pointer;
-            transition: all 0.3s ease;
-            box-shadow: 0 4px 15px rgba(139, 90, 43, 0.25);
-        }
-        
-        .checkout-btn:hover:not(:disabled) {
-            transform: translateY(-1px);
-            box-shadow: 0 6px 20px rgba(139, 90, 43, 0.35);
-        }
-        
-        .checkout-btn:disabled {
-            background: #ccc;
-            cursor: not-allowed;
-            box-shadow: none;
-        }
-        
-        .secure-badge {
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            gap: 0.4rem;
-            font-size: 0.75rem;
-            color: var(--color-stone);
-            margin-top: 0.75rem;
-        }
-        
-        .secure-badge svg {
-            width: 14px;
-            height: 14px;
-        }
-        
-        .error-banner {
-            background: #fef2f2;
-            border: 1px solid #fecaca;
-            color: #dc2626;
-            padding: 0.6rem 0.75rem;
-            border-radius: 8px;
-            margin-bottom: var(--spacing-sm);
-            font-size: 0.85rem;
-            display: flex;
-            align-items: center;
-            gap: 0.4rem;
-        }
-        
-        .date-prompt {
-            text-align: center;
-            padding: 0.5rem;
-            background: var(--color-wheat-light);
-            border-radius: 6px;
-            font-size: 0.85rem;
-            color: var(--color-crust-dark);
-            margin-bottom: var(--spacing-sm);
-        }
-        
-        .loading-state {
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            padding: var(--spacing-xl);
-            color: var(--color-stone);
-        }
-        
-        .loading-spinner {
-            width: 36px;
-            height: 36px;
-            border: 3px solid var(--color-parchment);
-            border-top-color: var(--color-crust);
-            border-radius: 50%;
-            animation: spin 0.8s linear infinite;
-            margin-bottom: var(--spacing-sm);
-        }
-        
-        @keyframes spin {
-            to { transform: rotate(360deg); }
-        }
-        
-        .empty-state {
-            text-align: center;
-            padding: var(--spacing-lg);
-        }
-        
-        .empty-state h3 {
-            margin-bottom: 0.5rem;
-        }
-        
-        .empty-state a {
-            color: var(--color-crust);
-        }
-        
-        @media (max-width: 1024px) {
-            .checkout-layout {
-                grid-template-columns: 1fr;
-            }
-            
-            .checkout-main {
-                padding: var(--spacing-md);
-                padding-bottom: 220px;
-                max-width: 100%;
-            }
-            
-            .checkout-sidebar {
-                position: fixed;
-                bottom: 0;
-                left: 0;
-                right: 0;
-                top: auto;
-                height: auto;
-                max-height: 75vh;
-                border-left: none;
-                border-top: 1px solid var(--color-parchment);
-                border-radius: 20px 20px 0 0;
-                box-shadow: 0 -4px 30px rgba(139, 90, 43, 0.15);
-                transform: translateY(calc(100% - 140px));
-                transition: transform 0.3s ease;
-                z-index: 100;
-            }
-            
-            .checkout-sidebar.expanded {
-                transform: translateY(0);
-            }
-            
-            .sidebar-toggle {
-                display: flex;
-                align-items: center;
-                justify-content: space-between;
-                padding: var(--spacing-sm) var(--spacing-md);
-                cursor: pointer;
-                background: var(--color-warm-white);
-                border-radius: 20px 20px 0 0;
-            }
-            
-            .sidebar-toggle h2 {
-                font-size: 1rem;
-                margin: 0;
-                color: var(--color-crust-dark);
-            }
-            
-            .sidebar-toggle h2::after {
-                display: none;
-            }
-            
-            .sidebar-toggle-price {
-                font-weight: 700;
-                color: var(--color-crust);
-                font-size: 1.1rem;
-            }
-            
-            .sidebar-toggle-icon {
-                transition: transform 0.3s ease;
-                color: var(--color-stone);
-            }
-            
-            .checkout-sidebar.expanded .sidebar-toggle-icon {
-                transform: rotate(180deg);
-            }
-            
-            .sidebar-header {
-                display: none;
-            }
-            
-            .sidebar-content {
-                overscroll-behavior: contain;
-                -webkit-overflow-scrolling: touch;
-            }
-            
-            .sidebar-footer {
-                padding-bottom: calc(var(--spacing-sm) + env(safe-area-inset-bottom));
-            }
-        }
-        
-        @media (min-width: 1025px) {
-            .sidebar-toggle {
-                display: none;
-            }
-        }
-        
-        @media (max-width: 600px) {
-            .checkout-main {
-                padding: var(--spacing-sm);
-                padding-bottom: 220px;
-            }
-            
-            .page-intro h1 {
-                font-size: 1.4rem;
-            }
-            
-            .checkout-card {
-                padding: var(--spacing-sm);
-            }
-            
-            .form-row {
-                grid-template-columns: 1fr;
-            }
-        }
-    </style>
 </head>
 <body>
     <header>
@@ -880,8 +51,8 @@
                     </div>
                 </div>
                 
-                <div v-else class="checkout-layout">
-                    <div class="checkout-main">
+                <div v-else class="checkout-wrapper">
+                    <div class="checkout-header-section">
                         <a href="bestelling-plaatsen.html" class="back-link">
                             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                                 <path d="M19 12H5M12 19l-7-7 7-7"/>
@@ -893,8 +64,11 @@
                             <h1>Nog één stap</h1>
                             <p class="subtitle">Kies je leverdatum en rond je bestelling af</p>
                         </div>
-                        
-                        <div class="checkout-card primary">
+                    </div>
+                    
+                    <div class="checkout-layout">
+                        <div class="checkout-main">
+                            <div class="checkout-card primary">
                             <h3>
                                 <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                                     <rect x="3" y="4" width="18" height="18" rx="2" ry="2"/>
@@ -906,7 +80,7 @@
                             </h3>
                             <div class="form-group">
                                 <label>Leverdatum</label>
-                                <input type="date" v-model="deliveryDate" :min="minDeliveryDateStr" :class="{ valid: deliveryDate }">
+                <input type="date" v-model="deliveryDate" :min="minDeliveryDateStr" class="date-input" :class="{ valid: deliveryDate }">
                                 <div v-if="!deliveryDate" class="date-hint">
                                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                                         <circle cx="12" cy="12" r="10"/>
@@ -924,6 +98,41 @@
                             <div class="form-group">
                                 <label>Opmerkingen <span class="optional">(optioneel)</span></label>
                                 <textarea v-model="notes" placeholder="Leverinstructies, speciale wensen..." rows="2"></textarea>
+                            </div>
+                        </div>
+                        
+                        <div class="checkout-card">
+                            <div class="delivery-info-row">
+                                <div class="delivery-info-col">
+                                    <h3>
+                                        <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                            <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/>
+                                            <circle cx="12" cy="10" r="3"/>
+                                        </svg>
+                                        Afleveradres
+                                        <a class="edit-link-inline" @click="showAddressModal = true">(wijzigen)</a>
+                                    </h3>
+                                    <div class="address-text-compact">
+                                        <strong>{{ deliveryAddress.bedrijfsnaam }}</strong><br>
+                                        {{ deliveryAddress.adres }}<br>
+                                        {{ deliveryAddress.postcode }} {{ deliveryAddress.plaats }}
+                                    </div>
+                                </div>
+                                <div class="delivery-info-col">
+                                    <h3>
+                                        <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                            <rect x="3" y="4" width="18" height="18" rx="2" ry="2"/>
+                                            <line x1="16" y1="2" x2="16" y2="6"/>
+                                            <line x1="8" y1="2" x2="8" y2="6"/>
+                                            <line x1="3" y1="10" x2="21" y2="10"/>
+                                        </svg>
+                                        Afleverdatum
+                                    </h3>
+                                    <div class="date-text-compact">
+                                        <span v-if="deliveryDate">{{ formatDateNL(deliveryDate) }}</span>
+                                        <span v-else class="muted">Nog te kiezen</span>
+                                    </div>
+                                </div>
                             </div>
                         </div>
                         
@@ -951,6 +160,11 @@
                                     </select>
                                 </div>
                                 <div class="form-group">
+                                    <label>Einddatum <span class="optional">(optioneel)</span></label>
+<input type="date" v-model="recurringEndDate" :min="minEndDateStr" class="date-input">
+                                    <div class="date-hint">Laat leeg voor doorlopende levering</div>
+                                </div>
+                                <div class="form-group">
                                     <label>Naam <span class="optional">(optioneel)</span></label>
                                     <input type="text" v-model="recurringName" placeholder="Bijv. Kantoorlevering">
                                 </div>
@@ -959,40 +173,27 @@
                         </div>
                     </div>
                     
+                    <div class="sidebar-column">
                     <aside class="checkout-sidebar" :class="{ expanded: sidebarExpanded }">
                         <div class="sidebar-toggle" @click="sidebarExpanded = !sidebarExpanded">
-                            <h2>Samenvatting</h2>
+                            <h2>
+                                <span>Winkelwagen</span>
+                                <span class="cart-count">{{ totalItems }}</span>
+                            </h2>
                             <span class="sidebar-toggle-price">{{ formatPrice(orderData.total_amount) }}</span>
                             <svg class="sidebar-toggle-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                                 <path d="M18 15l-6-6-6 6"/>
                             </svg>
                         </div>
                         
-                        <div class="sidebar-header">
-                            <h2>Samenvatting</h2>
+                        <div class="panel-header">
+                            <h2>
+                                <span>Winkelwagen</span>
+                                <span class="cart-count">{{ totalItems }}</span>
+                            </h2>
                         </div>
                         
                         <div class="sidebar-content">
-                            <div class="sidebar-section">
-                                <div class="delivery-info-row">
-                                    <div class="sidebar-subsection">
-                                        <h5 class="sidebar-subsection-title">Levering</h5>
-                                        <div class="sidebar-info">
-                                            <strong v-if="deliveryDate">{{ formatDateNL(deliveryDate) }}</strong>
-                                            <span v-else class="muted">Nog te kiezen</span>
-                                        </div>
-                                    </div>
-                                    <div class="sidebar-subsection">
-                                        <h5 class="sidebar-subsection-title">Afleveradres</h5>
-                                        <div class="sidebar-address-compact">
-                                            {{ deliveryAddress.adres }}<br>
-                                            {{ deliveryAddress.postcode }} {{ deliveryAddress.plaats }}
-                                        </div>
-                                        <a class="edit-address-link" @click="showAddressModal = true">Wijzigen</a>
-                                    </div>
-                                </div>
-                            </div>
-                            
                             <div class="sidebar-section">
                                 <h4 class="sidebar-section-title">Bestelling <a href="bestelling-plaatsen.html" class="edit-address-link" style="margin-left: 0.5rem;">Wijzigen</a></h4>
                                 <div class="sidebar-products-list">
@@ -1069,6 +270,7 @@
                             </div>
                         </div>
                     </aside>
+                    </div>
                 </div>
                 
                 <div v-if="showAddressModal" class="address-modal-overlay" @click.self="showAddressModal = false">
@@ -1112,7 +314,7 @@
     </footer>
 
     <script src="https://unpkg.com/vue@3/dist/vue.global.prod.js"></script>
-    <script src="js/main.js"></script>
+        <script src="js/main.js"></script>
     <script>
     const { createApp } = Vue;
     
@@ -1132,6 +334,7 @@
                 isRecurring: false,
                 recurringName: '',
                 recurringFrequency: 'weekly',
+                recurringEndDate: '',
                 saveAsFavorite: false,
                 favoriteName: '',
                 sidebarExpanded: false,
@@ -1144,6 +347,17 @@
             minDeliveryDateStr() {
                 const date = new Date();
                 date.setDate(date.getDate() + 2);
+                return date.toISOString().split('T')[0];
+            },
+            
+            minEndDateStr() {
+                if (!this.deliveryDate) {
+                    const date = new Date();
+                    date.setDate(date.getDate() + 7);
+                    return date.toISOString().split('T')[0];
+                }
+                const date = new Date(this.deliveryDate);
+                date.setDate(date.getDate() + 7);
                 return date.toISOString().split('T')[0];
             },
             
@@ -1173,7 +387,7 @@
             }
         },
         
-        async mounted() {
+async mounted() {
             const stored = sessionStorage.getItem('businessAccount');
             if (!stored) {
                 window.location.href = 'login-bedrijven.html';
@@ -1270,7 +484,7 @@
                             recurring_name: this.recurringName,
                             recurring_frequency: this.recurringFrequency,
                             recurring_day: recurringDay,
-                            recurring_end_date: null
+                            recurring_end_date: this.recurringEndDate || null
                         })
                     });
                     

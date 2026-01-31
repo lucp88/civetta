@@ -127,6 +127,17 @@ switch ($method) {
         try {
             if ($action === 'stop') {
                 $stmt = $pdo->prepare("
+                    SELECT id FROM business_orders 
+                    WHERE recurring_group_id = ? 
+                    AND account_id = ?
+                    AND delivery_date > CURDATE()
+                    AND is_cancelled = 0
+                    AND payment_status = 'pending'
+                ");
+                $stmt->execute([$groupId, $accountId]);
+                $orderIds = $stmt->fetchAll(PDO::FETCH_COLUMN);
+                
+                $stmt = $pdo->prepare("
                     UPDATE business_orders 
                     SET is_cancelled = 1 
                     WHERE recurring_group_id = ? 
@@ -137,6 +148,10 @@ switch ($method) {
                 ");
                 $stmt->execute([$groupId, $accountId]);
                 $cancelled = $stmt->rowCount();
+                
+                if ($cancelled > 0 && count($orderIds) > 0) {
+                    sendCancellationEmail($pdo, $orderIds[0]);
+                }
                 
                 echo json_encode([
                     'success' => true, 

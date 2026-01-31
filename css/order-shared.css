@@ -1,0 +1,342 @@
+[v-cloak] { display: none; }
+
+.back-link {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    color: var(--color-crust);
+    text-decoration: none;
+    font-weight: 500;
+    font-size: 0.95rem;
+    margin-bottom: var(--spacing-sm);
+    transition: all 0.2s ease;
+}
+
+.back-link:hover {
+    color: var(--color-terracotta);
+    gap: 0.75rem;
+}
+
+.back-link svg {
+    width: 18px;
+    height: 18px;
+}
+
+.page-intro {
+    margin-bottom: var(--spacing-md);
+}
+
+.page-intro h1 {
+    font-size: 2rem;
+    margin-bottom: 0.5rem;
+    background: linear-gradient(135deg, var(--color-crust-dark), var(--color-crust));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+}
+
+.page-intro p,
+.page-intro .subtitle {
+    color: var(--color-stone);
+    font-size: 1.05rem;
+}
+
+.form-group {
+    margin-bottom: var(--spacing-sm);
+}
+
+.form-group:last-child {
+    margin-bottom: 0;
+}
+
+.form-group label {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: var(--color-stone);
+    margin-bottom: 0.35rem;
+}
+
+.form-group label .optional {
+    font-weight: 400;
+    color: var(--color-stone);
+    opacity: 0.7;
+}
+
+.form-group input,
+.form-group textarea,
+.form-group select {
+    width: 100%;
+    padding: 0.7rem 0.9rem;
+    border: 2px solid var(--color-parchment);
+    border-radius: 8px;
+    font-size: 0.95rem;
+    font-family: var(--font-body);
+    background: white;
+    transition: border-color 0.2s ease;
+}
+
+.form-group input:focus,
+.form-group textarea:focus,
+.form-group select:focus {
+    outline: none;
+    border-color: var(--color-wheat);
+}
+
+.form-group input.valid {
+    border-color: #22c55e;
+}
+
+.form-group textarea {
+    resize: vertical;
+    min-height: 70px;
+}
+
+.form-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0.75rem;
+}
+
+.form-hint {
+    font-size: 0.75rem;
+    color: var(--color-stone);
+    margin-top: 0.25rem;
+    opacity: 0.8;
+}
+
+.panel-header {
+    padding: var(--spacing-md);
+    border-bottom: 1px solid var(--color-parchment);
+    background: linear-gradient(180deg, var(--color-warm-white) 0%, #fefcfa 100%);
+    flex-shrink: 0;
+}
+
+.panel-header h2 {
+    font-size: 1.5rem;
+    margin: 0;
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+}
+
+.panel-header h2::after {
+    display: none;
+}
+
+.cart-count {
+    background: var(--color-crust);
+    color: white;
+    font-size: 0.8rem;
+    font-family: var(--font-body);
+    font-weight: 600;
+    padding: 0.25rem 0.6rem;
+    border-radius: 12px;
+    min-width: 24px;
+    text-align: center;
+}
+
+.cart-totals {
+    background: var(--color-cream);
+    border-radius: 10px;
+    padding: var(--spacing-sm);
+    margin-bottom: var(--spacing-sm);
+}
+
+.total-row {
+    display: flex;
+    justify-content: space-between;
+    font-size: 0.9rem;
+    color: var(--color-stone);
+    padding: 0.35rem 0;
+}
+
+.total-row.grand-total {
+    font-size: 1.15rem;
+    font-weight: 700;
+    color: var(--color-crust-dark);
+    padding-top: 0.6rem;
+    margin-top: 0.4rem;
+    border-top: 2px solid var(--color-parchment);
+}
+
+.checkout-btn {
+    width: 100%;
+    padding: 1rem;
+    font-size: 1.1rem;
+    font-weight: 600;
+    border: none;
+    border-radius: 10px;
+    background: linear-gradient(135deg, var(--color-crust), var(--color-crust-dark));
+    color: white;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    box-shadow: 0 4px 15px rgba(139, 90, 43, 0.25);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+}
+
+.checkout-btn:hover:not(:disabled) {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(139, 90, 43, 0.35);
+}
+
+.checkout-btn:disabled {
+    background: #ccc;
+    cursor: not-allowed;
+    box-shadow: none;
+}
+
+.checkout-btn svg {
+    width: 20px;
+    height: 20px;
+}
+
+.error-banner {
+    background: #fef2f2;
+    border: 1px solid #fecaca;
+    color: #dc2626;
+    padding: 0.75rem 1rem;
+    border-radius: 8px;
+    margin-bottom: var(--spacing-sm);
+    font-size: 0.9rem;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.loading-state {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: var(--spacing-xl);
+    color: var(--color-stone);
+}
+
+.loading-spinner {
+    width: 40px;
+    height: 40px;
+    border: 3px solid var(--color-parchment);
+    border-top-color: var(--color-crust);
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+    margin-bottom: var(--spacing-sm);
+}
+
+@keyframes spin {
+    to { transform: rotate(360deg); }
+}
+
+@keyframes slideDown {
+    from { opacity: 0; transform: translateY(-8px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+.date-input {
+    width: 100%;
+    padding: 0.7rem 0.9rem;
+    border: 2px solid var(--color-parchment);
+    border-radius: 8px;
+    font-size: 0.95rem;
+    font-family: var(--font-body);
+    background: white;
+    transition: border-color 0.2s ease;
+    color: var(--color-charcoal);
+    cursor: pointer;
+}
+
+.date-input:focus {
+    outline: none;
+    border-color: var(--color-wheat);
+}
+
+.date-input.valid {
+    border-color: #22c55e;
+}
+
+.date-input::-webkit-calendar-picker-indicator {
+    cursor: pointer;
+    filter: invert(35%) sepia(30%) saturate(800%) hue-rotate(350deg);
+}
+
+.date-hint {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    font-size: 0.8rem;
+    color: var(--color-stone);
+    margin-top: 0.35rem;
+}
+
+.date-hint.valid {
+    color: #22c55e;
+}
+
+.date-hint svg {
+    width: 14px;
+    height: 14px;
+}
+
+.qty-btn {
+    width: 28px;
+    height: 28px;
+    border: 1px solid var(--color-parchment);
+    border-radius: 6px;
+    background: white;
+    color: var(--color-crust);
+    font-size: 1rem;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.15s ease;
+}
+
+.qty-btn:hover {
+    background: var(--color-crust);
+    color: white;
+    border-color: var(--color-crust);
+}
+
+.qty-display {
+    min-width: 28px;
+    text-align: center;
+    font-weight: 600;
+    font-size: 0.95rem;
+}
+
+.btn-remove {
+    width: 28px;
+    height: 28px;
+    border: none;
+    border-radius: 6px;
+    background: transparent;
+    color: #ccc;
+    font-size: 1.1rem;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.15s ease;
+    margin-left: 0.25rem;
+}
+
+.btn-remove:hover {
+    background: #fee;
+    color: #e74c3c;
+}
+
+@media (max-width: 600px) {
+    .page-intro h1 {
+        font-size: 1.5rem;
+    }
+    
+    .form-row {
+        grid-template-columns: 1fr;
+    }
+}
