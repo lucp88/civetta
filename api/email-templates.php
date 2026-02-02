@@ -959,6 +959,94 @@ function buildRecurringUpdateEmail($order, $oldItems, $newItems, $upcomingOrders
     return $html;
 }
 
+function buildDeliveryOnRouteEmail($order, $items, $bedrijf, $deliveryCount = 1, $estimatedPosition = null) {
+    $maandNamen = ['January' => 'januari', 'February' => 'februari', 'March' => 'maart', 'April' => 'april', 'May' => 'mei', 'June' => 'juni', 'July' => 'juli', 'August' => 'augustus', 'September' => 'september', 'October' => 'oktober', 'November' => 'november', 'December' => 'december'];
+    $dagNamen = ['Sunday' => 'zondag', 'Monday' => 'maandag', 'Tuesday' => 'dinsdag', 'Wednesday' => 'woensdag', 'Thursday' => 'donderdag', 'Friday' => 'vrijdag', 'Saturday' => 'zaterdag'];
+    
+    $leverDatum = date('l j F', strtotime($order['delivery_date']));
+    foreach ($dagNamen as $en => $nl) $leverDatum = str_replace($en, $nl, $leverDatum);
+    foreach ($maandNamen as $en => $nl) $leverDatum = str_replace($en, $nl, $leverDatum);
+    
+    $html = getEmailHeader('Uw bestelling is onderweg!');
+    
+    $html .= '
+        <div style="background: linear-gradient(135deg, #2196f3, #1976d2); color: white; text-align: center; padding: 25px;">
+            <div style="font-size: 48px; margin-bottom: 10px;">🚚</div>
+            <div style="font-size: 24px; font-weight: 600;">Uw bestelling is onderweg!</div>
+        </div>
+        <div class="email-body">
+            <p class="greeting">Beste ' . htmlspecialchars($order['contactpersoon']) . ',</p>
+            
+            <p style="font-size: 16px;">Goed nieuws! Onze bakker is vertrokken met uw versgebakken bestelling. We zijn nu onderweg naar ' . htmlspecialchars($order['bedrijfsnaam']) . '.</p>
+            
+            <div class="info-box" style="background: #e3f2fd; border-left-color: #2196f3;">
+                <h3 style="color: #1565c0; display: flex; align-items: center; gap: 10px;">
+                    <span style="font-size: 24px;">📍</span> Levergegevens
+                </h3>
+                <p><strong>Leveradres:</strong><br>' . htmlspecialchars($order['delivery_adres'] ?? $order['adres']) . '<br>' . htmlspecialchars(($order['delivery_postcode'] ?? $order['postcode']) . ' ' . ($order['delivery_plaats'] ?? $order['plaats'])) . '</p>
+                <p style="margin-top: 15px;"><strong>Bestelnummer:</strong> #' . $order['id'] . '</p>
+            </div>';
+    
+    if ($estimatedPosition !== null && $deliveryCount > 1) {
+        $html .= '
+            <div style="background: #fff3e0; border-radius: 8px; padding: 15px; margin: 20px 0; text-align: center;">
+                <p style="margin: 0; color: #e65100; font-size: 14px;">
+                    <strong>U bent stop ' . $estimatedPosition . ' van ' . $deliveryCount . '</strong> op onze route vandaag
+                </p>
+            </div>';
+    }
+    
+    $html .= '
+            <div class="detail-section">
+                <h4 style="color: #5c3d1e;">Uw bestelling</h4>
+                <table class="order-table">
+                    <thead>
+                        <tr>
+                            <th>Product</th>
+                            <th style="text-align: center;">Aantal</th>
+                        </tr>
+                    </thead>
+                    <tbody>';
+    
+    foreach ($items as $item) {
+        $html .= '
+                        <tr>
+                            <td class="product-name">' . htmlspecialchars($item['product_name']) . '</td>
+                            <td class="quantity">' . $item['quantity'] . '</td>
+                        </tr>';
+    }
+    
+    $html .= '
+                    </tbody>
+                </table>
+            </div>';
+    
+    if (!empty($order['notes'])) {
+        $html .= '
+            <div class="info-box">
+                <h3>Uw opmerkingen</h3>
+                <p>' . nl2br(htmlspecialchars($order['notes'])) . '</p>
+            </div>';
+    }
+    
+    $html .= '
+            <div style="background: #f0f9f0; border-radius: 8px; padding: 20px; margin: 25px 0; text-align: center;">
+                <p style="margin: 0; color: #2e7d32; font-size: 15px;">
+                    💚 Alvast smakelijk! Wij hopen dat u geniet van ons versgebakken brood.
+                </p>
+            </div>
+            
+            <div class="divider"></div>
+            
+            <p>Heeft u vragen? Neem gerust contact met ons op.</p>
+            <p>Met vriendelijke groet,<br><strong>Bakkerij Civetta</strong></p>
+        </div>';
+    
+    $html .= getEmailFooter($bedrijf);
+    
+    return $html;
+}
+
 function sendHtmlEmail($to, $subject, $htmlBody, $attachments = [], $replyTo = null) {
     $boundary = md5(uniqid(time()));
     

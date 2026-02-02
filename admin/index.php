@@ -145,6 +145,13 @@ requireLogin();
         </div>
 
         <div class="dashboard-grid">
+            <a href="bakker-dashboard.php" class="dashboard-card" style="grid-column: 1 / -1; background: linear-gradient(135deg, #fff9e6, #fff3cd);">
+                <div class="icon" style="background: linear-gradient(135deg, #f59e0b, #d97706);">📅</div>
+                <h3>Bakker Planning</h3>
+                <p>Kalenderoverzicht met bestellingen om te bereiden en te leveren. Inclusief route planning.</p>
+                <span class="badge" style="background: #fef3c7; color: #92400e;">Nieuw</span>
+            </a>
+
             <a href="posts.php" class="dashboard-card">
                 <div class="icon">📝</div>
                 <h3>Blog Posts</h3>
