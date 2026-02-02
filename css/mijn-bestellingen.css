@@ -190,6 +190,11 @@
     color: #0f5132;
 }
 
+.delivery-status-badge.paused {
+    background: #fff3cd;
+    color: #856404;
+}
+
 .orders-column h4 {
     font-size: 0.9rem;
     color: var(--color-stone);
@@ -922,13 +927,15 @@
 }
 
 .recurring-type-badge.type-fixed {
-    background: #e8f4fd;
-    color: #0369a1;
+    background: transparent;
+    color: #333;
+    border: 1px solid #333;
 }
 
 .recurring-type-badge.type-rolling {
-    background: #fef3c7;
-    color: #92400e;
+    background: transparent;
+    color: #333;
+    border: 1px solid #333;
 }
 
 .recurring-card:hover {
@@ -1054,6 +1061,14 @@
     color: #dc3545;
 }
 
+.recurring-dropdown-item.pause {
+    color: #856404;
+}
+
+.recurring-dropdown-item.resume {
+    color: #155724;
+}
+
 .recurring-dropdown-item.details {
     color: var(--color-crust);
 }
@@ -1063,8 +1078,73 @@
     max-width: 700px;
 }
 
+.recurring-detail-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: 1rem;
+}
+
+.recurring-detail-header-left {
+    flex: 1;
+}
+
+.recurring-detail-header-left h3 {
+    margin: 0;
+    border: none;
+    padding: 0;
+}
+
+.recurring-detail-header-right {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+}
+
+.btn-bestelbon-header {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    padding: 0.5rem 0.85rem;
+    background: linear-gradient(135deg, #e3f2fd, #bbdefb);
+    color: #1565c0;
+    border-radius: 6px;
+    font-size: 0.85rem;
+    font-weight: 600;
+    text-decoration: none;
+    transition: all 0.2s ease;
+}
+
+.btn-bestelbon-header:hover {
+    background: linear-gradient(135deg, #bbdefb, #90caf9);
+}
+
+.btn-bestelbon-header i {
+    font-size: 0.9rem;
+}
+
 .recurring-detail-section {
     margin-bottom: var(--spacing-md);
+}
+
+.unavailable-warning {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.75rem;
+    padding: 1rem;
+    background: #fff3cd;
+    border: 1px solid #ffc107;
+    border-radius: 8px;
+    margin-bottom: 1rem;
+    color: #856404;
+    font-size: 0.9rem;
+    line-height: 1.4;
+}
+
+.unavailable-warning i {
+    font-size: 1.2rem;
+    flex-shrink: 0;
+    margin-top: 0.1rem;
 }
 
 .recurring-detail-section h4 {
@@ -1234,8 +1314,7 @@
 }
 
 .recurring-delivery-item {
-    display: grid;
-    grid-template-columns: 1fr auto auto auto;
+    display: flex;
     align-items: center;
     gap: 0.75rem;
     padding: 0.6rem 1rem;
@@ -1247,6 +1326,7 @@
 .recurring-delivery-item .date {
     color: var(--color-crust-dark);
     font-weight: 500;
+    flex: 1;
 }
 
 .recurring-delivery-item .delivery-price {
@@ -2254,6 +2334,72 @@
     opacity: 0.9;
 }
 
+/* Paused order row styling */
+.order-row.is-paused {
+    background: linear-gradient(135deg, #fffbeb 0%, #fff3cd 100%);
+    border: 1px solid #f0e68c;
+}
+
+.order-row.is-paused:hover {
+    background: linear-gradient(135deg, #fff8dc 0%, #ffecb3 100%);
+}
+
+/* Paused order status badge */
+.order-status.paused {
+    background: #fff3cd;
+    color: #856404;
+}
+
+/* Missed order status badge (paused order with past delivery date) */
+.order-status.missed {
+    background: #e2e3e5;
+    color: #6c757d;
+}
+
+/* Missed order row styling */
+.order-row.is-missed {
+    opacity: 0.7;
+    background: #f8f9fa;
+    border: 1px dashed #adb5bd;
+}
+
+.order-row.is-missed:hover {
+    opacity: 0.85;
+}
+
+/* Paused delivery item in recurring detail */
+.recurring-delivery-item.is-paused {
+    background: #fffbeb;
+    border-left: 3px solid #f0ad4e;
+    opacity: 0.85;
+}
+
+/* Button styles for pause/resume */
+.btn-pause {
+    color: #856404 !important;
+    border-color: #856404 !important;
+}
+
+.btn-pause:hover {
+    background: #fff3cd !important;
+}
+
+.btn-resume {
+    background: linear-gradient(135deg, #28a745, #218838) !important;
+    color: white !important;
+    border: none !important;
+}
+
+.btn-resume:hover {
+    background: linear-gradient(135deg, #218838, #1e7e34) !important;
+}
+
+/* Paused status badge for recurring groups */
+.recurring-status.ended {
+    background: #e2e3e5;
+    color: #6c757d;
+}
+
 /* Cancel Dialog */
 .cancel-dialog-modal .modal.cancel-dialog {
     max-width: 420px;
@@ -2458,4 +2604,62 @@
     color: #558b2f;
     margin: 0;
     line-height: 1.4;
+}
+
+/* Section link button (bestelbon in instellingen header) */
+.section-link-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.3rem;
+    font-size: 0.75rem;
+    font-weight: 500;
+    color: var(--color-stone);
+    text-decoration: none;
+    padding: 0.25rem 0.6rem;
+    background: #f5f5f5;
+    border-radius: 4px;
+    margin-left: 0.75rem;
+    transition: all 0.2s ease;
+}
+
+.section-link-btn:hover {
+    background: #e8e8e8;
+    color: var(--color-crust-dark);
+}
+
+.section-link-btn i {
+    font-size: 0.8rem;
+}
+
+/* Delivery invoice button in recurring deliveries */
+.delivery-invoice-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.25rem;
+    padding: 0.2rem 0.5rem;
+    font-size: 0.7rem;
+    font-weight: 600;
+    border-radius: 4px;
+    text-decoration: none;
+    transition: all 0.2s ease;
+}
+
+.delivery-invoice-btn i {
+    font-size: 0.75rem;
+}
+
+.delivery-invoice-btn.active {
+    background: linear-gradient(135deg, #e8f4fc, #d1e8f5);
+    color: #0c5a8a;
+    cursor: pointer;
+}
+
+.delivery-invoice-btn.active:hover {
+    background: linear-gradient(135deg, #d1e8f5, #b8dbed);
+}
+
+.delivery-invoice-btn.inactive {
+    background: #e9ecef;
+    color: #adb5bd;
+    cursor: default;
 }

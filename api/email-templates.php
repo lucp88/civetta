@@ -708,6 +708,257 @@ function buildInvoiceEmailBody($accountData, $orderItems, $invoiceNumber = null,
     return $html;
 }
 
+function buildRecurringPauseEmail($accountInfo, $affectedOrders, $unaffectedOrders, $isPause, $bedrijf = []) {
+    $maandNamen = ['January' => 'januari', 'February' => 'februari', 'March' => 'maart', 'April' => 'april', 'May' => 'mei', 'June' => 'juni', 'July' => 'juli', 'August' => 'augustus', 'September' => 'september', 'October' => 'oktober', 'November' => 'november', 'December' => 'december'];
+    $frequentieLabels = ['weekly' => 'Wekelijks', 'biweekly' => 'Tweewekelijks', 'monthly' => 'Maandelijks'];
+    
+    $recurringName = $accountInfo['recurring_name'] ?? 'Terugkerende bestelling';
+    $frequentie = $frequentieLabels[$accountInfo['recurring_frequency']] ?? $accountInfo['recurring_frequency'];
+    
+    if ($isPause) {
+        $title = 'Terugkerende bestelling gepauzeerd';
+        $headerText = 'LEVERINGEN GEPAUZEERD';
+        $headerBg = '#f0ad4e';
+        $introText = 'Uw terugkerende bestelling is gepauzeerd. De onderstaande leveringen worden <strong>niet uitgevoerd</strong> tenzij u de bestelling weer activeert via uw dashboard.';
+        $affectedLabel = 'Gepauzeerde leveringen (worden niet uitgevoerd)';
+        $unaffectedLabel = 'Leveringen in bereiding (gaan wel door)';
+        $unaffectedNote = 'Deze leveringen waren al in bereiding en kunnen niet meer worden gepauzeerd. Deze gaan gewoon door.';
+    } else {
+        $title = 'Terugkerende bestelling hervat';
+        $headerText = 'LEVERINGEN HERVAT';
+        $headerBg = '#28a745';
+        $introText = 'Uw terugkerende bestelling is weer actief. De onderstaande leveringen worden weer uitgevoerd.';
+        $affectedLabel = 'Hervatte leveringen';
+        $unaffectedLabel = 'Gemiste leveringen (geannuleerd)';
+        $unaffectedNote = 'Deze leveringen konden niet meer worden hervat omdat de bereidingsdeadline is verstreken.';
+    }
+    
+    $html = getEmailHeader($title);
+    
+    $html .= '
+        <div style="background: ' . $headerBg . '; color: white; text-align: center; padding: 15px; font-size: 18px; font-weight: 600; letter-spacing: 1px;">' . $headerText . '</div>
+        <div class="email-body">
+            <p class="greeting">Beste ' . htmlspecialchars($accountInfo['contactpersoon']) . ',</p>
+            
+            <h2>' . $title . '</h2>
+            
+            <p>' . $introText . '</p>
+            
+            <div class="info-box">
+                <h3>' . htmlspecialchars($recurringName) . '</h3>
+                <p><strong>Bedrijf:</strong> ' . htmlspecialchars($accountInfo['bedrijfsnaam']) . '</p>
+                <p><strong>Frequentie:</strong> ' . $frequentie . '</p>
+                <p><strong>Status:</strong> <span class="status-badge" style="background: ' . ($isPause ? '#fff3cd; color: #856404' : '#d4edda; color: #155724') . ';">' . ($isPause ? 'Gepauzeerd' : 'Actief') . '</span></p>
+            </div>';
+    
+    if (!empty($affectedOrders)) {
+        $totalAmount = array_sum(array_column($affectedOrders, 'total_amount'));
+        
+        $html .= '
+            <h3 style="color: #5c3d1e; margin-top: 30px;">' . $affectedLabel . ' (' . count($affectedOrders) . ')</h3>
+            <table class="order-table">
+                <thead>
+                    <tr>
+                        <th>Leverdatum</th>
+                        <th style="text-align: right;">Bedrag</th>
+                    </tr>
+                </thead>
+                <tbody>';
+        
+        foreach ($affectedOrders as $order) {
+            $datum = date('j F Y', strtotime($order['delivery_date']));
+            foreach ($maandNamen as $en => $nl) $datum = str_replace($en, $nl, $datum);
+            $html .= '
+                    <tr>
+                        <td>' . $datum . '</td>
+                        <td style="text-align: right;">' . formatEuro($order['total_amount']) . '</td>
+                    </tr>';
+        }
+        
+        $html .= '
+                </tbody>
+            </table>
+            <div class="info-box" style="background: #e8f4fd; border-left-color: #007bff;">
+                <p><strong>Totaal ' . ($isPause ? 'gepauzeerd' : 'hervat') . ':</strong> ' . formatEuro($totalAmount) . ' (' . count($affectedOrders) . ' leveringen)</p>
+            </div>';
+    }
+    
+    if (!empty($unaffectedOrders)) {
+        $html .= '
+            <div class="warning-box" style="margin-top: 25px;">
+                <h4 style="margin: 0 0 10px 0; color: #856404;">' . $unaffectedLabel . ' (' . count($unaffectedOrders) . ')</h4>
+                <p style="margin-bottom: 15px;">' . $unaffectedNote . '</p>
+                <ul style="margin: 0; padding-left: 20px;">';
+        
+        foreach ($unaffectedOrders as $order) {
+            $datum = date('j F Y', strtotime($order['delivery_date']));
+            foreach ($maandNamen as $en => $nl) $datum = str_replace($en, $nl, $datum);
+            $html .= '<li>' . $datum . ' - ' . formatEuro($order['total_amount']) . '</li>';
+        }
+        
+        $html .= '
+                </ul>
+            </div>';
+    }
+    
+    $html .= '
+            <p style="text-align: center; margin-top: 30px;">
+                <a href="https://bakkerij-civetta.nl/mijn-bestellingen.html" class="cta-button">Bekijk in dashboard</a>
+            </p>';
+    
+    if ($isPause) {
+        $html .= '
+            <div class="warning-box" style="margin-top: 25px;">
+                <p><strong>Belangrijk:</strong> Zolang uw bestelling gepauzeerd is, worden er geen leveringen uitgevoerd en ontvangt u geen facturen voor deze bestellingen.</p>
+            </div>
+            <div class="info-box" style="background: #e8f4fd; border-left-color: #17a2b8; margin-top: 15px;">
+                <p><strong>Weer activeren?</strong> U kunt de leveringen op elk moment weer hervatten via uw dashboard. Let op: leveringen waarvan de leverdatum is verstreken worden als "gemist" gemarkeerd en niet meer uitgevoerd.</p>
+            </div>';
+    }
+    
+    $html .= '
+            <div class="divider"></div>
+            
+            <p>Heeft u vragen? Wij helpen u graag!</p>
+            <p>Met vriendelijke groet,<br><strong>Bakkerij Civetta</strong></p>
+        </div>';
+    
+    $html .= getEmailFooter($bedrijf);
+    
+    return $html;
+}
+
+function buildRecurringUpdateEmail($order, $oldItems, $newItems, $upcomingOrders, $bedrijf, $btwTarief = 9) {
+    $maandNamen = ['January' => 'januari', 'February' => 'februari', 'March' => 'maart', 'April' => 'april', 'May' => 'mei', 'June' => 'juni', 'July' => 'juli', 'August' => 'augustus', 'September' => 'september', 'October' => 'oktober', 'November' => 'november', 'December' => 'december'];
+    $frequentieLabels = ['weekly' => 'Wekelijks', 'biweekly' => 'Tweewekelijks', 'monthly' => 'Maandelijks'];
+    
+    $recurringName = $order['recurring_name'] ?? 'Terugkerende bestelling';
+    $frequentie = $frequentieLabels[$order['recurring_frequency']] ?? $order['recurring_frequency'];
+    
+    $oldTotal = 0;
+    foreach ($oldItems as $item) {
+        $oldTotal += $item['quantity'] * $item['unit_price'];
+    }
+    $newTotal = 0;
+    foreach ($newItems as $item) {
+        $newTotal += $item['quantity'] * $item['unit_price'];
+    }
+    
+    $html = getEmailHeader('Terugkerende bestelling gewijzigd');
+    
+    $html .= '
+        <div style="background: #17a2b8; color: white; text-align: center; padding: 15px; font-size: 18px; font-weight: 600; letter-spacing: 1px;">BESTELLING GEWIJZIGD</div>
+        <div class="email-body">
+            <p class="greeting">Beste ' . htmlspecialchars($order['contactpersoon']) . ',</p>
+            
+            <h2>Uw terugkerende bestelling is aangepast</h2>
+            
+            <p>Hierbij bevestigen wij de wijziging van uw terugkerende bestelling. De nieuwe producten gelden voor alle toekomstige leveringen.</p>
+            
+            <div class="info-box">
+                <h3>' . htmlspecialchars($recurringName) . '</h3>
+                <p><strong>Bedrijf:</strong> ' . htmlspecialchars($order['bedrijfsnaam']) . '</p>
+                <p><strong>Frequentie:</strong> ' . $frequentie . '</p>
+            </div>
+            
+            <h3 style="color: #5c3d1e; margin-top: 30px;">Nieuwe producten per levering</h3>
+            <table class="order-table">
+                <thead>
+                    <tr>
+                        <th>Product</th>
+                        <th style="text-align: center;">Aantal</th>
+                        <th style="text-align: right;">Prijs</th>
+                    </tr>
+                </thead>
+                <tbody>';
+    
+    foreach ($newItems as $item) {
+        $html .= '
+                    <tr>
+                        <td class="product-name">' . htmlspecialchars($item['product_name']) . '</td>
+                        <td class="quantity">' . $item['quantity'] . '</td>
+                        <td class="price">' . formatEuro($item['unit_price']) . '</td>
+                    </tr>';
+    }
+    
+    $html .= '
+                </tbody>
+            </table>
+            
+            <table class="totals-table">
+                <tr class="total-row">
+                    <td class="label">Nieuw totaal per levering (incl. BTW)</td>
+                    <td class="value">' . formatEuro($newTotal) . '</td>
+                </tr>
+            </table>';
+    
+    if (abs($newTotal - $oldTotal) > 0.01) {
+        $diff = $newTotal - $oldTotal;
+        $diffStyle = $diff > 0 ? 'color: #dc3545;' : 'color: #28a745;';
+        $diffPrefix = $diff > 0 ? '+' : '';
+        $html .= '
+            <div class="info-box" style="background: #e8f4fd; border-left-color: #17a2b8;">
+                <p><strong>Wijziging per levering:</strong> <span style="' . $diffStyle . '">' . $diffPrefix . formatEuro($diff) . '</span></p>
+                <p style="margin-top: 5px; font-size: 13px; color: #666;">Vorig bedrag: ' . formatEuro($oldTotal) . '</p>
+            </div>';
+    }
+    
+    if (!empty($upcomingOrders)) {
+        $totalPeriode = array_sum(array_column($upcomingOrders, 'total_amount'));
+        
+        $html .= '
+            <h3 style="color: #5c3d1e; margin-top: 30px;">Bijgewerkte leveringen (' . count($upcomingOrders) . ')</h3>
+            <table class="order-table">
+                <thead>
+                    <tr>
+                        <th>Leverdatum</th>
+                        <th style="text-align: right;">Nieuw bedrag</th>
+                    </tr>
+                </thead>
+                <tbody>';
+        
+        foreach (array_slice($upcomingOrders, 0, 8) as $upcoming) {
+            $datum = date('j F Y', strtotime($upcoming['delivery_date']));
+            foreach ($maandNamen as $en => $nl) $datum = str_replace($en, $nl, $datum);
+            $html .= '
+                    <tr>
+                        <td>' . $datum . '</td>
+                        <td style="text-align: right;">' . formatEuro($upcoming['total_amount']) . '</td>
+                    </tr>';
+        }
+        
+        if (count($upcomingOrders) > 8) {
+            $html .= '
+                    <tr>
+                        <td colspan="2" style="text-align: center; color: #888; font-style: italic;">+ ' . (count($upcomingOrders) - 8) . ' meer leveringen...</td>
+                    </tr>';
+        }
+        
+        $html .= '
+                </tbody>
+            </table>';
+    }
+    
+    $html .= '
+            <div class="warning-box">
+                <p><strong>Let op:</strong> De bijgevoegde bestelbon bevat de gewijzigde producten.</p>
+            </div>
+            
+            <p style="text-align: center; margin-top: 30px;">
+                <a href="https://bakkerij-civetta.nl/mijn-bestellingen.html" class="cta-button">Bekijk in dashboard</a>
+            </p>
+            
+            <div class="divider"></div>
+            
+            <p>Heeft u vragen? Wij helpen u graag!</p>
+            <p>Met vriendelijke groet,<br><strong>Bakkerij Civetta</strong></p>
+        </div>';
+    
+    $html .= getEmailFooter($bedrijf);
+    
+    return $html;
+}
+
 function sendHtmlEmail($to, $subject, $htmlBody, $attachments = [], $replyTo = null) {
     $boundary = md5(uniqid(time()));
     

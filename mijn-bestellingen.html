@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Mijn Bestellingen | Bakkerij Civetta</title>
     <link rel="stylesheet" href="css/style.css">
-    <link rel="stylesheet" href="css/mijn-bestellingen.css">
+    <link rel="stylesheet" href="css/mijn-bestellingen.css?v=7">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link href="https://fonts.googleapis.com/css2?family=Libre+Baskerville:ital,wght@0,400;0,700;1,400&family=Source+Sans+Pro:wght@400;600&display=swap" rel="stylesheet">
@@ -88,8 +88,11 @@
                                             <p>Geen lopende bestellingen</p>
                                         </div>
                                         <div v-for="order in filteredLopendeBestellingen" :key="order.id" 
-                                             :class="['order-row', { 'is-recurring': order.is_recurring }]" @click="showOrderDetail(order)">
-                                            <span v-if="order.delivery_status === 'onderweg'" class="delivery-status-badge onderweg">
+                                             :class="['order-row', { 'is-recurring': order.is_recurring, 'is-paused': Number(order.is_paused) === 1 }]" @click="showOrderDetail(order)">
+                                            <span v-if="Number(order.is_paused) === 1" class="delivery-status-badge paused">
+                                                <i class="bi bi-pause-fill"></i>
+                                            </span>
+                                            <span v-else-if="order.delivery_status === 'onderweg'" class="delivery-status-badge onderweg">
                                                 <i class="bi bi-truck"></i>
                                             </span>
                                             <span v-else-if="order.delivery_status === 'afgeleverd'" class="delivery-status-badge afgeleverd">
@@ -123,8 +126,11 @@
                                             <p>Nog geen afgeronde bestellingen</p>
                                         </div>
                                         <div v-for="order in filteredAfgerondeBestellingen" :key="order.id" 
-                                             :class="['order-row', { 'is-recurring': order.is_recurring, 'is-cancelled': Number(order.is_cancelled) === 1 }]" @click="showOrderDetail(order)">
-                                            <span v-if="order.delivery_status === 'onderweg'" class="delivery-status-badge onderweg">
+                                             :class="['order-row', { 'is-recurring': order.is_recurring, 'is-cancelled': Number(order.is_cancelled) === 1, 'is-missed': isOrderMissed(order) }]" @click="showOrderDetail(order)">
+                                            <span v-if="isOrderMissed(order)" class="delivery-status-badge paused">
+                                                <i class="bi bi-calendar-x"></i>
+                                            </span>
+                                            <span v-else-if="order.delivery_status === 'onderweg'" class="delivery-status-badge onderweg">
                                                 <i class="bi bi-truck"></i>
                                             </span>
                                             <span v-else-if="order.delivery_status === 'afgeleverd'" class="delivery-status-badge afgeleverd">
@@ -175,16 +181,18 @@
                                             &#x1F504; Verlenging nodig - bevestig om door te gaan met leveringen
                                         </div>
                                     </div>
-                                    <span :class="'recurring-status ' + (group.is_active ? 'active' : 'paused')">
-                                        {{ group.is_active ? 'Actief' : 'Afgelopen' }}
+                                    <span :class="'recurring-status ' + getRecurringStatusClass(group)">
+                                        {{ getRecurringStatusLabel(group) }}
                                     </span>
                                     <div class="recurring-dropdown" :class="{ open: openDropdownId && openDropdownId === group.recurring_group_id }">
                                         <button class="recurring-dropdown-toggle" @click.stop="toggleDropdown(group.recurring_group_id)">
                                             Acties <span class="chevron">&#9660;</span>
                                         </button>
                                         <div class="recurring-dropdown-menu">
-                                                <button v-if="group.needs_renewal" class="recurring-dropdown-item extend" @click="extendRecurring(group)">Verlengen</button>
-                                            <button v-if="group.is_active" class="recurring-dropdown-item stop" @click="stopRecurring(group)">Stoppen</button>
+                                            <button v-if="group.needs_renewal" class="recurring-dropdown-item extend" @click="extendRecurring(group)">Verlengen</button>
+                                            <button v-if="group.is_active && !group.is_paused" class="recurring-dropdown-item pause" @click="pauseRecurring(group)">Pauzeren</button>
+                                            <button v-if="group.is_paused" class="recurring-dropdown-item resume" @click="resumeRecurring(group)">Hervatten</button>
+                                            <button v-if="group.is_active && !group.is_paused" class="recurring-dropdown-item stop" @click="stopRecurring(group)">Stoppen</button>
                                             <button class="recurring-dropdown-item details" @click="showRecurringDetail(group)">Inzien / Aanpassen</button>
                                         </div>
                                     </div>
@@ -220,14 +228,23 @@
                     <!-- Recurring Detail Modal -->
                     <div class="modal-overlay recurring-detail-modal" :class="{ active: selectedRecurringGroup }" @click.self="closeDetailModal">
                         <div class="modal" v-if="selectedRecurringGroup">
-                            <h3>
-                                <span v-if="!editingName" @click="selectedRecurringGroup.is_active && startEditName()" :class="{ 'editable-text': selectedRecurringGroup.is_active }">
-                                    {{ detailForm.name || 'Terugkerende bestelling' }}
-                                    <span v-if="selectedRecurringGroup.is_active" class="edit-icon-inline" title="Naam aanpassen">&#9998;</span>
-                                </span>
-                                <input v-else type="text" v-model="detailForm.name" @blur="stopEditName" @keyup.enter="stopEditName" class="inline-edit-input title-input" placeholder="Naam bestelling" ref="nameInput">
-                                <button class="modal-close" @click="closeDetailModal">&times;</button>
-                            </h3>
+                            <div class="recurring-detail-header">
+                                <div class="recurring-detail-header-left">
+                                    <h3>
+                                        <span v-if="!editingName" @click="selectedRecurringGroup.is_active && startEditName()" :class="{ 'editable-text': selectedRecurringGroup.is_active }">
+                                            {{ detailForm.name || 'Terugkerende bestelling' }}
+                                            <span v-if="selectedRecurringGroup.is_active" class="edit-icon-inline" title="Naam aanpassen">&#9998;</span>
+                                        </span>
+                                        <input v-else type="text" v-model="detailForm.name" @blur="stopEditName" @keyup.enter="stopEditName" class="inline-edit-input title-input" placeholder="Naam bestelling" ref="nameInput">
+                                    </h3>
+                                </div>
+                                <div class="recurring-detail-header-right">
+                                    <a v-if="selectedRecurringGroup.recurring_group_id" :href="'api/bestelbon.php?recurring_group_id=' + selectedRecurringGroup.recurring_group_id" target="_blank" class="btn btn-bestelbon-header" title="Bestelbon bekijken">
+                                        <i class="bi bi-file-earmark-text"></i> Bestelbon
+                                    </a>
+                                    <button class="modal-close" @click="closeDetailModal">&times;</button>
+                                </div>
+                            </div>
                             
                             <div class="recurring-detail-section">
                                 <h4>Instellingen</h4>
@@ -250,8 +267,8 @@
                                     </div>
                                     <div class="recurring-detail-item">
                                         <span class="label">Status</span>
-                                        <span :class="'recurring-status ' + (selectedRecurringGroup.is_active ? 'active' : 'paused')">
-                                            {{ selectedRecurringGroup.is_active ? 'Actief' : 'Afgelopen' }}
+                                        <span :class="'recurring-status ' + getRecurringStatusClass(selectedRecurringGroup)">
+                                            {{ getRecurringStatusLabel(selectedRecurringGroup) }}
                                         </span>
                                     </div>
                                     <div class="recurring-detail-item">
@@ -279,47 +296,46 @@
                                 </div>
                             </div>
                             
-                            <div class="recurring-detail-section" v-if="detailForm.items && detailForm.items.length">
-                                <h4>
-                                    Producten per levering
-                                    <span v-if="selectedRecurringGroup.is_active && !editingProducts" class="section-edit-btn" @click="startEditProducts" title="Aanpassen">&#9998;</span>
-                                </h4>
-                                <div v-if="!editingProducts" class="recurring-products-grid" :class="{ 'editable-section': selectedRecurringGroup.is_active }" @click="selectedRecurringGroup.is_active && startEditProducts()">
-                                    <div v-for="item in detailForm.items" :key="item.product_name" class="product-card-mini">
-                                        <div class="product-card-mini-info">
-                                            <span class="product-card-mini-name">{{ item.product_name }}</span>
-                                            <span class="product-card-mini-price">{{ formatPrice(item.unit_price) }} / stuk</span>
+                            <div class="recurring-detail-section" v-if="selectedRecurringGroup.is_active">
+                                <h4>Producten per levering</h4>
+                                <div v-if="hasUnavailableProducts()" class="unavailable-warning">
+                                    <i class="bi bi-exclamation-triangle"></i>
+                                    <span>De volgende producten zijn niet meer leverbaar en worden uit de bestelling gehaald: <strong>{{ getUnavailableProducts().join(', ') }}</strong></span>
+                                </div>
+                                <div class="edit-order-section">
+                                    <div v-for="product in detailProductsList" :key="product.key" 
+                                         :class="['edit-product-row', { 'in-order': getDetailQtyByKey(product.key) > 0 }]">
+                                        <div class="edit-product-info">
+                                            <div class="edit-product-name">{{ product.naam }}</div>
+                                            <div class="edit-product-price">{{ formatPrice(product.prijs) }}</div>
                                         </div>
-                                        <div class="product-card-mini-qty">{{ item.quantity }}x</div>
-                                        <div class="product-card-mini-subtotal">{{ formatPrice(item.quantity * item.unit_price) }}</div>
+                                        <div class="edit-product-controls">
+                                            <button class="qty-btn minus" @click="decreaseDetailQtyByKey(product)">-</button>
+                                            <span class="qty-display">{{ getDetailQtyByKey(product.key) }}</span>
+                                            <button class="qty-btn plus" @click="increaseDetailQtyByKey(product)">+</button>
+                                        </div>
                                     </div>
-                                    <div class="products-total-row">
-                                        <span>Totaal per levering:</span>
-                                        <strong>{{ formatPrice(calculateDetailTotal()) }}</strong>
+                                    <div class="edit-total-row">
+                                        <span>Totaal per levering</span>
+                                        <span class="amount">{{ formatPrice(calculateDetailTotal()) }}</span>
                                     </div>
                                 </div>
-                                <div v-else class="products-edit-section">
-                                    <div class="products-edit-grid">
-                                        <div v-for="(item, idx) in detailForm.items" :key="idx" class="product-edit-card">
-                                            <div class="product-edit-card-info">
-                                                <span class="product-edit-card-name">{{ item.product_name }}</span>
-                                                <span class="product-edit-card-price">{{ formatPrice(item.unit_price) }} / stuk</span>
-                                            </div>
-                                            <div class="product-edit-card-controls">
-                                                <button class="qty-btn minus" @click="decreaseQty(item)">-</button>
-                                                <input type="number" v-model.number="item.quantity" min="1" class="qty-input-compact">
-                                                <button class="qty-btn plus" @click="item.quantity++">+</button>
-                                            </div>
-                                            <button class="product-remove-btn" @click="detailForm.items.splice(idx, 1)" title="Verwijderen">&times;</button>
+                            </div>
+                            
+                            <div class="recurring-detail-section" v-else-if="Object.keys(detailForm.items).length">
+                                <h4>Producten per levering</h4>
+                                <div class="recurring-products-grid">
+                                    <div v-for="product in detailProductsList.filter(p => getDetailQtyByKey(p.key) > 0)" :key="product.key" class="product-card-mini">
+                                        <div class="product-card-mini-info">
+                                            <span class="product-card-mini-name">{{ product.naam }}</span>
+                                            <span class="product-card-mini-price">{{ formatPrice(product.prijs) }} / stuk</span>
                                         </div>
+                                        <div class="product-card-mini-qty">{{ getDetailQtyByKey(product.key) }}x</div>
+                                        <div class="product-card-mini-subtotal">{{ formatPrice(getDetailQtyByKey(product.key) * product.prijs) }}</div>
                                     </div>
                                     <div class="products-total-row">
                                         <span>Totaal per levering:</span>
                                         <strong>{{ formatPrice(calculateDetailTotal()) }}</strong>
-                                    </div>
-                                    <div class="inline-edit-actions">
-                                        <button class="btn-inline-cancel" @click="cancelEditProducts">Annuleren</button>
-                                        <button class="btn-inline-save" @click="stopEditProducts">OK</button>
                                     </div>
                                 </div>
                             </div>
@@ -327,15 +343,27 @@
                             <div class="recurring-detail-section" v-if="selectedRecurringGroup.upcoming_deliveries && selectedRecurringGroup.upcoming_deliveries.length">
                                 <h4>Geplande leveringen</h4>
                                 <div class="recurring-deliveries-list">
-                                    <div v-for="delivery in selectedRecurringGroup.upcoming_deliveries" :key="delivery.id" class="recurring-delivery-item">
+                                    <div v-for="delivery in selectedRecurringGroup.upcoming_deliveries" :key="delivery.id" :class="['recurring-delivery-item', { 'is-paused': Number(delivery.is_paused) === 1 }]">
                                         <span class="date">{{ formatDateShort(delivery.delivery_date) }}</span>
                                         <span class="delivery-price">{{ formatPrice(delivery.total_amount) }}</span>
-                                        <div class="actions" v-if="Number(delivery.is_cancelled) === 0">
+                                        <div class="actions" v-if="Number(delivery.is_cancelled) === 0 && Number(delivery.is_paused) === 0">
                                             <button class="btn-edit-delivery" @click="openEditSingleDelivery(delivery, selectedRecurringGroup)" title="Aanpassen">&#9998;</button>
                                             <button class="btn-skip-delivery" @click="skipDelivery(delivery, selectedRecurringGroup)" title="Overslaan">&times;</button>
                                         </div>
-                                        <span :class="'order-status ' + getDisplayStatus(delivery)">{{ getStatusLabel(delivery) }}</span>
-                                        <span :class="'payment-type-icon ' + delivery.payment_type">{{ getPaymentTypeLabel(delivery.payment_type) }}</span>
+                                        <span v-if="Number(delivery.is_paused) === 1" class="order-status paused">Gepauzeerd</span>
+                                        <span v-else :class="'order-status ' + getDisplayStatus(delivery)">{{ getStatusLabel(delivery) }}</span>
+                                        <a v-if="delivery.invoice_status === 'gefactureerd' && (delivery.factuur_url || delivery.eboekhouden_pdf_url)" 
+                                           :href="delivery.factuur_url || delivery.eboekhouden_pdf_url" 
+                                           target="_blank" 
+                                           class="delivery-invoice-btn active" 
+                                           title="Factuur bekijken">
+                                            <i class="bi bi-receipt"></i> Factuur
+                                        </a>
+                                        <span v-else-if="delivery.payment_type === 'factuur' || delivery.payment_type === 'invoice'" 
+                                              class="delivery-invoice-btn inactive" 
+                                              title="Factuur volgt">
+                                            <i class="bi bi-receipt"></i> Factuur
+                                        </span>
                                     </div>
                                 </div>
                             </div>
@@ -349,7 +377,9 @@
                             
                             <div class="modal-actions">
                                 <button v-if="selectedRecurringGroup.needs_renewal" class="btn btn-reorder" @click="extendRecurring(selectedRecurringGroup); closeDetailModal();">Verlengen</button>
-                                <button v-if="selectedRecurringGroup.is_active" class="btn btn-outline" style="color: #dc3545; border-color: #dc3545;" @click="stopRecurring(selectedRecurringGroup); closeDetailModal();">Stoppen</button>
+                                <button v-if="selectedRecurringGroup.is_active && !selectedRecurringGroup.is_paused" class="btn btn-outline btn-pause" @click="pauseRecurring(selectedRecurringGroup); closeDetailModal();">Pauzeren</button>
+                                <button v-if="selectedRecurringGroup.is_paused" class="btn btn-resume" @click="resumeRecurring(selectedRecurringGroup); closeDetailModal();">Hervatten</button>
+                                <button v-if="selectedRecurringGroup.is_active && !selectedRecurringGroup.is_paused" class="btn btn-outline" style="color: #dc3545; border-color: #dc3545;" @click="stopRecurring(selectedRecurringGroup); closeDetailModal();">Stoppen</button>
                             </div>
                         </div>
                     </div>
@@ -366,30 +396,28 @@
                                 <span>Wijzigingen gelden alleen voor deze levering</span>
                             </div>
                             
-                            <div class="single-edit-section">
+                            <div class="edit-order-section">
                                 <label>Opmerkingen</label>
                                 <textarea v-model="editSingleForm.notes" placeholder="Speciale wensen voor deze levering..."></textarea>
                             </div>
                             
-                            <div class="single-edit-section">
+                            <div class="edit-order-section">
                                 <label>Producten</label>
-                                <div class="single-edit-products">
-                                    <div v-for="(item, idx) in editSingleForm.items" :key="idx" class="single-edit-product-card">
-                                        <div class="single-edit-product-info">
-                                            <span class="single-edit-product-name">{{ item.product_name }}</span>
-                                            <span class="single-edit-product-price">{{ formatPrice(item.unit_price) }} / stuk</span>
-                                        </div>
-                                        <div class="single-edit-product-controls">
-                                            <button class="qty-btn minus" @click="decreaseSingleQty(item)">-</button>
-                                            <input type="number" v-model.number="item.quantity" min="1" class="qty-input-compact">
-                                            <button class="qty-btn plus" @click="item.quantity++">+</button>
-                                        </div>
-                                        <button class="product-remove-btn" @click="editSingleForm.items.splice(idx, 1)" title="Verwijderen">&times;</button>
+                                <div v-for="product in singleProductsList" :key="product.key" 
+                                     :class="['edit-product-row', { 'in-order': getSingleQtyByKey(product.key) > 0 }]">
+                                    <div class="edit-product-info">
+                                        <div class="edit-product-name">{{ product.naam }}</div>
+                                        <div class="edit-product-price">{{ formatPrice(product.prijs) }}</div>
+                                    </div>
+                                    <div class="edit-product-controls">
+                                        <button class="qty-btn minus" @click="decreaseSingleQtyByKey(product)">-</button>
+                                        <span class="qty-display">{{ getSingleQtyByKey(product.key) }}</span>
+                                        <button class="qty-btn plus" @click="increaseSingleQtyByKey(product)">+</button>
                                     </div>
                                 </div>
-                                <div class="single-edit-total">
-                                    <span>Totaal:</span>
-                                    <strong>{{ formatPrice(calculateSingleTotal()) }}</strong>
+                                <div class="edit-total-row">
+                                    <span>Totaal</span>
+                                    <span class="amount">{{ formatPrice(calculateSingleTotal()) }}</span>
                                 </div>
                             </div>
                             
@@ -759,6 +787,6 @@
     <script src="https://unpkg.com/vue@3/dist/vue.global.prod.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
     <script src="js/main.js"></script>
-    <script src="js/mijn-bestellingen-app.js"></script>
+    <script src="js/mijn-bestellingen-app.js?v=8"></script>
 </body>
 </html>

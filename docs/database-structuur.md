@@ -193,6 +193,7 @@ Bestellingen van zakelijke klanten.
 | delivery_status | VARCHAR(20) | 'geplaatst', 'wordt_bereid', 'onderweg', 'afgeleverd' |
 | order_status | VARCHAR(30) | Legacy: 'bestelbon', 'gefactureerd', 'afgeleverd' |
 | is_cancelled | TINYINT(1) | Geannuleerd ja/nee |
+| is_paused | TINYINT(1) | Gepauzeerd (voor recurring) |
 | **Bestelbon/Factuur** | | |
 | bestelbon_number | VARCHAR(50) | B2024-0001 formaat |
 | invoice_number | VARCHAR(50) | F2024-0001 formaat (lokaal) |
@@ -224,6 +225,7 @@ Bestellingen van zakelijke klanten.
 **Indexes:**
 - `idx_recurring_group` op `recurring_group_id`
 - `idx_delivery_date` op `delivery_date`
+- `idx_is_paused` op `is_paused`
 
 ### business_order_items
 Producten binnen een bestelling.
@@ -326,6 +328,12 @@ bestelbon → gefactureerd
 ### Delivery Status
 ```
 geplaatst → wordt_bereid → onderweg → afgeleverd
+```
+
+### Paused Status (Recurring)
+```
+is_paused = 0 (actief) → is_paused = 1 (gepauzeerd) → is_paused = 0 (hervat)
+                                                    → is_cancelled = 1 (gemist, als leverdatum verstreken)
 ```
 
 ### Payment Type Waarden

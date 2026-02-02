@@ -29,12 +29,12 @@ createApp({
             },
             editSingleForm: {
                 notes: '',
-                items: []
+                items: {}
             },
             detailForm: {
                 name: '',
                 notes: '',
-                items: []
+                items: {}
             },
             originalDetailForm: null,
             editingName: false,
@@ -78,14 +78,27 @@ createApp({
             const today = new Date();
             today.setHours(0, 0, 0, 0);
             return this.orders
-                .filter(o => Number(o.is_cancelled) === 0 && new Date(o.delivery_date) >= today)
+                .filter(o => {
+                    if (Number(o.is_cancelled) === 1) return false;
+                    const deliveryDate = new Date(o.delivery_date);
+                    if (deliveryDate < today) {
+                        if (Number(o.is_paused) === 1) return false;
+                        return false;
+                    }
+                    return true;
+                })
                 .sort((a, b) => new Date(a.delivery_date) - new Date(b.delivery_date));
         },
         afgerondeBestellingen() {
             const today = new Date();
             today.setHours(0, 0, 0, 0);
             return this.orders
-                .filter(o => Number(o.is_cancelled) === 1 || new Date(o.delivery_date) < today)
+                .filter(o => {
+                    if (Number(o.is_cancelled) === 1) return true;
+                    const deliveryDate = new Date(o.delivery_date);
+                    if (deliveryDate < today) return true;
+                    return false;
+                })
                 .sort((a, b) => new Date(b.delivery_date) - new Date(a.delivery_date));
         },
         afgerondeBestellingenFiltered() {
@@ -108,33 +121,25 @@ createApp({
             return JSON.stringify(this.detailForm) !== JSON.stringify(this.originalDetailForm);
         },
         editProductsList() {
-            const list = [];
-            const addedKeys = new Set();
-            
-            for (const [key, item] of Object.entries(this.orderEditForm.items)) {
-                if (item.quantity > 0) {
-                    list.push({
-                        key: key,
-                        naam: item.original_name || key,
-                        prijs: item.unit_price
-                    });
-                    addedKeys.add(key);
-                }
-            }
-            
-            for (const product of this.allProducts) {
-                const key = product.naam.toLowerCase();
-                if (!addedKeys.has(key)) {
-                    list.push({
-                        key: key,
-                        naam: product.naam,
-                        prijs: parseFloat(product.prijs) || 0
-                    });
-                    addedKeys.add(key);
-                }
-            }
-            
-            return list;
+            return this.allProducts.map(product => ({
+                key: product.naam.toLowerCase(),
+                naam: product.naam,
+                prijs: parseFloat(product.prijs) || 0
+            }));
+        },
+        detailProductsList() {
+            return this.allProducts.map(product => ({
+                key: product.naam.toLowerCase(),
+                naam: product.naam,
+                prijs: parseFloat(product.prijs) || 0
+            }));
+        },
+        singleProductsList() {
+            return this.allProducts.map(product => ({
+                key: product.naam.toLowerCase(),
+                naam: product.naam,
+                prijs: parseFloat(product.prijs) || 0
+            }));
         }
     },
     
@@ -262,13 +267,85 @@ createApp({
             }
         },
         
+        async pauseRecurring(group) {
+            this.openDropdownId = null;
+            if (!confirm('Wil je deze terugkerende bestelling pauzeren? Bestellingen die al in bereiding zijn gaan wel door.')) return;
+            try {
+                const response = await fetch('api/business-recurring.php', {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ 
+                        recurring_group_id: group.recurring_group_id, 
+                        action: 'pause' 
+                    })
+                });
+                const data = await response.json();
+                if (data.success) {
+                    alert(data.message);
+                    await Promise.all([this.loadRecurringOrders(), this.loadOrders()]);
+                } else {
+                    alert(data.error || 'Kon niet pauzeren');
+                }
+            } catch (error) {
+                console.error('Kon niet pauzeren', error);
+                alert('Er ging iets mis bij het pauzeren');
+            }
+        },
+        
+        async resumeRecurring(group) {
+            this.openDropdownId = null;
+            if (!confirm('Wil je deze terugkerende bestelling hervatten? Bestellingen waarvan de deadline is verstreken worden geannuleerd.')) return;
+            try {
+                const response = await fetch('api/business-recurring.php', {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ 
+                        recurring_group_id: group.recurring_group_id, 
+                        action: 'resume' 
+                    })
+                });
+                const data = await response.json();
+                if (data.success) {
+                    alert(data.message);
+                    await Promise.all([this.loadRecurringOrders(), this.loadOrders()]);
+                } else {
+                    alert(data.error || 'Kon niet hervatten');
+                }
+            } catch (error) {
+                console.error('Kon niet hervatten', error);
+                alert('Er ging iets mis bij het hervatten');
+            }
+        },
+        
+        getRecurringStatusClass(group) {
+            if (group.is_paused) return 'paused';
+            if (group.is_active) return 'active';
+            return 'ended';
+        },
+        
+        getRecurringStatusLabel(group) {
+            if (group.is_paused) return 'Gepauzeerd';
+            if (group.is_active) return 'Actief';
+            return 'Afgelopen';
+        },
+        
         showRecurringDetail(group) {
             this.openDropdownId = null;
             this.selectedRecurringGroup = group;
+            const itemsMap = {};
+            (group.items || []).forEach(item => {
+                const key = item.product_name.toLowerCase();
+                itemsMap[key] = {
+                    quantity: parseInt(item.quantity) || 0,
+                    unit_price: parseFloat(item.unit_price) || 0,
+                    original_name: item.product_name,
+                    is_available: item.is_available !== false
+                };
+            });
             this.detailForm = {
                 name: group.name || '',
                 notes: '',
-                items: (group.items || []).map(i => ({ ...i }))
+                items: itemsMap
             };
             this.originalDetailForm = JSON.parse(JSON.stringify(this.detailForm));
             this.editingName = false;
@@ -330,16 +407,80 @@ createApp({
             this.editingProducts = false;
         },
         
-        decreaseQty(item) {
-            if (item.quantity > 1) item.quantity--;
+        getDetailQtyByKey(key) {
+            const item = this.detailForm.items[key];
+            return item ? item.quantity : 0;
+        },
+        
+        setDetailQtyByKey(product, value) {
+            const key = product.key;
+            const qty = parseInt(value) || 0;
+            if (qty > 0) {
+                this.detailForm.items[key] = {
+                    quantity: qty,
+                    unit_price: parseFloat(product.prijs) || 0,
+                    original_name: product.naam
+                };
+            } else {
+                delete this.detailForm.items[key];
+            }
+        },
+        
+        increaseDetailQtyByKey(product) {
+            const current = this.getDetailQtyByKey(product.key);
+            this.setDetailQtyByKey(product, current + 1);
+        },
+        
+        decreaseDetailQtyByKey(product) {
+            const current = this.getDetailQtyByKey(product.key);
+            if (current > 0) {
+                this.setDetailQtyByKey(product, current - 1);
+            }
         },
         
         calculateDetailTotal() {
-            return this.detailForm.items.reduce((sum, i) => sum + (i.quantity * i.unit_price), 0);
+            let total = 0;
+            for (const [key, item] of Object.entries(this.detailForm.items)) {
+                if (item.is_available !== false) {
+                    total += item.quantity * item.unit_price;
+                }
+            }
+            return total;
+        },
+        
+        hasUnavailableProducts() {
+            for (const [key, item] of Object.entries(this.detailForm.items)) {
+                if (item.is_available === false && item.quantity > 0) {
+                    return true;
+                }
+            }
+            return false;
+        },
+        
+        getUnavailableProducts() {
+            const unavailable = [];
+            for (const [key, item] of Object.entries(this.detailForm.items)) {
+                if (item.is_available === false && item.quantity > 0) {
+                    unavailable.push(item.original_name);
+                }
+            }
+            return unavailable;
         },
         
         async saveDetailChanges() {
-            if (this.detailForm.items.length === 0) {
+            const items = [];
+            for (const [key, item] of Object.entries(this.detailForm.items)) {
+                if (item.quantity > 0 && item.is_available !== false) {
+                    const product = this.allProducts.find(p => p.naam.toLowerCase() === key);
+                    items.push({
+                        product_name: product ? product.naam : (item.original_name || key),
+                        quantity: item.quantity,
+                        unit_price: item.unit_price
+                    });
+                }
+            }
+            
+            if (items.length === 0) {
                 alert('Voeg minimaal één product toe');
                 return;
             }
@@ -354,17 +495,17 @@ createApp({
                         action: 'update',
                         name: this.detailForm.name,
                         notes: this.detailForm.notes,
-                        items: this.detailForm.items.filter(i => i.quantity > 0)
+                        items: items
                     })
                 });
                 const data = await response.json();
                 if (data.success) {
                     alert(data.message);
                     this.originalDetailForm = JSON.parse(JSON.stringify(this.detailForm));
-                    await this.loadRecurringOrders();
+                    await Promise.all([this.loadRecurringOrders(), this.loadOrders()]);
                     const updatedGroup = this.recurringGroups.find(g => g.recurring_group_id === this.selectedRecurringGroup.recurring_group_id);
                     if (updatedGroup) {
-                        this.selectedRecurringGroup = updatedGroup;
+                        this.showRecurringDetail(updatedGroup);
                     }
                 } else {
                     alert(data.error || 'Kon niet opslaan');
@@ -394,24 +535,72 @@ createApp({
         openEditSingleDelivery(delivery, group) {
             this.editSingleGroupId = group.recurring_group_id;
             this.editSingleForm.notes = '';
-            this.editSingleForm.items = (group.items || []).map(i => ({
-                product_name: i.product_name,
-                quantity: i.quantity,
-                unit_price: i.unit_price
-            }));
+            const itemsMap = {};
+            (group.items || []).forEach(item => {
+                const key = item.product_name.toLowerCase();
+                itemsMap[key] = {
+                    quantity: parseInt(item.quantity) || 0,
+                    unit_price: parseFloat(item.unit_price) || 0,
+                    original_name: item.product_name
+                };
+            });
+            this.editSingleForm.items = itemsMap;
             this.editSingleDelivery = delivery;
         },
         
-        decreaseSingleQty(item) {
-            if (item.quantity > 1) item.quantity--;
+        getSingleQtyByKey(key) {
+            const item = this.editSingleForm.items[key];
+            return item ? item.quantity : 0;
+        },
+        
+        setSingleQtyByKey(product, value) {
+            const key = product.key;
+            const qty = parseInt(value) || 0;
+            if (qty > 0) {
+                this.editSingleForm.items[key] = {
+                    quantity: qty,
+                    unit_price: parseFloat(product.prijs) || 0,
+                    original_name: product.naam
+                };
+            } else {
+                delete this.editSingleForm.items[key];
+            }
+        },
+        
+        increaseSingleQtyByKey(product) {
+            const current = this.getSingleQtyByKey(product.key);
+            this.setSingleQtyByKey(product, current + 1);
+        },
+        
+        decreaseSingleQtyByKey(product) {
+            const current = this.getSingleQtyByKey(product.key);
+            if (current > 0) {
+                this.setSingleQtyByKey(product, current - 1);
+            }
         },
         
         calculateSingleTotal() {
-            return this.editSingleForm.items.reduce((sum, i) => sum + (i.quantity * i.unit_price), 0);
+            let total = 0;
+            for (const [key, item] of Object.entries(this.editSingleForm.items)) {
+                total += item.quantity * item.unit_price;
+            }
+            return total;
         },
         
         async saveEditSingle() {
-            if (this.editSingleForm.items.length === 0) {
+            const items = [];
+            for (const [key, item] of Object.entries(this.editSingleForm.items)) {
+                if (item.quantity > 0) {
+                    const product = this.allProducts.find(p => p.naam.toLowerCase() === key);
+                    items.push({
+                        product_name: product ? product.naam : (item.original_name || key),
+                        quantity: item.quantity,
+                        unit_price: item.unit_price
+                    });
+                }
+            }
+            
+            if (items.length === 0) {
                 alert('Voeg minimaal één product toe');
                 return;
             }
@@ -426,7 +615,7 @@ createApp({
                         action: 'update_single',
                         order_id: this.editSingleDelivery.id,
                         notes: this.editSingleForm.notes,
-                        items: this.editSingleForm.items.filter(i => i.quantity > 0)
+                        items: items
                     })
                 });
                 const data = await response.json();
@@ -434,11 +623,10 @@ createApp({
                     alert(data.message);
                     const groupId = this.editSingleGroupId;
                     this.editSingleDelivery = null;
-                    await this.loadRecurringOrders();
+                    await Promise.all([this.loadRecurringOrders(), this.loadOrders()]);
                     const updatedGroup = this.recurringGroups.find(g => g.recurring_group_id === groupId);
                     if (updatedGroup) {
-                        this.selectedRecurringGroup = updatedGroup;
-                        this.detailForm.items = (updatedGroup.items || []).map(i => ({ ...i }));
+                        this.showRecurringDetail(updatedGroup);
                     }
                 } else {
                     alert(data.error || 'Kon niet opslaan');
@@ -469,7 +657,7 @@ createApp({
                 if (data.success) {
                     alert(data.message);
                     this.selectedRecurringGroup = null;
-                    await this.loadRecurringOrders();
+                    await Promise.all([this.loadRecurringOrders(), this.loadOrders()]);
                 } else {
                     alert(data.error || 'Kon levering niet overslaan');
                 }
@@ -948,14 +1136,26 @@ createApp({
         
         getDisplayStatus(order) {
             if (Number(order.is_cancelled) === 1) return 'cancelled';
+            if (this.isOrderMissed(order)) return 'missed';
             if (order.payment_status === 'paid') return 'paid';
+            if (Number(order.is_paused) === 1) return 'paused';
             if (order.invoice_status === 'gefactureerd') return 'invoiced';
             return 'bestelbon';
         },
         
+        isOrderMissed(order) {
+            if (Number(order.is_paused) !== 1) return false;
+            const today = new Date();
+            today.setHours(0, 0, 0, 0);
+            const deliveryDate = new Date(order.delivery_date);
+            return deliveryDate < today;
+        },
+        
         getStatusLabel(order) {
             if (Number(order.is_cancelled) === 1) return 'Geannuleerd';
+            if (this.isOrderMissed(order)) return 'Gemist';
             if (order.payment_status === 'paid') return 'Betaald';
+            if (Number(order.is_paused) === 1) return 'Gepauzeerd';
             
             const deliveryLabels = {
                 'geplaatst': 'Geplaatst',

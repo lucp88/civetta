@@ -66,12 +66,35 @@ Zakelijke klanten kunnen vaste bestellingen instellen die automatisch worden her
 - **Direct aanmaken**: Bij het plaatsen worden ALLE leveringen voor de komende 3 maanden (of tot einddatum) direct aangemaakt in de database
 - **Herbevestiging**: 2 weken voor afloop kan de klant via het dashboard verlengen met nog eens 3 maanden
 - **Maandelijkse facturatie**: Alle leveringen worden gebundeld op één factuur aan het einde van de maand
+- **Pauzeren**: Klant kan de terugkerende bestelling tijdelijk pauzeren (zie hieronder)
 
 **Recurring bestelbon:**
 Bij terugkerende bestellingen ontvangt de klant een speciale bestelbon met:
 - Overzicht van alle geplande leveringen voor de komende 3 maanden
 - Totaalbedrag per levering en periode-totaal
 - Herbevestigingsdatum
+
+#### Pauzeren van Terugkerende Bestellingen
+
+Klanten kunnen hun terugkerende bestelling tijdelijk pauzeren via het dashboard:
+
+**Pauzeren:**
+- Alle toekomstige leveringen worden op "gepauzeerd" gezet
+- Leveringen die al in bereiding zijn (voorbij de wijzig-deadline) gaan wel door
+- Gepauzeerde leveringen worden NIET gefactureerd door de cron job
+- Klant ontvangt een bevestigingsmail met overzicht van gepauzeerde leveringen
+- In het dashboard worden gepauzeerde leveringen met een gele badge getoond
+
+**Hervatten:**
+- Klant kan de bestelling op elk moment weer activeren
+- Leveringen waarvan de leverdatum is verstreken worden als "gemist" gemarkeerd
+- Gemiste leveringen worden niet meer uitgevoerd en verschijnen in "Afgerond"
+- Klant ontvangt een bevestigingsmail met overzicht van hervatte en gemiste leveringen
+
+**Gemiste leveringen:**
+- Status "Gemist" wordt getoond voor gepauzeerde orders waarvan de leverdatum is verstreken
+- Deze verschijnen in de "Afgerond" kolom met grijze styling
+- Gemiste leveringen worden niet gefactureerd
 
 ### 6. Favorieten
 Vaak bestelde productcombinaties kunnen worden opgeslagen als favoriet. Bij een nieuwe bestelling kan een favoriet worden geladen als startpunt.
@@ -209,6 +232,7 @@ Bestellingen van zakelijke klanten. Bij terugkerende bestellingen worden alle in
 | **payment_status** | VARCHAR(20) | 'pending' of 'paid' |
 | **payment_type** | VARCHAR(20) | 'ideal', 'factuur' of 'cash' |
 | **is_cancelled** | TINYINT(1) | Geannuleerd flag (0/1) |
+| **is_paused** | TINYINT(1) | Gepauzeerd flag voor recurring (0/1) |
 | **bestelbon_sent_at** | DATETIME | Timestamp bestelbon verzonden |
 | **bestelbon_number** | VARCHAR(50) | Bestelbonnummer (bijv. BB-2026-00001) |
 | **can_be_edited_until** | DATETIME | Deadline voor wijzigingen |
@@ -291,6 +315,36 @@ Items binnen een favoriet.
 | product_name | VARCHAR(255) | Productnaam |
 | quantity | INT | Standaard aantal |
 | unit_price | DECIMAL(10,2) | Laatst bekende prijs |
+
+### recurring_group_templates
+Template voor recurring groep met standaard items. Wordt aangemaakt bij eerste wijziging van een recurring groep.
+
+| Kolom | Type | Beschrijving |
+|-------|------|--------------|
+| id | INT | Primary key |
+| recurring_group_id | VARCHAR(50) | FK naar recurring groep |
+| account_id | INT | FK naar business_accounts |
+| name | VARCHAR(255) | Naam van de template |
+| frequency | VARCHAR(20) | Frequentie (weekly/biweekly/monthly) |
+| delivery_day | TINYINT | Dag van de week (0-6) |
+| notes | TEXT | Opmerkingen |
+
+### recurring_group_template_items
+Items binnen een recurring template.
+
+| Kolom | Type | Beschrijving |
+|-------|------|--------------|
+| id | INT | Primary key |
+| template_id | INT | FK naar recurring_group_templates |
+| product_name | VARCHAR(255) | Productnaam |
+| quantity | INT | Aantal |
+| unit_price | DECIMAL(10,2) | Prijs per stuk |
+
+**Template logica:**
+- Bij het ophalen van items wordt eerst gekeken in `recurring_group_template_items`
+- Als geen template bestaat, worden items uit de eerstvolgende order gebruikt
+- Bij wijzigen via `update` actie wordt een template aangemaakt/bijgewerkt
+- Orders die nog overeenkomen met de oude template worden automatisch mee-geüpdatet
 
 ## API Endpoints
 
@@ -517,20 +571,84 @@ Beheren van bestaande terugkerende bestelling.
 ```json
 {
   "recurring_group_id": "REC-1705234567-1",
-  "action": "stop|extend|update"
+  "action": "stop|extend|update|pause|resume"
 }
 ```
 
 **Acties:**
 - `stop`: Annuleer alle toekomstige leveringen
 - `extend`: Verleng met 3 maanden (of tot einddatum)
-- `update`: Wijzig items of opmerkingen voor toekomstige leveringen
+- `update`: Wijzig items of opmerkingen voor alle toekomstige leveringen in de groep
+- `update_single`: Wijzig een specifieke levering (vereist `order_id`)
+- `pause`: Pauzeer alle toekomstige leveringen (behalve die in bereiding zijn)
+- `resume`: Hervat gepauzeerde leveringen (gemiste worden geannuleerd)
+
+**Request (update_single):**
+```json
+{
+  "recurring_group_id": "REC-1705234567-1",
+  "action": "update_single",
+  "order_id": 123,
+  "notes": "Speciale wensen voor deze levering",
+  "items": [{"product_name": "Brood", "quantity": 5, "unit_price": 3.50}],
+  "skip": false
+}
+```
+
+**Skip parameter:** Met `skip: true` wordt de specifieke levering overgeslagen (geannuleerd) zonder de hele recurring serie te stoppen.
+
+#### Niet-leverbare producten detectie
+
+Bij het ophalen van recurring groepen wordt gecontroleerd of alle producten in de bestelling nog bestaan in de `products` tabel:
+
+**Backend (api/business-recurring.php):**
+- Haalt alle beschikbare producten op uit `products` tabel
+- Vergelijkt productnamen (case-insensitive) met items in de recurring bestelling
+- Elk item krijgt een `is_available` flag (true/false)
+- Groep krijgt `has_unavailable_products` flag
+
+**Frontend (js/mijn-bestellingen-app.js):**
+- `showRecurringDetail()` slaat `is_available` op per item
+- `calculateDetailTotal()` telt alleen beschikbare producten mee in het totaalbedrag
+- `hasUnavailableProducts()` checkt of er unavailable items zijn
+- `getUnavailableProducts()` geeft array van niet-leverbare productnamen
+- `saveDetailChanges()` filtert unavailable producten automatisch uit bij opslaan
+
+**UI (mijn-bestellingen.html + CSS):**
+- Gele waarschuwingsbalk toont welke producten "niet meer leverbaar" zijn
+- Totaalprijs wordt berekend exclusief unavailable producten
+- Bij opslaan worden deze producten automatisch uit de bestelling gehaald
+
+**Response (pause):**
+```json
+{
+  "success": true,
+  "message": "5 levering(en) gepauzeerd. 1 levering(en) zijn al in bereiding en gaan door.",
+  "paused_count": 5,
+  "in_bereiding_count": 1
+}
+```
+
+**Response (resume):**
+```json
+{
+  "success": true,
+  "message": "4 levering(en) hervat. 1 levering(en) konden niet meer worden hervat (deadline verstreken) en zijn geannuleerd.",
+  "resumed_count": 4,
+  "cancelled_count": 1
+}
+```
 
 **Workflow:**
 1. Bij het plaatsen van een recurring bestelling via `/api/business-orders.php` worden ALLE leveringen voor 3 maanden direct aangemaakt
 2. Alle orders krijgen dezelfde `recurring_group_id`
-3. Klant kan via dashboard stoppen, verlengen of wijzigen
-4. 2 weken voor `recurring_confirmed_until` wordt verlengen beschikbaar in dashboard
+3. Klant kan via dashboard:
+   - **Stoppen**: alle toekomstige leveringen annuleren
+   - **Pauzeren**: tijdelijk stopzetten (leveringen in bereiding gaan door)
+   - **Hervatten**: gepauzeerde leveringen weer activeren
+   - **Wijzigen (groep)**: items/opmerkingen aanpassen voor alle toekomstige leveringen
+   - **Wijzigen (enkel)**: specifieke levering aanpassen of overslaan
+   - **Verlengen**: 2 weken voor `recurring_confirmed_until` beschikbaar
 
 ### Favorieten
 
@@ -885,9 +1003,25 @@ MOLLIE_API_KEY=live_xxx
   - Leverdag in verleden → `delivery_status='afgeleverd'`
   - Rest → `invoice_status='bestelbon'`, `delivery_status='geplaatst'`
 
-**Uitvoeren:**
+### 007_recurring_paused.php
+- Voegt `is_paused` kolom toe aan `business_orders` (TINYINT(1), default 0)
+- Voegt index `idx_is_paused` toe
+- Ondersteunt pauzeren van terugkerende bestellingen
+
+### 008_recurring_templates.php
+- Maakt `recurring_group_templates` tabel aan
+- Maakt `recurring_group_template_items` tabel aan
+- Migreert bestaande recurring groups naar template systeem
+- Templates maken het mogelijk om items aan te passen zonder elke order individueel te wijzigen
+
+**Uitvoeren (via browser na admin login):**
+```
+/admin/migrations/008_recurring_templates.php
+```
+
+**Of via CLI:**
 ```bash
-php /path/to/admin/migrations/004_invoice_delivery_status.php
+php /path/to/admin/migrations/008_recurring_templates.php
 ```
 
 ## Deployment Checklist

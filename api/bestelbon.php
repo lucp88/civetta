@@ -262,9 +262,20 @@ function generateRecurringBestelbon($pdo, $recurringGroupId, $outputPath = null)
     $stmt->execute([$recurringGroupId]);
     $upcomingOrders = $stmt->fetchAll();
     
-    $stmt = $pdo->prepare("SELECT product_name, quantity, unit_price FROM business_order_items WHERE order_id = ?");
-    $stmt->execute([$firstOrder['id']]);
+    $stmt = $pdo->prepare("
+        SELECT ti.product_name, ti.quantity, ti.unit_price 
+        FROM recurring_group_template_items ti
+        JOIN recurring_group_templates t ON ti.template_id = t.id
+        WHERE t.recurring_group_id = ?
+    ");
+    $stmt->execute([$recurringGroupId]);
     $items = $stmt->fetchAll();
+    
+    if (empty($items)) {
+        $stmt = $pdo->prepare("SELECT product_name, quantity, unit_price FROM business_order_items WHERE order_id = ?");
+        $stmt->execute([$firstOrder['id']]);
+        $items = $stmt->fetchAll();
+    }
     
     $stmt = $pdo->query("SELECT setting_value FROM settings WHERE setting_key = 'btw_tarief'");
     $btwTarief = floatval($stmt->fetchColumn() ?: 9);
@@ -329,20 +340,30 @@ function generateRecurringBestelbon($pdo, $recurringGroupId, $outputPath = null)
     $pdf->SetTextColor(0);
     $pdf->SetFont('Helvetica', '', 9);
     
-    $orderTotal = 0;
+    $totalInclBtw = 0;
     foreach ($items as $item) {
         $lineTotal = $item['quantity'] * $item['unit_price'];
-        $orderTotal += $lineTotal;
+        $totalInclBtw += $lineTotal;
         $pdf->Cell(100, 7, ' ' . $item['product_name'], 1, 0, 'L');
         $pdf->Cell(30, 7, $item['quantity'], 1, 0, 'C');
         $pdf->Cell(30, 7, euro($item['unit_price']), 1, 0, 'R');
         $pdf->Cell(30, 7, euro($lineTotal), 1, 1, 'R');
     }
     
-    $totalInclBtw = $orderTotal * (1 + $btwTarief / 100);
-    $pdf->SetFont('Helvetica', 'B', 9);
-    $pdf->Cell(160, 7, 'Totaal per levering (incl. BTW):', 1, 0, 'R');
-    $pdf->Cell(30, 7, euro($totalInclBtw), 1, 1, 'R');
+    $btwBedrag = $totalInclBtw - ($totalInclBtw / (1 + $btwTarief / 100));
+    $exclBtw = $totalInclBtw - $btwBedrag;
+    
+    $pdf->Ln(3);
+    $pdf->SetFont('Helvetica', '', 9);
+    $pdf->Cell(160, 6, 'Subtotaal excl. BTW:', 0, 0, 'R');
+    $pdf->Cell(30, 6, euro($exclBtw), 0, 1, 'R');
+    
+    $pdf->Cell(160, 6, 'BTW (' . $btwTarief . '%):', 0, 0, 'R');
+    $pdf->Cell(30, 6, euro($btwBedrag), 0, 1, 'R');
+    
+    $pdf->SetFont('Helvetica', 'B', 10);
+    $pdf->Cell(160, 7, 'Totaal per levering (incl. BTW):', 0, 0, 'R');
+    $pdf->Cell(30, 7, euro($totalInclBtw), 0, 1, 'R');
     
     $pdf->Ln(10);
     
@@ -732,6 +753,89 @@ function sendCancellationEmail($pdo, $orderId) {
     $adminHtmlBody = str_replace('Bestelling gewijzigd', 'Bestelling geannuleerd', $adminHtmlBody);
     
     sendHtmlEmail('laurens@bakkerij-civetta.nl', "Bestelling geannuleerd: #{$orderId} - {$order['bedrijfsnaam']}", $adminHtmlBody, [], $order['email']);
+    
+    return $customerSent;
+}
+
+function sendRecurringPauseEmail($pdo, $accountInfo, $affectedOrders, $unaffectedOrders, $isPause) {
+    require_once __DIR__ . '/email-templates.php';
+    
+    $bedrijf = getBedrijfsGegevens($pdo);
+    
+    $htmlBody = buildRecurringPauseEmail($accountInfo, $affectedOrders, $unaffectedOrders, $isPause, $bedrijf);
+    
+    $to = $accountInfo['email'];
+    $recurringName = $accountInfo['recurring_name'] ?? 'Terugkerende bestelling';
+    
+    if ($isPause) {
+        $subject = "Leveringen gepauzeerd: $recurringName - Bakkerij Civetta";
+    } else {
+        $subject = "Leveringen hervat: $recurringName - Bakkerij Civetta";
+    }
+    
+    $customerSent = sendHtmlEmail($to, $subject, $htmlBody);
+    
+    $adminSubject = $isPause 
+        ? "Terugkerende bestelling gepauzeerd: {$accountInfo['bedrijfsnaam']}"
+        : "Terugkerende bestelling hervat: {$accountInfo['bedrijfsnaam']}";
+    
+    sendHtmlEmail('laurens@bakkerij-civetta.nl', $adminSubject, $htmlBody, [], $accountInfo['email']);
+    
+    return $customerSent;
+}
+
+function sendRecurringUpdateEmail($pdo, $recurringGroupId, $oldItems, $newItems) {
+    $bestelbonDir = __DIR__ . '/../bestelbonnen';
+    if (!is_dir($bestelbonDir)) {
+        mkdir($bestelbonDir, 0755, true);
+    }
+    
+    $bestelbonFile = $bestelbonDir . '/bestelbon-recurring-' . $recurringGroupId . '.pdf';
+    generateRecurringBestelbon($pdo, $recurringGroupId, $bestelbonFile);
+    
+    $stmt = $pdo->prepare("
+        SELECT bo.*, ba.bedrijfsnaam, ba.contactpersoon, ba.email 
+        FROM business_orders bo 
+        JOIN business_accounts ba ON bo.account_id = ba.id 
+        WHERE bo.recurring_group_id = ?
+        ORDER BY bo.delivery_date ASC
+        LIMIT 1
+    ");
+    $stmt->execute([$recurringGroupId]);
+    $order = $stmt->fetch();
+    
+    if (!$order) return false;
+    
+    $stmt = $pdo->prepare("
+        SELECT id, delivery_date, total_amount
+        FROM business_orders
+        WHERE recurring_group_id = ?
+        AND delivery_date >= CURDATE()
+        AND is_cancelled = 0
+        ORDER BY delivery_date ASC
+    ");
+    $stmt->execute([$recurringGroupId]);
+    $upcomingOrders = $stmt->fetchAll();
+    
+    $stmt = $pdo->query("SELECT setting_value FROM settings WHERE setting_key = 'btw_tarief'");
+    $btwTarief = floatval($stmt->fetchColumn() ?: 9);
+    
+    $bedrijf = getBedrijfsGegevens($pdo);
+    
+    $htmlBody = buildRecurringUpdateEmail($order, $oldItems, $newItems, $upcomingOrders, $bedrijf, $btwTarief);
+    
+    $to = $order['email'];
+    $recurringName = $order['recurring_name'] ?? 'Terugkerende bestelling';
+    $subject = "Bestelling gewijzigd: $recurringName - Bakkerij Civetta";
+    
+    $attachments = [];
+    if (file_exists($bestelbonFile)) {
+        $attachments[] = ['path' => $bestelbonFile, 'name' => 'gewijzigde-bestelbon.pdf', 'type' => 'application/pdf'];
+    }
+    
+    $customerSent = sendHtmlEmail($to, $subject, $htmlBody, $attachments);
+    
+    sendHtmlEmail('laurens@bakkerij-civetta.nl', "Terugkerende bestelling gewijzigd: {$order['bedrijfsnaam']}", $htmlBody, [], $order['email']);
     
     return $customerSent;
 }
