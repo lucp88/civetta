@@ -1,8 +1,8 @@
 <?php
-require_once 'config.php';
+require_once '../config.php';
 requireLogin();
 
-$uploadDir = '../img/producten/';
+$uploadDir = '../../img/producten/';
 if (!is_dir($uploadDir)) {
     mkdir($uploadDir, 0755, true);
 }
@@ -10,6 +10,7 @@ if (!is_dir($uploadDir)) {
 $id = $_GET['id'] ?? null;
 $product = null;
 $variants = [];
+$deegtypes = $pdo->query("SELECT * FROM deegtypes ORDER BY naam ASC")->fetchAll();
 $error = '';
 $success = '';
 
@@ -32,6 +33,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $ingredienten = trim($_POST['ingredienten'] ?? '');
     $beschrijving = trim($_POST['beschrijving'] ?? '');
     $prijs = $_POST['prijs'] !== '' ? floatval($_POST['prijs']) : null;
+    $deegtype_id = $_POST['deegtype_id'] !== '' ? intval($_POST['deegtype_id']) : null;
     $foto = $product['foto'] ?? '';
     
     $variantGewichten = $_POST['variant_gewicht'] ?? [];
@@ -59,11 +61,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if ($naam) {
         try {
             if ($id) {
-                $stmt = $pdo->prepare("UPDATE products SET naam = ?, ingredienten = ?, beschrijving = ?, prijs = ?, foto = ? WHERE id = ?");
-                $stmt->execute([$naam, $ingredienten, $beschrijving, $prijs, $foto, $id]);
+                $stmt = $pdo->prepare("UPDATE products SET naam = ?, ingredienten = ?, beschrijving = ?, prijs = ?, foto = ?, deegtype_id = ? WHERE id = ?");
+                $stmt->execute([$naam, $ingredienten, $beschrijving, $prijs, $foto, $deegtype_id, $id]);
             } else {
-                $stmt = $pdo->prepare("INSERT INTO products (naam, ingredienten, beschrijving, prijs, foto) VALUES (?, ?, ?, ?, ?)");
-                $stmt->execute([$naam, $ingredienten, $beschrijving, $prijs, $foto]);
+                $stmt = $pdo->prepare("INSERT INTO products (naam, ingredienten, beschrijving, prijs, foto, deegtype_id) VALUES (?, ?, ?, ?, ?, ?)");
+                $stmt->execute([$naam, $ingredienten, $beschrijving, $prijs, $foto, $deegtype_id]);
                 $id = $pdo->lastInsertId();
             }
             
@@ -161,9 +163,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             font-size: 1rem;
             font-family: inherit;
         }
-        input:focus, textarea:focus {
+        input:focus, textarea:focus, select:focus {
             outline: none;
             border-color: #d4a574;
+        }
+        select {
+            width: 100%;
+            padding: 0.75rem;
+            border: 2px solid #e8dfd2;
+            border-radius: 8px;
+            font-size: 1rem;
+            font-family: inherit;
+            background: white;
         }
         textarea {
             min-height: 120px;
@@ -396,7 +407,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     
     <div class="container">
         <div class="breadcrumb">
-            <a href="index.php">Dashboard</a>
+            <a href="../index.php">Dashboard</a>
             <span>›</span>
             <a href="products.php">Producten</a>
             <span>›</span>
@@ -432,6 +443,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     <textarea id="beschrijving" name="beschrijving"><?= htmlspecialchars($product['beschrijving'] ?? '') ?></textarea>
                 </div>
                 
+                <div class="form-group">
+                    <label for="deegtype_id">Deegtype</label>
+                    <select id="deegtype_id" name="deegtype_id">
+                        <option value="">- Geen deegtype -</option>
+                        <?php foreach ($deegtypes as $dt): ?>
+                            <option value="<?= $dt['id'] ?>" <?= ($product['deegtype_id'] ?? '') == $dt['id'] ? 'selected' : '' ?>><?= htmlspecialchars($dt['naam']) ?></option>
+                        <?php endforeach; ?>
+                    </select>
+                    <p class="help">Intern gebruik (niet zichtbaar voor klanten)</p>
+                </div>
+
                 <div class="form-group">
                     <label for="prijs">Standaard Prijs</label>
                     <div class="price-input">

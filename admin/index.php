@@ -145,56 +145,56 @@ requireLogin();
         </div>
 
         <div class="dashboard-grid">
-            <a href="bakker-dashboard.php" class="dashboard-card" style="grid-column: 1 / -1; background: linear-gradient(135deg, #fff9e6, #fff3cd);">
+            <a href="bakker/bakker-dashboard.php" class="dashboard-card" style="grid-column: 1 / -1; background: linear-gradient(135deg, #fff9e6, #fff3cd);">
                 <div class="icon" style="background: linear-gradient(135deg, #f59e0b, #d97706);">📅</div>
                 <h3>Bakker Planning</h3>
                 <p>Kalenderoverzicht met bestellingen om te bereiden en te leveren. Inclusief route planning.</p>
                 <span class="badge" style="background: #fef3c7; color: #92400e;">Nieuw</span>
             </a>
 
-            <a href="posts.php" class="dashboard-card">
+            <a href="blog/posts.php" class="dashboard-card">
                 <div class="icon">📝</div>
                 <h3>Blog Posts</h3>
                 <p>Schrijf en beheer nieuws berichten voor je website.</p>
                 <span class="badge">Actief</span>
             </a>
 
-            <a href="donations.php" class="dashboard-card">
+            <a href="donaties/donations.php" class="dashboard-card">
                 <div class="icon">💚</div>
                 <h3>Donaties</h3>
                 <p>Bekijk ontvangen crowdfunding donaties.</p>
                 <span class="badge">Actief</span>
             </a>
 
-            <a href="products.php" class="dashboard-card">
+            <a href="producten/products.php" class="dashboard-card">
                 <div class="icon">🥖</div>
                 <h3>Producten</h3>
                 <p>Beheer je bakkerij producten.</p>
                 <span class="badge">Actief</span>
             </a>
 
-            <a href="accounts.php" class="dashboard-card">
+            <a href="accounts/accounts.php" class="dashboard-card">
                 <div class="icon">👥</div>
                 <h3>Accounts beheren</h3>
                 <p>Beheer zakelijke en particuliere accounts.</p>
                 <span class="badge">Actief</span>
             </a>
 
-            <a href="orders.php" class="dashboard-card">
+            <a href="bestellingen/orders.php" class="dashboard-card">
                 <div class="icon">📦</div>
                 <h3>Bestellingen</h3>
                 <p>Bekijk en beheer klant bestellingen.</p>
                 <span class="badge">Actief</span>
             </a>
 
-            <a href="settings-bedrijf.php" class="dashboard-card">
+            <a href="settings/settings-bedrijf.php" class="dashboard-card">
                 <div class="icon">⚙️</div>
                 <h3>Bedrijfsgegevens</h3>
                 <p>Beheer je bedrijfsgegevens voor facturen en contact.</p>
                 <span class="badge">Settings</span>
             </a>
 
-            <a href="settings-boekhouding.php" class="dashboard-card">
+            <a href="settings/settings-boekhouding.php" class="dashboard-card">
                 <div class="icon">📊</div>
                 <h3>Boekhouding</h3>
                 <p>Facturatie instellingen en e-Boekhouden koppeling.</p>

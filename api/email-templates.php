@@ -303,6 +303,45 @@ function buildCancellationEmail($order, $items, $bedrijf, $btwTarief = 9) {
     return $html;
 }
 
+function buildAccountRegistrationEmail($account, $bedrijf = []) {
+    $html = getEmailHeader('Aanvraag ontvangen');
+    
+    $html .= '
+        <div class="email-body">
+            <p class="greeting">Beste ' . htmlspecialchars($account['contactpersoon']) . ',</p>
+            
+            <h2>Uw aanvraag is ontvangen!</h2>
+            
+            <p>Bedankt voor uw interesse in Bakkerij Civetta. Wij hebben uw zakelijke accountaanvraag voor <strong>' . htmlspecialchars($account['bedrijfsnaam']) . '</strong> in goede orde ontvangen.</p>
+            
+            <div class="info-box">
+                <h3>Uw gegevens</h3>
+                <p><strong>Bedrijf:</strong> ' . htmlspecialchars($account['bedrijfsnaam']) . '</p>
+                <p><strong>Contactpersoon:</strong> ' . htmlspecialchars($account['contactpersoon']) . '</p>
+                <p><strong>E-mail:</strong> ' . htmlspecialchars($account['email']) . '</p>
+                <p><strong>Adres:</strong> ' . htmlspecialchars($account['adres'] . ', ' . $account['postcode'] . ' ' . $account['plaats']) . '</p>
+            </div>
+            
+            <div class="warning-box">
+                <p><strong>Wat gebeurt er nu?</strong></p>
+                <p>Wij beoordelen uw aanvraag zo snel mogelijk. Zodra uw account is goedgekeurd, ontvangt u een e-mail met uw inloggegevens.</p>
+            </div>
+            
+            <p style="text-align: center;">
+                <a href="https://bakkerij-civetta.nl/login-bedrijven.html" class="cta-button">Naar het dashboard</a>
+            </p>
+            
+            <div class="divider"></div>
+            
+            <p>Heeft u vragen? Neem gerust contact met ons op.</p>
+            <p>Met vriendelijke groet,<br><strong>Bakkerij Civetta</strong></p>
+        </div>';
+    
+    $html .= getEmailFooter($bedrijf);
+    
+    return $html;
+}
+
 function buildAccountApprovedEmail($account, $password, $bedrijf = []) {
     $html = getEmailHeader('Uw zakelijk account is goedgekeurd');
     
@@ -590,7 +629,7 @@ function buildAdminOrderNotificationEmail($order, $items, $isNew = true, $bedrij
     
     $html .= '
             <p style="text-align: center;">
-                <a href="https://bakkerij-civetta.nl/admin/orders.php" class="cta-button">Bekijk in admin</a>
+                <a href="https://bakkerij-civetta.nl/admin/bestellingen/orders.php" class="cta-button">Bekijk in admin</a>
             </p>
         </div>';
     

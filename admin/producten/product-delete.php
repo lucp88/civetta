@@ -1,5 +1,5 @@
 <?php
-require_once 'config.php';
+require_once '../config.php';
 requireLogin();
 
 $id = $_GET['id'] ?? null;

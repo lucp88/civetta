@@ -1,5 +1,5 @@
 <?php
-require_once 'config.php';
+require_once '../config.php';
 requireLogin();
 
 $pendingAccounts = [];
@@ -286,17 +286,39 @@ try {
             grid-template-columns: 1fr 2fr;
             gap: 1rem;
         }
+        .section-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1rem;
+        }
+        .section-header h2 { margin-bottom: 0; }
+        .btn-new {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.4rem;
+            padding: 0.5rem 1rem;
+            background: #8b5a2b;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 0.9rem;
+            font-weight: 500;
+            transition: background 0.2s;
+        }
+        .btn-new:hover { background: #5c3d1e; }
     </style>
 </head>
 <body>
     <div class="header">
         <h1>Civetta Admin</h1>
-        <a href="logout.php">Uitloggen</a>
+        <a href="../logout.php">Uitloggen</a>
     </div>
     
     <div class="container">
         <div class="breadcrumb">
-            <a href="index.php">Dashboard</a>
+            <a href="../index.php">Dashboard</a>
             <span>›</span>
             <a href="accounts.php">Accounts beheren</a>
             <span>›</span>
@@ -374,10 +396,13 @@ try {
         </div>
 
         <div class="section approved">
-            <h2>
-                Bevestigde accounts
-                <span class="count"><?= count($approvedAccounts) ?></span>
-            </h2>
+            <div class="section-header">
+                <h2>
+                    Bevestigde accounts
+                    <span class="count"><?= count($approvedAccounts) ?></span>
+                </h2>
+                <button class="btn-new" onclick="openCreateModal()">+ Nieuw Account</button>
+            </div>
             
             <?php if (empty($approvedAccounts)): ?>
                 <div class="empty">Nog geen goedgekeurde bedrijfsaccounts</div>
@@ -436,6 +461,62 @@ try {
                     <?php endforeach; ?>
                 </div>
             <?php endif; ?>
+        </div>
+    </div>
+
+    <div class="modal-overlay" id="create-modal">
+        <div class="modal">
+            <h3>Nieuw Account Aanmaken</h3>
+            <form id="create-form" onsubmit="createAccount(event)">
+                <div class="form-group">
+                    <label>Bedrijfsnaam *</label>
+                    <input type="text" id="create-bedrijfsnaam" required>
+                </div>
+                <div class="form-group">
+                    <label>Adres *</label>
+                    <input type="text" id="create-adres" required>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Postcode</label>
+                        <input type="text" id="create-postcode">
+                    </div>
+                    <div class="form-group">
+                        <label>Plaats</label>
+                        <input type="text" id="create-plaats">
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label>Contactpersoon *</label>
+                    <input type="text" id="create-contactpersoon" required>
+                </div>
+                <div class="form-group">
+                    <label>E-mail *</label>
+                    <input type="email" id="create-email" required>
+                </div>
+                <div class="form-group">
+                    <label>Telefoon</label>
+                    <input type="tel" id="create-telefoon">
+                </div>
+                <div class="form-group">
+                    <label>Website</label>
+                    <input type="url" id="create-website">
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>KVK-nummer</label>
+                        <input type="text" id="create-kvk_nummer">
+                    </div>
+                    <div class="form-group">
+                        <label>BTW-ID</label>
+                        <input type="text" id="create-btw_id">
+                    </div>
+                </div>
+                <div class="modal-actions">
+                    <button type="button" class="btn btn-secondary" onclick="closeCreateModal()">Annuleren</button>
+                    <button type="submit" class="btn btn-success">Aanmaken</button>
+                </div>
+            </form>
         </div>
     </div>
 
@@ -501,7 +582,7 @@ try {
             if (!confirm(`Weet je zeker dat je "${name}" wilt goedkeuren? Er wordt automatisch een e-mail verzonden.`)) return;
             
             try {
-                const response = await fetch('../api/business-accounts.php', {
+                const response = await fetch('../../api/business-accounts.php', {
                     method: 'PUT',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ id: id, action: 'approve' })
@@ -523,7 +604,7 @@ try {
             if (!confirm(`Weet je zeker dat je "${name}" wilt afwijzen?`)) return;
             
             try {
-                const response = await fetch('../api/business-accounts.php', {
+                const response = await fetch('../../api/business-accounts.php', {
                     method: 'PUT',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ id: id, action: 'reject' })
@@ -600,7 +681,7 @@ try {
             };
 
             try {
-                const response = await fetch('../api/business-accounts.php', {
+                const response = await fetch('../../api/business-accounts.php', {
                     method: 'PUT',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify(data)
@@ -623,7 +704,7 @@ try {
             if (!confirm(`Weet je zeker dat je "${name}" permanent wilt verwijderen? Dit kan niet ongedaan worden gemaakt.`)) return;
             
             try {
-                const response = await fetch(`../api/business-accounts.php?id=${id}`, {
+                const response = await fetch(`../../api/business-accounts.php?id=${id}`, {
                     method: 'DELETE'
                 });
                 const data = await response.json();
@@ -644,7 +725,7 @@ try {
             if (!confirm(`Weet je zeker dat je een nieuw wachtwoord wilt genereren voor ${email}? Het nieuwe wachtwoord wordt per e-mail verzonden.`)) return;
             
             try {
-                const response = await fetch('../api/business-accounts.php', {
+                const response = await fetch('../../api/business-accounts.php', {
                     method: 'PUT',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ id: id, action: 'reset_password' })
@@ -673,6 +754,56 @@ try {
                 }
             }
         }
+
+        function openCreateModal() {
+            document.getElementById('create-form').reset();
+            document.getElementById('create-modal').classList.add('active');
+        }
+
+        function closeCreateModal() {
+            document.getElementById('create-modal').classList.remove('active');
+        }
+
+        async function createAccount(event) {
+            event.preventDefault();
+            
+            const data = {
+                admin_create: true,
+                bedrijfsnaam: document.getElementById('create-bedrijfsnaam').value,
+                adres: document.getElementById('create-adres').value,
+                postcode: document.getElementById('create-postcode').value,
+                plaats: document.getElementById('create-plaats').value,
+                contactpersoon: document.getElementById('create-contactpersoon').value,
+                email: document.getElementById('create-email').value,
+                telefoon: document.getElementById('create-telefoon').value,
+                website: document.getElementById('create-website').value,
+                kvk_nummer: document.getElementById('create-kvk_nummer').value,
+                btw_id: document.getElementById('create-btw_id').value
+            };
+
+            try {
+                const response = await fetch('../../api/business-accounts.php', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(data)
+                });
+                const result = await response.json();
+                
+                if (result.success) {
+                    showMessage(result.message, 'success');
+                    closeCreateModal();
+                    setTimeout(() => location.reload(), 1500);
+                } else {
+                    showMessage(result.error || 'Er ging iets mis', 'error');
+                }
+            } catch (error) {
+                showMessage('Er ging iets mis', 'error');
+            }
+        }
+
+        document.getElementById('create-modal').addEventListener('click', function(e) {
+            if (e.target === this) closeCreateModal();
+        });
 
         document.getElementById('edit-modal').addEventListener('click', function(e) {
             if (e.target === this) closeEditModal();

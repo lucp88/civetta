@@ -1,6 +1,7 @@
 <?php
 require_once '../admin/config.php';
-require_once 'factuur.php';
+require_once __DIR__ . '/../lib/factuur/functions.php';
+require_once __DIR__ . '/email-templates.php';
 require_once 'eboekhouden.php';
 
 function webhookLog($message) {
@@ -137,31 +138,18 @@ try {
             $stmt->execute([$orderId]);
             $items = $stmt->fetchAll();
             
-            $itemsList = "";
-            foreach ($items as $item) {
-                $itemsList .= "- {$item['quantity']}x {$item['product_name']}\n";
-            }
-            
-            $to = $order['email'];
-            $subject = "Bevestiging bestelling #$orderId - Bakkerij Civetta";
-            $body = "Beste {$order['contactpersoon']},\n\n";
-            $body .= "Bedankt voor uw bestelling! Uw betaling is succesvol ontvangen.\n\n";
-            $body .= "Bestelling #$orderId\n";
-            $body .= "Bedrijf: {$order['bedrijfsnaam']}\n\n";
-            $body .= "Gewenste leverdatum: " . date('d-m-Y', strtotime($order['delivery_date'])) . "\n\n";
-            $body .= "Producten:\n$itemsList\n";
-            $body .= "Totaalbedrag: €" . number_format($order['total_amount'], 2, ',', '.') . "\n\n";
-            $body .= "Uw factuur volgt in een aparte e-mail.\n\n";
-            $body .= "We nemen contact met u op om de levering te bevestigen.\n\n";
-            $body .= "Met vriendelijke groet,\n";
-            $body .= "Bakkerij Civetta\n";
-            $body .= "laurens@bakkerij-civetta.nl";
-            
-            $headers = "From: noreply@bakkerij-civetta.nl\r\n";
-            $headers .= "Reply-To: laurens@bakkerij-civetta.nl\r\n";
-            $headers .= "Content-Type: text/plain; charset=UTF-8\r\n";
-            
-            @mail($to, $subject, $body, $headers);
+            $bedrijf = getBedrijfsGegevens($pdo);
+
+            $stmt2 = $pdo->query("SELECT setting_value FROM settings WHERE setting_key = 'btw_tarief'");
+            $btwTarief = floatval($stmt2->fetchColumn() ?: 9);
+
+            $order['payment_status'] = 'paid';
+            $htmlBody = buildOrderConfirmationEmail($order, $items, $bedrijf, $btwTarief);
+
+            $bestelbonNummer = $order['bestelbon_number'] ?? 'B' . date('Y') . '-' . str_pad($orderId, 4, '0', STR_PAD_LEFT);
+            $subject = "Betalingsbevestiging $bestelbonNummer - Bakkerij Civetta";
+
+            sendHtmlEmail($order['email'], $subject, $htmlBody, [], 'laurens@bakkerij-civetta.nl');
             
             $eboekhoudenSettings = getEBoekhoudenSettings($pdo);
             

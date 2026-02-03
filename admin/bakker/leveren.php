@@ -1,5 +1,5 @@
 <?php
-require_once 'config.php';
+require_once '../config.php';
 requireLogin();
 
 $stmt = $pdo->query("SELECT setting_value FROM settings WHERE setting_key = 'bedrijf_adres'");
@@ -503,38 +503,6 @@ function formatDutchDate($date) {
         .status-badge.onderweg { background: #e3f2fd; color: #1565c0; }
         .status-badge.afgeleverd { background: #d1e7dd; color: #0f5132; }
         
-        .detail-modal { max-width: 600px; }
-        .detail-modal .modal-body { padding: 1.25rem; }
-        .detail-grid {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 1rem;
-            margin-bottom: 1rem;
-        }
-        .detail-item label {
-            display: block;
-            font-size: 0.75rem;
-            color: #888;
-            text-transform: uppercase;
-            margin-bottom: 0.25rem;
-        }
-        .detail-item .value { color: #333; font-weight: 500; }
-        .detail-item .value a { color: #1976d2; text-decoration: none; }
-        .detail-item .value a:hover { text-decoration: underline; }
-        
-        .product-list {
-            background: #faf8f5;
-            border-radius: 8px;
-            padding: 0.75rem;
-        }
-        .product-row {
-            display: flex;
-            justify-content: space-between;
-            padding: 0.5rem 0;
-            border-bottom: 1px solid #eee;
-        }
-        .product-row:last-child { border-bottom: none; }
-        .product-qty { font-weight: 600; color: #1976d2; margin-right: 0.5rem; }
         
         .empty-state {
             text-align: center;
@@ -545,6 +513,131 @@ function formatDutchDate($date) {
         
         .day-content { padding: 1rem; }
         .day-content .route-actions { padding: 0; margin-bottom: 1rem; background: transparent; border: none; }
+        
+        .fab {
+            position: fixed;
+            bottom: 2rem;
+            right: 2rem;
+            width: 56px;
+            height: 56px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #2196f3, #1976d2);
+            color: white;
+            border: none;
+            cursor: pointer;
+            box-shadow: 0 4px 15px rgba(33,150,243,0.4);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.5rem;
+            z-index: 900;
+            transition: all 0.2s;
+        }
+        .fab:hover { transform: scale(1.1); box-shadow: 0 6px 20px rgba(33,150,243,0.5); }
+        
+        .new-order-modal { max-width: 700px; }
+        .new-order-modal .modal-body { padding: 1.25rem; }
+        .form-group { margin-bottom: 1rem; }
+        .form-group label { display: block; font-size: 0.85rem; font-weight: 600; color: #333; margin-bottom: 0.4rem; }
+        .form-control {
+            width: 100%;
+            padding: 0.6rem 0.8rem;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            font-size: 0.95rem;
+            transition: border-color 0.2s;
+            box-sizing: border-box;
+        }
+        .form-control:focus { border-color: #2196f3; outline: none; }
+        
+        .product-select-row {
+            display: flex;
+            gap: 0.5rem;
+            align-items: center;
+            margin-bottom: 0.5rem;
+        }
+        .product-select-row select { flex: 3; }
+        .product-select-row input[type="number"] { flex: 1; min-width: 60px; }
+        .product-select-row .product-price { flex: 1; min-width: 80px; text-align: right; color: #666; font-size: 0.9rem; white-space: nowrap; }
+        .product-select-row .btn-remove {
+            width: 32px;
+            height: 32px;
+            border: none;
+            background: #f8d7da;
+            color: #dc3545;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 1rem;
+            flex-shrink: 0;
+        }
+        .product-select-row .btn-remove:hover { background: #dc3545; color: white; }
+        
+        .btn-add-product {
+            padding: 0.4rem 1rem;
+            border: 2px dashed #2196f3;
+            background: transparent;
+            color: #2196f3;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 0.9rem;
+            font-weight: 500;
+        }
+        .btn-add-product:hover { background: #e3f2fd; }
+        
+        .order-total-bar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 1rem 1.25rem;
+            background: #f8f9fa;
+            border-top: 1px solid #eee;
+            font-size: 1.1rem;
+            font-weight: 600;
+        }
+        .order-total-bar .total-amount { color: #1976d2; font-size: 1.3rem; }
+        
+        .btn-submit-order {
+            padding: 0.75rem 2rem;
+            background: linear-gradient(135deg, #2196f3, #1976d2);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 1rem;
+            font-weight: 600;
+        }
+        .btn-submit-order:hover { background: linear-gradient(135deg, #1976d2, #1565c0); }
+        .btn-submit-order:disabled { opacity: 0.6; cursor: not-allowed; }
+        
+        .customer-info-card {
+            display: none;
+            background: #f8f9fa;
+            border: 1px solid #e0e0e0;
+            border-radius: 8px;
+            padding: 0.75rem 1rem;
+            margin-top: 0.5rem;
+        }
+        .customer-info-card.show { display: block; }
+        .customer-info-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 0.5rem;
+        }
+        .customer-info-item {
+            font-size: 0.85rem;
+        }
+        .customer-info-item .ci-label {
+            font-size: 0.7rem;
+            text-transform: uppercase;
+            color: #888;
+            font-weight: 600;
+        }
+        .customer-info-item .ci-value {
+            color: #333;
+        }
+        .customer-info-item .ci-value a { color: #1976d2; text-decoration: none; }
+        .customer-info-item .ci-value a:hover { text-decoration: underline; }
+        .customer-info-item.full-width { grid-column: 1 / -1; }
     </style>
 </head>
 <body>
@@ -553,14 +646,14 @@ function formatDutchDate($date) {
         <div class="header-links">
             <a href="bereiden.php"><i class="bi bi-fire"></i> Bereiden</a>
             <a href="bakker-dashboard.php"><i class="bi bi-grid"></i> Overzicht</a>
-            <a href="index.php"><i class="bi bi-house"></i> Admin</a>
+            <a href="../index.php"><i class="bi bi-house"></i> Admin</a>
         </div>
     </div>
     
     <div class="container">
         <div class="top-bar">
             <div class="breadcrumb">
-                <a href="index.php">Dashboard</a>
+                <a href="../index.php">Dashboard</a>
                 <span>›</span>
                 <a href="bakker-dashboard.php">Bakker</a>
                 <span>›</span>
@@ -766,45 +859,75 @@ function formatDutchDate($date) {
         </div>
     </div>
     
-    <div class="modal-overlay" id="orderModal">
-        <div class="modal detail-modal">
+    <button class="fab" onclick="openNewOrderModal()" title="Nieuwe bestelling">
+        <i class="bi bi-plus-lg"></i>
+    </button>
+    
+    <div class="modal-overlay" id="newOrderModal">
+        <div class="modal new-order-modal">
             <div class="modal-header">
-                <h3><i class="bi bi-box"></i> Bestelling <span id="orderModalId"></span></h3>
-                <button class="modal-close" onclick="closeOrderModal()">&times;</button>
+                <h3><i class="bi bi-plus-circle"></i> Nieuwe Bestelling</h3>
+                <button class="modal-close" onclick="closeNewOrderModal()">&times;</button>
             </div>
             <div class="modal-body">
-                <div class="detail-grid">
-                    <div class="detail-item">
-                        <label>Bedrijf</label>
-                        <div class="value" id="orderCompany"></div>
-                    </div>
-                    <div class="detail-item">
-                        <label>Contactpersoon</label>
-                        <div class="value" id="orderContact"></div>
-                    </div>
-                    <div class="detail-item">
-                        <label>Telefoon</label>
-                        <div class="value"><a id="orderPhone" href=""></a></div>
-                    </div>
-                    <div class="detail-item">
-                        <label>E-mail</label>
-                        <div class="value"><a id="orderEmail" href=""></a></div>
-                    </div>
-                    <div class="detail-item" style="grid-column: 1/-1;">
-                        <label>Leveradres</label>
-                        <div class="value" id="orderAddress"></div>
+                <div class="form-group">
+                    <label>Klant</label>
+                    <select class="form-control" id="newOrderCustomer" onchange="onCustomerChange()">
+                        <option value="">Selecteer een klant...</option>
+                    </select>
+                    <div class="customer-info-card" id="customerInfoCard">
+                        <div class="customer-info-grid">
+                            <div class="customer-info-item">
+                                <div class="ci-label">Contactpersoon</div>
+                                <div class="ci-value" id="ciContact">-</div>
+                            </div>
+                            <div class="customer-info-item">
+                                <div class="ci-label">Telefoon</div>
+                                <div class="ci-value" id="ciPhone">-</div>
+                            </div>
+                            <div class="customer-info-item">
+                                <div class="ci-label">E-mail</div>
+                                <div class="ci-value" id="ciEmail">-</div>
+                            </div>
+                            <div class="customer-info-item">
+                                <div class="ci-label">Leveradres</div>
+                                <div class="ci-value" id="ciAddress">-</div>
+                            </div>
+                        </div>
                     </div>
                 </div>
-                <h4 style="color: #1976d2; margin-bottom: 0.75rem;">Producten</h4>
-                <div class="product-list" id="orderProducts"></div>
-                <div style="margin-top: 1rem; text-align: right; font-size: 1.2rem; font-weight: 600; color: #1976d2;">
-                    Totaal: <span id="orderTotal"></span>
+                <div class="form-group">
+                    <label>Leverdatum</label>
+                    <input type="date" class="form-control" id="newOrderDate">
                 </div>
+                <div class="form-group">
+                    <label>Producten</label>
+                    <div id="newOrderProducts"></div>
+                    <button type="button" class="btn-add-product" onclick="addProductRow()">
+                        <i class="bi bi-plus"></i> Product toevoegen
+                    </button>
+                </div>
+                <div class="form-group">
+                    <label>Opmerkingen</label>
+                    <textarea class="form-control" id="newOrderNotes" rows="2" placeholder="Optionele opmerkingen..."></textarea>
+                </div>
+            </div>
+            <div class="order-total-bar">
+                <span>Totaal: <span class="total-amount" id="newOrderTotal">€0,00</span></span>
+                <button class="btn-submit-order" id="btnSubmitOrder" onclick="submitNewOrder()">
+                    <i class="bi bi-check-lg"></i> Bestelling plaatsen
+                </button>
             </div>
         </div>
     </div>
+    
+    <?php $detailAccentColor = '#1976d2'; $detailAccentColorDark = '#1565c0'; include 'order-detail-modal.php'; ?>
 
     <script>
+    let allCustomers = [];
+    let allProducts = [];
+    let newOrderProductIndex = 0;
+    
     const currentDate = '<?= $viewDate ?>';
     const currentMode = '<?= $viewMode ?>';
     const bakkerijAdres = '<?= addslashes($bakkerijAdres ?: 'Leersum, Utrecht') ?>';
@@ -843,7 +966,7 @@ function formatDutchDate($date) {
     
     async function loadRouteData(date) {
         try {
-            const response = await fetch(`../api/delivery-route.php?date=${date}`);
+            const response = await fetch(`../../api/delivery-route.php?date=${date}`);
             const data = await response.json();
             
             if (data.success) {
@@ -966,7 +1089,7 @@ function formatDutchDate($date) {
         btn.innerHTML = '<i class="bi bi-hourglass-split"></i> Bezig...';
         
         try {
-            const response = await fetch('../api/delivery-route.php', {
+            const response = await fetch('../../api/delivery-route.php', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ action: 'start_route', order_ids: orderIds, send_emails: sendEmails })
@@ -1005,7 +1128,7 @@ function formatDutchDate($date) {
         btn.innerHTML = '<i class="bi bi-hourglass-split"></i>';
         
         try {
-            const response = await fetch('../api/delivery-route.php', {
+            const response = await fetch('../../api/delivery-route.php', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ action: 'mark_delivered', order_id: orderId })
@@ -1038,40 +1161,6 @@ function formatDutchDate($date) {
         currentDayDate = null;
     }
     
-    function showOrderDetail(order) {
-        document.getElementById('orderModalId').textContent = '#' + order.id;
-        document.getElementById('orderCompany').textContent = order.bedrijfsnaam;
-        document.getElementById('orderContact').textContent = order.contactpersoon || '-';
-        
-        const phoneEl = document.getElementById('orderPhone');
-        phoneEl.textContent = order.telefoon || '-';
-        phoneEl.href = order.telefoon ? 'tel:' + order.telefoon : '#';
-        
-        const emailEl = document.getElementById('orderEmail');
-        emailEl.textContent = order.email || '-';
-        emailEl.href = order.email ? 'mailto:' + order.email : '#';
-        
-        document.getElementById('orderAddress').textContent = order.full_delivery_address;
-        
-        let productsHtml = '';
-        order.items.forEach(item => {
-            const lineTotal = item.quantity * item.unit_price;
-            productsHtml += `
-                <div class="product-row">
-                    <span><span class="product-qty">${item.quantity}x</span> ${escapeHtml(item.product_name)}</span>
-                    <span>€${lineTotal.toFixed(2).replace('.', ',')}</span>
-                </div>
-            `;
-        });
-        document.getElementById('orderProducts').innerHTML = productsHtml;
-        document.getElementById('orderTotal').textContent = '€' + parseFloat(order.total_amount).toFixed(2).replace('.', ',');
-        
-        document.getElementById('orderModal').classList.add('active');
-    }
-    
-    function closeOrderModal() {
-        document.getElementById('orderModal').classList.remove('active');
-    }
     
     function escapeHtml(text) {
         const div = document.createElement('div');
@@ -1079,18 +1168,199 @@ function formatDutchDate($date) {
         return div.innerHTML;
     }
     
+    async function loadNewOrderData() {
+        if (allCustomers.length && allProducts.length) return;
+        try {
+            const [custRes, prodRes] = await Promise.all([
+                fetch('../../api/admin-orders.php?action=customers'),
+                fetch('../../api/admin-orders.php?action=products')
+            ]);
+            const custData = await custRes.json();
+            const prodData = await prodRes.json();
+            if (custData.success) allCustomers = custData.customers;
+            if (prodData.success) allProducts = prodData.products;
+        } catch (e) {
+            console.error('Error loading data:', e);
+        }
+    }
+    
+    async function openNewOrderModal(prefillDate) {
+        await loadNewOrderData();
+        
+        const custSelect = document.getElementById('newOrderCustomer');
+        custSelect.innerHTML = '<option value="">Selecteer een klant...</option>';
+        allCustomers.forEach(c => {
+            custSelect.innerHTML += `<option value="${c.id}">${escapeHtml(c.bedrijfsnaam)} (${escapeHtml(c.contactpersoon)})</option>`;
+        });
+        
+        document.getElementById('newOrderDate').value = prefillDate || new Date().toISOString().split('T')[0];
+        document.getElementById('newOrderNotes').value = '';
+        document.getElementById('newOrderProducts').innerHTML = '';
+        newOrderProductIndex = 0;
+        addProductRow();
+        updateNewOrderTotal();
+        
+        document.getElementById('newOrderModal').classList.add('active');
+    }
+    
+    function closeNewOrderModal() {
+        document.getElementById('newOrderModal').classList.remove('active');
+        document.getElementById('customerInfoCard').classList.remove('show');
+    }
+    
+    function onCustomerChange() {
+        const select = document.getElementById('newOrderCustomer');
+        const card = document.getElementById('customerInfoCard');
+        const customerId = parseInt(select.value);
+        
+        if (!customerId) {
+            card.classList.remove('show');
+            return;
+        }
+        
+        const customer = allCustomers.find(c => c.id == customerId);
+        if (!customer) {
+            card.classList.remove('show');
+            return;
+        }
+        
+        document.getElementById('ciContact').textContent = customer.contactpersoon || '-';
+        
+        const phoneEl = document.getElementById('ciPhone');
+        if (customer.telefoon) {
+            phoneEl.innerHTML = `<a href="tel:${escapeHtml(customer.telefoon)}">${escapeHtml(customer.telefoon)}</a>`;
+        } else {
+            phoneEl.textContent = '-';
+        }
+        
+        const emailEl = document.getElementById('ciEmail');
+        if (customer.email) {
+            emailEl.innerHTML = `<a href="mailto:${escapeHtml(customer.email)}">${escapeHtml(customer.email)}</a>`;
+        } else {
+            emailEl.textContent = '-';
+        }
+        
+        let address;
+        if (customer.delivery_same_as_business || !customer.delivery_adres) {
+            address = [customer.adres, customer.postcode, customer.plaats].filter(Boolean).join(', ');
+        } else {
+            address = [customer.delivery_adres, customer.delivery_postcode, customer.delivery_plaats].filter(Boolean).join(', ');
+        }
+        document.getElementById('ciAddress').textContent = address || '-';
+        
+        card.classList.add('show');
+    }
+    
+    function addProductRow() {
+        const container = document.getElementById('newOrderProducts');
+        const idx = newOrderProductIndex++;
+        let options = '<option value="">Kies product...</option>';
+        allProducts.forEach(p => {
+            options += `<option value="${escapeHtml(p.naam)}" data-price="${p.prijs}">${escapeHtml(p.naam)} (€${parseFloat(p.prijs).toFixed(2).replace('.', ',')})</option>`;
+        });
+        
+        const row = document.createElement('div');
+        row.className = 'product-select-row';
+        row.innerHTML = `
+            <select class="form-control product-select" data-idx="${idx}" onchange="onProductChange(this)">${options}</select>
+            <input type="number" class="form-control product-qty" data-idx="${idx}" min="1" value="1" onchange="updateNewOrderTotal()" oninput="updateNewOrderTotal()">
+            <span class="product-price" data-idx="${idx}">€0,00</span>
+            <button type="button" class="btn-remove" onclick="removeProductRow(this)"><i class="bi bi-x"></i></button>
+        `;
+        container.appendChild(row);
+    }
+    
+    function removeProductRow(btn) {
+        btn.closest('.product-select-row').remove();
+        updateNewOrderTotal();
+    }
+    
+    function onProductChange(select) {
+        const idx = select.dataset.idx;
+        const option = select.options[select.selectedIndex];
+        const price = parseFloat(option.dataset.price || 0);
+        const priceEl = document.querySelector(`.product-price[data-idx="${idx}"]`);
+        priceEl.textContent = '€' + price.toFixed(2).replace('.', ',');
+        updateNewOrderTotal();
+    }
+    
+    function updateNewOrderTotal() {
+        let total = 0;
+        document.querySelectorAll('.product-select-row').forEach(row => {
+            const select = row.querySelector('.product-select');
+            const qty = parseInt(row.querySelector('.product-qty').value) || 0;
+            const option = select.options[select.selectedIndex];
+            const price = parseFloat(option?.dataset?.price || 0);
+            total += qty * price;
+        });
+        document.getElementById('newOrderTotal').textContent = '€' + total.toFixed(2).replace('.', ',');
+    }
+    
+    async function submitNewOrder() {
+        const accountId = document.getElementById('newOrderCustomer').value;
+        const deliveryDate = document.getElementById('newOrderDate').value;
+        const notes = document.getElementById('newOrderNotes').value.trim();
+        
+        if (!accountId) { alert('Selecteer een klant'); return; }
+        if (!deliveryDate) { alert('Selecteer een leverdatum'); return; }
+        
+        const items = [];
+        let valid = true;
+        document.querySelectorAll('.product-select-row').forEach(row => {
+            const select = row.querySelector('.product-select');
+            const qty = parseInt(row.querySelector('.product-qty').value) || 0;
+            const option = select.options[select.selectedIndex];
+            const name = select.value;
+            const price = parseFloat(option?.dataset?.price || 0);
+            
+            if (name && qty > 0) {
+                items.push({ product_name: name, quantity: qty, unit_price: price });
+            }
+        });
+        
+        if (items.length === 0) { alert('Voeg minimaal één product toe'); return; }
+        
+        const btn = document.getElementById('btnSubmitOrder');
+        btn.disabled = true;
+        btn.innerHTML = '<i class="bi bi-hourglass-split"></i> Bezig...';
+        
+        try {
+            const response = await fetch('../../api/admin-orders.php', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ account_id: parseInt(accountId), delivery_date: deliveryDate, items, notes })
+            });
+            const data = await response.json();
+            
+            if (data.success) {
+                closeNewOrderModal();
+                alert('Bestelling #' + data.order_id + ' geplaatst! Bevestigingsmail verzonden.');
+                window.location.reload();
+            } else {
+                alert('Fout: ' + (data.error || 'Onbekende fout'));
+            }
+        } catch (e) {
+            console.error('Error:', e);
+            alert('Er ging iets mis bij het plaatsen van de bestelling');
+        } finally {
+            btn.disabled = false;
+            btn.innerHTML = '<i class="bi bi-check-lg"></i> Bestelling plaatsen';
+        }
+    }
+    
     document.getElementById('dayModal').addEventListener('click', function(e) {
         if (e.target === this) closeDayModal();
     });
     
-    document.getElementById('orderModal').addEventListener('click', function(e) {
-        if (e.target === this) closeOrderModal();
+    document.getElementById('newOrderModal').addEventListener('click', function(e) {
+        if (e.target === this) closeNewOrderModal();
     });
     
     document.addEventListener('keydown', function(e) {
         if (e.key === 'Escape') {
             closeDayModal();
             closeOrderModal();
+            closeNewOrderModal();
         }
     });
     

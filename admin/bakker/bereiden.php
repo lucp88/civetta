@@ -1,5 +1,5 @@
 <?php
-require_once 'config.php';
+require_once '../config.php';
 requireLogin();
 
 $viewDate = isset($_GET['date']) ? $_GET['date'] : date('Y-m-d');
@@ -33,7 +33,14 @@ $stmt = $pdo->prepare("
         ba.bedrijfsnaam, 
         ba.contactpersoon, 
         ba.email, 
-        ba.telefoon
+        ba.telefoon,
+        ba.adres,
+        ba.postcode,
+        ba.plaats,
+        ba.delivery_same_as_business,
+        ba.delivery_adres,
+        ba.delivery_postcode,
+        ba.delivery_plaats
     FROM business_orders bo
     JOIN business_accounts ba ON bo.account_id = ba.id
     WHERE bo.delivery_date BETWEEN ? AND ?
@@ -44,13 +51,19 @@ $stmt->execute([$deliveryStart->format('Y-m-d'), $deliveryEnd->format('Y-m-d')])
 $allOrders = $stmt->fetchAll();
 
 foreach ($allOrders as &$order) {
-    $stmt = $pdo->prepare("SELECT product_name, quantity, unit_price FROM business_order_items WHERE order_id = ?");
+    $stmt = $pdo->prepare("SELECT boi.product_name, boi.quantity, boi.unit_price, COALESCE(d.naam, 'Overig') as deegtype_naam FROM business_order_items boi LEFT JOIN products p ON boi.product_name = p.naam LEFT JOIN deegtypes d ON p.deegtype_id = d.id WHERE boi.order_id = ?");
     $stmt->execute([$order['id']]);
     $order['items'] = $stmt->fetchAll();
     
     $deliveryDate = new DateTime($order['delivery_date']);
     $deliveryDate->modify('-1 day');
     $order['bereiding_date'] = $deliveryDate->format('Y-m-d');
+    
+    if ($order['delivery_same_as_business'] || empty($order['delivery_adres'])) {
+        $order['full_delivery_address'] = $order['adres'] . ', ' . $order['postcode'] . ' ' . $order['plaats'];
+    } else {
+        $order['full_delivery_address'] = $order['delivery_adres'] . ', ' . $order['delivery_postcode'] . ' ' . $order['delivery_plaats'];
+    }
 }
 unset($order);
 
@@ -330,137 +343,143 @@ function formatDutchDate($date) {
         .modal-body { padding: 1.25rem; }
         
         .totals-section {
-            background: linear-gradient(135deg, #e8f5e9, #c8e6c9);
-            border-radius: 12px;
-            padding: 1.25rem;
-            margin-bottom: 1.5rem;
-            border: 1px solid #a5d6a7;
+            background: #faf8f5;
+            border-radius: 8px;
+            padding: 1rem;
+            margin-bottom: 1rem;
+            border: 1px solid #e8e0d5;
         }
         .totals-section h4 {
-            color: #2e7d32;
-            margin-bottom: 1rem;
-            font-size: 1rem;
+            color: #5c3d1e;
+            margin-bottom: 0.75rem;
+            font-size: 0.9rem;
             display: flex;
             align-items: center;
             gap: 0.5rem;
-        }
-        .totals-section h4 i {
-            font-size: 1.2rem;
+            padding-bottom: 0.5rem;
+            border-bottom: 1px solid #e8e0d5;
         }
         .product-totals-list {
             background: white;
             border-radius: 8px;
-            overflow: hidden;
+            padding: 0.25rem 0.75rem;
         }
-        .product-total-row {
+        .product-total-item {
             display: flex;
+            justify-content: space-between;
             align-items: center;
-            padding: 0.85rem 1rem;
-            border-bottom: 1px solid #e8f5e9;
+            padding: 0.4rem 0;
+            border-bottom: 1px solid #f0f0f0;
+            font-size: 0.85rem;
         }
-        .product-total-row:last-child { border-bottom: none; }
-        .product-total-row:nth-child(odd) { background: #fafafa; }
+        .product-total-item:last-child { border-bottom: none; }
         .product-total-qty {
-            width: 50px;
-            height: 50px;
-            background: linear-gradient(135deg, #4caf50, #388e3c);
-            color: white;
-            border-radius: 10px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
             font-weight: 700;
-            font-size: 1.1rem;
-            margin-right: 1rem;
-            flex-shrink: 0;
+            color: #8b5a2b;
+            margin-right: 0.4rem;
         }
         .product-total-name {
-            flex: 1;
-            font-weight: 500;
             color: #333;
-            font-size: 1rem;
         }
-        .product-total-label {
-            font-size: 0.75rem;
-            color: #888;
+        .product-total-price {
+            color: #666;
+            font-weight: 500;
+            white-space: nowrap;
+        }
+        
+        .totals-tabs {
+            display: flex;
+            gap: 0;
+            margin-bottom: 0.75rem;
+        }
+        .totals-tab {
+            padding: 0.4rem 1rem;
+            border: none;
+            background: #e8e0d5;
+            cursor: pointer;
+            font-size: 0.85rem;
+            font-weight: 600;
+            color: #8b7355;
+            transition: all 0.2s;
+        }
+        .totals-tab:first-child { border-radius: 6px 0 0 6px; }
+        .totals-tab:last-child { border-radius: 0 6px 6px 0; }
+        .totals-tab.active {
+            background: #8b5a2b;
+            color: white;
+        }
+        .totals-tab:hover:not(.active) { background: #ddd5c8; }
+        .totals-tab-content { display: none; }
+        .totals-tab-content.active { display: block; }
+        .deegtype-group-title {
+            font-weight: 700;
+            font-size: 0.8rem;
+            color: #8b5a2b;
             text-transform: uppercase;
+            letter-spacing: 0.5px;
+            padding: 0.5rem 0 0.2rem;
+            border-bottom: 2px solid #e8e0d5;
+            margin-top: 0.5rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
         }
+        .deegtype-group-title:first-child { margin-top: 0; }
         
         .orders-section {
-            margin-top: 1.5rem;
+            margin-top: 1rem;
         }
         .orders-section h4 {
-            color: #e55a2b;
-            margin-bottom: 1rem;
-            font-size: 1rem;
+            color: #5c3d1e;
+            margin-bottom: 0.75rem;
+            font-size: 0.9rem;
             display: flex;
             align-items: center;
             gap: 0.5rem;
-            padding-bottom: 0.75rem;
-            border-bottom: 2px solid #ffe0d0;
+            padding-bottom: 0.5rem;
+            border-bottom: 1px solid #eee;
         }
         
-        .order-card {
-            background: white;
-            border-radius: 12px;
-            padding: 1rem 1.25rem;
-            margin-bottom: 0.75rem;
-            cursor: pointer;
-            transition: all 0.2s;
-            border: 1px solid #eee;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.04);
-        }
-        .order-card:hover { 
-            background: #fff5f0; 
-            border-color: #ff6b35;
-            box-shadow: 0 4px 12px rgba(255,107,53,0.15);
-            transform: translateY(-2px);
-        }
-        
-        .order-card-header {
+        .order-row {
             display: flex;
-            justify-content: space-between;
             align-items: center;
-            margin-bottom: 0.75rem;
+            padding: 0.75rem 0;
+            border-bottom: 1px solid #f5f5f5;
+            gap: 1rem;
+            cursor: pointer;
+            transition: background 0.15s;
         }
-        .order-card-company {
+        .order-row:hover { background: #faf8f5; margin: 0 -1rem; padding-left: 1rem; padding-right: 1rem; }
+        .order-row:last-child { border-bottom: none; }
+        
+        .order-info { flex: 1; min-width: 0; }
+        .order-company {
             font-weight: 600;
             color: #333;
-            font-size: 1.05rem;
+            margin-bottom: 0.2rem;
         }
-        .order-card-badges {
+        .order-products-summary {
+            font-size: 0.8rem;
+            color: #888;
+            display: flex;
+            align-items: center;
+            gap: 0.3rem;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        
+        .order-badges {
             display: flex;
             gap: 0.4rem;
-        }
-        
-        .order-card-products {
-            display: flex;
             flex-wrap: wrap;
-            gap: 0.5rem;
-        }
-        .order-product-tag {
-            background: #f5f2ed;
-            padding: 0.35rem 0.7rem;
-            border-radius: 6px;
-            font-size: 0.8rem;
-            color: #5c3d1e;
-        }
-        .order-product-tag strong {
-            color: #e55a2b;
-            margin-right: 0.2rem;
         }
         
-        .order-card-footer {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-top: 0.75rem;
-            padding-top: 0.75rem;
-            border-top: 1px solid #f0f0f0;
-            font-size: 0.85rem;
-            color: #888;
+        .order-amount {
+            font-weight: 600;
+            color: #5c3d1e;
+            white-space: nowrap;
         }
-        .order-card-footer i { margin-right: 0.3rem; }
         
         .status-badge {
             padding: 0.3rem 0.6rem;
@@ -472,175 +491,6 @@ function formatDutchDate($date) {
         .status-badge.paid { background: #d1e7dd; color: #0f5132; }
         .status-badge.pending { background: #fff3cd; color: #856404; }
         
-        .detail-modal {
-            max-width: 600px;
-        }
-        .detail-modal .modal-header {
-            background: linear-gradient(135deg, #5c3d1e, #8b5a2b);
-        }
-        
-        .detail-section {
-            margin-bottom: 1.5rem;
-        }
-        .detail-section-title {
-            font-size: 0.8rem;
-            color: #888;
-            text-transform: uppercase;
-            margin-bottom: 0.75rem;
-            display: flex;
-            align-items: center;
-            gap: 0.5rem;
-        }
-        
-        .detail-card {
-            background: #faf8f5;
-            border-radius: 10px;
-            padding: 1rem;
-        }
-        
-        .detail-grid {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 1rem;
-            margin-bottom: 1.5rem;
-        }
-        @media (max-width: 500px) {
-            .detail-grid { grid-template-columns: 1fr; }
-        }
-        .detail-item label {
-            display: block;
-            font-size: 0.7rem;
-            color: #999;
-            text-transform: uppercase;
-            margin-bottom: 0.3rem;
-            letter-spacing: 0.5px;
-        }
-        .detail-item .value {
-            color: #333;
-            font-weight: 500;
-            font-size: 0.95rem;
-        }
-        .detail-item .value a { color: #e55a2b; text-decoration: none; }
-        .detail-item .value a:hover { text-decoration: underline; }
-        
-        .product-list {
-            background: white;
-            border-radius: 10px;
-            overflow: hidden;
-            border: 1px solid #eee;
-        }
-        .product-row {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            padding: 0.85rem 1rem;
-            border-bottom: 1px solid #f5f5f5;
-        }
-        .product-row:last-child { border-bottom: none; }
-        .product-row:nth-child(odd) { background: #fafafa; }
-        .product-info {
-            display: flex;
-            align-items: center;
-            gap: 0.75rem;
-        }
-        .product-qty {
-            width: 36px;
-            height: 36px;
-            background: linear-gradient(135deg, #ff6b35, #e55a2b);
-            color: white;
-            border-radius: 8px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-weight: 700;
-            font-size: 0.9rem;
-        }
-        .product-name {
-            font-weight: 500;
-            color: #333;
-        }
-        .product-price {
-            color: #666;
-            font-weight: 500;
-        }
-        
-        .detail-total {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            padding: 1rem;
-            background: linear-gradient(135deg, #5c3d1e, #8b5a2b);
-            border-radius: 10px;
-            color: white;
-            margin-top: 1rem;
-        }
-        .detail-total-label {
-            font-size: 0.9rem;
-            opacity: 0.9;
-        }
-        .detail-total-value {
-            font-size: 1.4rem;
-            font-weight: 700;
-        }
-        
-        .status-flow {
-            display: flex;
-            align-items: center;
-            gap: 0.4rem;
-            flex-wrap: wrap;
-            margin-bottom: 1rem;
-        }
-        .status-step {
-            display: flex;
-            align-items: center;
-            gap: 0.25rem;
-            padding: 0.4rem 0.7rem;
-            background: #f0f0f0;
-            border-radius: 20px;
-            font-size: 0.75rem;
-            color: #999;
-        }
-        .status-step.active {
-            background: #d1e7dd;
-            color: #0f5132;
-        }
-        .status-step.current {
-            background: linear-gradient(135deg, #ff6b35, #e55a2b);
-            color: white;
-        }
-        .status-arrow {
-            color: #ddd;
-            font-size: 0.8rem;
-        }
-        
-        .contact-actions {
-            display: flex;
-            gap: 0.5rem;
-            margin-top: 1rem;
-        }
-        .contact-btn {
-            flex: 1;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            gap: 0.4rem;
-            padding: 0.7rem;
-            border-radius: 8px;
-            text-decoration: none;
-            font-weight: 500;
-            font-size: 0.85rem;
-            transition: all 0.15s;
-        }
-        .contact-btn.phone {
-            background: #e3f2fd;
-            color: #1976d2;
-        }
-        .contact-btn.phone:hover { background: #bbdefb; }
-        .contact-btn.email {
-            background: #fce4ec;
-            color: #c2185b;
-        }
-        .contact-btn.email:hover { background: #f8bbd9; }
         
         .empty-state {
             text-align: center;
@@ -663,14 +513,14 @@ function formatDutchDate($date) {
         <div class="header-links">
             <a href="leveren.php"><i class="bi bi-truck"></i> Leveren</a>
             <a href="bakker-dashboard.php"><i class="bi bi-grid"></i> Overzicht</a>
-            <a href="index.php"><i class="bi bi-house"></i> Admin</a>
+            <a href="../index.php"><i class="bi bi-house"></i> Admin</a>
         </div>
     </div>
     
     <div class="container">
         <div class="top-bar">
             <div class="breadcrumb">
-                <a href="index.php">Dashboard</a>
+                <a href="../index.php">Dashboard</a>
                 <span>›</span>
                 <a href="bakker-dashboard.php">Bakker</a>
                 <span>›</span>
@@ -733,42 +583,72 @@ function formatDutchDate($date) {
                             foreach ($orders as $order) {
                                 foreach ($order['items'] as $item) {
                                     $name = $item['product_name'];
-                                    if (!isset($productTotals[$name])) $productTotals[$name] = 0;
-                                    $productTotals[$name] += $item['quantity'];
+                                    if (!isset($productTotals[$name])) $productTotals[$name] = ['qty' => 0, 'amount' => 0];
+                                    $productTotals[$name]['qty'] += $item['quantity'];
+                                    $productTotals[$name]['amount'] += $item['quantity'] * $item['unit_price'];
                                 }
                             }
-                            arsort($productTotals);
+                            uasort($productTotals, function($a, $b) { return $b['qty'] - $a['qty']; });
+                            ?>
+                            <?php
+                            $deegtypeTotals = [];
+                            foreach ($orders as $o) {
+                                foreach ($o['items'] as $item) {
+                                    $dt = $item['deegtype_naam'];
+                                    $name = $item['product_name'];
+                                    if (!isset($deegtypeTotals[$dt])) $deegtypeTotals[$dt] = [];
+                                    if (!isset($deegtypeTotals[$dt][$name])) $deegtypeTotals[$dt][$name] = ['qty' => 0, 'amount' => 0];
+                                    $deegtypeTotals[$dt][$name]['qty'] += $item['quantity'];
+                                    $deegtypeTotals[$dt][$name]['amount'] += $item['quantity'] * $item['unit_price'];
+                                }
+                            }
+                            ksort($deegtypeTotals);
                             ?>
                             <div class="totals-section">
                                 <h4><i class="bi bi-list-check"></i> Totaal te bereiden</h4>
-                                <div class="product-totals-list">
-                                    <?php foreach ($productTotals as $product => $qty): ?>
-                                        <div class="product-total-row">
-                                            <div class="product-total-qty"><?= $qty ?></div>
-                                            <div class="product-total-name"><?= htmlspecialchars($product) ?></div>
-                                        </div>
-                                    <?php endforeach; ?>
+                                <div class="totals-tabs">
+                                    <button class="totals-tab active" onclick="switchTotalsTab(this, 'producten')">Producten</button>
+                                    <button class="totals-tab" onclick="switchTotalsTab(this, 'deegtypes')">Deegtypes</button>
+                                </div>
+                                <div class="totals-tab-content active" data-tab="producten">
+                                    <div class="product-totals-list">
+                                        <?php foreach ($productTotals as $product => $data): ?>
+                                            <div class="product-total-item">
+                                                <span><span class="product-total-qty"><?= $data['qty'] ?>x</span> <span class="product-total-name"><?= htmlspecialchars($product) ?></span></span>
+                                                <span class="product-total-price">&euro;<?= number_format($data['amount'], 2, ',', '.') ?></span>
+                                            </div>
+                                        <?php endforeach; ?>
+                                    </div>
+                                </div>
+                                <div class="totals-tab-content" data-tab="deegtypes">
+                                    <div class="product-totals-list">
+                                        <?php foreach ($deegtypeTotals as $deegtype => $products): ?>
+                                            <?php $groupTotal = array_sum(array_column($products, 'qty')); ?>
+                                            <div class="deegtype-group-title"><span><?= htmlspecialchars($deegtype) ?></span><span><?= $groupTotal ?></span></div>
+                                            <?php foreach ($products as $product => $data): ?>
+                                                <div class="product-total-item">
+                                                    <span><span class="product-total-qty"><?= $data['qty'] ?>x</span> <span class="product-total-name"><?= htmlspecialchars($product) ?></span></span>
+                                                </div>
+                                            <?php endforeach; ?>
+                                        <?php endforeach; ?>
+                                    </div>
                                 </div>
                             </div>
                             <div class="orders-section">
                                 <h4><i class="bi bi-people"></i> Klanten (<?= count($orders) ?>)</h4>
-                                <?php foreach ($orders as $order): ?>
-                                    <div class="order-card" onclick='showOrderDetail(<?= json_encode($order) ?>)'>
-                                        <div class="order-card-header">
-                                            <span class="order-card-company"><?= htmlspecialchars($order['bedrijfsnaam']) ?></span>
-                                            <div class="order-card-badges">
-                                                <span class="status-badge <?= $order['payment_status'] ?>"><?= $order['payment_status'] === 'paid' ? 'Betaald' : 'Open' ?></span>
-                                            </div>
+                                <?php foreach ($orders as $order): 
+                                    $items = array_map(function($i) { return $i['quantity'] . 'x ' . $i['product_name']; }, $order['items']);
+                                    $itemsSummary = implode(', ', array_slice($items, 0, 3)) . (count($items) > 3 ? '...' : '');
+                                ?>
+                                    <div class="order-row" onclick='showOrderDetail(<?= json_encode($order) ?>)'>
+                                        <div class="order-info">
+                                            <div class="order-company"><?= htmlspecialchars($order['bedrijfsnaam']) ?></div>
+                                            <div class="order-products-summary"><i class="bi bi-box"></i> <?= htmlspecialchars($itemsSummary) ?></div>
                                         </div>
-                                        <div class="order-card-products">
-                                            <?php foreach ($order['items'] as $item): ?>
-                                                <span class="order-product-tag"><strong><?= $item['quantity'] ?>x</strong> <?= htmlspecialchars($item['product_name']) ?></span>
-                                            <?php endforeach; ?>
+                                        <div class="order-badges">
+                                            <span class="status-badge <?= $order['payment_status'] ?>"><?= $order['payment_status'] === 'paid' ? 'Betaald' : 'Open' ?></span>
                                         </div>
-                                        <div class="order-card-footer">
-                                            <span><i class="bi bi-calendar3"></i> Levering: <?= date('j M', strtotime($order['delivery_date'])) ?></span>
-                                            <span><i class="bi bi-currency-euro"></i> €<?= number_format($order['total_amount'], 2, ',', '.') ?></span>
-                                        </div>
+                                        <span class="order-amount">€<?= number_format($order['total_amount'], 2, ',', '.') ?></span>
                                     </div>
                                 <?php endforeach; ?>
                             </div>
@@ -880,59 +760,7 @@ function formatDutchDate($date) {
         </div>
     </div>
     
-    <div class="modal-overlay" id="orderModal">
-        <div class="modal detail-modal">
-            <div class="modal-header">
-                <h3><i class="bi bi-box"></i> Bestelling <span id="orderModalId"></span></h3>
-                <button class="modal-close" onclick="closeOrderModal()">&times;</button>
-            </div>
-            <div class="modal-body">
-                <div id="orderStatusFlow"></div>
-                
-                <div class="detail-section">
-                    <div class="detail-section-title"><i class="bi bi-building"></i> Klantgegevens</div>
-                    <div class="detail-card">
-                        <div class="detail-grid" style="margin-bottom: 0;">
-                            <div class="detail-item">
-                                <label>Bedrijf</label>
-                                <div class="value" id="orderCompany"></div>
-                            </div>
-                            <div class="detail-item">
-                                <label>Contactpersoon</label>
-                                <div class="value" id="orderContact"></div>
-                            </div>
-                            <div class="detail-item">
-                                <label>Telefoon</label>
-                                <div class="value"><a id="orderPhone" href=""></a></div>
-                            </div>
-                            <div class="detail-item">
-                                <label>E-mail</label>
-                                <div class="value"><a id="orderEmail" href=""></a></div>
-                            </div>
-                            <div class="detail-item">
-                                <label>Leverdatum</label>
-                                <div class="value" id="orderDeliveryDate"></div>
-                            </div>
-                            <div class="detail-item">
-                                <label>Betaalstatus</label>
-                                <div class="value" id="orderPaymentStatus"></div>
-                            </div>
-                        </div>
-                        <div class="contact-actions" id="orderContactActions"></div>
-                    </div>
-                </div>
-                
-                <div class="detail-section">
-                    <div class="detail-section-title"><i class="bi bi-basket"></i> Producten</div>
-                    <div class="product-list" id="orderProducts"></div>
-                    <div class="detail-total">
-                        <span class="detail-total-label">Totaal</span>
-                        <span class="detail-total-value" id="orderTotal"></span>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
+    <?php $detailAccentColor = '#8b5a2b'; $detailAccentColorDark = '#5c3d1e'; include 'order-detail-modal.php'; ?>
 
     <script>
     const currentDate = '<?= $viewDate ?>';
@@ -971,44 +799,60 @@ function formatDutchDate($date) {
             const productTotals = {};
             orders.forEach(order => {
                 order.items.forEach(item => {
-                    if (!productTotals[item.product_name]) productTotals[item.product_name] = 0;
-                    productTotals[item.product_name] += item.quantity;
+                    if (!productTotals[item.product_name]) productTotals[item.product_name] = { qty: 0, amount: 0 };
+                    productTotals[item.product_name].qty += parseInt(item.quantity);
+                    productTotals[item.product_name].amount += parseInt(item.quantity) * parseFloat(item.unit_price);
                 });
             });
             
-            const sortedProducts = Object.entries(productTotals).sort((a, b) => b[1] - a[1]);
+            const sortedProducts = Object.entries(productTotals).sort((a, b) => b[1].qty - a[1].qty);
             
-            html += '<div class="totals-section"><h4><i class="bi bi-list-check"></i> Totaal te bereiden</h4><div class="product-totals-list">';
-            for (const [product, qty] of sortedProducts) {
-                html += `<div class="product-total-row"><div class="product-total-qty">${qty}</div><div class="product-total-name">${escapeHtml(product)}</div></div>`;
+            const deegtypeTotals = {};
+            orders.forEach(order => {
+                order.items.forEach(item => {
+                    const dt = item.deegtype_naam || 'Overig';
+                    if (!deegtypeTotals[dt]) deegtypeTotals[dt] = {};
+                    if (!deegtypeTotals[dt][item.product_name]) deegtypeTotals[dt][item.product_name] = { qty: 0, amount: 0 };
+                    deegtypeTotals[dt][item.product_name].qty += parseInt(item.quantity);
+                    deegtypeTotals[dt][item.product_name].amount += parseInt(item.quantity) * parseFloat(item.unit_price);
+                });
+            });
+            
+            html += '<div class="totals-section"><h4><i class="bi bi-list-check"></i> Totaal te bereiden</h4>';
+            html += '<div class="totals-tabs"><button class="totals-tab active" onclick="switchTotalsTab(this, \'producten\')">Producten</button><button class="totals-tab" onclick="switchTotalsTab(this, \'deegtypes\')">Deegtypes</button></div>';
+            html += '<div class="totals-tab-content active" data-tab="producten"><div class="product-totals-list">';
+            for (const [product, data] of sortedProducts) {
+                html += `<div class="product-total-item"><span><span class="product-total-qty">${data.qty}x</span> <span class="product-total-name">${escapeHtml(product)}</span></span><span class="product-total-price">\u20AC${data.amount.toFixed(2).replace('.', ',')}</span></div>`;
             }
             html += '</div></div>';
+            html += '<div class="totals-tab-content" data-tab="deegtypes"><div class="product-totals-list">';
+            for (const dt of Object.keys(deegtypeTotals).sort()) {
+                const dtTotal = Object.values(deegtypeTotals[dt]).reduce((sum, d) => sum + d.qty, 0);
+                html += `<div class="deegtype-group-title"><span>${escapeHtml(dt)}</span><span>${dtTotal}</span></div>`;
+                for (const [product, data] of Object.entries(deegtypeTotals[dt])) {
+                    html += `<div class="product-total-item"><span><span class="product-total-qty">${data.qty}x</span> <span class="product-total-name">${escapeHtml(product)}</span></span></div>`;
+                }
+            }
+            html += '</div></div></div>';
             
             html += `<div class="orders-section"><h4><i class="bi bi-people"></i> Klanten (${orders.length})</h4>`;
             orders.forEach(order => {
                 const statusClass = order.payment_status === 'paid' ? 'paid' : 'pending';
                 const statusText = order.payment_status === 'paid' ? 'Betaald' : 'Open';
-                const deliveryDate = new Date(order.delivery_date);
-                const deliveryStr = deliveryDate.toLocaleDateString('nl-NL', { day: 'numeric', month: 'short' });
                 
-                let productTags = '';
-                order.items.forEach(item => {
-                    productTags += `<span class="order-product-tag"><strong>${item.quantity}x</strong> ${escapeHtml(item.product_name)}</span>`;
-                });
+                const items = order.items.map(i => i.quantity + 'x ' + i.product_name);
+                const itemsSummary = items.slice(0, 3).join(', ') + (items.length > 3 ? '...' : '');
                 
                 html += `
-                    <div class="order-card" onclick='showOrderDetail(${JSON.stringify(order).replace(/'/g, "&#39;")})'>
-                        <div class="order-card-header">
-                            <span class="order-card-company">${escapeHtml(order.bedrijfsnaam)}</span>
-                            <div class="order-card-badges">
-                                <span class="status-badge ${statusClass}">${statusText}</span>
-                            </div>
+                    <div class="order-row" onclick='showOrderDetail(${JSON.stringify(order).replace(/'/g, "&#39;")})'>
+                        <div class="order-info">
+                            <div class="order-company">${escapeHtml(order.bedrijfsnaam)}</div>
+                            <div class="order-products-summary"><i class="bi bi-box"></i> ${escapeHtml(itemsSummary)}</div>
                         </div>
-                        <div class="order-card-products">${productTags}</div>
-                        <div class="order-card-footer">
-                            <span><i class="bi bi-calendar3"></i> Levering: ${deliveryStr}</span>
-                            <span><i class="bi bi-currency-euro"></i> €${parseFloat(order.total_amount).toFixed(2).replace('.', ',')}</span>
+                        <div class="order-badges">
+                            <span class="status-badge ${statusClass}">${statusText}</span>
                         </div>
+                        <span class="order-amount">€${parseFloat(order.total_amount).toFixed(2).replace('.', ',')}</span>
                     </div>
                 `;
             });
@@ -1023,74 +867,13 @@ function formatDutchDate($date) {
         document.getElementById('dayModal').classList.remove('active');
     }
     
-    function showOrderDetail(order) {
-        const deliveryStatus = order.delivery_status || 'geplaatst';
-        const statuses = ['geplaatst', 'wordt_bereid', 'onderweg', 'afgeleverd'];
-        const statusLabels = { geplaatst: 'Geplaatst', wordt_bereid: 'Wordt bereid', onderweg: 'Onderweg', afgeleverd: 'Afgeleverd' };
-        const currentIdx = statuses.indexOf(deliveryStatus);
-        
-        let statusFlowHtml = '<div class="status-flow">';
-        statuses.forEach((status, idx) => {
-            let cls = 'status-step';
-            if (idx < currentIdx) cls += ' active';
-            if (idx === currentIdx) cls += ' current';
-            statusFlowHtml += `<div class="${cls}"><i class="bi bi-${idx === 0 ? 'cart' : idx === 1 ? 'fire' : idx === 2 ? 'truck' : 'check-circle'}"></i> ${statusLabels[status]}</div>`;
-            if (idx < statuses.length - 1) statusFlowHtml += '<span class="status-arrow">→</span>';
-        });
-        statusFlowHtml += '</div>';
-        
-        document.getElementById('orderModalId').textContent = '#' + order.id;
-        document.getElementById('orderCompany').textContent = order.bedrijfsnaam;
-        document.getElementById('orderContact').textContent = order.contactpersoon || '-';
-        
-        const phoneEl = document.getElementById('orderPhone');
-        phoneEl.textContent = order.telefoon || '-';
-        phoneEl.href = order.telefoon ? 'tel:' + order.telefoon : '#';
-        
-        const emailEl = document.getElementById('orderEmail');
-        emailEl.textContent = order.email || '-';
-        emailEl.href = order.email ? 'mailto:' + order.email : '#';
-        
-        const deliveryDate = new Date(order.delivery_date);
-        document.getElementById('orderDeliveryDate').textContent = deliveryDate.toLocaleDateString('nl-NL', { weekday: 'long', day: 'numeric', month: 'long' });
-        
-        const statusHtml = order.payment_status === 'paid' 
-            ? '<span class="status-badge paid">Betaald</span>'
-            : '<span class="status-badge pending">Openstaand</span>';
-        document.getElementById('orderPaymentStatus').innerHTML = statusHtml;
-        
-        document.getElementById('orderStatusFlow').innerHTML = statusFlowHtml;
-        
-        let contactHtml = '';
-        if (order.telefoon) {
-            contactHtml += `<a href="tel:${order.telefoon}" class="contact-btn phone"><i class="bi bi-telephone"></i> Bellen</a>`;
-        }
-        if (order.email) {
-            contactHtml += `<a href="mailto:${order.email}" class="contact-btn email"><i class="bi bi-envelope"></i> E-mail</a>`;
-        }
-        document.getElementById('orderContactActions').innerHTML = contactHtml;
-        
-        let productsHtml = '';
-        order.items.forEach(item => {
-            const lineTotal = item.quantity * item.unit_price;
-            productsHtml += `
-                <div class="product-row">
-                    <div class="product-info">
-                        <div class="product-qty">${item.quantity}</div>
-                        <div class="product-name">${escapeHtml(item.product_name)}</div>
-                    </div>
-                    <div class="product-price">€${lineTotal.toFixed(2).replace('.', ',')}</div>
-                </div>
-            `;
-        });
-        document.getElementById('orderProducts').innerHTML = productsHtml;
-        document.getElementById('orderTotal').textContent = '€' + parseFloat(order.total_amount).toFixed(2).replace('.', ',');
-        
-        document.getElementById('orderModal').classList.add('active');
-    }
     
-    function closeOrderModal() {
-        document.getElementById('orderModal').classList.remove('active');
+    function switchTotalsTab(btn, tab) {
+        const section = btn.closest('.totals-section');
+        section.querySelectorAll('.totals-tab').forEach(t => t.classList.remove('active'));
+        section.querySelectorAll('.totals-tab-content').forEach(c => c.classList.remove('active'));
+        btn.classList.add('active');
+        section.querySelector(`.totals-tab-content[data-tab="${tab}"]`).classList.add('active');
     }
     
     function escapeHtml(text) {
@@ -1101,10 +884,6 @@ function formatDutchDate($date) {
     
     document.getElementById('dayModal').addEventListener('click', function(e) {
         if (e.target === this) closeDayModal();
-    });
-    
-    document.getElementById('orderModal').addEventListener('click', function(e) {
-        if (e.target === this) closeOrderModal();
     });
     
     document.addEventListener('keydown', function(e) {

@@ -1,5 +1,5 @@
 <?php
-require_once 'config.php';
+require_once '../config.php';
 requireLogin();
 
 setlocale(LC_TIME, 'nl_NL.UTF-8', 'nl_NL', 'nl');
@@ -380,12 +380,12 @@ $totalCompleted = array_sum(array_column($completedOrders, 'total_amount'));
 <body>
     <div class="header">
         <h1>Civetta Admin</h1>
-        <a href="logout.php">Uitloggen</a>
+        <a href="../logout.php">Uitloggen</a>
     </div>
     
     <div class="container">
         <div class="breadcrumb">
-            <a href="index.php">Dashboard</a>
+            <a href="../index.php">Dashboard</a>
             <span>›</span>
             Bestellingen
         </div>
@@ -512,7 +512,7 @@ $totalCompleted = array_sum(array_column($completedOrders, 'total_amount'));
                                         <span>Totaal incl. BTW</span>
                                         <span>€<?= number_format($order['total_amount'], 2, ',', '.') ?></span>
                                     </div>
-                                    <a href="<?= '../api/factuur.php?order_id=' . $order['id'] ?>" target="_blank" class="btn-factuur">Factuur</a>
+                                    <a href="<?= '../../api/factuur.php?order_id=' . $order['id'] ?>" target="_blank" class="btn-factuur">Factuur</a>
                                 </div>
                             </div>
                             <div class="order-actions">
@@ -596,7 +596,7 @@ $totalCompleted = array_sum(array_column($completedOrders, 'total_amount'));
                                         <span>Totaal incl. BTW</span>
                                         <span>€<?= number_format($order['total_amount'], 2, ',', '.') ?></span>
                                     </div>
-                                    <a href="<?= '../api/factuur.php?order_id=' . $order['id'] ?>" target="_blank" class="btn-factuur">Factuur</a>
+                                    <a href="<?= '../../api/factuur.php?order_id=' . $order['id'] ?>" target="_blank" class="btn-factuur">Factuur</a>
                                 </div>
                             </div>
                         </div>

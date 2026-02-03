@@ -1,5 +1,5 @@
 <?php
-require_once 'config.php';
+require_once '../config.php';
 requireLogin();
 ?>
 <!DOCTYPE html>
@@ -131,12 +131,12 @@ requireLogin();
 <body>
     <div class="header">
         <h1>Civetta Admin</h1>
-        <a href="logout.php">Uitloggen</a>
+        <a href="../logout.php">Uitloggen</a>
     </div>
     
     <div class="container">
         <div class="breadcrumb">
-            <a href="index.php">Dashboard</a>
+            <a href="../index.php">Dashboard</a>
             <span>›</span>
             Accounts beheren
         </div>

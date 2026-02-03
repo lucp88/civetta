@@ -1,5 +1,5 @@
 <?php
-require_once 'config.php';
+require_once '../config.php';
 requireLogin();
 
 $today = date('Y-m-d');
@@ -288,8 +288,8 @@ function getDutchDayName($date) {
     <div class="header">
         <h1><i class="bi bi-calendar3"></i> Bakker Dashboard</h1>
         <div class="header-links">
-            <a href="orders.php"><i class="bi bi-list-ul"></i> Alle bestellingen</a>
-            <a href="index.php"><i class="bi bi-house"></i> Admin</a>
+            <a href="../bestellingen/orders.php"><i class="bi bi-list-ul"></i> Alle bestellingen</a>
+            <a href="../index.php"><i class="bi bi-house"></i> Admin</a>
         </div>
     </div>
     

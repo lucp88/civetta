@@ -1,5 +1,5 @@
 <?php
-require_once 'config.php';
+require_once '../config.php';
 requireLogin();
 
 $stmt = $pdo->query("SELECT * FROM blog_posts ORDER BY post_date DESC, id DESC");
@@ -115,12 +115,12 @@ $posts = $stmt->fetchAll();
 <body>
     <div class="header">
         <h1>Civetta Admin</h1>
-        <a href="logout.php">Uitloggen</a>
+        <a href="../logout.php">Uitloggen</a>
     </div>
     
     <div class="container">
         <div class="breadcrumb">
-            <a href="index.php">Dashboard</a>
+            <a href="../index.php">Dashboard</a>
             <span>›</span>
             Blog Posts
         </div>

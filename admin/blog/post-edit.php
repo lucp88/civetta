@@ -1,5 +1,5 @@
 <?php
-require_once 'config.php';
+require_once '../config.php';
 requireLogin();
 
 $id = $_GET['id'] ?? null;
@@ -12,7 +12,7 @@ if ($id) {
     $stmt->execute([$id]);
     $post = $stmt->fetch();
     if (!$post) {
-        header('Location: index.php');
+        header('Location: ../index.php');
         exit;
     }
 }
@@ -159,7 +159,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 <body>
     <div class="header">
         <h1>Civetta Admin</h1>
-        <a href="index.php">← Terug naar overzicht</a>
+        <a href="../index.php">← Terug naar overzicht</a>
     </div>
     
     <div class="container">
@@ -193,7 +193,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 
                 <div class="actions">
                     <button type="submit" class="btn"><?= $id ? 'Opslaan' : 'Aanmaken' ?></button>
-                    <a href="index.php" class="btn btn-secondary">Annuleren</a>
+                    <a href="../index.php" class="btn btn-secondary">Annuleren</a>
                 </div>
             </form>
         </div>

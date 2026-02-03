@@ -1,5 +1,5 @@
 <?php
-require_once 'config.php';
+require_once '../config.php';
 requireLogin();
 
 $message = '';
@@ -156,8 +156,8 @@ foreach (array_keys($alleVelden) as $key) {
     <div class="header">
         <h1>Bedrijfsgegevens</h1>
         <div class="header-links">
-            <a href="index.php">Dashboard</a>
-            <a href="logout.php">Uitloggen</a>
+            <a href="../index.php">Dashboard</a>
+            <a href="../logout.php">Uitloggen</a>
         </div>
     </div>
     

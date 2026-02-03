@@ -2,6 +2,7 @@
 require_once '../admin/config.php';
 require_once 'cors.php';
 require_once __DIR__ . '/email-templates.php';
+require_once __DIR__ . '/../lib/shared.php';
 
 header('Content-Type: application/json');
 setCorsHeaders();
@@ -81,26 +82,66 @@ switch ($method) {
             
             $id = $pdo->lastInsertId();
             
-            $to = "laurens@bakkerij-civetta.nl";
-            $subject = "Nieuwe zakelijke accountaanvraag: $bedrijfsnaam";
-            $body = "Er is een nieuwe zakelijke accountaanvraag binnengekomen.\n\n";
-            $body .= "Bedrijfsnaam: $bedrijfsnaam\n";
-            $body .= "Adres: $adres, $postcode $plaats\n";
-            $body .= "KVK-nummer: $kvk_nummer\n";
-            $body .= "BTW-ID: $btw_id\n";
-            $body .= "Contactpersoon: $contactpersoon\n";
-            $body .= "E-mail: $email\n";
-            $body .= "Telefoon: $telefoon\n";
-            $body .= "Website: $website\n";
-            $body .= "Opmerkingen: $opmerkingen\n\n";
-            $body .= "Bekijk en beheer deze aanvraag in het admin panel.";
+            $adminCreate = !empty($data['admin_create']) && isset($_SESSION['admin_logged_in']) && $_SESSION['admin_logged_in'];
             
-            $headers = "From: noreply@bakkerij-civetta.nl\r\n";
-            $headers .= "Content-Type: text/plain; charset=UTF-8\r\n";
-            
-            @mail($to, $subject, $body, $headers);
-            
-            echo json_encode(['success' => true, 'id' => $id, 'message' => 'Aanvraag succesvol ingediend']);
+            if ($adminCreate) {
+                $password = bin2hex(random_bytes(8));
+                $passwordHash = password_hash($password, PASSWORD_DEFAULT);
+                
+                $stmt = $pdo->prepare("UPDATE business_accounts SET status = 'approved', approved_at = NOW(), password_hash = ? WHERE id = ?");
+                $stmt->execute([$passwordHash, $id]);
+                
+                $account = [
+                    'bedrijfsnaam' => $bedrijfsnaam,
+                    'contactpersoon' => $contactpersoon,
+                    'email' => $email,
+                    'adres' => $adres,
+                    'postcode' => $postcode,
+                    'plaats' => $plaats,
+                ];
+                
+                $htmlBody = buildAccountApprovedEmail($account, $password);
+                sendHtmlEmail($email, "Welkom bij Bakkerij Civetta - Uw account is aangemaakt!", $htmlBody);
+                
+                echo json_encode(['success' => true, 'id' => $id, 'message' => 'Account aangemaakt en goedgekeurd. Inloggegevens zijn per e-mail verzonden.']);
+            } else {
+                $account = [
+                    'bedrijfsnaam' => $bedrijfsnaam,
+                    'contactpersoon' => $contactpersoon,
+                    'email' => $email,
+                    'adres' => $adres,
+                    'postcode' => $postcode,
+                    'plaats' => $plaats,
+                ];
+                
+                $bedrijf = getBedrijfsGegevens($pdo);
+                $htmlBody = buildAccountRegistrationEmail($account, $bedrijf);
+                sendHtmlEmail($email, "Aanvraag ontvangen - Bakkerij Civetta", $htmlBody);
+                
+                $adminHtml = getEmailHeader('Nieuwe accountaanvraag');
+                $adminHtml .= '
+                    <div class="email-body">
+                        <h2>Nieuwe zakelijke accountaanvraag</h2>
+                        <div class="info-box">
+                            <p><strong>Bedrijf:</strong> ' . htmlspecialchars($bedrijfsnaam) . '</p>
+                            <p><strong>Adres:</strong> ' . htmlspecialchars("$adres, $postcode $plaats") . '</p>
+                            <p><strong>KVK:</strong> ' . htmlspecialchars($kvk_nummer ?: '-') . '</p>
+                            <p><strong>BTW-ID:</strong> ' . htmlspecialchars($btw_id ?: '-') . '</p>
+                            <p><strong>Contactpersoon:</strong> ' . htmlspecialchars($contactpersoon) . '</p>
+                            <p><strong>E-mail:</strong> ' . htmlspecialchars($email) . '</p>
+                            <p><strong>Telefoon:</strong> ' . htmlspecialchars($telefoon ?: '-') . '</p>
+                            <p><strong>Website:</strong> ' . htmlspecialchars($website ?: '-') . '</p>
+                            ' . ($opmerkingen ? '<p><strong>Opmerkingen:</strong> ' . nl2br(htmlspecialchars($opmerkingen)) . '</p>' : '') . '
+                        </div>
+                        <p style="text-align: center;">
+                            <a href="https://bakkerij-civetta.nl/admin/accounts/accounts-bedrijven.php" class="cta-button">Bekijk in admin panel</a>
+                        </p>
+                    </div>';
+                $adminHtml .= getEmailFooter($bedrijf);
+                sendHtmlEmail('laurens@bakkerij-civetta.nl', "Nieuwe accountaanvraag: $bedrijfsnaam", $adminHtml, [], $email);
+                
+                echo json_encode(['success' => true, 'id' => $id, 'message' => 'Aanvraag succesvol ingediend']);
+            }
         } catch (PDOException $e) {
             http_response_code(500);
             echo json_encode(['success' => false, 'error' => 'Database fout']);

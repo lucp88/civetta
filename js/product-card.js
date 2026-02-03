@@ -51,9 +51,16 @@ const ProductCard = {
                 <span class="plus">+</span>
             </button>
             <div class="product-card-image" @click="$emit('show-detail', product)">
-                <img :src="product.foto || 'img/placeholder-bread.jpg'" 
-                     :alt="product.naam"
-                     @error="handleImageError">
+                <img v-if="product.foto" :src="product.foto" :alt="product.naam" @error="onImgError">
+                <div v-else class="product-card-placeholder">
+                    <svg viewBox="0 0 80 80" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <ellipse cx="40" cy="42" rx="28" ry="18" fill="#d4a574" opacity="0.4"/>
+                        <ellipse cx="40" cy="38" rx="26" ry="16" fill="#c4956a" opacity="0.6"/>
+                        <ellipse cx="40" cy="36" rx="24" ry="14" fill="#b8875c"/>
+                        <path d="M22 36c3-5 8-8 18-8s15 3 18 8" stroke="#a07040" stroke-width="1" fill="none" opacity="0.5"/>
+                        <path d="M28 34c2-3 6-5 12-5s10 2 12 5" stroke="#a07040" stroke-width="0.8" fill="none" opacity="0.4"/>
+                    </svg>
+                </div>
             </div>
             <div class="product-card-content">
                 <h4 class="product-card-title" @click="$emit('show-detail', product)">
@@ -116,8 +123,9 @@ const ProductCard = {
             return `${this.formatPrice(min)} - ${this.formatPrice(max)}`;
         },
         
-        handleImageError(e) {
-            e.target.src = 'img/placeholder-bread.jpg';
+        onImgError(e) {
+            e.target.style.display = 'none';
+            e.target.parentElement.innerHTML = '<div class="product-card-placeholder"><svg viewBox="0 0 80 80" fill="none" xmlns="http://www.w3.org/2000/svg"><ellipse cx="40" cy="42" rx="28" ry="18" fill="#d4a574" opacity="0.4"/><ellipse cx="40" cy="38" rx="26" ry="16" fill="#c4956a" opacity="0.6"/><ellipse cx="40" cy="36" rx="24" ry="14" fill="#b8875c"/><path d="M22 36c3-5 8-8 18-8s15 3 18 8" stroke="#a07040" stroke-width="1" fill="none" opacity="0.5"/><path d="M28 34c2-3 6-5 12-5s10 2 12 5" stroke="#a07040" stroke-width="0.8" fill="none" opacity="0.4"/></svg></div>';
         },
         
         increase() {
@@ -169,8 +177,17 @@ const ProductDetailModal = {
             <div class="product-modal" v-if="product">
                 <button class="product-modal-close" @click="$emit('close')">&times;</button>
                 
-                <div class="product-modal-image" v-if="product.foto">
-                    <img :src="product.foto" :alt="product.naam">
+                <div class="product-modal-image">
+                    <img v-if="product.foto" :src="product.foto" :alt="product.naam">
+                    <div v-else class="product-modal-placeholder">
+                        <svg viewBox="0 0 120 120" fill="none" xmlns="http://www.w3.org/2000/svg">
+                            <ellipse cx="60" cy="65" rx="40" ry="24" fill="#d4a574" opacity="0.4"/>
+                            <ellipse cx="60" cy="60" rx="38" ry="22" fill="#c4956a" opacity="0.6"/>
+                            <ellipse cx="60" cy="56" rx="35" ry="20" fill="#b8875c"/>
+                            <path d="M32 56c4-7 12-12 28-12s24 5 28 12" stroke="#a07040" stroke-width="1.2" fill="none" opacity="0.5"/>
+                            <path d="M40 53c3-4 9-7 20-7s17 3 20 7" stroke="#a07040" stroke-width="1" fill="none" opacity="0.4"/>
+                        </svg>
+                    </div>
                 </div>
                 
                 <div class="product-modal-content">
@@ -269,6 +286,19 @@ const productCardStyles = `
         height: 100%;
         object-fit: cover;
         transition: transform 0.3s ease;
+    }
+    .product-card-placeholder {
+        width: 100%;
+        height: 100%;
+        background: linear-gradient(135deg, #f5ebe0, #e8d5c0);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+    .product-card-placeholder svg {
+        width: 60%;
+        height: 60%;
+        opacity: 0.8;
     }
     .product-card-modern:hover .product-card-image img {
         transform: scale(1.05);
@@ -480,6 +510,18 @@ const productCardStyles = `
         width: 100%;
         height: 100%;
         object-fit: cover;
+    }
+    .product-modal-placeholder {
+        width: 100%;
+        height: 100%;
+        background: linear-gradient(135deg, #f5ebe0, #e8d5c0);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+    .product-modal-placeholder svg {
+        width: 40%;
+        opacity: 0.8;
     }
     .product-modal-content {
         padding: 1.5rem;

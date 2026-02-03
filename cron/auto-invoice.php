@@ -204,7 +204,7 @@ function createLocalInvoice($pdo, $order, $items, $settings) {
     ");
     $stmt->execute([$invoiceNumber, $orderId]);
     
-    require_once __DIR__ . '/../api/factuur.php';
+    require_once __DIR__ . '/../lib/factuur/functions.php';
     
     $facturenDir = __DIR__ . '/../facturen';
     if (!is_dir($facturenDir)) {

@@ -1,5 +1,5 @@
 <?php
-require_once 'config.php';
+require_once '../config.php';
 requireLogin();
 
 $id = $_GET['id'] ?? null;
@@ -9,6 +9,6 @@ if ($id) {
     $stmt->execute([$id]);
 }
 
-header('Location: index.php');
+header('Location: ../index.php');
 exit;
 ?>

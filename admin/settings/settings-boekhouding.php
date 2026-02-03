@@ -1,6 +1,6 @@
 <?php
-require_once 'config.php';
-require_once '../api/eboekhouden.php';
+require_once '../config.php';
+require_once '../../api/eboekhouden.php';
 requireLogin();
 
 $message = '';
@@ -328,8 +328,8 @@ if ($huidigeWaarden['facturatie_systeem'] === 'eboekhouden' && !empty($huidigeWa
     <div class="header">
         <h1>Boekhouding</h1>
         <div class="header-links">
-            <a href="index.php">Dashboard</a>
-            <a href="logout.php">Uitloggen</a>
+            <a href="../index.php">Dashboard</a>
+            <a href="../logout.php">Uitloggen</a>
         </div>
     </div>
     
