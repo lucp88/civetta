@@ -4,6 +4,7 @@ require_once 'cors.php';
 require_once 'delivery-status.php';
 require_once __DIR__ . '/../lib/bestelbon/functions.php';
 require_once 'mollie-refund.php';
+require_once __DIR__ . '/../lib/web-push.php';
 
 header('Content-Type: application/json');
 setCorsHeaders();
@@ -358,7 +359,15 @@ switch ($method) {
             $headers .= "Content-Type: text/plain; charset=UTF-8\r\n";
             
             @mail($to, $subject, $body, $headers);
-            
+
+            try {
+                $pushTitle = 'Nieuwe bestelling';
+                $pushBody = $account['bedrijfsnaam'] . ' - €' . number_format($totalAmount, 2, ',', '.') . ' (' . date('d-m-Y', strtotime($deliveryDate)) . ')';
+                sendPushNotification($pdo, $pushTitle, $pushBody);
+            } catch (\Throwable $e) {
+                error_log('Push notification fout: ' . $e->getMessage());
+            }
+
             if ($isRecurring) {
                 sendRecurringBestelbonEmail($pdo, $recurringGroupId);
                 

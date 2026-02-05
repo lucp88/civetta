@@ -16,8 +16,27 @@ $detailLinkColor = $detailLinkColor ?? $detailAccentColor;
         gap: 1rem;
         margin-bottom: 1.5rem;
     }
+    @media (max-width: 768px) {
+        .detail-modal { max-width: 100%; }
+        .detail-modal .modal-body { padding: 1rem; }
+        .detail-grid { gap: 0.75rem; margin-bottom: 1rem; }
+        .detail-section { margin-bottom: 1rem; }
+        .od-product-list { padding: 0.5rem; }
+        .od-product-row { font-size: 0.9rem; padding: 0.4rem 0; }
+        .status-flow { gap: 0.3rem; }
+        .status-step { padding: 0.3rem 0.5rem; font-size: 0.7rem; }
+        .status-arrow { font-size: 0.8rem; }
+        .od-modal-actions { padding: 0.75rem 1rem; gap: 0.5rem; }
+        .od-btn { padding: 0.5rem 0.9rem; font-size: 0.8rem; }
+    }
     @media (max-width: 500px) {
         .detail-grid { grid-template-columns: 1fr; }
+        .status-flow { flex-direction: column; align-items: stretch; }
+        .status-step { justify-content: center; }
+        .status-arrow { text-align: center; transform: rotate(90deg); font-size: 0.7rem; margin: -0.2rem 0; }
+        .od-modal-actions { flex-direction: column; }
+        .od-btn { justify-content: center; width: 100%; }
+        .notes-box { font-size: 0.85rem; padding: 0.6rem; }
     }
     .detail-item label {
         display: block;

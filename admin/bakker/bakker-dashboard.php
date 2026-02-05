@@ -57,6 +57,12 @@ function getDutchDayName($date) {
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Bakker Dashboard | Civetta Admin</title>
+    <link rel="manifest" href="../manifest.json">
+    <meta name="theme-color" content="#5c3d1e">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <link rel="apple-touch-icon" sizes="192x192" href="/img/icon-192.png">
+    <link rel="apple-touch-icon" sizes="512x512" href="/img/icon-512.png">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
     <style>
         * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -338,33 +344,6 @@ function getDutchDayName($date) {
         <div class="summary-section">
             <div class="summary-card">
                 <div class="summary-header">
-                    <h3><i class="bi bi-truck"></i> Leveringen vandaag</h3>
-                    <a href="leveren.php?mode=day">Bekijk alles →</a>
-                </div>
-                <div class="summary-body">
-                    <?php if (empty($upcomingDeliveries)): ?>
-                        <div class="empty-state">
-                            <i class="bi bi-emoji-smile"></i>
-                            <p>Geen leveringen vandaag</p>
-                        </div>
-                    <?php else: ?>
-                        <?php foreach ($upcomingDeliveries as $delivery): ?>
-                            <div class="delivery-item">
-                                <span class="delivery-name"><?= htmlspecialchars($delivery['bedrijfsnaam']) ?></span>
-                                <?php
-                                $status = $delivery['delivery_status'] ?? 'geplaatst';
-                                $statusClass = $status === 'afgeleverd' ? 'afgeleverd' : ($status === 'onderweg' ? 'onderweg' : 'pending');
-                                $statusText = $status === 'afgeleverd' ? 'Afgeleverd' : ($status === 'onderweg' ? 'Onderweg' : 'Gepland');
-                                ?>
-                                <span class="delivery-status <?= $statusClass ?>"><?= $statusText ?></span>
-                            </div>
-                        <?php endforeach; ?>
-                    <?php endif; ?>
-                </div>
-            </div>
-            
-            <div class="summary-card">
-                <div class="summary-header">
                     <h3><i class="bi bi-fire"></i> Vandaag bereiden</h3>
                     <a href="bereiden.php?mode=day">Bekijk alles →</a>
                 </div>
@@ -391,7 +370,55 @@ function getDutchDayName($date) {
                     <?php endif; ?>
                 </div>
             </div>
+            
+            <div class="summary-card">
+                <div class="summary-header">
+                    <h3><i class="bi bi-truck"></i> Leveringen vandaag</h3>
+                    <a href="leveren.php?mode=day">Bekijk alles →</a>
+                </div>
+                <div class="summary-body">
+                    <?php if (empty($upcomingDeliveries)): ?>
+                        <div class="empty-state">
+                            <i class="bi bi-emoji-smile"></i>
+                            <p>Geen leveringen vandaag</p>
+                        </div>
+                    <?php else: ?>
+                        <?php foreach ($upcomingDeliveries as $delivery): ?>
+                            <div class="delivery-item">
+                                <span class="delivery-name"><?= htmlspecialchars($delivery['bedrijfsnaam']) ?></span>
+                                <?php
+                                $status = $delivery['delivery_status'] ?? 'geplaatst';
+                                $statusClass = $status === 'afgeleverd' ? 'afgeleverd' : ($status === 'onderweg' ? 'onderweg' : 'pending');
+                                $statusText = $status === 'afgeleverd' ? 'Afgeleverd' : ($status === 'onderweg' ? 'Onderweg' : 'Gepland');
+                                ?>
+                                <span class="delivery-status <?= $statusClass ?>"><?= $statusText ?></span>
+                            </div>
+                        <?php endforeach; ?>
+                    <?php endif; ?>
+                </div>
+            </div>
         </div>
     </div>
+    <script>
+    if ('serviceWorker' in navigator) {
+        navigator.serviceWorker.register('../sw.js', { scope: '/admin/' });
+        if ('PushManager' in window && Notification.permission === 'granted') {
+            navigator.serviceWorker.ready.then(async reg => {
+                const sub = await reg.pushManager.getSubscription();
+                if (sub) return;
+                try {
+                    const r = await fetch('/api/push-subscriptions.php?action=vapid-key');
+                    const { publicKey } = await r.json();
+                    const padding = '='.repeat((4 - publicKey.length % 4) % 4);
+                    const raw = atob((publicKey + padding).replace(/-/g, '+').replace(/_/g, '/'));
+                    const key = Uint8Array.from([...raw].map(c => c.charCodeAt(0)));
+                    const newSub = await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: key });
+                    const j = newSub.toJSON();
+                    await fetch('/api/push-subscriptions.php', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ endpoint: j.endpoint, keys: { p256dh: j.keys.p256dh, auth: j.keys.auth } }) });
+                } catch (e) {}
+            });
+        }
+    }
+    </script>
 </body>
 </html>

@@ -101,410 +101,23 @@ function formatDutchDate($date) {
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Bereiden | Civetta Admin</title>
+    <link rel="manifest" href="../manifest.json">
+    <meta name="theme-color" content="#e55a2b">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <link rel="apple-touch-icon" sizes="192x192" href="/img/icon-192.png">
+    <link rel="apple-touch-icon" sizes="512x512" href="/img/icon-512.png">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+    <link rel="stylesheet" href="../../css/admin-bakker.css?v=2">
     <style>
-        * { box-sizing: border-box; margin: 0; padding: 0; }
-        body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-            background: #f5f2ed;
-            min-height: 100vh;
+        :root {
+            --accent: #ff6b35;
+            --accent-dark: #e55a2b;
+            --accent-hover: #fff5f0;
         }
-        .header {
-            background: linear-gradient(135deg, #ff6b35, #e55a2b);
-            color: white;
-            padding: 1rem 2rem;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-        }
-        .header h1 { font-size: 1.5rem; display: flex; align-items: center; gap: 0.5rem; }
-        .header-links { display: flex; gap: 0.75rem; }
-        .header a {
-            color: white;
-            text-decoration: none;
-            padding: 0.5rem 1rem;
-            background: rgba(255,255,255,0.2);
-            border-radius: 6px;
-            font-size: 0.9rem;
-        }
-        .header a:hover { background: rgba(255,255,255,0.3); }
-        
-        .container {
-            max-width: 1200px;
-            margin: 0 auto;
-            padding: 1.5rem;
-        }
-        
-        .top-bar {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 1.5rem;
-            flex-wrap: wrap;
-            gap: 1rem;
-        }
-        
-        .breadcrumb a { color: #ff6b35; text-decoration: none; }
-        .breadcrumb span { color: #888; margin: 0 0.5rem; }
-        
-        .nav-controls {
-            display: flex;
-            align-items: center;
-            gap: 1rem;
-        }
-        .nav-btn {
-            width: 36px;
-            height: 36px;
-            border: none;
-            background: white;
-            border-radius: 50%;
-            cursor: pointer;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.08);
-            color: #e55a2b;
-            font-size: 1.1rem;
-        }
-        .nav-btn:hover { background: #fff5f0; }
-        .current-period {
-            font-weight: 600;
-            color: #e55a2b;
-            min-width: 200px;
-            text-align: center;
-        }
-        .today-btn {
-            padding: 0.5rem 1rem;
-            border: 2px solid #ff6b35;
-            background: white;
-            color: #ff6b35;
-            border-radius: 6px;
-            cursor: pointer;
-            font-weight: 500;
-        }
-        .today-btn:hover { background: #ff6b35; color: white; }
-        
-        .view-tabs {
-            display: flex;
-            background: white;
-            border-radius: 8px;
-            overflow: hidden;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.08);
-        }
-        .view-tab {
-            padding: 0.6rem 1.2rem;
-            border: none;
-            background: transparent;
-            cursor: pointer;
-            font-size: 0.9rem;
-            color: #666;
-            transition: all 0.2s;
-        }
-        .view-tab:hover { background: #fff5f0; }
-        .view-tab.active {
-            background: linear-gradient(135deg, #ff6b35, #e55a2b);
-            color: white;
-        }
-        
-        .calendar-container {
-            background: white;
-            border-radius: 12px;
-            box-shadow: 0 4px 15px rgba(0,0,0,0.08);
-            overflow: hidden;
-        }
-        
-        .calendar-grid {
-            display: grid;
-            gap: 1px;
-            background: #e8e8e8;
-        }
-        .calendar-grid.week-view { grid-template-columns: repeat(7, 1fr); }
-        .calendar-grid.day-view { grid-template-columns: 1fr; }
-        .calendar-grid.month-view { grid-template-columns: repeat(7, 1fr); }
-        
-        .calendar-header-cell {
-            background: #e55a2b;
-            color: white;
-            padding: 0.75rem;
-            text-align: center;
-            font-weight: 600;
-            font-size: 0.85rem;
-            text-transform: uppercase;
-        }
-        
-        .calendar-cell {
-            background: white;
-            min-height: 120px;
-            padding: 0.75rem;
-            cursor: pointer;
-            transition: all 0.15s;
-            position: relative;
-        }
-        .calendar-cell:hover { background: #fff5f0; }
-        .calendar-cell.other-month { background: #faf8f5; }
-        .calendar-cell.other-month:hover { background: #f5f2ed; }
-        .calendar-cell.today { background: #fff8e1; border: 2px solid #ff6b35; }
+        .calendar-cell.today { background: #fff8e1; }
         .calendar-cell.selected { background: #ffe0d0; }
-        
-        .calendar-date {
-            font-weight: 600;
-            font-size: 1rem;
-            color: #333;
-            margin-bottom: 0.5rem;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-        }
-        .calendar-cell.other-month .calendar-date { color: #bbb; }
-        .calendar-cell.today .calendar-date { color: #e55a2b; }
-        
-        .calendar-count {
-            background: #ff6b35;
-            color: white;
-            padding: 0.2rem 0.6rem;
-            border-radius: 12px;
-            font-size: 0.75rem;
-            font-weight: 600;
-        }
-        .calendar-count.empty { background: #ddd; color: #999; }
-        
-        .calendar-preview {
-            font-size: 0.75rem;
-            color: #666;
-        }
-        .calendar-preview-item {
-            padding: 0.2rem 0;
-            white-space: nowrap;
-            overflow: hidden;
-            text-overflow: ellipsis;
-        }
-        
-        .day-view-cell {
-            min-height: 400px;
-        }
-        .day-view-cell .calendar-date {
-            font-size: 1.3rem;
-            padding-bottom: 0.75rem;
-            border-bottom: 1px solid #eee;
-            margin-bottom: 1rem;
-        }
-        
-        .modal-overlay {
-            position: fixed;
-            top: 0;
-            left: 0;
-            right: 0;
-            bottom: 0;
-            background: rgba(0,0,0,0.5);
-            display: none;
-            align-items: center;
-            justify-content: center;
-            z-index: 1000;
-            padding: 1rem;
-        }
-        .modal-overlay.active { display: flex; }
-        
-        .modal {
-            background: white;
-            border-radius: 12px;
-            max-width: 700px;
-            width: 100%;
-            max-height: 90vh;
-            overflow-y: auto;
-            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
-        }
-        
-        .modal-header {
-            background: linear-gradient(135deg, #ff6b35, #e55a2b);
-            color: white;
-            padding: 1.25rem;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-        }
-        .modal-header h3 {
-            margin: 0;
-            display: flex;
-            align-items: center;
-            gap: 0.5rem;
-        }
-        .modal-close {
-            width: 32px;
-            height: 32px;
-            border: none;
-            background: rgba(255,255,255,0.2);
-            border-radius: 6px;
-            cursor: pointer;
-            font-size: 1.2rem;
-            color: white;
-        }
-        .modal-close:hover { background: rgba(255,255,255,0.3); }
-        
-        .modal-body { padding: 1.25rem; }
-        
-        .totals-section {
-            background: #faf8f5;
-            border-radius: 8px;
-            padding: 1rem;
-            margin-bottom: 1rem;
-            border: 1px solid #e8e0d5;
-        }
-        .totals-section h4 {
-            color: #5c3d1e;
-            margin-bottom: 0.75rem;
-            font-size: 0.9rem;
-            display: flex;
-            align-items: center;
-            gap: 0.5rem;
-            padding-bottom: 0.5rem;
-            border-bottom: 1px solid #e8e0d5;
-        }
-        .product-totals-list {
-            background: white;
-            border-radius: 8px;
-            padding: 0.25rem 0.75rem;
-        }
-        .product-total-item {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            padding: 0.4rem 0;
-            border-bottom: 1px solid #f0f0f0;
-            font-size: 0.85rem;
-        }
-        .product-total-item:last-child { border-bottom: none; }
-        .product-total-qty {
-            font-weight: 700;
-            color: #8b5a2b;
-            margin-right: 0.4rem;
-        }
-        .product-total-name {
-            color: #333;
-        }
-        .product-total-price {
-            color: #666;
-            font-weight: 500;
-            white-space: nowrap;
-        }
-        
-        .totals-tabs {
-            display: flex;
-            gap: 0;
-            margin-bottom: 0.75rem;
-        }
-        .totals-tab {
-            padding: 0.4rem 1rem;
-            border: none;
-            background: #e8e0d5;
-            cursor: pointer;
-            font-size: 0.85rem;
-            font-weight: 600;
-            color: #8b7355;
-            transition: all 0.2s;
-        }
-        .totals-tab:first-child { border-radius: 6px 0 0 6px; }
-        .totals-tab:last-child { border-radius: 0 6px 6px 0; }
-        .totals-tab.active {
-            background: #8b5a2b;
-            color: white;
-        }
-        .totals-tab:hover:not(.active) { background: #ddd5c8; }
-        .totals-tab-content { display: none; }
-        .totals-tab-content.active { display: block; }
-        .deegtype-group-title {
-            font-weight: 700;
-            font-size: 0.8rem;
-            color: #8b5a2b;
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
-            padding: 0.5rem 0 0.2rem;
-            border-bottom: 2px solid #e8e0d5;
-            margin-top: 0.5rem;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-        }
-        .deegtype-group-title:first-child { margin-top: 0; }
-        
-        .orders-section {
-            margin-top: 1rem;
-        }
-        .orders-section h4 {
-            color: #5c3d1e;
-            margin-bottom: 0.75rem;
-            font-size: 0.9rem;
-            display: flex;
-            align-items: center;
-            gap: 0.5rem;
-            padding-bottom: 0.5rem;
-            border-bottom: 1px solid #eee;
-        }
-        
-        .order-row {
-            display: flex;
-            align-items: center;
-            padding: 0.75rem 0;
-            border-bottom: 1px solid #f5f5f5;
-            gap: 1rem;
-            cursor: pointer;
-            transition: background 0.15s;
-        }
-        .order-row:hover { background: #faf8f5; margin: 0 -1rem; padding-left: 1rem; padding-right: 1rem; }
-        .order-row:last-child { border-bottom: none; }
-        
-        .order-info { flex: 1; min-width: 0; }
-        .order-company {
-            font-weight: 600;
-            color: #333;
-            margin-bottom: 0.2rem;
-        }
-        .order-products-summary {
-            font-size: 0.8rem;
-            color: #888;
-            display: flex;
-            align-items: center;
-            gap: 0.3rem;
-            white-space: nowrap;
-            overflow: hidden;
-            text-overflow: ellipsis;
-        }
-        
-        .order-badges {
-            display: flex;
-            gap: 0.4rem;
-            flex-wrap: wrap;
-        }
-        
-        .order-amount {
-            font-weight: 600;
-            color: #5c3d1e;
-            white-space: nowrap;
-        }
-        
-        .status-badge {
-            padding: 0.3rem 0.6rem;
-            border-radius: 6px;
-            font-size: 0.7rem;
-            font-weight: 600;
-            text-transform: uppercase;
-        }
-        .status-badge.paid { background: #d1e7dd; color: #0f5132; }
-        .status-badge.pending { background: #fff3cd; color: #856404; }
-        
-        
-        .empty-state {
-            text-align: center;
-            padding: 3rem 2rem;
-            color: #999;
-        }
-        .empty-state i {
-            font-size: 4rem;
-            margin-bottom: 1rem;
-            opacity: 0.3;
-        }
-        .empty-state p {
-            font-size: 1.1rem;
-        }
+        .calendar-preview-item + .calendar-preview-item[style] { color: #ff6b35; }
     </style>
 </head>
 <body>
@@ -766,27 +379,9 @@ function formatDutchDate($date) {
     const currentDate = '<?= $viewDate ?>';
     const currentMode = '<?= $viewMode ?>';
     const ordersByDate = <?= json_encode($ordersByBereidingDate) ?>;
-    
-    function navigate(direction) {
-        const date = new Date(currentDate);
-        if (currentMode === 'day') {
-            date.setDate(date.getDate() + direction);
-        } else if (currentMode === 'week') {
-            date.setDate(date.getDate() + (direction * 7));
-        } else {
-            date.setMonth(date.getMonth() + direction);
-        }
-        window.location.href = `?date=${date.toISOString().split('T')[0]}&mode=${currentMode}`;
-    }
-    
-    function goToday() {
-        window.location.href = `?date=${new Date().toISOString().split('T')[0]}&mode=${currentMode}`;
-    }
-    
-    function setViewMode(mode) {
-        window.location.href = `?date=${currentDate}&mode=${mode}`;
-    }
-    
+    </script>
+    <script src="../../js/bakker-calendar.js?v=1"></script>
+    <script>
     function openDayModal(date, dateLabel) {
         document.getElementById('dayModalDate').textContent = dateLabel;
         
@@ -862,36 +457,27 @@ function formatDutchDate($date) {
         document.getElementById('dayModalBody').innerHTML = html;
         document.getElementById('dayModal').classList.add('active');
     }
-    
-    function closeDayModal() {
-        document.getElementById('dayModal').classList.remove('active');
-    }
-    
-    
-    function switchTotalsTab(btn, tab) {
-        const section = btn.closest('.totals-section');
-        section.querySelectorAll('.totals-tab').forEach(t => t.classList.remove('active'));
-        section.querySelectorAll('.totals-tab-content').forEach(c => c.classList.remove('active'));
-        btn.classList.add('active');
-        section.querySelector(`.totals-tab-content[data-tab="${tab}"]`).classList.add('active');
-    }
-    
-    function escapeHtml(text) {
-        const div = document.createElement('div');
-        div.textContent = text;
-        return div.innerHTML;
-    }
-    
-    document.getElementById('dayModal').addEventListener('click', function(e) {
-        if (e.target === this) closeDayModal();
-    });
-    
-    document.addEventListener('keydown', function(e) {
-        if (e.key === 'Escape') {
-            closeDayModal();
-            closeOrderModal();
+    </script>
+    <script>
+    if ('serviceWorker' in navigator) {
+        navigator.serviceWorker.register('../sw.js', { scope: '/admin/' });
+        if ('PushManager' in window && Notification.permission === 'granted') {
+            navigator.serviceWorker.ready.then(async reg => {
+                const sub = await reg.pushManager.getSubscription();
+                if (sub) return;
+                try {
+                    const r = await fetch('/api/push-subscriptions.php?action=vapid-key');
+                    const { publicKey } = await r.json();
+                    const padding = '='.repeat((4 - publicKey.length % 4) % 4);
+                    const raw = atob((publicKey + padding).replace(/-/g, '+').replace(/_/g, '/'));
+                    const key = Uint8Array.from([...raw].map(c => c.charCodeAt(0)));
+                    const newSub = await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: key });
+                    const j = newSub.toJSON();
+                    await fetch('/api/push-subscriptions.php', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ endpoint: j.endpoint, keys: { p256dh: j.keys.p256dh, auth: j.keys.auth } }) });
+                } catch (e) {}
+            });
         }
-    });
+    }
     </script>
 </body>
 </html>

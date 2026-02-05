@@ -1,5 +1,6 @@
 <?php
 require_once __DIR__ . '/../admin/config.php';
+require_once __DIR__ . '/../lib/web-push.php';
 
 header('Content-Type: application/json');
 
@@ -126,6 +127,14 @@ switch ($method) {
             $headers = "From: noreply@bakkerij-civetta.nl\r\n";
             $headers .= "Content-Type: text/plain; charset=UTF-8\r\n";
             @mail($to, $subject, $body, $headers);
+
+            try {
+                $pushTitle = 'Nieuwe bestelling (admin)';
+                $pushBody = $accountInfo['bedrijfsnaam'] . ' - €' . number_format($totalAmount, 2, ',', '.') . ' (' . date('d-m-Y', strtotime($deliveryDate)) . ')';
+                sendPushNotification($pdo, $pushTitle, $pushBody);
+            } catch (\Throwable $e) {
+                error_log('Push notification fout: ' . $e->getMessage());
+            }
 
             echo json_encode([
                 'success' => true,

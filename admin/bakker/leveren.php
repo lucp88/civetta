@@ -100,250 +100,28 @@ function formatDutchDate($date) {
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Leveren | Civetta Admin</title>
+    <link rel="manifest" href="../manifest.json">
+    <meta name="theme-color" content="#1976d2">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <link rel="apple-touch-icon" sizes="192x192" href="/img/icon-192.png">
+    <link rel="apple-touch-icon" sizes="512x512" href="/img/icon-512.png">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+    <link rel="stylesheet" href="../../css/admin-bakker.css?v=2">
     <style>
-        * { box-sizing: border-box; margin: 0; padding: 0; }
-        body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-            background: #f5f2ed;
-            min-height: 100vh;
+        :root {
+            --accent: #2196f3;
+            --accent-dark: #1976d2;
+            --accent-hover: #e3f2fd;
         }
-        .header {
-            background: linear-gradient(135deg, #2196f3, #1976d2);
-            color: white;
-            padding: 1rem 2rem;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-        }
-        .header h1 { font-size: 1.5rem; display: flex; align-items: center; gap: 0.5rem; }
-        .header-links { display: flex; gap: 0.75rem; }
-        .header a {
-            color: white;
-            text-decoration: none;
-            padding: 0.5rem 1rem;
-            background: rgba(255,255,255,0.2);
-            border-radius: 6px;
-            font-size: 0.9rem;
-        }
-        .header a:hover { background: rgba(255,255,255,0.3); }
-        
-        .container {
-            max-width: 1200px;
-            margin: 0 auto;
-            padding: 1.5rem;
-        }
-        
-        .top-bar {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 1.5rem;
-            flex-wrap: wrap;
-            gap: 1rem;
-        }
-        
-        .breadcrumb a { color: #1976d2; text-decoration: none; }
-        .breadcrumb span { color: #888; margin: 0 0.5rem; }
-        
-        .nav-controls {
-            display: flex;
-            align-items: center;
-            gap: 1rem;
-        }
-        .nav-btn {
-            width: 36px;
-            height: 36px;
-            border: none;
-            background: white;
-            border-radius: 50%;
-            cursor: pointer;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.08);
-            color: #1976d2;
-            font-size: 1.1rem;
-        }
-        .nav-btn:hover { background: #e3f2fd; }
-        .current-period {
-            font-weight: 600;
-            color: #1976d2;
-            min-width: 200px;
-            text-align: center;
-        }
-        .today-btn {
-            padding: 0.5rem 1rem;
-            border: 2px solid #2196f3;
-            background: white;
-            color: #2196f3;
-            border-radius: 6px;
-            cursor: pointer;
-            font-weight: 500;
-        }
-        .today-btn:hover { background: #2196f3; color: white; }
-        
-        .view-tabs {
-            display: flex;
-            background: white;
-            border-radius: 8px;
-            overflow: hidden;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.08);
-        }
-        .view-tab {
-            padding: 0.6rem 1.2rem;
-            border: none;
-            background: transparent;
-            cursor: pointer;
-            font-size: 0.9rem;
-            color: #666;
-            transition: all 0.2s;
-        }
-        .view-tab:hover { background: #e3f2fd; }
-        .view-tab.active {
-            background: linear-gradient(135deg, #2196f3, #1976d2);
-            color: white;
-        }
-        
-        .calendar-container {
-            background: white;
-            border-radius: 12px;
-            box-shadow: 0 4px 15px rgba(0,0,0,0.08);
-            overflow: hidden;
-        }
-        
-        .calendar-grid {
-            display: grid;
-            gap: 1px;
-            background: #e8e8e8;
-        }
-        .calendar-grid.week-view { grid-template-columns: repeat(7, 1fr); }
-        .calendar-grid.day-view { grid-template-columns: 1fr; }
-        .calendar-grid.month-view { grid-template-columns: repeat(7, 1fr); }
-        
-        .calendar-header-cell {
-            background: #1976d2;
-            color: white;
-            padding: 0.75rem;
-            text-align: center;
-            font-weight: 600;
-            font-size: 0.85rem;
-            text-transform: uppercase;
-        }
-        
-        .calendar-cell {
-            background: white;
-            min-height: 120px;
-            padding: 0.75rem;
-            cursor: pointer;
-            transition: all 0.15s;
-            position: relative;
-        }
-        .calendar-cell:hover { background: #e3f2fd; }
-        .calendar-cell.other-month { background: #faf8f5; }
-        .calendar-cell.other-month:hover { background: #f5f2ed; }
-        .calendar-cell.today { background: #e3f2fd; border: 2px solid #2196f3; }
-        
-        .calendar-date {
-            font-weight: 600;
-            font-size: 1rem;
-            color: #333;
-            margin-bottom: 0.5rem;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-        }
-        .calendar-cell.other-month .calendar-date { color: #bbb; }
-        .calendar-cell.today .calendar-date { color: #1976d2; }
-        
-        .calendar-count {
-            background: #2196f3;
-            color: white;
-            padding: 0.2rem 0.6rem;
-            border-radius: 12px;
-            font-size: 0.75rem;
-            font-weight: 600;
-        }
-        .calendar-count.empty { background: #ddd; color: #999; }
-        
-        .calendar-preview {
-            font-size: 0.75rem;
-            color: #666;
-        }
+        .modal { max-width: 800px; }
+        .modal-body { padding: 0; }
         .calendar-preview-item {
-            padding: 0.2rem 0;
-            white-space: nowrap;
-            overflow: hidden;
-            text-overflow: ellipsis;
             display: flex;
             align-items: center;
             gap: 0.3rem;
         }
         .calendar-preview-item i { color: #2196f3; }
-        
-        .day-view-cell {
-            min-height: 400px;
-        }
-        .day-view-cell .calendar-date {
-            font-size: 1.3rem;
-            padding-bottom: 0.75rem;
-            border-bottom: 1px solid #eee;
-            margin-bottom: 1rem;
-        }
-        
-        .modal-overlay {
-            position: fixed;
-            top: 0;
-            left: 0;
-            right: 0;
-            bottom: 0;
-            background: rgba(0,0,0,0.5);
-            display: none;
-            align-items: center;
-            justify-content: center;
-            z-index: 1000;
-            padding: 1rem;
-        }
-        .modal-overlay.active { display: flex; }
-        
-        .modal {
-            background: white;
-            border-radius: 12px;
-            max-width: 800px;
-            width: 100%;
-            max-height: 90vh;
-            overflow-y: auto;
-            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
-        }
-        
-        .modal-header {
-            background: linear-gradient(135deg, #2196f3, #1976d2);
-            color: white;
-            padding: 1.25rem;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-        }
-        .modal-header h3 {
-            margin: 0;
-            display: flex;
-            align-items: center;
-            gap: 0.5rem;
-        }
-        .modal-close {
-            width: 32px;
-            height: 32px;
-            border: none;
-            background: rgba(255,255,255,0.2);
-            border-radius: 6px;
-            cursor: pointer;
-            font-size: 1.2rem;
-            color: white;
-        }
-        .modal-close:hover { background: rgba(255,255,255,0.3); }
-        
-        .modal-body { padding: 0; }
-        
         .route-summary {
             display: flex;
             gap: 2rem;
@@ -491,26 +269,6 @@ function formatDutchDate($date) {
             margin: -5px 0 -5px 17px;
         }
         
-        .status-badge {
-            padding: 0.2rem 0.5rem;
-            border-radius: 4px;
-            font-size: 0.7rem;
-            font-weight: 600;
-            text-transform: uppercase;
-        }
-        .status-badge.paid { background: #d1e7dd; color: #0f5132; }
-        .status-badge.pending { background: #fff3cd; color: #856404; }
-        .status-badge.onderweg { background: #e3f2fd; color: #1565c0; }
-        .status-badge.afgeleverd { background: #d1e7dd; color: #0f5132; }
-        
-        
-        .empty-state {
-            text-align: center;
-            padding: 2rem;
-            color: #999;
-        }
-        .empty-state i { font-size: 3rem; margin-bottom: 1rem; opacity: 0.5; }
-        
         .day-content { padding: 1rem; }
         .day-content .route-actions { padding: 0; margin-bottom: 1rem; background: transparent; border: none; }
         
@@ -638,6 +396,52 @@ function formatDutchDate($date) {
         .customer-info-item .ci-value a { color: #1976d2; text-decoration: none; }
         .customer-info-item .ci-value a:hover { text-decoration: underline; }
         .customer-info-item.full-width { grid-column: 1 / -1; }
+
+        @media (max-width: 768px) {
+            .route-summary { gap: 1rem; padding: 0.75rem 1rem; flex-wrap: wrap; }
+            .route-stat-value { font-size: 1.2rem; }
+            .route-stat-label { font-size: 0.65rem; }
+            .route-actions { padding: 0.75rem 1rem; gap: 0.5rem; }
+            .route-actions .btn { padding: 0.5rem 0.9rem; font-size: 0.8rem; }
+            .email-toggle { font-size: 0.8rem; }
+            .route-stop { padding: 0.75rem 1rem; flex-wrap: wrap; }
+            .route-stop .info .address { font-size: 0.8rem; }
+            .route-stop .info .products { font-size: 0.75rem; }
+            .route-stop .actions { width: 100%; justify-content: flex-start; margin-top: 0.5rem; padding-left: 52px; }
+            .route-stop .actions .btn { padding: 0.35rem 0.7rem; font-size: 0.75rem; }
+            .route-point { padding: 0.75rem 1rem; }
+            .route-point .info h4 { font-size: 0.85rem; }
+            .route-point .info p { font-size: 0.8rem; }
+            .connector { margin-left: 17px; }
+            .fab { bottom: 1.5rem; right: 1.5rem; width: 48px; height: 48px; font-size: 1.25rem; }
+            .new-order-modal .modal-body { padding: 1rem; }
+            .form-group label { font-size: 0.8rem; }
+            .form-control { padding: 0.5rem 0.7rem; font-size: 0.9rem; }
+            .product-select-row { flex-wrap: wrap; }
+            .product-select-row select { flex: 1 1 100%; }
+            .product-select-row input[type="number"] { flex: 1 1 60px; }
+            .product-select-row .product-price { flex: 1 1 60px; min-width: 60px; font-size: 0.8rem; }
+            .order-total-bar { flex-direction: column; gap: 0.75rem; padding: 0.75rem 1rem; text-align: center; }
+            .btn-submit-order { width: 100%; justify-content: center; }
+            .customer-info-grid { grid-template-columns: 1fr; }
+            .success-message { padding: 0.75rem 1rem; font-size: 0.85rem; }
+            .day-content .route-actions { flex-direction: column; align-items: stretch; }
+            .day-content .route-actions .btn { justify-content: center; }
+        }
+
+        @media (max-width: 480px) {
+            .route-summary { justify-content: space-around; }
+            .route-stop .marker { width: 30px; height: 30px; font-size: 0.8rem; }
+            .route-stop .actions { padding-left: 46px; gap: 0.4rem; }
+            .route-stop .info h4 { font-size: 0.9rem; }
+            .route-point .marker { width: 30px; height: 30px; }
+            .connector { margin-left: 14px; height: 15px; }
+            .route-actions { flex-direction: column; align-items: stretch; }
+            .route-actions .btn { justify-content: center; }
+            .email-toggle { justify-content: center; }
+            .btn-add-product { width: 100%; text-align: center; justify-content: center; display: flex; }
+            .product-select-row .btn-remove { width: 28px; height: 28px; font-size: 0.85rem; }
+        }
     </style>
 </head>
 <body>
@@ -934,27 +738,9 @@ function formatDutchDate($date) {
     
     let currentDayOrders = [];
     let currentDayDate = null;
-    
-    function navigate(direction) {
-        const date = new Date(currentDate);
-        if (currentMode === 'day') {
-            date.setDate(date.getDate() + direction);
-        } else if (currentMode === 'week') {
-            date.setDate(date.getDate() + (direction * 7));
-        } else {
-            date.setMonth(date.getMonth() + direction);
-        }
-        window.location.href = `?date=${date.toISOString().split('T')[0]}&mode=${currentMode}`;
-    }
-    
-    function goToday() {
-        window.location.href = `?date=${new Date().toISOString().split('T')[0]}&mode=${currentMode}`;
-    }
-    
-    function setViewMode(mode) {
-        window.location.href = `?date=${currentDate}&mode=${mode}`;
-    }
-    
+    </script>
+    <script src="../../js/bakker-calendar.js?v=1"></script>
+    <script>
     async function openDayModal(date, dateLabel) {
         currentDayDate = date;
         document.getElementById('dayModalDate').textContent = dateLabel;
@@ -1155,18 +941,12 @@ function formatDutchDate($date) {
         }
     }
     
-    function closeDayModal() {
-        document.getElementById('dayModal').classList.remove('active');
+    const _origCloseDayModal = closeDayModal;
+    closeDayModal = function() {
+        _origCloseDayModal();
         currentDayOrders = [];
         currentDayDate = null;
-    }
-    
-    
-    function escapeHtml(text) {
-        const div = document.createElement('div');
-        div.textContent = text;
-        return div.innerHTML;
-    }
+    };
     
     async function loadNewOrderData() {
         if (allCustomers.length && allProducts.length) return;
@@ -1348,20 +1128,8 @@ function formatDutchDate($date) {
         }
     }
     
-    document.getElementById('dayModal').addEventListener('click', function(e) {
-        if (e.target === this) closeDayModal();
-    });
-    
     document.getElementById('newOrderModal').addEventListener('click', function(e) {
         if (e.target === this) closeNewOrderModal();
-    });
-    
-    document.addEventListener('keydown', function(e) {
-        if (e.key === 'Escape') {
-            closeDayModal();
-            closeOrderModal();
-            closeNewOrderModal();
-        }
     });
     
     <?php if ($viewMode === 'day' && !empty($ordersByDate[$currentDate->format('Y-m-d')])): ?>
@@ -1377,6 +1145,27 @@ function formatDutchDate($date) {
         });
     });
     <?php endif; ?>
+    </script>
+    <script>
+    if ('serviceWorker' in navigator) {
+        navigator.serviceWorker.register('../sw.js', { scope: '/admin/' });
+        if ('PushManager' in window && Notification.permission === 'granted') {
+            navigator.serviceWorker.ready.then(async reg => {
+                const sub = await reg.pushManager.getSubscription();
+                if (sub) return;
+                try {
+                    const r = await fetch('/api/push-subscriptions.php?action=vapid-key');
+                    const { publicKey } = await r.json();
+                    const padding = '='.repeat((4 - publicKey.length % 4) % 4);
+                    const raw = atob((publicKey + padding).replace(/-/g, '+').replace(/_/g, '/'));
+                    const key = Uint8Array.from([...raw].map(c => c.charCodeAt(0)));
+                    const newSub = await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: key });
+                    const j = newSub.toJSON();
+                    await fetch('/api/push-subscriptions.php', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ endpoint: j.endpoint, keys: { p256dh: j.keys.p256dh, auth: j.keys.auth } }) });
+                } catch (e) {}
+            });
+        }
+    }
     </script>
 </body>
 </html>
