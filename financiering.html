@@ -5,6 +5,10 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Financiering | Bakkerij Civetta</title>
     <link rel="stylesheet" href="css/style.css">
+    <style>
+        .purchased td { text-decoration: line-through; color: #999; }
+        .purchased td:last-child { text-decoration: none; color: #2e7d32; }
+    </style>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link href="https://fonts.googleapis.com/css2?family=Libre+Baskerville:ital,wght@0,400;0,700;1,400&family=Source+Sans+Pro:wght@400;600&display=swap" rel="stylesheet">
 </head>
@@ -119,10 +123,10 @@
                             </tr>
                         </thead>
                         <tbody>
-                            <tr>
+                            <tr class="purchased">
                                 <td>Oven</td>
                                 <td>€5.000</td>
-                                <td></td>
+                                <td>✓</td>
                             </tr>
                             <tr>
                                 <td>Spiraalmenger</td>
@@ -134,10 +138,10 @@
                                 <td>€3.000</td>
                                 <td>✓</td>
                             </tr>
-                            <tr>
+                            <tr class="purchased">
                                 <td>Koelkast & vriezer</td>
                                 <td>€2.000</td>
-                                <td></td>
+                                <td>✓</td>
                             </tr>
                             <tr>
                                 <td>Overig materieel</td>

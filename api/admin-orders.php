@@ -1,6 +1,7 @@
 <?php
 require_once __DIR__ . '/../admin/config.php';
 require_once __DIR__ . '/../lib/web-push.php';
+require_once __DIR__ . '/email-templates.php';
 
 header('Content-Type: application/json');
 
@@ -147,6 +148,103 @@ switch ($method) {
             $pdo->rollBack();
             http_response_code(500);
             echo json_encode(['success' => false, 'error' => 'Database fout bij plaatsen bestelling']);
+        }
+        break;
+
+    case 'PUT':
+        $data = json_decode(file_get_contents('php://input'), true);
+        $orderId = intval($data['order_id'] ?? 0);
+        $items = $data['items'] ?? [];
+        $notes = $data['notes'] ?? null;
+
+        if (!$orderId || empty($items)) {
+            http_response_code(400);
+            echo json_encode(['success' => false, 'error' => 'Order ID en minimaal één product zijn verplicht']);
+            exit;
+        }
+
+        $stmt = $pdo->prepare("
+            SELECT bo.*, ba.bedrijfsnaam, ba.contactpersoon, ba.email, ba.telefoon, ba.adres, ba.postcode, ba.plaats
+            FROM business_orders bo
+            JOIN business_accounts ba ON bo.account_id = ba.id
+            WHERE bo.id = ?
+        ");
+        $stmt->execute([$orderId]);
+        $order = $stmt->fetch();
+
+        if (!$order) {
+            http_response_code(404);
+            echo json_encode(['success' => false, 'error' => 'Bestelling niet gevonden']);
+            exit;
+        }
+
+        $stmt = $pdo->prepare("SELECT product_name, quantity, unit_price FROM business_order_items WHERE order_id = ?");
+        $stmt->execute([$orderId]);
+        $oldItems = $stmt->fetchAll();
+
+        try {
+            $pdo->beginTransaction();
+
+            $totalAmount = 0;
+            foreach ($items as $item) {
+                $totalAmount += floatval($item['quantity']) * floatval($item['unit_price']);
+            }
+
+            $stmt = $pdo->prepare("DELETE FROM business_order_items WHERE order_id = ?");
+            $stmt->execute([$orderId]);
+
+            $stmt = $pdo->prepare("
+                INSERT INTO business_order_items (order_id, product_name, quantity, unit_price)
+                VALUES (?, ?, ?, ?)
+            ");
+            foreach ($items as $item) {
+                $stmt->execute([
+                    $orderId,
+                    $item['product_name'],
+                    intval($item['quantity']),
+                    floatval($item['unit_price'])
+                ]);
+            }
+
+            $updateFields = ['total_amount = ?'];
+            $updateValues = [$totalAmount];
+
+            if ($notes !== null) {
+                $updateFields[] = 'notes = ?';
+                $updateValues[] = trim($notes);
+            }
+
+            $updateValues[] = $orderId;
+            $stmt = $pdo->prepare("UPDATE business_orders SET " . implode(', ', $updateFields) . " WHERE id = ?");
+            $stmt->execute($updateValues);
+
+            $pdo->commit();
+
+            $stmtBtw = $pdo->query("SELECT setting_value FROM settings WHERE setting_key = 'btw_tarief'");
+            $btwTarief = floatval($stmtBtw->fetchColumn() ?: 9);
+
+            $stmtBedrijf = $pdo->query("SELECT setting_key, setting_value FROM settings WHERE setting_key LIKE 'bedrijf_%'");
+            $bedrijf = $stmtBedrijf->fetchAll(PDO::FETCH_KEY_PAIR);
+
+            $order['total_amount'] = $totalAmount;
+            if ($notes !== null) $order['notes'] = trim($notes);
+
+            $emailHtml = buildAdminOrderEditEmail($order, $oldItems, $items, $bedrijf, $btwTarief);
+            sendHtmlEmail(
+                $order['email'],
+                'Uw bestelling #' . $orderId . ' is aangepast door Bakkerij Civetta',
+                $emailHtml
+            );
+
+            echo json_encode([
+                'success' => true,
+                'message' => "Bestelling #$orderId bijgewerkt. De klant is per e-mail geïnformeerd."
+            ]);
+
+        } catch (PDOException $e) {
+            $pdo->rollBack();
+            http_response_code(500);
+            echo json_encode(['success' => false, 'error' => 'Database fout bij bijwerken bestelling']);
         }
         break;
 

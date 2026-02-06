@@ -3,6 +3,16 @@ require_once '../config.php';
 require_once '../../api/eboekhouden.php';
 requireLogin();
 
+$stmt = $pdo->query("SELECT COUNT(*) as count FROM business_accounts WHERE status = 'pending'");
+$sidebarPendingAccounts = $stmt->fetch()['count'];
+
+$stmt = $pdo->prepare("SELECT COUNT(*) as count FROM business_orders WHERE delivery_date = CURDATE() AND is_cancelled = 0 AND delivery_status = 'geplaatst'");
+$stmt->execute();
+$sidebarUnprocessedOrders = $stmt->fetch()['count'];
+
+$currentPage = 'settings-boekhouding';
+$adminBasePath = '../';
+
 $message = '';
 $messageType = '';
 $testResult = null;
@@ -48,7 +58,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $testResult = ['success' => false, 'message' => 'Vul eerst een API token in'];
         }
     } elseif (isset($_POST['load_ledgers'])) {
-        // Handled via JavaScript
     } else {
         try {
             foreach (array_keys($boekhoudingVelden) as $key) {
@@ -75,7 +84,6 @@ if ($huidigeWaarden['facturatie_systeem'] === 'eboekhouden' && !empty($huidigeWa
         $templatesResult = $client->getInvoiceTemplates();
         $templates = $templatesResult['items'] ?? $templatesResult['data'] ?? [];
     } catch (Exception $e) {
-        // Silently fail - ledgers will just be empty
     }
 }
 ?>
@@ -85,34 +93,21 @@ if ($huidigeWaarden['facturatie_systeem'] === 'eboekhouden' && !empty($huidigeWa
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Boekhouding | Civetta Admin</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
     <style>
         * { box-sizing: border-box; margin: 0; padding: 0; }
         body {
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-            background: #f5f2ed;
+            background: var(--cream);
             min-height: 100vh;
         }
-        .header {
-            background: linear-gradient(135deg, #8b5a2b, #5c3d1e);
-            color: white;
-            padding: 1rem 2rem;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-        }
-        .header h1 { font-size: 1.5rem; }
-        .header-links { display: flex; gap: 1rem; }
-        .header a {
-            color: white;
-            text-decoration: none;
-            padding: 0.5rem 1rem;
-            background: rgba(255,255,255,0.2);
-            border-radius: 6px;
-        }
-        .container {
+        .admin-content {
+            padding: 2rem;
             max-width: 700px;
-            margin: 2rem auto;
-            padding: 0 1rem;
+        }
+
+        @media (max-width: 768px) {
+            .admin-content { padding: 1.25rem; }
         }
         .card {
             background: white;
@@ -322,229 +317,261 @@ if ($huidigeWaarden['facturatie_systeem'] === 'eboekhouden' && !empty($huidigeWa
             flex: 1;
             min-width: 120px;
         }
+        .breadcrumb {
+            margin-bottom: 1.5rem;
+        }
+        .breadcrumb a {
+            color: #8b5a2b;
+            text-decoration: none;
+        }
+        .breadcrumb a:hover {
+            text-decoration: underline;
+        }
+        .breadcrumb span {
+            color: #888;
+            margin: 0 0.5rem;
+        }
     </style>
 </head>
 <body>
-    <div class="header">
-        <h1>Boekhouding</h1>
-        <div class="header-links">
-            <a href="../index.php">Dashboard</a>
-            <a href="../logout.php">Uitloggen</a>
+    <div class="admin-layout">
+        <?php include '../components/sidebar.php'; ?>
+
+        <div class="admin-main">
+            <header class="topbar">
+                <div class="topbar-left">
+                    <button class="mobile-toggle" onclick="toggleSidebar()">
+                        <i class="bi bi-list"></i>
+                    </button>
+                    <span class="topbar-title">Boekhouding</span>
+                </div>
+                <div class="topbar-right">
+                    <a href="settings-bedrijf.php" class="topbar-link">
+                        <i class="bi bi-building"></i> <span>Bedrijfsgegevens</span>
+                    </a>
+                </div>
+            </header>
+
+            <div class="admin-content">
+                <div class="breadcrumb">
+                    <a href="../index.php">Dashboard</a>
+                    <span>›</span>
+                    Boekhouding
+                </div>
+
+                <?php if ($message): ?>
+                    <div class="message <?= $messageType ?>"><?= htmlspecialchars($message) ?></div>
+                <?php endif; ?>
+                
+                <form method="POST">
+                    <div class="card">
+                        <h2>Facturatiesysteem</h2>
+                        
+                        <div class="radio-group">
+                            <label class="radio-option <?= $huidigeWaarden['facturatie_systeem'] === 'eigen' ? 'selected' : '' ?>">
+                                <input type="radio" name="facturatie_systeem" value="eigen" <?= $huidigeWaarden['facturatie_systeem'] === 'eigen' ? 'checked' : '' ?>>
+                                <div class="option-content">
+                                    <h3>Eigen facturatie (Civetta)</h3>
+                                    <p>Facturen worden lokaal gegenereerd en verstuurd via de website</p>
+                                </div>
+                            </label>
+                            
+                            <label class="radio-option <?= $huidigeWaarden['facturatie_systeem'] === 'eboekhouden' ? 'selected' : '' ?>">
+                                <input type="radio" name="facturatie_systeem" value="eboekhouden" <?= $huidigeWaarden['facturatie_systeem'] === 'eboekhouden' ? 'checked' : '' ?>>
+                                <div class="option-content">
+                                    <h3>e-Boekhouden</h3>
+                                    <p>Facturen worden aangemaakt en verstuurd via e-Boekhouden.nl</p>
+                                </div>
+                            </label>
+                        </div>
+                        
+                        <div class="eboekhouden-settings <?= $huidigeWaarden['facturatie_systeem'] === 'eboekhouden' ? 'active' : '' ?>">
+                            <h3>e-Boekhouden Instellingen</h3>
+                            
+                            <div class="form-group">
+                                <label for="eboekhouden_api_token">API Token</label>
+                                <input type="text" id="eboekhouden_api_token" name="eboekhouden_api_token" value="<?= htmlspecialchars($huidigeWaarden['eboekhouden_api_token']) ?>">
+                                <p class="help-text">Te vinden in e-Boekhouden: Beheer > Instellingen > API/SOAP</p>
+                                <button type="submit" name="test_connection" value="1" class="btn btn-test">Test verbinding</button>
+                                <?php if ($testResult): ?>
+                                    <div class="test-result <?= $testResult['success'] ? 'success' : 'error' ?>">
+                                        <?= htmlspecialchars($testResult['message']) ?>
+                                    </div>
+                                <?php endif; ?>
+                            </div>
+                            
+                            <div class="form-group">
+                                <label for="eboekhouden_template_id_betaald">Factuur Template - Betaald</label>
+                                <?php if (!empty($templates)): ?>
+                                <div class="select-with-manual">
+                                    <select id="eboekhouden_template_id_betaald_select" class="form-select" onchange="document.getElementById('eboekhouden_template_id_betaald').value = this.value">
+                                        <option value="">-- Selecteer template --</option>
+                                        <?php foreach ($templates as $template): ?>
+                                        <option value="<?= $template['id'] ?>" <?= $huidigeWaarden['eboekhouden_template_id_betaald'] == $template['id'] ? 'selected' : '' ?>>
+                                            <?= htmlspecialchars($template['name'] ?? $template['description'] ?? 'Template ' . $template['id']) ?>
+                                        </option>
+                                        <?php endforeach; ?>
+                                    </select>
+                                    <input type="text" id="eboekhouden_template_id_betaald" name="eboekhouden_template_id_betaald" value="<?= htmlspecialchars($huidigeWaarden['eboekhouden_template_id_betaald']) ?>" class="manual-input" placeholder="of handmatig ID">
+                                </div>
+                                <?php else: ?>
+                                <input type="text" id="eboekhouden_template_id_betaald" name="eboekhouden_template_id_betaald" value="<?= htmlspecialchars($huidigeWaarden['eboekhouden_template_id_betaald']) ?>">
+                                <?php endif; ?>
+                                <p class="help-text">Template voor facturen die direct betaald zijn (via Mollie)</p>
+                            </div>
+                            
+                            <div class="form-group">
+                                <label for="eboekhouden_template_id_openstaand">Factuur Template - Openstaand</label>
+                                <?php if (!empty($templates)): ?>
+                                <div class="select-with-manual">
+                                    <select id="eboekhouden_template_id_openstaand_select" class="form-select" onchange="document.getElementById('eboekhouden_template_id_openstaand').value = this.value">
+                                        <option value="">-- Selecteer template --</option>
+                                        <?php foreach ($templates as $template): ?>
+                                        <option value="<?= $template['id'] ?>" <?= $huidigeWaarden['eboekhouden_template_id_openstaand'] == $template['id'] ? 'selected' : '' ?>>
+                                            <?= htmlspecialchars($template['name'] ?? $template['description'] ?? 'Template ' . $template['id']) ?>
+                                        </option>
+                                        <?php endforeach; ?>
+                                    </select>
+                                    <input type="text" id="eboekhouden_template_id_openstaand" name="eboekhouden_template_id_openstaand" value="<?= htmlspecialchars($huidigeWaarden['eboekhouden_template_id_openstaand']) ?>" class="manual-input" placeholder="of handmatig ID">
+                                </div>
+                                <?php else: ?>
+                                <input type="text" id="eboekhouden_template_id_openstaand" name="eboekhouden_template_id_openstaand" value="<?= htmlspecialchars($huidigeWaarden['eboekhouden_template_id_openstaand']) ?>">
+                                <?php endif; ?>
+                                <p class="help-text">Template voor facturen met betaaltermijn (betaal later)</p>
+                            </div>
+                            
+                            <div class="form-group">
+                                <label for="eboekhouden_ledger_id">Grootboekrekening (Omzet)</label>
+                                <?php if (!empty($ledgers)): ?>
+                                <div class="select-with-manual">
+                                    <select id="eboekhouden_ledger_id_select" class="form-select" onchange="document.getElementById('eboekhouden_ledger_id').value = this.value">
+                                        <option value="">-- Selecteer grootboek --</option>
+                                        <?php foreach ($ledgers as $ledger): ?>
+                                        <option value="<?= $ledger['id'] ?>" <?= $huidigeWaarden['eboekhouden_ledger_id'] == $ledger['id'] ? 'selected' : '' ?>>
+                                            <?= htmlspecialchars($ledger['code'] . ' - ' . $ledger['description']) ?>
+                                        </option>
+                                        <?php endforeach; ?>
+                                    </select>
+                                    <input type="text" id="eboekhouden_ledger_id" name="eboekhouden_ledger_id" value="<?= htmlspecialchars($huidigeWaarden['eboekhouden_ledger_id']) ?>" class="manual-input" placeholder="of handmatig ID">
+                                </div>
+                                <?php else: ?>
+                                <input type="text" id="eboekhouden_ledger_id" name="eboekhouden_ledger_id" value="<?= htmlspecialchars($huidigeWaarden['eboekhouden_ledger_id']) ?>">
+                                <?php endif; ?>
+                                <p class="help-text">Meestal 8000 (Omzet). Hier wordt de omzet op geboekt.</p>
+                            </div>
+                            
+                            <div class="form-group">
+                                <label for="eboekhouden_debiteuren_ledger_id">Grootboekrekening (Debiteuren)</label>
+                                <?php if (!empty($ledgers)): ?>
+                                <div class="select-with-manual">
+                                    <select id="eboekhouden_debiteuren_ledger_id_select" class="form-select" onchange="document.getElementById('eboekhouden_debiteuren_ledger_id').value = this.value">
+                                        <option value="">-- Selecteer grootboek --</option>
+                                        <?php foreach ($ledgers as $ledger): ?>
+                                        <option value="<?= $ledger['id'] ?>" <?= $huidigeWaarden['eboekhouden_debiteuren_ledger_id'] == $ledger['id'] ? 'selected' : '' ?>>
+                                            <?= htmlspecialchars($ledger['code'] . ' - ' . $ledger['description']) ?>
+                                        </option>
+                                        <?php endforeach; ?>
+                                    </select>
+                                    <input type="text" id="eboekhouden_debiteuren_ledger_id" name="eboekhouden_debiteuren_ledger_id" value="<?= htmlspecialchars($huidigeWaarden['eboekhouden_debiteuren_ledger_id']) ?>" class="manual-input" placeholder="of handmatig ID">
+                                </div>
+                                <?php else: ?>
+                                <input type="text" id="eboekhouden_debiteuren_ledger_id" name="eboekhouden_debiteuren_ledger_id" value="<?= htmlspecialchars($huidigeWaarden['eboekhouden_debiteuren_ledger_id']) ?>">
+                                <?php endif; ?>
+                                <p class="help-text">Meestal 1300 (Debiteuren). Nodig om facturen in openstaande posten te boeken.</p>
+                            </div>
+                            
+                            <div class="form-group">
+                                <label for="eboekhouden_bank_ledger_id">Grootboekrekening (Bank)</label>
+                                <?php if (!empty($ledgers)): ?>
+                                <div class="select-with-manual">
+                                    <select id="eboekhouden_bank_ledger_id_select" class="form-select" onchange="document.getElementById('eboekhouden_bank_ledger_id').value = this.value">
+                                        <option value="">-- Selecteer grootboek --</option>
+                                        <?php foreach ($ledgers as $ledger): ?>
+                                        <option value="<?= $ledger['id'] ?>" <?= $huidigeWaarden['eboekhouden_bank_ledger_id'] == $ledger['id'] ? 'selected' : '' ?>>
+                                            <?= htmlspecialchars($ledger['code'] . ' - ' . $ledger['description']) ?>
+                                        </option>
+                                        <?php endforeach; ?>
+                                    </select>
+                                    <input type="text" id="eboekhouden_bank_ledger_id" name="eboekhouden_bank_ledger_id" value="<?= htmlspecialchars($huidigeWaarden['eboekhouden_bank_ledger_id']) ?>" class="manual-input" placeholder="of handmatig ID">
+                                </div>
+                                <?php else: ?>
+                                <input type="text" id="eboekhouden_bank_ledger_id" name="eboekhouden_bank_ledger_id" value="<?= htmlspecialchars($huidigeWaarden['eboekhouden_bank_ledger_id']) ?>">
+                                <?php endif; ?>
+                                <p class="help-text">Meestal 1010 (Bank). Nodig voor automatische betalingscontrole via bankmutaties.</p>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="card">
+                        <h2>Automatische Facturatie</h2>
+                        
+                        <div class="form-group">
+                            <label>Facturatiemoment</label>
+                            <div class="radio-group">
+                                <label class="radio-option <?= $huidigeWaarden['facturatie_moment'] === 'voor_leverdag' ? 'selected' : '' ?>">
+                                    <input type="radio" name="facturatie_moment" value="voor_leverdag" <?= $huidigeWaarden['facturatie_moment'] === 'voor_leverdag' ? 'checked' : '' ?>>
+                                    <div class="option-content">
+                                        <h3>Voor leverdag</h3>
+                                        <p>Factuur wordt verstuurd X dagen voor de levering</p>
+                                    </div>
+                                </label>
+                                <label class="radio-option <?= $huidigeWaarden['facturatie_moment'] === 'op_leverdag' ? 'selected' : '' ?>">
+                                    <input type="radio" name="facturatie_moment" value="op_leverdag" <?= $huidigeWaarden['facturatie_moment'] === 'op_leverdag' ? 'checked' : '' ?>>
+                                    <div class="option-content">
+                                        <h3>Op leverdag</h3>
+                                        <p>Factuur wordt verstuurd op de dag van levering</p>
+                                    </div>
+                                </label>
+                                <label class="radio-option <?= $huidigeWaarden['facturatie_moment'] === 'na_leverdag' ? 'selected' : '' ?>">
+                                    <input type="radio" name="facturatie_moment" value="na_leverdag" <?= $huidigeWaarden['facturatie_moment'] === 'na_leverdag' ? 'checked' : '' ?>>
+                                    <div class="option-content">
+                                        <h3>Na leverdag</h3>
+                                        <p>Factuur wordt verstuurd X dagen na de levering</p>
+                                    </div>
+                                </label>
+                            </div>
+                        </div>
+                        
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label for="facturatie_dagen_offset">Aantal dagen offset</label>
+                                <input type="number" id="facturatie_dagen_offset" name="facturatie_dagen_offset" value="<?= htmlspecialchars($huidigeWaarden['facturatie_dagen_offset']) ?>" min="0" max="30">
+                                <p class="help-text">0 = op leverdag zelf, 1 = 1 dag voor/na, etc.</p>
+                            </div>
+                            <div class="form-group">
+                                <label for="facturatie_uur">Tijdstip</label>
+                                <input type="time" id="facturatie_uur" name="facturatie_uur" value="<?= htmlspecialchars($huidigeWaarden['facturatie_uur']) ?>">
+                                <p class="help-text">Tijdstip waarop de cronjob facturen verstuurt</p>
+                            </div>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="bestel_wijzig_deadline_uren">Bestelling wijzigen deadline</label>
+                            <div class="input-suffix">
+                                <input type="number" id="bestel_wijzig_deadline_uren" name="bestel_wijzig_deadline_uren" value="<?= htmlspecialchars($huidigeWaarden['bestel_wijzig_deadline_uren']) ?>" min="0" max="168">
+                                <span>uren voor levering</span>
+                            </div>
+                            <p class="help-text">Klanten kunnen hun bestelling aanpassen tot dit aantal uren voor de leverdatum. Standaard: 48 uur.</p>
+                        </div>
+                    </div>
+                    
+                    <div class="card">
+                        <h2>BTW Instellingen</h2>
+                        
+                        <div class="form-group">
+                            <label for="btw_tarief">BTW-tarief</label>
+                            <div class="input-suffix">
+                                <input type="number" id="btw_tarief" name="btw_tarief" value="<?= htmlspecialchars($huidigeWaarden['btw_tarief']) ?>" min="0" max="100" step="0.1">
+                                <span>%</span>
+                            </div>
+                            <p class="help-text">Standaard 9% voor voedingsmiddelen</p>
+                        </div>
+                    </div>
+                    
+                    <button type="submit" class="btn">Opslaan</button>
+                </form>
+            </div>
         </div>
-    </div>
-    
-    <div class="container">
-        <?php if ($message): ?>
-            <div class="message <?= $messageType ?>"><?= htmlspecialchars($message) ?></div>
-        <?php endif; ?>
-        
-        <form method="POST">
-            <div class="card">
-                <h2>Facturatiesysteem</h2>
-                
-                <div class="radio-group">
-                    <label class="radio-option <?= $huidigeWaarden['facturatie_systeem'] === 'eigen' ? 'selected' : '' ?>">
-                        <input type="radio" name="facturatie_systeem" value="eigen" <?= $huidigeWaarden['facturatie_systeem'] === 'eigen' ? 'checked' : '' ?>>
-                        <div class="option-content">
-                            <h3>Eigen facturatie (Civetta)</h3>
-                            <p>Facturen worden lokaal gegenereerd en verstuurd via de website</p>
-                        </div>
-                    </label>
-                    
-                    <label class="radio-option <?= $huidigeWaarden['facturatie_systeem'] === 'eboekhouden' ? 'selected' : '' ?>">
-                        <input type="radio" name="facturatie_systeem" value="eboekhouden" <?= $huidigeWaarden['facturatie_systeem'] === 'eboekhouden' ? 'checked' : '' ?>>
-                        <div class="option-content">
-                            <h3>e-Boekhouden</h3>
-                            <p>Facturen worden aangemaakt en verstuurd via e-Boekhouden.nl</p>
-                        </div>
-                    </label>
-                </div>
-                
-                <div class="eboekhouden-settings <?= $huidigeWaarden['facturatie_systeem'] === 'eboekhouden' ? 'active' : '' ?>">
-                    <h3>e-Boekhouden Instellingen</h3>
-                    
-                    <div class="form-group">
-                        <label for="eboekhouden_api_token">API Token</label>
-                        <input type="text" id="eboekhouden_api_token" name="eboekhouden_api_token" value="<?= htmlspecialchars($huidigeWaarden['eboekhouden_api_token']) ?>">
-                        <p class="help-text">Te vinden in e-Boekhouden: Beheer > Instellingen > API/SOAP</p>
-                        <button type="submit" name="test_connection" value="1" class="btn btn-test">Test verbinding</button>
-                        <?php if ($testResult): ?>
-                            <div class="test-result <?= $testResult['success'] ? 'success' : 'error' ?>">
-                                <?= htmlspecialchars($testResult['message']) ?>
-                            </div>
-                        <?php endif; ?>
-                    </div>
-                    
-                    <div class="form-group">
-                        <label for="eboekhouden_template_id_betaald">Factuur Template - Betaald</label>
-                        <?php if (!empty($templates)): ?>
-                        <div class="select-with-manual">
-                            <select id="eboekhouden_template_id_betaald_select" class="form-select" onchange="document.getElementById('eboekhouden_template_id_betaald').value = this.value">
-                                <option value="">-- Selecteer template --</option>
-                                <?php foreach ($templates as $template): ?>
-                                <option value="<?= $template['id'] ?>" <?= $huidigeWaarden['eboekhouden_template_id_betaald'] == $template['id'] ? 'selected' : '' ?>>
-                                    <?= htmlspecialchars($template['name'] ?? $template['description'] ?? 'Template ' . $template['id']) ?>
-                                </option>
-                                <?php endforeach; ?>
-                            </select>
-                            <input type="text" id="eboekhouden_template_id_betaald" name="eboekhouden_template_id_betaald" value="<?= htmlspecialchars($huidigeWaarden['eboekhouden_template_id_betaald']) ?>" class="manual-input" placeholder="of handmatig ID">
-                        </div>
-                        <?php else: ?>
-                        <input type="text" id="eboekhouden_template_id_betaald" name="eboekhouden_template_id_betaald" value="<?= htmlspecialchars($huidigeWaarden['eboekhouden_template_id_betaald']) ?>">
-                        <?php endif; ?>
-                        <p class="help-text">Template voor facturen die direct betaald zijn (via Mollie)</p>
-                    </div>
-                    
-                    <div class="form-group">
-                        <label for="eboekhouden_template_id_openstaand">Factuur Template - Openstaand</label>
-                        <?php if (!empty($templates)): ?>
-                        <div class="select-with-manual">
-                            <select id="eboekhouden_template_id_openstaand_select" class="form-select" onchange="document.getElementById('eboekhouden_template_id_openstaand').value = this.value">
-                                <option value="">-- Selecteer template --</option>
-                                <?php foreach ($templates as $template): ?>
-                                <option value="<?= $template['id'] ?>" <?= $huidigeWaarden['eboekhouden_template_id_openstaand'] == $template['id'] ? 'selected' : '' ?>>
-                                    <?= htmlspecialchars($template['name'] ?? $template['description'] ?? 'Template ' . $template['id']) ?>
-                                </option>
-                                <?php endforeach; ?>
-                            </select>
-                            <input type="text" id="eboekhouden_template_id_openstaand" name="eboekhouden_template_id_openstaand" value="<?= htmlspecialchars($huidigeWaarden['eboekhouden_template_id_openstaand']) ?>" class="manual-input" placeholder="of handmatig ID">
-                        </div>
-                        <?php else: ?>
-                        <input type="text" id="eboekhouden_template_id_openstaand" name="eboekhouden_template_id_openstaand" value="<?= htmlspecialchars($huidigeWaarden['eboekhouden_template_id_openstaand']) ?>">
-                        <?php endif; ?>
-                        <p class="help-text">Template voor facturen met betaaltermijn (betaal later)</p>
-                    </div>
-                    
-                    <div class="form-group">
-                        <label for="eboekhouden_ledger_id">Grootboekrekening (Omzet)</label>
-                        <?php if (!empty($ledgers)): ?>
-                        <div class="select-with-manual">
-                            <select id="eboekhouden_ledger_id_select" class="form-select" onchange="document.getElementById('eboekhouden_ledger_id').value = this.value">
-                                <option value="">-- Selecteer grootboek --</option>
-                                <?php foreach ($ledgers as $ledger): ?>
-                                <option value="<?= $ledger['id'] ?>" <?= $huidigeWaarden['eboekhouden_ledger_id'] == $ledger['id'] ? 'selected' : '' ?>>
-                                    <?= htmlspecialchars($ledger['code'] . ' - ' . $ledger['description']) ?>
-                                </option>
-                                <?php endforeach; ?>
-                            </select>
-                            <input type="text" id="eboekhouden_ledger_id" name="eboekhouden_ledger_id" value="<?= htmlspecialchars($huidigeWaarden['eboekhouden_ledger_id']) ?>" class="manual-input" placeholder="of handmatig ID">
-                        </div>
-                        <?php else: ?>
-                        <input type="text" id="eboekhouden_ledger_id" name="eboekhouden_ledger_id" value="<?= htmlspecialchars($huidigeWaarden['eboekhouden_ledger_id']) ?>">
-                        <?php endif; ?>
-                        <p class="help-text">Meestal 8000 (Omzet). Hier wordt de omzet op geboekt.</p>
-                    </div>
-                    
-                    <div class="form-group">
-                        <label for="eboekhouden_debiteuren_ledger_id">Grootboekrekening (Debiteuren)</label>
-                        <?php if (!empty($ledgers)): ?>
-                        <div class="select-with-manual">
-                            <select id="eboekhouden_debiteuren_ledger_id_select" class="form-select" onchange="document.getElementById('eboekhouden_debiteuren_ledger_id').value = this.value">
-                                <option value="">-- Selecteer grootboek --</option>
-                                <?php foreach ($ledgers as $ledger): ?>
-                                <option value="<?= $ledger['id'] ?>" <?= $huidigeWaarden['eboekhouden_debiteuren_ledger_id'] == $ledger['id'] ? 'selected' : '' ?>>
-                                    <?= htmlspecialchars($ledger['code'] . ' - ' . $ledger['description']) ?>
-                                </option>
-                                <?php endforeach; ?>
-                            </select>
-                            <input type="text" id="eboekhouden_debiteuren_ledger_id" name="eboekhouden_debiteuren_ledger_id" value="<?= htmlspecialchars($huidigeWaarden['eboekhouden_debiteuren_ledger_id']) ?>" class="manual-input" placeholder="of handmatig ID">
-                        </div>
-                        <?php else: ?>
-                        <input type="text" id="eboekhouden_debiteuren_ledger_id" name="eboekhouden_debiteuren_ledger_id" value="<?= htmlspecialchars($huidigeWaarden['eboekhouden_debiteuren_ledger_id']) ?>">
-                        <?php endif; ?>
-                        <p class="help-text">Meestal 1300 (Debiteuren). Nodig om facturen in openstaande posten te boeken.</p>
-                    </div>
-                    
-                    <div class="form-group">
-                        <label for="eboekhouden_bank_ledger_id">Grootboekrekening (Bank)</label>
-                        <?php if (!empty($ledgers)): ?>
-                        <div class="select-with-manual">
-                            <select id="eboekhouden_bank_ledger_id_select" class="form-select" onchange="document.getElementById('eboekhouden_bank_ledger_id').value = this.value">
-                                <option value="">-- Selecteer grootboek --</option>
-                                <?php foreach ($ledgers as $ledger): ?>
-                                <option value="<?= $ledger['id'] ?>" <?= $huidigeWaarden['eboekhouden_bank_ledger_id'] == $ledger['id'] ? 'selected' : '' ?>>
-                                    <?= htmlspecialchars($ledger['code'] . ' - ' . $ledger['description']) ?>
-                                </option>
-                                <?php endforeach; ?>
-                            </select>
-                            <input type="text" id="eboekhouden_bank_ledger_id" name="eboekhouden_bank_ledger_id" value="<?= htmlspecialchars($huidigeWaarden['eboekhouden_bank_ledger_id']) ?>" class="manual-input" placeholder="of handmatig ID">
-                        </div>
-                        <?php else: ?>
-                        <input type="text" id="eboekhouden_bank_ledger_id" name="eboekhouden_bank_ledger_id" value="<?= htmlspecialchars($huidigeWaarden['eboekhouden_bank_ledger_id']) ?>">
-                        <?php endif; ?>
-                        <p class="help-text">Meestal 1010 (Bank). Nodig voor automatische betalingscontrole via bankmutaties.</p>
-                    </div>
-                </div>
-            </div>
-            
-            <div class="card">
-                <h2>Automatische Facturatie</h2>
-                
-                <div class="form-group">
-                    <label>Facturatiemoment</label>
-                    <div class="radio-group">
-                        <label class="radio-option <?= $huidigeWaarden['facturatie_moment'] === 'voor_leverdag' ? 'selected' : '' ?>">
-                            <input type="radio" name="facturatie_moment" value="voor_leverdag" <?= $huidigeWaarden['facturatie_moment'] === 'voor_leverdag' ? 'checked' : '' ?>>
-                            <div class="option-content">
-                                <h3>Voor leverdag</h3>
-                                <p>Factuur wordt verstuurd X dagen voor de levering</p>
-                            </div>
-                        </label>
-                        <label class="radio-option <?= $huidigeWaarden['facturatie_moment'] === 'op_leverdag' ? 'selected' : '' ?>">
-                            <input type="radio" name="facturatie_moment" value="op_leverdag" <?= $huidigeWaarden['facturatie_moment'] === 'op_leverdag' ? 'checked' : '' ?>>
-                            <div class="option-content">
-                                <h3>Op leverdag</h3>
-                                <p>Factuur wordt verstuurd op de dag van levering</p>
-                            </div>
-                        </label>
-                        <label class="radio-option <?= $huidigeWaarden['facturatie_moment'] === 'na_leverdag' ? 'selected' : '' ?>">
-                            <input type="radio" name="facturatie_moment" value="na_leverdag" <?= $huidigeWaarden['facturatie_moment'] === 'na_leverdag' ? 'checked' : '' ?>>
-                            <div class="option-content">
-                                <h3>Na leverdag</h3>
-                                <p>Factuur wordt verstuurd X dagen na de levering</p>
-                            </div>
-                        </label>
-                    </div>
-                </div>
-                
-                <div class="form-row">
-                    <div class="form-group">
-                        <label for="facturatie_dagen_offset">Aantal dagen offset</label>
-                        <input type="number" id="facturatie_dagen_offset" name="facturatie_dagen_offset" value="<?= htmlspecialchars($huidigeWaarden['facturatie_dagen_offset']) ?>" min="0" max="30">
-                        <p class="help-text">0 = op leverdag zelf, 1 = 1 dag voor/na, etc.</p>
-                    </div>
-                    <div class="form-group">
-                        <label for="facturatie_uur">Tijdstip</label>
-                        <input type="time" id="facturatie_uur" name="facturatie_uur" value="<?= htmlspecialchars($huidigeWaarden['facturatie_uur']) ?>">
-                        <p class="help-text">Tijdstip waarop de cronjob facturen verstuurt</p>
-                    </div>
-                </div>
-                
-                <div class="form-group">
-                    <label for="bestel_wijzig_deadline_uren">Bestelling wijzigen deadline</label>
-                    <div class="input-suffix">
-                        <input type="number" id="bestel_wijzig_deadline_uren" name="bestel_wijzig_deadline_uren" value="<?= htmlspecialchars($huidigeWaarden['bestel_wijzig_deadline_uren']) ?>" min="0" max="168">
-                        <span>uren voor levering</span>
-                    </div>
-                    <p class="help-text">Klanten kunnen hun bestelling aanpassen tot dit aantal uren voor de leverdatum. Standaard: 48 uur.</p>
-                </div>
-            </div>
-            
-            <div class="card">
-                <h2>BTW Instellingen</h2>
-                
-                <div class="form-group">
-                    <label for="btw_tarief">BTW-tarief</label>
-                    <div class="input-suffix">
-                        <input type="number" id="btw_tarief" name="btw_tarief" value="<?= htmlspecialchars($huidigeWaarden['btw_tarief']) ?>" min="0" max="100" step="0.1">
-                        <span>%</span>
-                    </div>
-                    <p class="help-text">Standaard 9% voor voedingsmiddelen</p>
-                </div>
-            </div>
-            
-            <button type="submit" class="btn">Opslaan</button>
-        </form>
     </div>
     
     <script>

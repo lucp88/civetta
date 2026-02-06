@@ -1086,6 +1086,118 @@ function buildDeliveryOnRouteEmail($order, $items, $bedrijf, $deliveryCount = 1,
     return $html;
 }
 
+function buildAdminOrderEditEmail($order, $oldItems, $newItems, $bedrijf = [], $btwTarief = 9) {
+    $maandNamen = ['January' => 'januari', 'February' => 'februari', 'March' => 'maart', 'April' => 'april', 'May' => 'mei', 'June' => 'juni', 'July' => 'juli', 'August' => 'augustus', 'September' => 'september', 'October' => 'oktober', 'November' => 'november', 'December' => 'december'];
+    $dagNamen = ['Sunday' => 'zondag', 'Monday' => 'maandag', 'Tuesday' => 'dinsdag', 'Wednesday' => 'woensdag', 'Thursday' => 'donderdag', 'Friday' => 'vrijdag', 'Saturday' => 'zaterdag'];
+
+    $leverDatum = date('l j F Y', strtotime($order['delivery_date']));
+    foreach ($dagNamen as $en => $nl) $leverDatum = str_replace($en, $nl, $leverDatum);
+    foreach ($maandNamen as $en => $nl) $leverDatum = str_replace($en, $nl, $leverDatum);
+
+    $totalInclBtw = floatval($order['total_amount']);
+    $btwBedrag = $totalInclBtw - ($totalInclBtw / (1 + $btwTarief / 100));
+    $exclBtw = $totalInclBtw - $btwBedrag;
+
+    $oldTotal = 0;
+    foreach ($oldItems as $item) {
+        $oldTotal += $item['quantity'] * $item['unit_price'];
+    }
+
+    $html = getEmailHeader('Bestelling #' . $order['id'] . ' aangepast');
+
+    $html .= '
+        <div style="background: #17a2b8; color: white; text-align: center; padding: 15px; font-size: 18px; font-weight: 600; letter-spacing: 1px;">BESTELLING AANGEPAST</div>
+        <div class="email-body">
+            <p class="greeting">Beste ' . htmlspecialchars($order['contactpersoon']) . ',</p>
+
+            <h2>Uw bestelling is aangepast</h2>
+
+            <p>Wij hebben wijzigingen aangebracht in uw bestelling. Hieronder vindt u het bijgewerkte overzicht.</p>
+
+            <div class="info-box">
+                <h3>Bestelgegevens</h3>
+                <p><strong>Bestelnummer:</strong> #' . $order['id'] . '</p>
+                <p><strong>Leverdatum:</strong> ' . $leverDatum . '</p>
+                <p><strong>Bedrijf:</strong> ' . htmlspecialchars($order['bedrijfsnaam']) . '</p>
+            </div>
+
+            <h3 style="color: #5c3d1e; margin-top: 30px;">Bijgewerkte producten</h3>
+            <table class="order-table">
+                <thead>
+                    <tr>
+                        <th>Product</th>
+                        <th style="text-align: center;">Aantal</th>
+                        <th style="text-align: right;">Prijs</th>
+                        <th style="text-align: right;">Totaal</th>
+                    </tr>
+                </thead>
+                <tbody>';
+
+    foreach ($newItems as $item) {
+        $lineTotal = $item['quantity'] * $item['unit_price'];
+        $html .= '
+                    <tr>
+                        <td class="product-name">' . htmlspecialchars($item['product_name']) . '</td>
+                        <td class="quantity">' . $item['quantity'] . '</td>
+                        <td class="price">' . formatEuro($item['unit_price']) . '</td>
+                        <td class="price">' . formatEuro($lineTotal) . '</td>
+                    </tr>';
+    }
+
+    $html .= '
+                </tbody>
+            </table>
+
+            <table class="totals-table">
+                <tr>
+                    <td class="label">Subtotaal excl. BTW</td>
+                    <td class="value">' . formatEuro($exclBtw) . '</td>
+                </tr>
+                <tr>
+                    <td class="label">BTW (' . $btwTarief . '%)</td>
+                    <td class="value">' . formatEuro($btwBedrag) . '</td>
+                </tr>
+                <tr class="total-row">
+                    <td class="label">Totaal incl. BTW</td>
+                    <td class="value">' . formatEuro($totalInclBtw) . '</td>
+                </tr>
+            </table>';
+
+    if (abs($totalInclBtw - $oldTotal) > 0.01) {
+        $diff = $totalInclBtw - $oldTotal;
+        $diffStyle = $diff > 0 ? 'color: #dc3545;' : 'color: #28a745;';
+        $diffPrefix = $diff > 0 ? '+' : '';
+        $html .= '
+            <div class="info-box" style="background: #e8f4fd; border-left-color: #17a2b8;">
+                <p><strong>Verschil t.o.v. origineel:</strong> <span style="' . $diffStyle . '">' . $diffPrefix . formatEuro($diff) . '</span></p>
+                <p style="margin-top: 5px; font-size: 13px; color: #666;">Vorig bedrag: ' . formatEuro($oldTotal) . '</p>
+            </div>';
+    }
+
+    if (!empty($order['notes'])) {
+        $html .= '
+            <div class="info-box">
+                <h3>Opmerkingen</h3>
+                <p>' . nl2br(htmlspecialchars($order['notes'])) . '</p>
+            </div>';
+    }
+
+    $html .= '
+            <p style="text-align: center;">
+                <a href="https://bakkerij-civetta.nl/mijn-bestellingen.html" class="cta-button">Bekijk in dashboard</a>
+            </p>
+
+            <div class="divider"></div>
+
+            <p>Heeft u vragen over deze wijziging? Neem gerust contact met ons op.</p>
+            <p>Met vriendelijke groet,<br><strong>Bakkerij Civetta</strong></p>
+        </div>';
+
+    $html .= getEmailFooter($bedrijf);
+
+    return $html;
+}
+
 function sendHtmlEmail($to, $subject, $htmlBody, $attachments = [], $replyTo = null) {
     $boundary = md5(uniqid(time()));
     

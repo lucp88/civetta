@@ -1,6 +1,16 @@
 <?php
 require_once '../config.php';
 requireLogin();
+
+$stmt = $pdo->query("SELECT COUNT(*) as count FROM business_accounts WHERE status = 'pending'");
+$sidebarPendingAccounts = $stmt->fetch()['count'];
+
+$stmt = $pdo->prepare("SELECT COUNT(*) as count FROM business_orders WHERE delivery_date = CURDATE() AND is_cancelled = 0 AND delivery_status = 'geplaatst'");
+$stmt->execute();
+$sidebarUnprocessedOrders = $stmt->fetch()['count'];
+
+$currentPage = 'bakcalculator';
+$adminBasePath = '../';
 ?>
 <!DOCTYPE html>
 <html lang="nl">
@@ -17,13 +27,16 @@ requireLogin();
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
     <style>
         * { box-sizing: border-box; margin: 0; padding: 0; }
-        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #f5f2ed; min-height: 100vh; }
-        .header { background: linear-gradient(135deg, #8b5a2b, #5c3d1e); color: white; padding: 1rem 2rem; display: flex; justify-content: space-between; align-items: center; }
-        .header h1 { font-size: 1.5rem; display: flex; align-items: center; gap: 0.5rem; }
-        .header-links { display: flex; gap: 0.75rem; }
-        .header a { color: white; text-decoration: none; padding: 0.5rem 1rem; background: rgba(255,255,255,0.2); border-radius: 6px; font-size: 0.9rem; }
-        .header a:hover { background: rgba(255,255,255,0.3); }
-        .app-container { max-width: 1200px; margin: 0 auto; padding: 1.5rem; }
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: var(--cream); min-height: 100vh; }
+        .admin-content {
+            padding: 1.5rem;
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        @media (max-width: 768px) {
+            .admin-content { padding: 1rem; }
+        }
         .top-bar { display: flex; gap: 1rem; align-items: center; margin-bottom: 1.5rem; flex-wrap: wrap; }
         .recipe-name-input { flex: 1; min-width: 200px; padding: 0.6rem 1rem; border: 2px solid #e0d5c7; border-radius: 8px; font-size: 1.1rem; font-weight: 600; color: #5c3d1e; background: white; }
         .recipe-name-input:focus { outline: none; border-color: #c8913a; }
@@ -76,7 +89,7 @@ requireLogin();
         .toggle::after { content: ''; position: absolute; width: 22px; height: 22px; background: white; border-radius: 50%; top: 2px; left: 2px; transition: transform 0.2s; box-shadow: 0 1px 3px rgba(0,0,0,0.2); }
         .toggle.on::after { transform: translateX(22px); }
         .toggle-label { font-weight: 600; color: #5c3d1e; font-size: 0.95rem; }
-        .sidebar { position: sticky; top: 1.5rem; }
+        .calc-sidebar { position: sticky; top: 1.5rem; }
         .summary-card { background: white; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.08); overflow: hidden; }
         .summary-header { background: linear-gradient(135deg, #c8913a, #a0722e); color: white; padding: 1rem 1.25rem; }
         .summary-header h3 { font-size: 1rem; display: flex; align-items: center; gap: 0.5rem; }
@@ -130,18 +143,30 @@ requireLogin();
         .fade-enter-from, .fade-leave-to { opacity: 0; }
         .toast { position: fixed; bottom: 2rem; right: 2rem; padding: 0.75rem 1.5rem; background: #333; color: white; border-radius: 8px; font-size: 0.9rem; z-index: 1000; box-shadow: 0 4px 15px rgba(0,0,0,0.2); }
         .toast.success { background: #2e7d32; }
+        .grain-warning { font-size: 0.8rem; color: #c62828; font-weight: 600; margin-top: 0.5rem; display: flex; align-items: center; gap: 0.3rem; }
     </style>
 </head>
 <body>
-    <div class="header">
-        <h1><i class="bi bi-calculator"></i> Bak Calculator</h1>
-        <div class="header-links">
-            <a href="bakker-dashboard.php"><i class="bi bi-calendar3"></i> Planning</a>
-            <a href="../index.php"><i class="bi bi-house"></i> Admin</a>
-        </div>
-    </div>
+    <div class="admin-layout">
+        <?php include '../components/sidebar.php'; ?>
 
-    <div id="app" class="app-container">
+        <div class="admin-main">
+            <header class="topbar">
+                <div class="topbar-left">
+                    <button class="mobile-toggle" onclick="toggleSidebar()">
+                        <i class="bi bi-list"></i>
+                    </button>
+                    <span class="topbar-title">Bak Calculator</span>
+                </div>
+                <div class="topbar-right">
+                    <a href="bakker-dashboard.php" class="topbar-link">
+                        <i class="bi bi-calendar3"></i> <span>Planning</span>
+                    </a>
+                </div>
+            </header>
+
+            <div class="admin-content">
+                <div id="app">
         <div class="top-bar">
             <input type="text" v-model="recipeName" class="recipe-name-input" placeholder="Receptnaam...">
             <button class="btn btn-success" @click="saveRecipe" :disabled="saving"><i class="bi bi-save"></i> {{ currentRecipeId ? 'Opslaan' : 'Bewaar' }}</button>
@@ -172,7 +197,7 @@ requireLogin();
                                 </div>
                             </div>
                             <div class="form-group">
-                                <label class="form-label">Gewicht per stuk (meel+water)</label>
+                                <label class="form-label">Gewicht per stuk (incl. zout)</label>
                                 <div class="input-with-unit">
                                     <input type="number" v-model.number="weightPerBall" class="form-input" min="1" step="10">
                                     <span class="input-unit">g</span>
@@ -194,18 +219,42 @@ requireLogin();
                             </div>
                         </div>
                         <hr class="divider">
-                        <div class="panel-title"><i class="bi bi-droplet"></i> Rijsmiddel</div>
-                        <div class="form-grid">
+                        <div class="panel-title"><i class="bi bi-droplet"></i> Rijsmiddelen</div>
+                        <div class="toggle-row">
+                            <div class="toggle" :class="{on: useSourdough}" @click="useSourdough = !useSourdough"></div>
+                            <span class="toggle-label">Zuurdesem</span>
+                        </div>
+                        <div class="form-grid" v-if="useSourdough" style="margin-bottom:1rem">
+                            <div class="form-group">
+                                <label class="form-label">Percentage (baker's %)</label>
+                                <div class="input-with-unit">
+                                    <input type="number" v-model.number="sourdoughPct" class="form-input" min="0" max="100" step="0.5">
+                                    <span class="input-unit">%</span>
+                                </div>
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label">Hydratatie zuurdesem</label>
+                                <div class="input-with-unit">
+                                    <input type="number" v-model.number="sourdoughHydration" class="form-input" min="50" max="200" step="1">
+                                    <span class="input-unit">%</span>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="toggle-row" style="margin-top:0.5rem">
+                            <div class="toggle" :class="{on: useYeast}" @click="useYeast = !useYeast"></div>
+                            <span class="toggle-label">Gist</span>
+                        </div>
+                        <div class="form-grid" v-if="useYeast">
                             <div class="form-group">
                                 <label class="form-label">Type</label>
-                                <select v-model="levenerType" class="form-select">
-                                    <option v-for="l in levenerTypes" :value="l.id">{{ l.name }}</option>
+                                <select v-model="yeastType" class="form-select">
+                                    <option v-for="y in yeastTypes" :value="y.id">{{ y.name }}</option>
                                 </select>
                             </div>
-                            <div class="form-group" v-if="levenerType !== 'none'">
+                            <div class="form-group">
                                 <label class="form-label">Percentage</label>
                                 <div class="input-with-unit">
-                                    <input type="number" v-model.number="levenerPct" class="form-input" min="0" max="100" step="0.1">
+                                    <input type="number" v-model.number="yeastPct" class="form-input" min="0" max="10" step="0.1">
                                     <span class="input-unit">%</span>
                                 </div>
                             </div>
@@ -214,6 +263,36 @@ requireLogin();
                 </div>
 
                 <div v-show="activeTab==='meel'">
+                    <div class="panel" v-if="useSourdough">
+                        <div class="panel-title"><i class="bi bi-fire"></i> Zuurdesem meelsoorten</div>
+                        <div class="grain-row" v-for="(grain, i) in sourdoughGrains" :key="'sd'+i">
+                            <div class="form-group">
+                                <select v-model="grain.type" class="form-select">
+                                    <option v-for="g in grainTypes" :value="g.id">{{ g.name }}</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <div class="input-with-unit">
+                                    <input type="number" v-model.number="grain.pct" class="form-input" min="0" max="100" step="1" placeholder="Aandeel">
+                                    <span class="input-unit">%</span>
+                                </div>
+                            </div>
+                            <button class="btn-remove" @click="sourdoughGrains.splice(i,1)" v-if="sourdoughGrains.length > 1"><i class="bi bi-x"></i></button>
+                            <span class="weight-tag">{{ formatW(sourdoughGrainDetail(i).total) }}g</span>
+                        </div>
+                        <button class="btn-add" @click="sourdoughGrains.push({type:'wheat',pct:0})" v-if="sourdoughGrains.length < 5">
+                            <i class="bi bi-plus"></i> Meelsoort toevoegen
+                        </button>
+                        <div class="grain-warning" v-if="sourdoughGrainsPctTotal !== 100">
+                            <i class="bi bi-exclamation-triangle"></i> Totaal is {{ sourdoughGrainsPctTotal }}% — moet 100% zijn
+                        </div>
+                        <div style="margin-top:0.75rem; display:flex; gap:1.5rem; flex-wrap:wrap">
+                            <span class="form-label">Zuurdesem meel: <strong style="color:#5c3d1e">{{ formatW(sourdoughFlour) }}g</strong></span>
+                            <span class="form-label">Zuurdesem water: <strong style="color:#4a90d9">{{ formatW(sourdoughWater) }}g</strong></span>
+                            <span class="form-label">Zuurdesem totaal: <strong style="color:#c8913a">{{ formatW(sourdoughWeight) }}g</strong></span>
+                        </div>
+                    </div>
+
                     <div class="panel" v-if="usePreFerment">
                         <div class="panel-title"><i class="bi bi-layers"></i> Voordeeg (Pre-ferment)</div>
                         <div class="form-grid" style="margin-bottom:1rem">
@@ -245,18 +324,15 @@ requireLogin();
                                     <span class="input-unit">%</span>
                                 </div>
                             </div>
-                            <div class="form-group">
-                                <div class="input-with-unit">
-                                    <input type="number" v-model.number="grain.wholeGrainPct" class="form-input" min="0" max="100" step="1" placeholder="Volkoren">
-                                    <span class="input-unit">VK%</span>
-                                </div>
-                            </div>
                             <button class="btn-remove" @click="preFermentGrains.splice(i,1)" v-if="preFermentGrains.length > 1"><i class="bi bi-x"></i></button>
                             <span class="weight-tag">{{ formatW(preFermentGrainDetail(i).total) }}g</span>
                         </div>
-                        <button class="btn-add" @click="preFermentGrains.push({type:'wheat',pct:0,wholeGrainPct:0})" v-if="preFermentGrains.length < 5">
+                        <button class="btn-add" @click="preFermentGrains.push({type:'wheat',pct:0})" v-if="preFermentGrains.length < 5">
                             <i class="bi bi-plus"></i> Meelsoort toevoegen
                         </button>
+                        <div class="grain-warning" v-if="preFermentGrainsPctTotal !== 100">
+                            <i class="bi bi-exclamation-triangle"></i> Totaal is {{ preFermentGrainsPctTotal }}% — moet 100% zijn
+                        </div>
                         <div style="margin-top:0.75rem; display:flex; gap:1.5rem; flex-wrap:wrap">
                             <span class="form-label">Voordeeg meel: <strong style="color:#5c3d1e">{{ formatW(preFermentFlour) }}g</strong></span>
                             <span class="form-label">Voordeeg water: <strong style="color:#4a90d9">{{ formatW(preFermentWater) }}g</strong></span>
@@ -285,18 +361,15 @@ requireLogin();
                                     <span class="input-unit">%</span>
                                 </div>
                             </div>
-                            <div class="form-group">
-                                <div class="input-with-unit">
-                                    <input type="number" v-model.number="grain.wholeGrainPct" class="form-input" min="0" max="100" step="1" placeholder="Volkoren">
-                                    <span class="input-unit">VK%</span>
-                                </div>
-                            </div>
                             <button class="btn-remove" @click="mainDoughGrains.splice(i,1)" v-if="mainDoughGrains.length > 1"><i class="bi bi-x"></i></button>
                             <span class="weight-tag">{{ formatW(mainDoughGrainDetail(i).total) }}g</span>
                         </div>
-                        <button class="btn-add" @click="mainDoughGrains.push({type:'wheat',pct:0,wholeGrainPct:0})" v-if="mainDoughGrains.length < 5">
+                        <button class="btn-add" @click="mainDoughGrains.push({type:'wheat',pct:0})" v-if="mainDoughGrains.length < 5">
                             <i class="bi bi-plus"></i> Meelsoort toevoegen
                         </button>
+                        <div class="grain-warning" v-if="mainGrainsPctTotal !== 100">
+                            <i class="bi bi-exclamation-triangle"></i> Totaal is {{ mainGrainsPctTotal }}% — moet 100% zijn
+                        </div>
                         <div style="margin-top:0.75rem; display:flex; gap:1.5rem; flex-wrap:wrap">
                             <span class="form-label">Hoofddeeg meel: <strong style="color:#5c3d1e">{{ formatW(mainDoughFlour) }}g</strong></span>
                             <span class="form-label">Hoofddeeg water: <strong style="color:#4a90d9">{{ formatW(mainDoughWater) }}g</strong></span>
@@ -317,20 +390,12 @@ requireLogin();
                         <div v-if="mixins.length === 0" class="empty-state" style="padding:1rem">
                             <p style="color:#bbb">Nog geen mix-ins toegevoegd</p>
                         </div>
+                        <datalist id="mixin-suggestions">
+                            <option v-for="ing in mixinIngredients" :value="ing.name"></option>
+                        </datalist>
                         <div class="mixin-row" v-for="(m, i) in mixins" :key="'mx'+i">
                             <div class="form-group">
-                                <select v-model="m.ingredient" class="form-select" @change="autoCategory(m)">
-                                    <option value="">Kies ingrediënt...</option>
-                                    <optgroup label="Zaden & Noten">
-                                        <option v-for="ing in mixinIngredients.filter(x=>x.cat==='non-integrated')" :value="ing.name">{{ ing.name }}</option>
-                                    </optgroup>
-                                    <optgroup label="Geïntegreerd (telt mee voor zout)">
-                                        <option v-for="ing in mixinIngredients.filter(x=>x.cat==='integrated')" :value="ing.name">{{ ing.name }}</option>
-                                    </optgroup>
-                                    <optgroup label="Vloeistoffen">
-                                        <option v-for="ing in mixinIngredients.filter(x=>x.cat==='liquid')" :value="ing.name">{{ ing.name }}</option>
-                                    </optgroup>
-                                </select>
+                                <input type="text" v-model="m.ingredient" class="form-input" list="mixin-suggestions" placeholder="Ingrediënt..." @input="autoCategory(m)">
                             </div>
                             <div class="form-group" style="flex:0.6">
                                 <div class="input-with-unit">
@@ -358,12 +423,12 @@ requireLogin();
                         <div v-if="toppings.length === 0" class="empty-state" style="padding:1rem">
                             <p style="color:#bbb">Nog geen toppings toegevoegd</p>
                         </div>
+                        <datalist id="topping-suggestions">
+                            <option v-for="ing in toppingIngredients" :value="ing"></option>
+                        </datalist>
                         <div class="topping-row" v-for="(t, i) in toppings" :key="'tp'+i">
                             <div class="form-group">
-                                <select v-model="t.ingredient" class="form-select">
-                                    <option value="">Kies topping...</option>
-                                    <option v-for="ing in toppingIngredients" :value="ing">{{ ing }}</option>
-                                </select>
+                                <input type="text" v-model="t.ingredient" class="form-input" list="topping-suggestions" placeholder="Topping...">
                             </div>
                             <div class="form-group" style="flex:0.6">
                                 <div class="input-with-unit">
@@ -391,6 +456,24 @@ requireLogin();
                         </div>
 
                         <div class="overview-grid">
+                            <div class="overview-section" v-if="useSourdough">
+                                <h4><i class="bi bi-fire"></i> Zuurdesem</h4>
+                                <template v-for="(g, i) in sourdoughGrains" :key="'osd'+i">
+                                    <div class="overview-item" v-if="g.pct > 0">
+                                        <span class="name">{{ grainName(g.type) }}</span>
+                                        <span class="value">{{ formatW(sourdoughGrainDetail(i).total) }}g</span>
+                                    </div>
+                                </template>
+                                <div class="overview-item">
+                                    <span class="name">Water</span>
+                                    <span class="value">{{ formatW(sourdoughWater) }}g</span>
+                                </div>
+                                <div class="overview-total">
+                                    <span>Zuurdesem totaal</span>
+                                    <span>{{ formatW(sourdoughWeight) }}g</span>
+                                </div>
+                            </div>
+
                             <div class="overview-section" v-if="usePreFerment">
                                 <h4><i class="bi bi-layers"></i> Voordeeg</h4>
                                 <template v-for="(g, i) in preFermentGrains" :key="'opf'+i">
@@ -398,21 +481,14 @@ requireLogin();
                                         <span class="name">{{ grainName(g.type) }}</span>
                                         <span class="value">{{ formatW(preFermentGrainDetail(i).total) }}g</span>
                                     </div>
-                                    <div class="overview-item sub" v-if="g.pct > 0 && g.wholeGrainPct > 0 && g.wholeGrainPct < 100">
-                                        <span class="name">↳ {{ formatW(preFermentGrainDetail(i).wholeGrain) }}g volkoren / {{ formatW(preFermentGrainDetail(i).white) }}g wit</span>
-                                    </div>
                                 </template>
                                 <div class="overview-item">
                                     <span class="name">Water</span>
                                     <span class="value">{{ formatW(preFermentWater) }}g</span>
                                 </div>
-                                <div class="overview-item" v-if="levenerType !== 'none' && levenerInPreFermentPct > 0">
-                                    <span class="name">{{ levenerName }}</span>
-                                    <span class="value">{{ formatW(levenerInPreFermentWeight) }}g</span>
-                                </div>
                                 <div class="overview-total">
                                     <span>Voordeeg totaal</span>
-                                    <span>{{ formatW(preFermentWeight + levenerInPreFermentWeight) }}g</span>
+                                    <span>{{ formatW(preFermentWeight) }}g</span>
                                 </div>
                             </div>
 
@@ -423,25 +499,22 @@ requireLogin();
                                         <span class="name">{{ grainName(g.type) }}</span>
                                         <span class="value">{{ formatW(mainDoughGrainDetail(i).total) }}g</span>
                                     </div>
-                                    <div class="overview-item sub" v-if="g.pct > 0 && g.wholeGrainPct > 0 && g.wholeGrainPct < 100">
-                                        <span class="name">↳ {{ formatW(mainDoughGrainDetail(i).wholeGrain) }}g volkoren / {{ formatW(mainDoughGrainDetail(i).white) }}g wit</span>
-                                    </div>
                                 </template>
                                 <div class="overview-item">
                                     <span class="name">Water</span>
                                     <span class="value">{{ formatW(mainDoughWater) }}g</span>
                                 </div>
-                                <div class="overview-item" v-if="levenerType !== 'none'">
-                                    <span class="name">{{ levenerName }}</span>
-                                    <span class="value">{{ formatW(levenerInMainDoughWeight) }}g</span>
-                                </div>
                                 <div class="overview-item">
                                     <span class="name">Zout</span>
                                     <span class="value">{{ formatW(saltWeight) }}g</span>
                                 </div>
+                                <div class="overview-item" v-if="useYeast">
+                                    <span class="name">{{ yeastName }}</span>
+                                    <span class="value">{{ formatW(yeastWeight) }}g</span>
+                                </div>
                                 <div class="overview-total">
                                     <span>Hoofddeeg totaal</span>
-                                    <span>{{ formatW(mainDoughFlour + mainDoughWater + levenerInMainDoughWeight + saltWeight) }}g</span>
+                                    <span>{{ formatW(mainDoughFlour + mainDoughWater + saltWeight + yeastWeight) }}g</span>
                                 </div>
                             </div>
 
@@ -478,7 +551,8 @@ requireLogin();
                                 <tr><td>Totaal meel</td><td>{{ formatW(totalFlour) }}g</td><td>100%</td></tr>
                                 <tr><td>Water</td><td>{{ formatW(totalWater) }}g</td><td>{{ formatP(hydration) }}%</td></tr>
                                 <tr><td>Zout</td><td>{{ formatW(saltWeight) }}g</td><td>{{ formatP(saltWeight / totalFlour * 100) }}%</td></tr>
-                                <tr v-if="levenerType !== 'none'"><td>{{ levenerName }}</td><td>{{ formatW(primaryLevenerWeight) }}g</td><td>{{ formatP(levenerPct) }}%</td></tr>
+                                <tr v-if="useSourdough"><td>Zuurdesem</td><td>{{ formatW(sourdoughWeight) }}g</td><td>{{ formatP(sourdoughPct) }}%</td></tr>
+                                <tr v-if="useYeast"><td>{{ yeastName }}</td><td>{{ formatW(yeastWeight) }}g</td><td>{{ formatP(yeastPct) }}%</td></tr>
                                 <template v-for="(m, i) in mixins" :key="'bp'+i"><tr v-if="m.ingredient && m.pct > 0">
                                     <td>{{ m.ingredient }}</td><td>{{ formatW(mixinWeight(i)) }}g</td><td>{{ formatP(mixinWeight(i) / totalFlour * 100) }}%</td>
                                 </tr></template>
@@ -517,7 +591,7 @@ requireLogin();
                 </div>
             </div>
 
-            <div class="sidebar">
+            <div class="calc-sidebar">
                 <div class="summary-card">
                     <div class="summary-header">
                         <h3><i class="bi bi-calculator"></i> Live Berekening</h3>
@@ -536,9 +610,19 @@ requireLogin();
                             <span class="summary-label">Zout</span>
                             <span class="summary-value">{{ formatW(saltWeight) }}g</span>
                         </div>
-                        <div class="summary-row" v-if="levenerType !== 'none'">
-                            <span class="summary-label">{{ levenerName }}</span>
-                            <span class="summary-value">{{ formatW(primaryLevenerWeight) }}g</span>
+                        <div class="summary-section-title" v-if="useSourdough">Zuurdesem</div>
+                        <div class="summary-row" v-if="useSourdough">
+                            <span class="summary-label">Meel in zuurdesem</span>
+                            <span class="summary-value">{{ formatW(sourdoughFlour) }}g</span>
+                        </div>
+                        <div class="summary-row" v-if="useSourdough">
+                            <span class="summary-label">Water in zuurdesem</span>
+                            <span class="summary-value">{{ formatW(sourdoughWater) }}g</span>
+                        </div>
+
+                        <div class="summary-row" v-if="useYeast">
+                            <span class="summary-label">{{ yeastName }}</span>
+                            <span class="summary-value">{{ formatW(yeastWeight) }}g</span>
                         </div>
 
                         <div class="summary-section-title" v-if="usePreFerment">Voordeeg</div>
@@ -594,6 +678,9 @@ requireLogin();
         </div>
 
         <div class="toast success" v-if="toastMsg">{{ toastMsg }}</div>
+                </div>
+            </div>
+        </div>
     </div>
 
     <script src="https://unpkg.com/vue@3/dist/vue.global.prod.js"></script>
@@ -609,14 +696,18 @@ requireLogin();
                 weightPerBall: 300,
                 hydration: 62,
                 saltPct: 2.6,
-                levenerType: 'instant_yeast',
-                levenerPct: 1.3,
-                levenerInPreFermentPct: 0,
+                useSourdough: false,
+                sourdoughPct: 20,
+                sourdoughHydration: 100,
+                sourdoughGrains: [{ type: 'wheat', pct: 100 }],
+                useYeast: true,
+                yeastType: 'instant_yeast',
+                yeastPct: 1.3,
                 usePreFerment: false,
                 preFermentPct: 20,
                 preFermentHydration: 100,
-                preFermentGrains: [{ type: 'wheat', pct: 100, wholeGrainPct: 0 }],
-                mainDoughGrains: [{ type: 'wheat', pct: 100, wholeGrainPct: 0 }],
+                preFermentGrains: [{ type: 'wheat_white', pct: 100 }],
+                mainDoughGrains: [{ type: 'wheat_white', pct: 100 }],
                 mixinMode: 'flour',
                 mixins: [],
                 toppings: [],
@@ -625,23 +716,24 @@ requireLogin();
                 saving: false,
                 toastMsg: '',
                 grainTypes: [
-                    { id: 'wheat', name: 'Tarwe' },
-                    { id: 'spelt', name: 'Spelt' },
+                    { id: 'wheat_white', name: 'Tarwe wit' },
+                    { id: 'wheat_whole', name: 'Tarwe volkoren' },
+                    { id: 'spelt_white', name: 'Spelt wit' },
+                    { id: 'spelt_whole', name: 'Spelt volkoren' },
                     { id: 'durum', name: 'Durum' },
                     { id: 'emmer', name: 'Emmer' },
-                    { id: 'rye', name: 'Rogge' },
+                    { id: 'rye_white', name: 'Rogge wit' },
+                    { id: 'rye_whole', name: 'Rogge volkoren' },
                     { id: 'einkorn', name: 'Einkorn' },
                     { id: 'buckwheat', name: 'Boekweit' },
                     { id: 'rice', name: 'Rijst' },
                     { id: 'barley', name: 'Gerst' },
                     { id: 'teff', name: 'Teff' },
                 ],
-                levenerTypes: [
-                    { id: 'none', name: 'Geen', defaultPct: 0 },
-                    { id: 'sourdough', name: 'Zuurdesem', defaultPct: 20 },
-                    { id: 'sourdough_culture', name: 'Desemcultuur (4%)', defaultPct: 4 },
-                    { id: 'fresh_yeast', name: 'Verse gist (4%)', defaultPct: 4 },
-                    { id: 'instant_yeast', name: 'Instant gist (2.8%)', defaultPct: 2.8 },
+                yeastTypes: [
+                    { id: 'fresh_yeast', name: 'Verse gist', defaultPct: 4 },
+                    { id: 'instant_yeast', name: 'Instant gist', defaultPct: 2.8 },
+                    { id: 'sourdough_culture', name: 'Desemcultuur', defaultPct: 4 },
                 ],
                 mixinIngredients: [
                     { name: 'Zonnebloempitten', cat: 'non-integrated' },
@@ -705,8 +797,18 @@ requireLogin();
 
         computed: {
             totalDoughWeight() { return this.numberOfBalls * this.weightPerBall; },
-            totalFlour() { return this.totalDoughWeight / (1 + this.hydration / 100); },
+            totalFlour() { return this.totalDoughWeight / (1 + this.hydration / 100 + this.saltPct / 100); },
             totalWater() { return this.totalFlour * (this.hydration / 100); },
+
+            sourdoughWeight() {
+                if (!this.useSourdough) return 0;
+                return this.totalFlour * (this.sourdoughPct / 100);
+            },
+            sourdoughFlour() {
+                if (!this.useSourdough) return 0;
+                return this.sourdoughWeight / (1 + this.sourdoughHydration / 100);
+            },
+            sourdoughWater() { return this.sourdoughWeight - this.sourdoughFlour; },
 
             preFermentWeight() {
                 if (!this.usePreFerment) return 0;
@@ -718,25 +820,19 @@ requireLogin();
             },
             preFermentWater() { return this.preFermentWeight - this.preFermentFlour; },
 
-            mainDoughFlour() { return this.totalFlour - this.preFermentFlour; },
-            mainDoughWater() { return this.totalWater - this.preFermentWater; },
+            mainDoughFlour() { return this.totalFlour - this.sourdoughFlour - this.preFermentFlour; },
+            mainDoughWater() { return this.totalWater - this.sourdoughWater - this.preFermentWater; },
             effectiveMainDoughHydration() {
                 if (this.mainDoughFlour === 0) return 0;
                 return (this.mainDoughWater / this.mainDoughFlour) * 100;
             },
 
-            primaryLevenerWeight() {
-                if (this.levenerType === 'none') return 0;
-                return this.totalFlour * (this.levenerPct / 100);
+            yeastWeight() {
+                if (!this.useYeast) return 0;
+                return this.totalFlour * (this.yeastPct / 100);
             },
-            levenerInPreFermentWeight() {
-                return this.primaryLevenerWeight * (this.levenerInPreFermentPct / 100);
-            },
-            levenerInMainDoughWeight() {
-                return this.primaryLevenerWeight - this.levenerInPreFermentWeight;
-            },
-            levenerName() {
-                const t = this.levenerTypes.find(l => l.id === this.levenerType);
+            yeastName() {
+                const t = this.yeastTypes.find(y => y.id === this.yeastType);
                 return t ? t.name : '';
             },
 
@@ -754,14 +850,14 @@ requireLogin();
             },
 
             totalDryWeight() { return this.totalFlour + this.integratedMixinWeight; },
-            saltWeight() { return this.totalDryWeight * (this.saltPct / 100); },
+            saltWeight() { return this.totalFlour * (this.saltPct / 100); },
 
             totalToppingWeight() {
                 return this.toppings.reduce((s, t) => s + this.totalDoughWeight * (t.pct / 100), 0);
             },
 
             totalFinalWeight() {
-                return this.totalDoughWeight + this.saltWeight + this.primaryLevenerWeight + this.totalMixinWeight + this.totalToppingWeight;
+                return this.totalDoughWeight + this.yeastWeight + this.totalMixinWeight + this.totalToppingWeight;
             },
             finalWeightPerBall() {
                 if (this.numberOfBalls === 0) return 0;
@@ -773,15 +869,19 @@ requireLogin();
                 return (totalLiquid / this.totalDryWeight) * 100;
             },
 
+            sourdoughGrainsPctTotal() { return this.sourdoughGrains.reduce((s, g) => s + (g.pct || 0), 0); },
+            preFermentGrainsPctTotal() { return this.preFermentGrains.reduce((s, g) => s + (g.pct || 0), 0); },
+            mainGrainsPctTotal() { return this.mainDoughGrains.reduce((s, g) => s + (g.pct || 0), 0); },
+
             flourPct() { return this.totalFinalWeight > 0 ? (this.totalFlour / this.totalFinalWeight * 100) : 0; },
             waterPct() { return this.totalFinalWeight > 0 ? (this.totalWater / this.totalFinalWeight * 100) : 0; },
             otherPct() { return Math.max(0, 100 - this.flourPct - this.waterPct); },
         },
 
         watch: {
-            levenerType(val) {
-                const t = this.levenerTypes.find(l => l.id === val);
-                if (t && t.defaultPct) this.levenerPct = t.defaultPct;
+            yeastType(val) {
+                const t = this.yeastTypes.find(y => y.id === val);
+                if (t && t.defaultPct) this.yeastPct = t.defaultPct;
             }
         },
 
@@ -793,15 +893,20 @@ requireLogin();
             mixinWeight(i) { return this._mw(this.mixins[i]); },
             toppingWeight(i) { return this.totalDoughWeight * ((this.toppings[i].pct || 0) / 100); },
 
+            sourdoughGrainDetail(i) {
+                const g = this.sourdoughGrains[i];
+                const total = this.sourdoughFlour * ((g.pct || 0) / 100);
+                return { total };
+            },
             preFermentGrainDetail(i) {
                 const g = this.preFermentGrains[i];
                 const total = this.preFermentFlour * ((g.pct || 0) / 100);
-                return { total, wholeGrain: total * ((g.wholeGrainPct || 0) / 100), white: total * (1 - (g.wholeGrainPct || 0) / 100) };
+                return { total };
             },
             mainDoughGrainDetail(i) {
                 const g = this.mainDoughGrains[i];
                 const total = this.mainDoughFlour * ((g.pct || 0) / 100);
-                return { total, wholeGrain: total * ((g.wholeGrainPct || 0) / 100), white: total * (1 - (g.wholeGrainPct || 0) / 100) };
+                return { total };
             },
 
             grainName(id) { return (this.grainTypes.find(g => g.id === id) || {}).name || id; },
@@ -811,7 +916,7 @@ requireLogin();
                 if (ing) m.category = ing.cat;
             },
 
-            formatW(v) { return v >= 1000 ? (v / 1000).toFixed(2).replace('.', ',') + 'k' : Math.round(v).toLocaleString('nl-NL'); },
+            formatW(v) { return Math.round(v).toLocaleString('nl-NL'); },
             formatP(v) { return (Math.round(v * 10) / 10).toString().replace('.', ','); },
             formatDate(d) {
                 if (!d) return '';
@@ -830,9 +935,13 @@ requireLogin();
                     weightPerBall: this.weightPerBall,
                     hydration: this.hydration,
                     saltPct: this.saltPct,
-                    levenerType: this.levenerType,
-                    levenerPct: this.levenerPct,
-                    levenerInPreFermentPct: this.levenerInPreFermentPct,
+                    useSourdough: this.useSourdough,
+                    sourdoughPct: this.sourdoughPct,
+                    sourdoughHydration: this.sourdoughHydration,
+                    sourdoughGrains: this.sourdoughGrains,
+                    useYeast: this.useYeast,
+                    yeastType: this.yeastType,
+                    yeastPct: this.yeastPct,
                     usePreFerment: this.usePreFerment,
                     preFermentPct: this.preFermentPct,
                     preFermentHydration: this.preFermentHydration,
@@ -846,10 +955,24 @@ requireLogin();
             },
 
             applyRecipeData(d) {
-                const fields = ['numberOfBalls','weightPerBall','hydration','saltPct','levenerType','levenerPct',
-                    'levenerInPreFermentPct','usePreFerment','preFermentPct','preFermentHydration',
+                const fields = ['numberOfBalls','weightPerBall','hydration','saltPct',
+                    'useSourdough','sourdoughPct','sourdoughHydration','sourdoughGrains',
+                    'useYeast','yeastType','yeastPct',
+                    'usePreFerment','preFermentPct','preFermentHydration',
                     'preFermentGrains','mainDoughGrains','mixinMode','mixins','toppings','method'];
                 fields.forEach(f => { if (d[f] !== undefined) this[f] = d[f]; });
+                if (d.levenerType !== undefined && d.useSourdough === undefined) {
+                    if (d.levenerType === 'sourdough') {
+                        this.useSourdough = true;
+                        this.sourdoughPct = d.levenerPct || 20;
+                        this.useYeast = false;
+                    } else if (d.levenerType !== 'none') {
+                        this.useYeast = true;
+                        this.yeastType = d.levenerType;
+                        this.yeastPct = d.levenerPct || 2.8;
+                        this.useSourdough = false;
+                    }
+                }
             },
 
             async saveRecipe() {
@@ -908,14 +1031,18 @@ requireLogin();
                 this.weightPerBall = 300;
                 this.hydration = 62;
                 this.saltPct = 2.6;
-                this.levenerType = 'instant_yeast';
-                this.levenerPct = 1.3;
-                this.levenerInPreFermentPct = 0;
+                this.useSourdough = false;
+                this.sourdoughPct = 20;
+                this.sourdoughHydration = 100;
+                this.sourdoughGrains = [{ type: 'wheat', pct: 100 }];
+                this.useYeast = true;
+                this.yeastType = 'instant_yeast';
+                this.yeastPct = 1.3;
                 this.usePreFerment = false;
                 this.preFermentPct = 20;
                 this.preFermentHydration = 100;
-                this.preFermentGrains = [{ type: 'wheat', pct: 100, wholeGrainPct: 0 }];
-                this.mainDoughGrains = [{ type: 'wheat', pct: 100, wholeGrainPct: 0 }];
+                this.preFermentGrains = [{ type: 'wheat_white', pct: 100 }];
+                this.mainDoughGrains = [{ type: 'wheat_white', pct: 100 }];
                 this.mixinMode = 'flour';
                 this.mixins = [];
                 this.toppings = [];

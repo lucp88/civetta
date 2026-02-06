@@ -2,6 +2,16 @@
 require_once '../config.php';
 requireLogin();
 
+$stmt = $pdo->query("SELECT COUNT(*) as count FROM business_accounts WHERE status = 'pending'");
+$sidebarPendingAccounts = $stmt->fetch()['count'];
+
+$stmt = $pdo->prepare("SELECT COUNT(*) as count FROM business_orders WHERE delivery_date = CURDATE() AND is_cancelled = 0 AND delivery_status = 'geplaatst'");
+$stmt->execute();
+$sidebarUnprocessedOrders = $stmt->fetch()['count'];
+
+$currentPage = 'products';
+$adminBasePath = '../';
+
 $uploadDir = '../../img/producten/';
 if (!is_dir($uploadDir)) {
     mkdir($uploadDir, 0755, true);
@@ -97,33 +107,21 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title><?= $id ? 'Product Bewerken' : 'Nieuw Product' ?> | Civetta Admin</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
     <style>
         * { box-sizing: border-box; margin: 0; padding: 0; }
         body {
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-            background: #f5f2ed;
+            background: var(--cream);
             min-height: 100vh;
         }
-        .header {
-            background: linear-gradient(135deg, #8b5a2b, #5c3d1e);
-            color: white;
-            padding: 1rem 2rem;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-        }
-        .header h1 { font-size: 1.5rem; }
-        .header a {
-            color: white;
-            text-decoration: none;
-            padding: 0.5rem 1rem;
-            background: rgba(255,255,255,0.2);
-            border-radius: 6px;
-        }
-        .container {
+        .admin-content {
+            padding: 2rem;
             max-width: 1100px;
-            margin: 2rem auto;
-            padding: 0 1rem;
+        }
+
+        @media (max-width: 768px) {
+            .admin-content { padding: 1.25rem; }
         }
         .edit-layout {
             display: grid;
@@ -237,7 +235,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             position: relative;
         }
         .price-input::before {
-            content: '€';
+            content: '\20AC';
             position: absolute;
             left: 0.75rem;
             top: 50%;
@@ -400,134 +398,151 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     </style>
 </head>
 <body>
-    <div class="header">
-        <h1>Civetta Admin</h1>
-        <a href="products.php">← Terug naar producten</a>
-    </div>
-    
-    <div class="container">
-        <div class="breadcrumb">
-            <a href="../index.php">Dashboard</a>
-            <span>›</span>
-            <a href="products.php">Producten</a>
-            <span>›</span>
-            <?= $id ? 'Bewerken' : 'Nieuw' ?>
-        </div>
+    <div class="admin-layout">
+        <?php include '../components/sidebar.php'; ?>
 
-        <div class="edit-layout">
-            <div class="card">
-                <h2><?= $id ? 'Product Bewerken' : 'Nieuw Product' ?></h2>
-                
-                <?php if ($error): ?>
-                <div class="error"><?= htmlspecialchars($error) ?></div>
-            <?php endif; ?>
-            
-            <?php if ($success): ?>
-                <div class="success"><?= htmlspecialchars($success) ?></div>
-            <?php endif; ?>
-            
-            <form method="POST" enctype="multipart/form-data">
-                <div class="form-group">
-                    <label for="naam">Product Naam *</label>
-                    <input type="text" id="naam" name="naam" value="<?= htmlspecialchars($product['naam'] ?? '') ?>" required>
+        <div class="admin-main">
+            <header class="topbar">
+                <div class="topbar-left">
+                    <button class="mobile-toggle" onclick="toggleSidebar()">
+                        <i class="bi bi-list"></i>
+                    </button>
+                    <span class="topbar-title"><?= $id ? 'Product Bewerken' : 'Nieuw Product' ?></span>
                 </div>
-                
-                <div class="form-group">
-                    <label for="ingredienten">Ingrediënten</label>
-                    <textarea id="ingredienten" name="ingredienten"><?= htmlspecialchars($product['ingredienten'] ?? '') ?></textarea>
-                    <p class="help">Lijst van ingrediënten, bijv. "tarwebloem, water, zout, gist"</p>
+                <div class="topbar-right">
+                    <a href="products.php" class="topbar-link">
+                        <i class="bi bi-arrow-left"></i> <span>Terug naar producten</span>
+                    </a>
                 </div>
-                
-                <div class="form-group">
-                    <label for="beschrijving">Beschrijving</label>
-                    <textarea id="beschrijving" name="beschrijving"><?= htmlspecialchars($product['beschrijving'] ?? '') ?></textarea>
-                </div>
-                
-                <div class="form-group">
-                    <label for="deegtype_id">Deegtype</label>
-                    <select id="deegtype_id" name="deegtype_id">
-                        <option value="">- Geen deegtype -</option>
-                        <?php foreach ($deegtypes as $dt): ?>
-                            <option value="<?= $dt['id'] ?>" <?= ($product['deegtype_id'] ?? '') == $dt['id'] ? 'selected' : '' ?>><?= htmlspecialchars($dt['naam']) ?></option>
-                        <?php endforeach; ?>
-                    </select>
-                    <p class="help">Intern gebruik (niet zichtbaar voor klanten)</p>
+            </header>
+
+            <div class="admin-content">
+                <div class="breadcrumb">
+                    <a href="../index.php">Dashboard</a>
+                    <span>›</span>
+                    <a href="products.php">Producten</a>
+                    <span>›</span>
+                    <?= $id ? 'Bewerken' : 'Nieuw' ?>
                 </div>
 
-                <div class="form-group">
-                    <label for="prijs">Standaard Prijs</label>
-                    <div class="price-input">
-                        <input type="number" id="prijs" name="prijs" step="0.01" min="0" value="<?= $product['prijs'] ?? '' ?>">
-                    </div>
-                    <p class="help">Basisprijs (wordt overschreven als er gewichtsvarianten zijn)</p>
-                </div>
-                
-                <div class="form-group">
-                    <label>Gewichtsvarianten</label>
-                    <p class="help">Voeg varianten toe met verschillende gewichten en prijzen</p>
-                    <div id="variants-container">
-                        <?php foreach ($variants as $variant): ?>
-                        <div class="variant-row">
-                            <input type="number" name="variant_gewicht[]" placeholder="Gewicht (g)" value="<?= $variant['gewicht'] ?>" min="1">
-                            <div class="price-input variant-price">
-                                <input type="number" name="variant_prijs[]" step="0.01" min="0" placeholder="Prijs" value="<?= $variant['prijs'] ?>">
-                            </div>
-                            <button type="button" class="btn-remove-variant" onclick="this.parentElement.remove(); updatePreviewVariants();">×</button>
-                        </div>
-                        <?php endforeach; ?>
-                    </div>
-                    <button type="button" class="btn btn-small btn-add-variant" onclick="addVariant()">+ Gewichtsoptie toevoegen</button>
-                </div>
-                
-                <div class="form-group">
-                    <label for="foto_upload">Foto</label>
-                    <?php if (!empty($product['foto'])): ?>
-                        <div class="current-foto">
-                            <p><strong>Huidige foto:</strong></p>
-                            <img src="../<?= htmlspecialchars($product['foto']) ?>" alt="Huidige foto">
-                        </div>
+                <div class="edit-layout">
+                    <div class="card">
+                        <h2><?= $id ? 'Product Bewerken' : 'Nieuw Product' ?></h2>
+                        
+                        <?php if ($error): ?>
+                        <div class="error"><?= htmlspecialchars($error) ?></div>
                     <?php endif; ?>
-                    <input type="file" id="foto_upload" name="foto_upload" accept="image/jpeg,image/png,image/webp" class="file-input">
-                    <p class="help">JPG, PNG of WebP afbeelding</p>
-                </div>
-                
-                <div class="actions">
-                        <button type="submit" class="btn"><?= $id ? 'Opslaan' : 'Aanmaken' ?></button>
-                        <a href="products.php" class="btn btn-secondary">Annuleren</a>
-                    </div>
-                </form>
-            </div>
-                
-            <div class="preview-section">
-                    <h3>Preview</h3>
-                    <div class="preview-card">
-                        <div class="preview-image" id="preview-image">
-                            <?php if (!empty($product['foto'])): ?>
-                                <img src="../<?= htmlspecialchars($product['foto']) ?>" alt="Preview">
-                            <?php else: ?>
-                                Geen foto
-                            <?php endif; ?>
+                    
+                    <?php if ($success): ?>
+                        <div class="success"><?= htmlspecialchars($success) ?></div>
+                    <?php endif; ?>
+                    
+                    <form method="POST" enctype="multipart/form-data">
+                        <div class="form-group">
+                            <label for="naam">Product Naam *</label>
+                            <input type="text" id="naam" name="naam" value="<?= htmlspecialchars($product['naam'] ?? '') ?>" required>
                         </div>
-                        <div class="preview-info">
-                            <h4 class="preview-naam" id="preview-naam"><?= htmlspecialchars($product['naam'] ?? 'Product naam') ?></h4>
-                            <p class="preview-beschrijving" id="preview-beschrijving"><?= htmlspecialchars($product['beschrijving'] ?? 'Beschrijving...') ?></p>
-                            <div class="preview-ingredienten" id="preview-ingredienten">
-                                <strong>Ingredienten:</strong> <span id="preview-ingredienten-text"><?= htmlspecialchars($product['ingredienten'] ?? 'ingredienten...') ?></span>
+                        
+                        <div class="form-group">
+                            <label for="ingredienten">Ingredienten</label>
+                            <textarea id="ingredienten" name="ingredienten"><?= htmlspecialchars($product['ingredienten'] ?? '') ?></textarea>
+                            <p class="help">Lijst van ingredienten, bijv. "tarwebloem, water, zout, gist"</p>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="beschrijving">Beschrijving</label>
+                            <textarea id="beschrijving" name="beschrijving"><?= htmlspecialchars($product['beschrijving'] ?? '') ?></textarea>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="deegtype_id">Deegtype</label>
+                            <select id="deegtype_id" name="deegtype_id">
+                                <option value="">- Geen deegtype -</option>
+                                <?php foreach ($deegtypes as $dt): ?>
+                                    <option value="<?= $dt['id'] ?>" <?= ($product['deegtype_id'] ?? '') == $dt['id'] ? 'selected' : '' ?>><?= htmlspecialchars($dt['naam']) ?></option>
+                                <?php endforeach; ?>
+                            </select>
+                            <p class="help">Intern gebruik (niet zichtbaar voor klanten)</p>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="prijs">Standaard Prijs</label>
+                            <div class="price-input">
+                                <input type="number" id="prijs" name="prijs" step="0.01" min="0" value="<?= $product['prijs'] ?? '' ?>">
                             </div>
-                            <div class="preview-footer">
-                                <span class="preview-prijs" id="preview-prijs"><?= $product['prijs'] ? '€ ' . number_format($product['prijs'], 2, ',', '.') : '' ?></span>
-                                <div class="preview-variants" id="preview-variants">
-                                    <?php foreach ($variants as $variant): ?>
-                                    <div class="preview-variant">
-                                        <span class="gewicht"><?= $variant['gewicht'] ?>g</span>
-                                        <span class="prijs">€ <?= number_format($variant['prijs'], 2, ',', '.') ?></span>
+                            <p class="help">Basisprijs (wordt overschreven als er gewichtsvarianten zijn)</p>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label>Gewichtsvarianten</label>
+                            <p class="help">Voeg varianten toe met verschillende gewichten en prijzen</p>
+                            <div id="variants-container">
+                                <?php foreach ($variants as $variant): ?>
+                                <div class="variant-row">
+                                    <input type="number" name="variant_gewicht[]" placeholder="Gewicht (g)" value="<?= $variant['gewicht'] ?>" min="1">
+                                    <div class="price-input variant-price">
+                                        <input type="number" name="variant_prijs[]" step="0.01" min="0" placeholder="Prijs" value="<?= $variant['prijs'] ?>">
                                     </div>
-                                    <?php endforeach; ?>
+                                    <button type="button" class="btn-remove-variant" onclick="this.parentElement.remove(); updatePreviewVariants();">x</button>
+                                </div>
+                                <?php endforeach; ?>
+                            </div>
+                            <button type="button" class="btn btn-small btn-add-variant" onclick="addVariant()">+ Gewichtsoptie toevoegen</button>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="foto_upload">Foto</label>
+                            <?php if (!empty($product['foto'])): ?>
+                                <div class="current-foto">
+                                    <p><strong>Huidige foto:</strong></p>
+                                    <img src="../<?= htmlspecialchars($product['foto']) ?>" alt="Huidige foto">
+                                </div>
+                            <?php endif; ?>
+                            <input type="file" id="foto_upload" name="foto_upload" accept="image/jpeg,image/png,image/webp" class="file-input">
+                            <p class="help">JPG, PNG of WebP afbeelding</p>
+                        </div>
+                        
+                        <div class="actions">
+                                <button type="submit" class="btn"><?= $id ? 'Opslaan' : 'Aanmaken' ?></button>
+                                <a href="products.php" class="btn btn-secondary">Annuleren</a>
+                            </div>
+                        </form>
+                    </div>
+                        
+                    <div class="preview-section">
+                            <h3>Preview</h3>
+                            <div class="preview-card">
+                                <div class="preview-image" id="preview-image">
+                                    <?php if (!empty($product['foto'])): ?>
+                                        <img src="../<?= htmlspecialchars($product['foto']) ?>" alt="Preview">
+                                    <?php else: ?>
+                                        Geen foto
+                                    <?php endif; ?>
+                                </div>
+                                <div class="preview-info">
+                                    <h4 class="preview-naam" id="preview-naam"><?= htmlspecialchars($product['naam'] ?? 'Product naam') ?></h4>
+                                    <p class="preview-beschrijving" id="preview-beschrijving"><?= htmlspecialchars($product['beschrijving'] ?? 'Beschrijving...') ?></p>
+                                    <div class="preview-ingredienten" id="preview-ingredienten">
+                                        <strong>Ingredienten:</strong> <span id="preview-ingredienten-text"><?= htmlspecialchars($product['ingredienten'] ?? 'ingredienten...') ?></span>
+                                    </div>
+                                    <div class="preview-footer">
+                                        <span class="preview-prijs" id="preview-prijs"><?= $product['prijs'] ? 'EUR ' . number_format($product['prijs'], 2, ',', '.') : '' ?></span>
+                                        <div class="preview-variants" id="preview-variants">
+                                            <?php foreach ($variants as $variant): ?>
+                                            <div class="preview-variant">
+                                                <span class="gewicht"><?= $variant['gewicht'] ?>g</span>
+                                                <span class="prijs">EUR <?= number_format($variant['prijs'], 2, ',', '.') ?></span>
+                                            </div>
+                                            <?php endforeach; ?>
+                                        </div>
+                                    </div>
                                 </div>
                             </div>
-                        </div>
                     </div>
+                </div>
             </div>
+        </div>
+    </div>
     
     <script>
         document.getElementById('naam').addEventListener('input', function() {
@@ -541,7 +556,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         });
         document.getElementById('prijs').addEventListener('input', function() {
             const val = parseFloat(this.value);
-            document.getElementById('preview-prijs').textContent = val ? '€ ' + val.toFixed(2).replace('.', ',') : '';
+            document.getElementById('preview-prijs').textContent = val ? 'EUR ' + val.toFixed(2).replace('.', ',') : '';
         });
         document.getElementById('foto_upload').addEventListener('change', function(e) {
             const file = e.target.files[0];
@@ -563,7 +578,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 <div class="price-input variant-price">
                     <input type="number" name="variant_prijs[]" step="0.01" min="0" placeholder="Prijs" oninput="updatePreviewVariants()">
                 </div>
-                <button type="button" class="btn-remove-variant" onclick="this.parentElement.remove(); updatePreviewVariants();">×</button>
+                <button type="button" class="btn-remove-variant" onclick="this.parentElement.remove(); updatePreviewVariants();">x</button>
             `;
             container.appendChild(row);
         }
@@ -578,7 +593,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 const g = gewichten[i].value;
                 const p = parseFloat(prijzen[i].value);
                 if (g && p) {
-                    html += `<div class="preview-variant"><span class="gewicht">${g}g</span><span class="prijs">€ ${p.toFixed(2).replace('.', ',')}</span></div>`;
+                    html += `<div class="preview-variant"><span class="gewicht">${g}g</span><span class="prijs">EUR ${p.toFixed(2).replace('.', ',')}</span></div>`;
                 }
             }
             container.innerHTML = html;
@@ -588,7 +603,5 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             el.addEventListener('input', updatePreviewVariants);
         });
     </script>
-    </div>
-</div>
 </body>
 </html>

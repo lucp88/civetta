@@ -1,6 +1,70 @@
 <?php
 require_once 'config.php';
 requireLogin();
+
+$today = date('Y-m-d');
+$tomorrow = date('Y-m-d', strtotime('+1 day'));
+
+$stmt = $pdo->prepare("SELECT COUNT(*) as count FROM business_orders WHERE delivery_date = ? AND is_cancelled = 0");
+$stmt->execute([$today]);
+$todayOrders = $stmt->fetch()['count'];
+
+$stmt = $pdo->prepare("SELECT COUNT(*) as count FROM business_orders WHERE delivery_date = ? AND is_cancelled = 0");
+$stmt->execute([$tomorrow]);
+$tomorrowOrders = $stmt->fetch()['count'];
+
+$stmt = $pdo->query("SELECT COUNT(*) as count FROM business_accounts WHERE status = 'pending'");
+$pendingAccounts = $stmt->fetch()['count'];
+
+$stmt = $pdo->prepare("SELECT COUNT(*) as count FROM business_orders WHERE delivery_date = ? AND is_cancelled = 0 AND delivery_status = 'geplaatst'");
+$stmt->execute([$today]);
+$todayUnprocessed = $stmt->fetch()['count'];
+
+$stmt = $pdo->prepare("
+    SELECT bo.id, ba.bedrijfsnaam, bo.total_amount, bo.delivery_status, bo.delivery_date
+    FROM business_orders bo
+    JOIN business_accounts ba ON bo.account_id = ba.id
+    WHERE bo.is_cancelled = 0 AND bo.delivery_date >= ?
+    ORDER BY bo.delivery_date ASC, bo.id DESC
+    LIMIT 5
+");
+$stmt->execute([$today]);
+$recentOrders = $stmt->fetchAll();
+
+$stmt = $pdo->prepare("
+    SELECT boi.product_name, SUM(boi.quantity) as total_qty
+    FROM business_order_items boi
+    JOIN business_orders bo ON boi.order_id = bo.id
+    WHERE bo.delivery_date = ? AND bo.is_cancelled = 0
+    GROUP BY boi.product_name
+    ORDER BY total_qty DESC
+    LIMIT 6
+");
+$stmt->execute([$tomorrow]);
+$productsToBake = $stmt->fetchAll();
+
+$deliveryStatusLabels = [
+    'geplaatst' => 'Geplaatst',
+    'wordt_bereid' => 'Wordt bereid',
+    'onderweg' => 'Onderweg',
+    'afgeleverd' => 'Afgeleverd'
+];
+$deliveryStatusColors = [
+    'geplaatst' => '#e67e22',
+    'wordt_bereid' => '#f39c12',
+    'onderweg' => '#3498db',
+    'afgeleverd' => '#27ae60'
+];
+
+function getDutchDay($date) {
+    $dagen = ['zo', 'ma', 'di', 'wo', 'do', 'vr', 'za'];
+    return $dagen[date('w', strtotime($date))];
+}
+
+$currentPage = 'dashboard';
+$adminBasePath = '';
+$sidebarPendingAccounts = $pendingAccounts;
+$sidebarUnprocessedOrders = $todayUnprocessed;
 ?>
 <!DOCTYPE html>
 <html lang="nl">
@@ -8,256 +72,547 @@ requireLogin();
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Dashboard | Civetta Admin</title>
+    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#5c3d1e">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
     <style>
-        * { box-sizing: border-box; margin: 0; padding: 0; }
+        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
         body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-            background: #f5f2ed;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: var(--cream);
+            color: var(--text-primary);
             min-height: 100vh;
         }
-        .header {
-            background: linear-gradient(135deg, #8b5a2b, #5c3d1e);
-            color: white;
-            padding: 1rem 2rem;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
+
+        .admin-content {
+            padding: 2rem;
+            max-width: 1200px;
         }
-        .header h1 { font-size: 1.5rem; }
-        .header a {
-            color: white;
-            text-decoration: none;
-            padding: 0.5rem 1rem;
-            background: rgba(255,255,255,0.2);
-            border-radius: 6px;
-        }
-        .container {
-            max-width: 1000px;
-            margin: 2rem auto;
-            padding: 0 1rem;
-        }
-        .welcome {
+
+        .page-header {
             margin-bottom: 2rem;
         }
-        .welcome h2 {
-            color: #5c3d1e;
-            font-size: 1.8rem;
+
+        .page-header h2 {
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: var(--text-primary);
+            letter-spacing: -0.3px;
+        }
+
+        .page-header p {
+            color: var(--text-muted);
+            font-size: 0.9rem;
+            margin-top: 0.25rem;
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 1rem;
+            margin-bottom: 2rem;
+        }
+
+        .stat-card {
+            background: var(--white);
+            border-radius: var(--radius-md);
+            padding: 1.25rem 1.5rem;
+            border: 1px solid var(--border);
+            transition: box-shadow 0.2s;
+        }
+
+        .stat-card:hover {
+            box-shadow: var(--shadow-md);
+        }
+
+        .stat-card-label {
+            font-size: 0.75rem;
+            text-transform: uppercase;
+            letter-spacing: 0.8px;
+            color: var(--text-muted);
+            font-weight: 600;
             margin-bottom: 0.5rem;
         }
-        .welcome p {
-            color: #666;
+
+        .stat-card-value {
+            font-size: 1.75rem;
+            font-weight: 700;
+            color: var(--text-primary);
+            letter-spacing: -0.5px;
         }
-        .dashboard-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-            gap: 1.5rem;
+
+        .stat-card-sub {
+            font-size: 0.8rem;
+            color: var(--text-secondary);
+            margin-top: 0.25rem;
         }
-        .dashboard-card {
-            background: white;
-            border-radius: 12px;
-            box-shadow: 0 4px 15px rgba(0,0,0,0.08);
-            padding: 2rem;
-            text-decoration: none;
-            color: inherit;
-            transition: transform 0.2s, box-shadow 0.2s;
-            display: block;
-        }
-        .dashboard-card:hover {
-            transform: translateY(-4px);
-            box-shadow: 0 8px 25px rgba(0,0,0,0.12);
-        }
-        .dashboard-card.disabled {
-            opacity: 0.6;
-            cursor: not-allowed;
-            pointer-events: none;
-        }
-        .dashboard-card .icon {
-            width: 60px;
-            height: 60px;
-            background: linear-gradient(135deg, #8b5a2b, #5c3d1e);
-            border-radius: 12px;
+
+        .stat-card-icon {
+            float: right;
+            width: 40px;
+            height: 40px;
+            border-radius: 10px;
             display: flex;
             align-items: center;
             justify-content: center;
-            margin-bottom: 1rem;
-            font-size: 1.8rem;
+            font-size: 1.1rem;
         }
-        .dashboard-card.disabled .icon {
-            background: linear-gradient(135deg, #999, #666);
+
+        .content-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 1.5rem;
+            margin-bottom: 2rem;
         }
-        .dashboard-card h3 {
-            color: #5c3d1e;
-            font-size: 1.3rem;
-            margin-bottom: 0.5rem;
+
+        .card {
+            background: var(--white);
+            border-radius: var(--radius-md);
+            border: 1px solid var(--border);
+            overflow: hidden;
         }
-        .dashboard-card.disabled h3 {
-            color: #888;
+
+        .card-header {
+            padding: 1rem 1.5rem;
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
         }
-        .dashboard-card p {
-            color: #666;
-            font-size: 0.95rem;
-            line-height: 1.5;
+
+        .card-header h3 {
+            font-size: 0.9rem;
+            font-weight: 600;
+            color: var(--text-primary);
         }
-        .dashboard-card .badge {
-            display: inline-block;
-            background: #e8dfd2;
-            color: #8b5a2b;
-            padding: 0.25rem 0.75rem;
-            border-radius: 20px;
-            font-size: 0.8rem;
-            margin-top: 1rem;
-        }
-        .dashboard-card.disabled .badge {
-            background: #ddd;
-            color: #888;
-        }
-        .quick-links {
-            margin-top: 2rem;
-            padding: 1.5rem;
-            background: white;
-            border-radius: 12px;
-            box-shadow: 0 4px 15px rgba(0,0,0,0.08);
-        }
-        .quick-links h3 {
-            color: #5c3d1e;
-            margin-bottom: 1rem;
-        }
-        .quick-links a {
-            color: #8b5a2b;
+
+        .card-header-link {
+            font-size: 0.78rem;
+            color: var(--brown-medium);
             text-decoration: none;
-            margin-right: 1.5rem;
+            font-weight: 500;
         }
-        .quick-links a:hover {
-            text-decoration: underline;
+
+        .card-header-link:hover { text-decoration: underline; }
+
+        .card-body {
+            padding: 1rem 1.5rem;
+        }
+
+        .order-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0.7rem 0;
+            border-bottom: 1px solid var(--cream-dark);
+        }
+
+        .order-row:last-child { border-bottom: none; }
+
+        .order-info {
+            display: flex;
+            flex-direction: column;
+            gap: 0.15rem;
+        }
+
+        .order-id {
+            font-size: 0.78rem;
+            color: var(--text-muted);
+            font-weight: 500;
+        }
+
+        .order-name {
+            font-size: 0.88rem;
+            font-weight: 500;
+            color: var(--text-primary);
+        }
+
+        .order-date {
+            font-size: 0.75rem;
+            color: var(--text-muted);
+        }
+
+        .order-right {
+            text-align: right;
+            display: flex;
+            flex-direction: column;
+            align-items: flex-end;
+            gap: 0.25rem;
+        }
+
+        .order-amount {
+            font-weight: 600;
+            font-size: 0.9rem;
+            color: var(--text-primary);
+        }
+
+        .status-badge {
+            display: inline-block;
+            padding: 0.15rem 0.6rem;
+            border-radius: 20px;
+            font-size: 0.68rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.3px;
+        }
+
+        .product-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0.6rem 0;
+            border-bottom: 1px solid var(--cream-dark);
+        }
+
+        .product-row:last-child { border-bottom: none; }
+
+        .product-name {
+            font-size: 0.88rem;
+            font-weight: 500;
+            color: var(--text-primary);
+        }
+
+        .product-qty {
+            font-size: 0.85rem;
+            font-weight: 600;
+            color: var(--brown);
+            background: var(--cream-dark);
+            padding: 0.2rem 0.65rem;
+            border-radius: 6px;
+        }
+
+        .empty-state {
+            text-align: center;
+            padding: 2rem 1rem;
+            color: var(--text-muted);
+            font-size: 0.88rem;
+        }
+
+        .empty-state i {
+            font-size: 1.5rem;
+            display: block;
+            margin-bottom: 0.5rem;
+            opacity: 0.4;
+        }
+
+        .app-section {
+            background: var(--white);
+            border-radius: var(--radius-md);
+            border: 1px solid var(--border);
+            padding: 1.25rem 1.5rem;
+            margin-bottom: 1.5rem;
+        }
+
+        .app-section h3 {
+            font-size: 0.9rem;
+            font-weight: 600;
+            color: var(--text-primary);
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            margin-bottom: 0.35rem;
+        }
+
+        .app-section p {
+            font-size: 0.83rem;
+            color: var(--text-secondary);
+            margin-bottom: 1rem;
+        }
+
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.4rem;
+            padding: 0.55rem 1.25rem;
+            border-radius: var(--radius-sm);
+            font-size: 0.85rem;
+            font-weight: 600;
+            border: none;
+            cursor: pointer;
+            transition: all 0.15s;
+            text-decoration: none;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, var(--brown), var(--brown-dark));
+            color: white;
+        }
+
+        .btn-primary:hover { opacity: 0.9; }
+
+        .btn-danger {
+            background: #c0392b;
+            color: white;
+        }
+
+        .btn-disabled {
+            background: #999;
+            color: white;
+            cursor: not-allowed;
+        }
+
+        .hint-text {
+            font-size: 0.75rem;
+            color: var(--text-muted);
+            margin-top: 0.5rem;
+        }
+
+        .install-steps {
+            display: flex;
+            flex-direction: column;
+            gap: 0.65rem;
+        }
+
+        .install-step {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            font-size: 0.88rem;
+            color: var(--text-primary);
+        }
+
+        .install-step-num {
+            width: 28px;
+            height: 28px;
+            border-radius: 8px;
+            background: var(--cream-dark);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 700;
+            font-size: 0.78rem;
+            color: var(--brown);
+            flex-shrink: 0;
+        }
+
+        .quick-links-bar {
+            display: flex;
+            gap: 0.75rem;
+            flex-wrap: wrap;
+        }
+
+        .quick-link {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.35rem;
+            padding: 0.45rem 1rem;
+            background: var(--white);
+            border: 1px solid var(--border);
+            border-radius: var(--radius-sm);
+            color: var(--text-secondary);
+            text-decoration: none;
+            font-size: 0.82rem;
+            font-weight: 500;
+            transition: all 0.15s;
+        }
+
+        .quick-link:hover {
+            border-color: var(--brown-medium);
+            color: var(--brown);
+            box-shadow: var(--shadow-sm);
+        }
+
+        @media (max-width: 1024px) {
+            .stats-grid { grid-template-columns: repeat(2, 1fr); }
+            .content-grid { grid-template-columns: 1fr; }
+        }
+
+        @media (max-width: 768px) {
+            .admin-content { padding: 1.25rem; }
+            .stats-grid { grid-template-columns: 1fr 1fr; gap: 0.75rem; }
+            .stat-card { padding: 1rem; }
+            .stat-card-value { font-size: 1.5rem; }
+            .stat-card-icon { width: 36px; height: 36px; font-size: 1rem; }
+        }
+
+        @media (max-width: 480px) {
+            .stats-grid { grid-template-columns: 1fr; }
+            .quick-links-bar { flex-direction: column; }
+            .quick-link { justify-content: center; }
         }
     </style>
 </head>
 <body>
-    <div class="header">
-        <h1>Civetta Admin</h1>
-        <a href="logout.php">Uitloggen</a>
-    </div>
-    
-    <div class="container">
-        <div class="welcome">
-            <h2>Welkom terug!</h2>
-            <p>Beheer hier je bakkerij website.</p>
-        </div>
+    <div class="admin-layout">
+        <?php include 'components/sidebar.php'; ?>
 
-        <div class="dashboard-grid">
-            <a href="bakker/bakker-dashboard.php" class="dashboard-card" style="grid-column: 1 / -1; background: linear-gradient(135deg, #fff9e6, #fff3cd);">
-                <div class="icon" style="background: linear-gradient(135deg, #f59e0b, #d97706);">📅</div>
-                <h3>Bakker Planning</h3>
-                <p>Kalenderoverzicht met bestellingen om te bereiden en te leveren. Inclusief route planning.</p>
-                <span class="badge" style="background: #fef3c7; color: #92400e;">Nieuw</span>
-            </a>
+        <div class="admin-main">
+            <header class="topbar">
+                <div class="topbar-left">
+                    <button class="mobile-toggle" onclick="toggleSidebar()">
+                        <i class="bi bi-list"></i>
+                    </button>
+                    <span class="topbar-title">Dashboard</span>
+                </div>
+                <div class="topbar-right">
+                    <a href="../index.html" target="_blank" class="topbar-link">
+                        <i class="bi bi-globe2"></i> <span>Website bekijken</span>
+                    </a>
+                </div>
+            </header>
 
-            <a href="bakker/bakcalculator.php" class="dashboard-card" style="background: linear-gradient(135deg, #fdf6e9, #f5e6cc);">
-                <div class="icon" style="background: linear-gradient(135deg, #c8913a, #a0722e);">🧮</div>
-                <h3>Bak Calculator</h3>
-                <p>Baker's Math tool voor receptberekeningen. Meelsoorten, voordeeg, toevoegingen en meer.</p>
-                <span class="badge" style="background: #f5e6cc; color: #8b5a2b;">Nieuw</span>
-            </a>
+            <div class="admin-content">
+                <div class="page-header">
+                    <h2>Welkom terug</h2>
+                    <p><?= strftime('%A %e %B %Y', time()) ?: date('l j F Y') ?></p>
+                </div>
 
-            <a href="blog/posts.php" class="dashboard-card">
-                <div class="icon">📝</div>
-                <h3>Blog Posts</h3>
-                <p>Schrijf en beheer nieuws berichten voor je website.</p>
-                <span class="badge">Actief</span>
-            </a>
-
-            <a href="donaties/donations.php" class="dashboard-card">
-                <div class="icon">💚</div>
-                <h3>Donaties</h3>
-                <p>Bekijk ontvangen crowdfunding donaties.</p>
-                <span class="badge">Actief</span>
-            </a>
-
-            <a href="producten/products.php" class="dashboard-card">
-                <div class="icon">🥖</div>
-                <h3>Producten</h3>
-                <p>Beheer je bakkerij producten.</p>
-                <span class="badge">Actief</span>
-            </a>
-
-            <a href="accounts/accounts.php" class="dashboard-card">
-                <div class="icon">👥</div>
-                <h3>Accounts beheren</h3>
-                <p>Beheer zakelijke en particuliere accounts.</p>
-                <span class="badge">Actief</span>
-            </a>
-
-            <a href="bestellingen/orders.php" class="dashboard-card">
-                <div class="icon">📦</div>
-                <h3>Bestellingen</h3>
-                <p>Bekijk en beheer klant bestellingen.</p>
-                <span class="badge">Actief</span>
-            </a>
-
-            <a href="settings/settings-bedrijf.php" class="dashboard-card">
-                <div class="icon">⚙️</div>
-                <h3>Bedrijfsgegevens</h3>
-                <p>Beheer je bedrijfsgegevens voor facturen en contact.</p>
-                <span class="badge">Settings</span>
-            </a>
-
-            <a href="settings/settings-boekhouding.php" class="dashboard-card">
-                <div class="icon">📊</div>
-                <h3>Boekhouding</h3>
-                <p>Facturatie instellingen en e-Boekhouden koppeling.</p>
-                <span class="badge">Settings</span>
-            </a>
-        </div>
-
-        <div class="apps-section" id="appsSection" style="display:none; margin-top: 2rem; padding: 1.5rem; background: white; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.08);">
-            <h3 style="color: #5c3d1e; margin-bottom: 0.5rem; display: flex; align-items: center; gap: 0.5rem;">
-                <span style="font-size: 1.3rem;">📱</span> Civetta Bakker App
-            </h3>
-            <p style="color: #666; font-size: 0.9rem; margin-bottom: 1.25rem;">
-                Installeer de bakker app voor snelle toegang. De app werkt offline en wordt automatisch bijgewerkt met website-wijzigingen.
-            </p>
-            <div id="installChrome" style="display: flex; gap: 1rem; flex-wrap: wrap;">
-                <button id="installBtn" onclick="installPWA()" style="padding: 0.7rem 1.5rem; background: linear-gradient(135deg, #8b5a2b, #5c3d1e); color: white; border: none; border-radius: 8px; font-size: 0.95rem; font-weight: 600; cursor: pointer; display: inline-flex; align-items: center; gap: 0.5rem;">
-                    <span id="installIcon">💻</span> Installeer App
-                </button>
-            </div>
-            <div id="installIOS" style="display: none;">
-                <div style="display: flex; flex-direction: column; gap: 0.75rem;">
-                    <div style="display: flex; align-items: center; gap: 0.75rem;">
-                        <span style="background: #f0f0f0; width: 32px; height: 32px; border-radius: 8px; display: flex; align-items: center; justify-content: center; font-weight: 700; color: #5c3d1e; flex-shrink: 0;">1</span>
-                        <span style="color: #333; font-size: 0.95rem;">Tik op het <strong>Delen</strong>-icoon <span style="display: inline-block; border: 1px solid #ccc; border-radius: 4px; padding: 0 4px; font-size: 1.1rem; vertical-align: middle; line-height: 1.4;">&#xFEFF;<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#007AFF" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="vertical-align: middle;"><path d="M4 12v8a2 2 0 002 2h12a2 2 0 002-2v-8"/><polyline points="16 6 12 2 8 6"/><line x1="12" y1="2" x2="12" y2="15"/></svg></span> onderaan het scherm</span>
+                <div class="stats-grid">
+                    <div class="stat-card">
+                        <div class="stat-card-icon" style="background: #eaf4fe; color: #2980b9;">
+                            <i class="bi bi-truck"></i>
+                        </div>
+                        <div class="stat-card-label">Leveringen vandaag</div>
+                        <div class="stat-card-value"><?= $todayOrders ?></div>
+                        <?php if ($todayUnprocessed > 0): ?>
+                            <div class="stat-card-sub" style="color: #e67e22;"><?= $todayUnprocessed ?> nog niet verwerkt</div>
+                        <?php else: ?>
+                            <div class="stat-card-sub">Alles verwerkt</div>
+                        <?php endif; ?>
                     </div>
-                    <div style="display: flex; align-items: center; gap: 0.75rem;">
-                        <span style="background: #f0f0f0; width: 32px; height: 32px; border-radius: 8px; display: flex; align-items: center; justify-content: center; font-weight: 700; color: #5c3d1e; flex-shrink: 0;">2</span>
-                        <span style="color: #333; font-size: 0.95rem;">Scroll naar beneden en tik op <strong>Zet op beginscherm</strong></span>
+
+                    <div class="stat-card">
+                        <div class="stat-card-icon" style="background: #fef5e7; color: #e67e22;">
+                            <i class="bi bi-fire"></i>
+                        </div>
+                        <div class="stat-card-label">Bereiden morgen</div>
+                        <div class="stat-card-value"><?= $tomorrowOrders ?></div>
+                        <div class="stat-card-sub"><?= count($productsToBake) ?> producten</div>
                     </div>
-                    <div style="display: flex; align-items: center; gap: 0.75rem;">
-                        <span style="background: #f0f0f0; width: 32px; height: 32px; border-radius: 8px; display: flex; align-items: center; justify-content: center; font-weight: 700; color: #5c3d1e; flex-shrink: 0;">3</span>
-                        <span style="color: #333; font-size: 0.95rem;">Tik op <strong>Voeg toe</strong> rechtsboven</span>
+
+                    <div class="stat-card">
+                        <div class="stat-card-icon" style="background: #eafaf1; color: #27ae60;">
+                            <i class="bi bi-people"></i>
+                        </div>
+                        <div class="stat-card-label">Accounts in afwachting</div>
+                        <div class="stat-card-value"><?= $pendingAccounts ?></div>
+                        <div class="stat-card-sub"><?= $pendingAccounts > 0 ? 'Actie vereist' : 'Geen openstaand' ?></div>
+                    </div>
+
+                    <div class="stat-card">
+                        <div class="stat-card-icon" style="background: #f4ecf7; color: #8e44ad;">
+                            <i class="bi bi-graph-up"></i>
+                        </div>
+                        <div class="stat-card-label">Week overzicht</div>
+                        <?php
+                        $weekStart = date('Y-m-d', strtotime('monday this week'));
+                        $weekEnd = date('Y-m-d', strtotime('sunday this week'));
+                        $stmt = $pdo->prepare("SELECT COUNT(*) as count, COALESCE(SUM(total_amount),0) as total FROM business_orders WHERE delivery_date BETWEEN ? AND ? AND is_cancelled = 0");
+                        $stmt->execute([$weekStart, $weekEnd]);
+                        $weekData = $stmt->fetch();
+                        ?>
+                        <div class="stat-card-value"><?= $weekData['count'] ?></div>
+                        <div class="stat-card-sub">&euro;<?= number_format($weekData['total'], 2, ',', '.') ?> omzet</div>
                     </div>
                 </div>
+
+                <div class="content-grid">
+                    <div class="card">
+                        <div class="card-header">
+                            <h3><i class="bi bi-clock-history" style="margin-right: 0.35rem; color: var(--brown-medium);"></i> Komende bestellingen</h3>
+                            <a href="bestellingen/orders.php" class="card-header-link">Alles bekijken</a>
+                        </div>
+                        <div class="card-body">
+                            <?php if (empty($recentOrders)): ?>
+                                <div class="empty-state">
+                                    <i class="bi bi-inbox"></i>
+                                    Geen komende bestellingen
+                                </div>
+                            <?php else: ?>
+                                <?php foreach ($recentOrders as $order):
+                                    $statusLabel = $deliveryStatusLabels[$order['delivery_status']] ?? $order['delivery_status'];
+                                    $statusColor = $deliveryStatusColors[$order['delivery_status']] ?? '#999';
+                                ?>
+                                    <div class="order-row">
+                                        <div class="order-info">
+                                            <span class="order-id">#<?= $order['id'] ?></span>
+                                            <span class="order-name"><?= htmlspecialchars($order['bedrijfsnaam']) ?></span>
+                                            <span class="order-date"><?= getDutchDay($order['delivery_date']) ?> <?= date('j M', strtotime($order['delivery_date'])) ?></span>
+                                        </div>
+                                        <div class="order-right">
+                                            <span class="order-amount">&euro;<?= number_format($order['total_amount'], 2, ',', '.') ?></span>
+                                            <span class="status-badge" style="background: <?= $statusColor ?>15; color: <?= $statusColor ?>;">
+                                                <?= $statusLabel ?>
+                                            </span>
+                                        </div>
+                                    </div>
+                                <?php endforeach; ?>
+                            <?php endif; ?>
+                        </div>
+                    </div>
+
+                    <div class="card">
+                        <div class="card-header">
+                            <h3><i class="bi bi-fire" style="margin-right: 0.35rem; color: #e67e22;"></i> Te bereiden morgen</h3>
+                            <a href="bakker/bakker-dashboard.php" class="card-header-link">Planning openen</a>
+                        </div>
+                        <div class="card-body">
+                            <?php if (empty($productsToBake)): ?>
+                                <div class="empty-state">
+                                    <i class="bi bi-check-circle"></i>
+                                    Geen producten voor morgen
+                                </div>
+                            <?php else: ?>
+                                <?php foreach ($productsToBake as $product): ?>
+                                    <div class="product-row">
+                                        <span class="product-name"><?= htmlspecialchars($product['product_name']) ?></span>
+                                        <span class="product-qty"><?= $product['total_qty'] ?>x</span>
+                                    </div>
+                                <?php endforeach; ?>
+                            <?php endif; ?>
+                        </div>
+                    </div>
+                </div>
+
+                <div id="appsSection" style="display:none;" class="app-section">
+                    <h3><i class="bi bi-phone"></i> Civetta Bakker App</h3>
+                    <p>Installeer de bakker app voor snelle toegang. De app werkt offline en wordt automatisch bijgewerkt.</p>
+                    <div id="installChrome">
+                        <button id="installBtn" onclick="installPWA()" class="btn btn-primary">
+                            <i class="bi bi-download"></i> Installeer App
+                        </button>
+                    </div>
+                    <div id="installIOS" style="display: none;">
+                        <div class="install-steps">
+                            <div class="install-step">
+                                <span class="install-step-num">1</span>
+                                <span>Tik op het <strong>Delen</strong>-icoon onderaan</span>
+                            </div>
+                            <div class="install-step">
+                                <span class="install-step-num">2</span>
+                                <span>Tik op <strong>Zet op beginscherm</strong></span>
+                            </div>
+                            <div class="install-step">
+                                <span class="install-step-num">3</span>
+                                <span>Tik op <strong>Voeg toe</strong> rechtsboven</span>
+                            </div>
+                        </div>
+                    </div>
+                    <p class="hint-text" id="installHint"></p>
+                </div>
+
+                <div id="notifSection" style="display:none;" class="app-section">
+                    <h3><i class="bi bi-bell"></i> Push Notificaties</h3>
+                    <p>Ontvang een melding als een klant een bestelling plaatst.</p>
+                    <button id="notifBtn" onclick="togglePushNotifications()" class="btn btn-primary">
+                        Notificaties inschakelen
+                    </button>
+                    <p class="hint-text" id="notifHint"></p>
+                </div>
+
+                <div class="quick-links-bar">
+                    <a href="../index.html" target="_blank" class="quick-link">
+                        <i class="bi bi-globe2"></i> Website
+                    </a>
+                    <a href="../financiering.html" target="_blank" class="quick-link">
+                        <i class="bi bi-piggy-bank"></i> Crowdfunding
+                    </a>
+                    <a href="../contact.html" target="_blank" class="quick-link">
+                        <i class="bi bi-envelope"></i> Contact
+                    </a>
+                </div>
             </div>
-            <p style="color: #999; font-size: 0.8rem; margin-top: 0.75rem;" id="installHint"></p>
-        </div>
-
-        <div id="notifSection" style="display:none; margin-top: 2rem; padding: 1.5rem; background: white; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.08);">
-            <h3 style="color: #5c3d1e; margin-bottom: 0.5rem; display: flex; align-items: center; gap: 0.5rem;">
-                <span style="font-size: 1.3rem;">🔔</span> Push Notificaties
-            </h3>
-            <p style="color: #666; font-size: 0.9rem; margin-bottom: 1.25rem;">
-                Ontvang een melding als een klant een bestelling plaatst.
-            </p>
-            <button id="notifBtn" onclick="togglePushNotifications()" style="padding: 0.7rem 1.5rem; background: linear-gradient(135deg, #8b5a2b, #5c3d1e); color: white; border: none; border-radius: 8px; font-size: 0.95rem; font-weight: 600; cursor: pointer; display: inline-flex; align-items: center; gap: 0.5rem;">
-                Notificaties inschakelen
-            </button>
-            <p style="color: #999; font-size: 0.8rem; margin-top: 0.75rem;" id="notifHint"></p>
-        </div>
-
-        <div class="quick-links">
-            <h3>Snelle links</h3>
-            <a href="../index.html" target="_blank">Bekijk website</a>
-            <a href="../financiering.html" target="_blank">Crowdfunding pagina</a>
-            <a href="../contact.html" target="_blank">Contact pagina</a>
         </div>
     </div>
 
@@ -286,11 +641,9 @@ requireLogin();
         const ua = navigator.userAgent.toLowerCase();
         const hint = document.getElementById('installHint');
         if (/android/.test(ua)) {
-            document.getElementById('installIcon').textContent = '🤖';
             hint.textContent = 'Wordt toegevoegd aan je startscherm.';
         } else if (/macintosh|mac os/.test(ua)) {
-            document.getElementById('installIcon').textContent = '💻';
-            hint.textContent = 'Wordt geïnstalleerd als macOS app. Gebruik Chrome of Edge.';
+            hint.textContent = 'Wordt geinstalleerd als macOS app. Gebruik Chrome of Edge.';
         } else {
             hint.textContent = 'Gebruik Chrome of Edge om de app te installeren.';
         }
@@ -301,9 +654,11 @@ requireLogin();
             deferredPrompt.prompt();
             deferredPrompt.userChoice.then((choice) => {
                 if (choice.outcome === 'accepted') {
-                    document.getElementById('installBtn').textContent = '✓ Geïnstalleerd';
-                    document.getElementById('installBtn').disabled = true;
-                    document.getElementById('installBtn').style.background = '#2e7d32';
+                    const btn = document.getElementById('installBtn');
+                    btn.innerHTML = '<i class="bi bi-check-lg"></i> Geinstalleerd';
+                    btn.disabled = true;
+                    btn.className = 'btn btn-disabled';
+                    btn.style.background = '#2e7d32';
                 }
                 deferredPrompt = null;
             });
@@ -338,9 +693,10 @@ requireLogin();
 
         const perm = Notification.permission;
         if (perm === 'denied') {
-            document.getElementById('notifBtn').textContent = 'Notificaties geblokkeerd';
-            document.getElementById('notifBtn').disabled = true;
-            document.getElementById('notifBtn').style.background = '#999';
+            const btn = document.getElementById('notifBtn');
+            btn.textContent = 'Notificaties geblokkeerd';
+            btn.disabled = true;
+            btn.className = 'btn btn-disabled';
             document.getElementById('notifHint').textContent = 'Je hebt notificaties geblokkeerd. Wijzig dit in je browserinstellingen.';
             return;
         }
@@ -348,8 +704,9 @@ requireLogin();
         const reg = await navigator.serviceWorker.ready;
         const sub = await reg.pushManager.getSubscription();
         if (sub) {
-            document.getElementById('notifBtn').textContent = 'Notificaties uitschakelen';
-            document.getElementById('notifBtn').style.background = '#c0392b';
+            const btn = document.getElementById('notifBtn');
+            btn.textContent = 'Notificaties uitschakelen';
+            btn.className = 'btn btn-danger';
             document.getElementById('notifHint').textContent = 'Je ontvangt meldingen bij nieuwe bestellingen.';
         }
     }
@@ -365,8 +722,9 @@ requireLogin();
                 body: JSON.stringify({ endpoint: existing.endpoint })
             });
             await existing.unsubscribe();
-            document.getElementById('notifBtn').textContent = 'Notificaties inschakelen';
-            document.getElementById('notifBtn').style.background = 'linear-gradient(135deg, #8b5a2b, #5c3d1e)';
+            const btn = document.getElementById('notifBtn');
+            btn.textContent = 'Notificaties inschakelen';
+            btn.className = 'btn btn-primary';
             document.getElementById('notifHint').textContent = 'Notificaties uitgeschakeld.';
             return;
         }
@@ -399,8 +757,9 @@ requireLogin();
                 })
             });
 
-            document.getElementById('notifBtn').textContent = 'Notificaties uitschakelen';
-            document.getElementById('notifBtn').style.background = '#c0392b';
+            const btn = document.getElementById('notifBtn');
+            btn.textContent = 'Notificaties uitschakelen';
+            btn.className = 'btn btn-danger';
             document.getElementById('notifHint').textContent = 'Je ontvangt nu meldingen bij nieuwe bestellingen.';
         } catch (e) {
             document.getElementById('notifHint').textContent = 'Fout bij inschakelen: ' + e.message;

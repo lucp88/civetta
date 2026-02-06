@@ -46,9 +46,21 @@ $stmt = $pdo->prepare("
 $stmt->execute([$tomorrow]);
 $productsToBake = $stmt->fetchAll();
 
-function getDutchDayName($date) {
-    $dagen = ['zondag', 'maandag', 'dinsdag', 'woensdag', 'donderdag', 'vrijdag', 'zaterdag'];
-    return $dagen[date('w', strtotime($date))];
+$stmt = $pdo->query("SELECT COUNT(*) as count FROM business_accounts WHERE status = 'pending'");
+$sidebarPendingAccounts = $stmt->fetch()['count'];
+
+$stmt = $pdo->prepare("SELECT COUNT(*) as count FROM business_orders WHERE delivery_date = ? AND is_cancelled = 0 AND delivery_status = 'geplaatst'");
+$stmt->execute([$today]);
+$sidebarUnprocessedOrders = $stmt->fetch()['count'];
+
+$currentPage = 'bakker-dashboard';
+$adminBasePath = '../';
+
+function getGreeting() {
+    $hour = (int)date('H');
+    if ($hour < 12) return 'Goedemorgen';
+    if ($hour < 18) return 'Goedemiddag';
+    return 'Goedenavond';
 }
 ?>
 <!DOCTYPE html>
@@ -56,7 +68,7 @@ function getDutchDayName($date) {
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Bakker Dashboard | Civetta Admin</title>
+    <title>Bakker Planning | Civetta Admin</title>
     <link rel="manifest" href="../manifest.json">
     <meta name="theme-color" content="#5c3d1e">
     <meta name="apple-mobile-web-app-capable" content="yes">
@@ -65,340 +77,465 @@ function getDutchDayName($date) {
     <link rel="apple-touch-icon" sizes="512x512" href="/img/icon-512.png">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
     <style>
-        * { box-sizing: border-box; margin: 0; padding: 0; }
+        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
         body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-            background: #f5f2ed;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: var(--cream);
+            color: var(--text-primary);
             min-height: 100vh;
         }
-        .header {
-            background: linear-gradient(135deg, #8b5a2b, #5c3d1e);
-            color: white;
-            padding: 1rem 2rem;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-        }
-        .header h1 { font-size: 1.5rem; display: flex; align-items: center; gap: 0.5rem; }
-        .header-links { display: flex; gap: 0.75rem; }
-        .header a {
-            color: white;
-            text-decoration: none;
-            padding: 0.5rem 1rem;
-            background: rgba(255,255,255,0.2);
-            border-radius: 6px;
-            font-size: 0.9rem;
-        }
-        .header a:hover { background: rgba(255,255,255,0.3); }
-        
-        .container {
+
+        .admin-content {
+            padding: 2rem;
             max-width: 1000px;
-            margin: 0 auto;
-            padding: 2rem 1.5rem;
         }
-        
-        .welcome {
-            text-align: center;
+
+        .page-header {
             margin-bottom: 2rem;
+            text-align: center;
         }
-        .welcome h2 {
-            color: #5c3d1e;
-            font-size: 1.8rem;
-            margin-bottom: 0.5rem;
+
+        .page-header h2 {
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: var(--text-primary);
+            letter-spacing: -0.3px;
         }
-        .welcome p { color: #666; }
-        
-        .main-cards {
+
+        .page-header p {
+            color: var(--text-muted);
+            font-size: 0.9rem;
+            margin-top: 0.25rem;
+        }
+
+        .action-cards {
             display: grid;
             grid-template-columns: 1fr 1fr;
             gap: 1.5rem;
             margin-bottom: 2rem;
         }
-        @media (max-width: 700px) {
-            .main-cards { grid-template-columns: 1fr; }
-        }
-        
-        .main-card {
-            background: white;
-            border-radius: 16px;
-            padding: 2rem;
+
+        .action-card {
+            background: var(--white);
+            border-radius: var(--radius-lg);
+            padding: 1.75rem;
             text-decoration: none;
             color: inherit;
             transition: all 0.2s;
-            box-shadow: 0 4px 15px rgba(0,0,0,0.08);
+            border: 2px solid var(--border);
             display: block;
             position: relative;
             overflow: hidden;
         }
-        .main-card:hover {
+
+        .action-card:hover {
             transform: translateY(-4px);
-            box-shadow: 0 8px 30px rgba(0,0,0,0.12);
+            box-shadow: var(--shadow-lg);
         }
-        
-        .main-card.bereiden {
-            background: linear-gradient(135deg, #fff5f0, #ffe8db);
-            border: 2px solid #ffccbc;
+
+        .action-card.bereiden {
+            background: linear-gradient(135deg, #fff8f5, #ffede5);
+            border-color: #ffccbc;
         }
-        .main-card.bereiden:hover { border-color: #ff6b35; }
-        .main-card.bereiden .card-icon { background: linear-gradient(135deg, #ff6b35, #e55a2b); }
-        .main-card.bereiden .card-title { color: #e55a2b; }
-        
-        .main-card.leveren {
-            background: linear-gradient(135deg, #e3f2fd, #bbdefb);
-            border: 2px solid #90caf9;
+
+        .action-card.bereiden:hover {
+            border-color: #ff6b35;
         }
-        .main-card.leveren:hover { border-color: #2196f3; }
-        .main-card.leveren .card-icon { background: linear-gradient(135deg, #2196f3, #1976d2); }
-        .main-card.leveren .card-title { color: #1976d2; }
-        
-        .card-icon {
-            width: 60px;
-            height: 60px;
-            border-radius: 12px;
+
+        .action-card.leveren {
+            background: linear-gradient(135deg, #f0f7ff, #e1efff);
+            border-color: #90caf9;
+        }
+
+        .action-card.leveren:hover {
+            border-color: #2196f3;
+        }
+
+        .action-card-icon {
+            width: 56px;
+            height: 56px;
+            border-radius: 14px;
             display: flex;
             align-items: center;
             justify-content: center;
-            margin-bottom: 1rem;
-            font-size: 1.8rem;
+            margin-bottom: 1.25rem;
+            font-size: 1.5rem;
             color: white;
         }
-        
-        .card-title {
-            font-size: 1.5rem;
+
+        .action-card.bereiden .action-card-icon {
+            background: linear-gradient(135deg, #ff6b35, #e55a2b);
+        }
+
+        .action-card.leveren .action-card-icon {
+            background: linear-gradient(135deg, #2196f3, #1976d2);
+        }
+
+        .action-card-title {
+            font-size: 1.35rem;
             font-weight: 700;
             margin-bottom: 0.5rem;
         }
-        
-        .card-desc {
-            color: #666;
-            margin-bottom: 1rem;
-            font-size: 0.95rem;
+
+        .action-card.bereiden .action-card-title {
+            color: #d84315;
         }
-        
-        .card-stats {
+
+        .action-card.leveren .action-card-title {
+            color: #1565c0;
+        }
+
+        .action-card-desc {
+            color: var(--text-secondary);
+            font-size: 0.88rem;
+            margin-bottom: 1.25rem;
+            line-height: 1.5;
+        }
+
+        .action-card-stats {
             display: flex;
-            gap: 1.5rem;
+            gap: 2rem;
         }
-        .stat {
-            text-align: center;
+
+        .action-stat {
+            text-align: left;
         }
-        .stat-value {
-            font-size: 2rem;
+
+        .action-stat-value {
+            font-size: 1.75rem;
             font-weight: 700;
+            line-height: 1.2;
         }
-        .main-card.bereiden .stat-value { color: #e55a2b; }
-        .main-card.leveren .stat-value { color: #1976d2; }
-        .stat-label {
-            font-size: 0.75rem;
-            color: #888;
+
+        .action-card.bereiden .action-stat-value {
+            color: #e55a2b;
+        }
+
+        .action-card.leveren .action-stat-value {
+            color: #1976d2;
+        }
+
+        .action-stat-label {
+            font-size: 0.7rem;
             text-transform: uppercase;
+            letter-spacing: 0.8px;
+            color: var(--text-muted);
+            font-weight: 600;
         }
-        
-        .card-arrow {
+
+        .action-card-arrow {
             position: absolute;
             right: 1.5rem;
             top: 50%;
             transform: translateY(-50%);
-            font-size: 2rem;
-            opacity: 0.3;
+            font-size: 1.75rem;
+            opacity: 0.2;
+            transition: opacity 0.2s;
         }
-        .main-card:hover .card-arrow { opacity: 0.6; }
-        .main-card.bereiden .card-arrow { color: #e55a2b; }
-        .main-card.leveren .card-arrow { color: #1976d2; }
-        
-        .summary-section {
+
+        .action-card:hover .action-card-arrow {
+            opacity: 0.5;
+        }
+
+        .action-card.bereiden .action-card-arrow {
+            color: #e55a2b;
+        }
+
+        .action-card.leveren .action-card-arrow {
+            color: #1976d2;
+        }
+
+        .summary-grid {
             display: grid;
             grid-template-columns: 1fr 1fr;
             gap: 1.5rem;
         }
-        @media (max-width: 700px) {
-            .summary-section { grid-template-columns: 1fr; }
-        }
-        
+
         .summary-card {
-            background: white;
-            border-radius: 12px;
-            box-shadow: 0 4px 15px rgba(0,0,0,0.08);
+            background: var(--white);
+            border-radius: var(--radius-md);
+            border: 1px solid var(--border);
             overflow: hidden;
         }
+
         .summary-header {
             padding: 1rem 1.25rem;
-            border-bottom: 1px solid #eee;
+            border-bottom: 1px solid var(--border);
             display: flex;
             justify-content: space-between;
             align-items: center;
         }
+
         .summary-header h3 {
-            font-size: 1rem;
-            color: #5c3d1e;
+            font-size: 0.9rem;
+            font-weight: 600;
+            color: var(--text-primary);
             display: flex;
             align-items: center;
             gap: 0.5rem;
         }
-        .summary-header a {
-            color: #8b5a2b;
+
+        .summary-header-link {
+            font-size: 0.78rem;
+            color: var(--brown-medium);
             text-decoration: none;
-            font-size: 0.85rem;
+            font-weight: 500;
         }
-        .summary-header a:hover { text-decoration: underline; }
-        
+
+        .summary-header-link:hover {
+            text-decoration: underline;
+        }
+
         .summary-body {
-            padding: 1rem 1.25rem;
+            padding: 0.75rem 1.25rem;
         }
-        
-        .delivery-item {
+
+        .product-row {
             display: flex;
             justify-content: space-between;
             align-items: center;
-            padding: 0.5rem 0;
-            border-bottom: 1px solid #f5f5f5;
+            padding: 0.6rem 0;
+            border-bottom: 1px solid var(--cream-dark);
         }
-        .delivery-item:last-child { border-bottom: none; }
-        .delivery-name { font-weight: 500; color: #333; }
-        .delivery-status {
-            padding: 0.2rem 0.5rem;
-            border-radius: 4px;
-            font-size: 0.7rem;
-            font-weight: 600;
+
+        .product-row:last-child {
+            border-bottom: none;
         }
-        .delivery-status.pending { background: #fff3cd; color: #856404; }
-        .delivery-status.onderweg { background: #e3f2fd; color: #1565c0; }
-        .delivery-status.afgeleverd { background: #d1e7dd; color: #0f5132; }
-        
-        .product-item {
-            display: flex;
-            justify-content: space-between;
-            padding: 0.5rem 0;
-            border-bottom: 1px solid #f5f5f5;
+
+        .product-name {
+            font-size: 0.88rem;
+            font-weight: 500;
+            color: var(--text-primary);
         }
-        .product-item:last-child { border-bottom: none; }
-        .product-name { color: #333; }
+
         .product-qty {
+            font-size: 0.85rem;
             font-weight: 600;
             color: #e55a2b;
+            background: #fff0eb;
+            padding: 0.2rem 0.65rem;
+            border-radius: 6px;
         }
-        
+
+        .delivery-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 0.6rem 0;
+            border-bottom: 1px solid var(--cream-dark);
+        }
+
+        .delivery-row:last-child {
+            border-bottom: none;
+        }
+
+        .delivery-name {
+            font-size: 0.88rem;
+            font-weight: 500;
+            color: var(--text-primary);
+        }
+
+        .delivery-status {
+            display: inline-block;
+            padding: 0.2rem 0.6rem;
+            border-radius: 6px;
+            font-size: 0.7rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.3px;
+        }
+
+        .delivery-status.pending {
+            background: #fef5e7;
+            color: #d68910;
+        }
+
+        .delivery-status.onderweg {
+            background: #eaf4fe;
+            color: #1976d2;
+        }
+
+        .delivery-status.afgeleverd {
+            background: #eafaf1;
+            color: #1e8449;
+        }
+
         .empty-state {
             text-align: center;
-            padding: 1.5rem;
-            color: #999;
+            padding: 2rem 1rem;
+            color: var(--text-muted);
+            font-size: 0.88rem;
         }
+
         .empty-state i {
-            font-size: 2rem;
-            margin-bottom: 0.5rem;
+            font-size: 1.5rem;
             display: block;
+            margin-bottom: 0.5rem;
+            opacity: 0.4;
+        }
+
+        .more-link {
+            display: block;
+            text-align: center;
+            padding: 0.75rem;
+            font-size: 0.82rem;
+            color: var(--brown-medium);
+            text-decoration: none;
+            border-top: 1px solid var(--cream-dark);
+            transition: background 0.15s;
+        }
+
+        .more-link:hover {
+            background: var(--cream);
+        }
+
+        @media (max-width: 1024px) {
+            .action-cards { gap: 1rem; }
+        }
+
+        @media (max-width: 768px) {
+            .admin-content { padding: 1.25rem; }
+            .action-cards { grid-template-columns: 1fr; }
+            .summary-grid { grid-template-columns: 1fr; }
+            .action-card { padding: 1.5rem; }
+            .action-card-arrow { display: none; }
+        }
+
+        @media (max-width: 480px) {
+            .action-card-stats { gap: 1.5rem; }
+            .action-stat-value { font-size: 1.5rem; }
         }
     </style>
 </head>
 <body>
-    <div class="header">
-        <h1><i class="bi bi-calendar3"></i> Bakker Dashboard</h1>
-        <div class="header-links">
-            <a href="../bestellingen/orders.php"><i class="bi bi-list-ul"></i> Alle bestellingen</a>
-            <a href="../index.php"><i class="bi bi-house"></i> Admin</a>
-        </div>
-    </div>
-    
-    <div class="container">
-        <div class="welcome">
-            <h2>Goedemorgen!</h2>
-            <p>Hier is je planning voor vandaag en morgen.</p>
-        </div>
-        
-        <div class="main-cards">
-            <a href="bereiden.php" class="main-card bereiden">
-                <div class="card-icon"><i class="bi bi-fire"></i></div>
-                <div class="card-title">Bereiden</div>
-                <div class="card-desc">Bekijk wat je vandaag moet bakken voor de leveringen van morgen.</div>
-                <div class="card-stats">
-                    <div class="stat">
-                        <div class="stat-value"><?= $todayBereiding['count'] ?? 0 ?></div>
-                        <div class="stat-label">Bestellingen</div>
-                    </div>
-                    <div class="stat">
-                        <div class="stat-value"><?= count($productsToBake) ?></div>
-                        <div class="stat-label">Producten</div>
-                    </div>
+    <div class="admin-layout">
+        <?php include '../components/sidebar.php'; ?>
+
+        <div class="admin-main">
+            <header class="topbar">
+                <div class="topbar-left">
+                    <button class="mobile-toggle" onclick="toggleSidebar()">
+                        <i class="bi bi-list"></i>
+                    </button>
+                    <span class="topbar-title">Bakker Planning</span>
                 </div>
-                <div class="card-arrow"><i class="bi bi-arrow-right"></i></div>
-            </a>
-            
-            <a href="leveren.php" class="main-card leveren">
-                <div class="card-icon"><i class="bi bi-truck"></i></div>
-                <div class="card-title">Leveren</div>
-                <div class="card-desc">Plan je route en lever de bestellingen van vandaag.</div>
-                <div class="card-stats">
-                    <div class="stat">
-                        <div class="stat-value"><?= $todayDeliveries['count'] ?? 0 ?></div>
-                        <div class="stat-label">Stops</div>
-                    </div>
-                    <div class="stat">
-                        <div class="stat-value">€<?= number_format($todayDeliveries['total'] ?? 0, 0, ',', '.') ?></div>
-                        <div class="stat-label">Totaal</div>
-                    </div>
+                <div class="topbar-right">
+                    <a href="../bestellingen/orders.php" class="topbar-link">
+                        <i class="bi bi-list-ul"></i> <span>Bestellingen</span>
+                    </a>
                 </div>
-                <div class="card-arrow"><i class="bi bi-arrow-right"></i></div>
-            </a>
-        </div>
-        
-        <div class="summary-section">
-            <div class="summary-card">
-                <div class="summary-header">
-                    <h3><i class="bi bi-fire"></i> Vandaag bereiden</h3>
-                    <a href="bereiden.php?mode=day">Bekijk alles →</a>
+            </header>
+
+            <div class="admin-content">
+                <div class="page-header">
+                    <h2><?= getGreeting() ?>!</h2>
+                    <p>Hier is je planning voor vandaag en morgen.</p>
                 </div>
-                <div class="summary-body">
-                    <?php if (empty($productsToBake)): ?>
-                        <div class="empty-state">
-                            <i class="bi bi-emoji-smile"></i>
-                            <p>Niets te bereiden vandaag</p>
+
+                <div class="action-cards">
+                    <a href="bereiden.php" class="action-card bereiden">
+                        <div class="action-card-icon">
+                            <i class="bi bi-fire"></i>
                         </div>
-                    <?php else: ?>
-                        <?php foreach (array_slice($productsToBake, 0, 5) as $product): ?>
-                            <div class="product-item">
-                                <span class="product-name"><?= htmlspecialchars($product['product_name']) ?></span>
-                                <span class="product-qty"><?= $product['total_qty'] ?>x</span>
+                        <div class="action-card-title">Bereiden</div>
+                        <div class="action-card-desc">Bekijk wat je vandaag moet bakken voor de leveringen van morgen.</div>
+                        <div class="action-card-stats">
+                            <div class="action-stat">
+                                <div class="action-stat-value"><?= $todayBereiding['count'] ?? 0 ?></div>
+                                <div class="action-stat-label">Bestellingen</div>
                             </div>
-                        <?php endforeach; ?>
+                            <div class="action-stat">
+                                <div class="action-stat-value"><?= count($productsToBake) ?></div>
+                                <div class="action-stat-label">Producten</div>
+                            </div>
+                        </div>
+                        <div class="action-card-arrow">
+                            <i class="bi bi-arrow-right"></i>
+                        </div>
+                    </a>
+
+                    <a href="leveren.php" class="action-card leveren">
+                        <div class="action-card-icon">
+                            <i class="bi bi-truck"></i>
+                        </div>
+                        <div class="action-card-title">Leveren</div>
+                        <div class="action-card-desc">Plan je route en lever de bestellingen van vandaag.</div>
+                        <div class="action-card-stats">
+                            <div class="action-stat">
+                                <div class="action-stat-value"><?= $todayDeliveries['count'] ?? 0 ?></div>
+                                <div class="action-stat-label">Stops</div>
+                            </div>
+                            <div class="action-stat">
+                                <div class="action-stat-value">&euro;<?= number_format($todayDeliveries['total'] ?? 0, 0, ',', '.') ?></div>
+                                <div class="action-stat-label">Totaal</div>
+                            </div>
+                        </div>
+                        <div class="action-card-arrow">
+                            <i class="bi bi-arrow-right"></i>
+                        </div>
+                    </a>
+                </div>
+
+                <div class="summary-grid">
+                    <div class="summary-card">
+                        <div class="summary-header">
+                            <h3><i class="bi bi-fire" style="color: #e55a2b;"></i> Vandaag bereiden</h3>
+                            <a href="bereiden.php?mode=day" class="summary-header-link">Bekijk alles</a>
+                        </div>
+                        <div class="summary-body">
+                            <?php if (empty($productsToBake)): ?>
+                                <div class="empty-state">
+                                    <i class="bi bi-emoji-smile"></i>
+                                    Niets te bereiden vandaag
+                                </div>
+                            <?php else: ?>
+                                <?php foreach (array_slice($productsToBake, 0, 5) as $product): ?>
+                                    <div class="product-row">
+                                        <span class="product-name"><?= htmlspecialchars($product['product_name']) ?></span>
+                                        <span class="product-qty"><?= $product['total_qty'] ?>x</span>
+                                    </div>
+                                <?php endforeach; ?>
+                            <?php endif; ?>
+                        </div>
                         <?php if (count($productsToBake) > 5): ?>
-                            <div style="text-align: center; padding-top: 0.5rem;">
-                                <a href="bereiden.php?mode=day" style="color: #e55a2b; text-decoration: none; font-size: 0.85rem;">
-                                    +<?= count($productsToBake) - 5 ?> meer producten →
-                                </a>
-                            </div>
+                            <a href="bereiden.php?mode=day" class="more-link">
+                                +<?= count($productsToBake) - 5 ?> meer producten
+                            </a>
                         <?php endif; ?>
-                    <?php endif; ?>
-                </div>
-            </div>
-            
-            <div class="summary-card">
-                <div class="summary-header">
-                    <h3><i class="bi bi-truck"></i> Leveringen vandaag</h3>
-                    <a href="leveren.php?mode=day">Bekijk alles →</a>
-                </div>
-                <div class="summary-body">
-                    <?php if (empty($upcomingDeliveries)): ?>
-                        <div class="empty-state">
-                            <i class="bi bi-emoji-smile"></i>
-                            <p>Geen leveringen vandaag</p>
+                    </div>
+
+                    <div class="summary-card">
+                        <div class="summary-header">
+                            <h3><i class="bi bi-truck" style="color: #1976d2;"></i> Leveringen vandaag</h3>
+                            <a href="leveren.php?mode=day" class="summary-header-link">Bekijk alles</a>
                         </div>
-                    <?php else: ?>
-                        <?php foreach ($upcomingDeliveries as $delivery): ?>
-                            <div class="delivery-item">
-                                <span class="delivery-name"><?= htmlspecialchars($delivery['bedrijfsnaam']) ?></span>
-                                <?php
-                                $status = $delivery['delivery_status'] ?? 'geplaatst';
-                                $statusClass = $status === 'afgeleverd' ? 'afgeleverd' : ($status === 'onderweg' ? 'onderweg' : 'pending');
-                                $statusText = $status === 'afgeleverd' ? 'Afgeleverd' : ($status === 'onderweg' ? 'Onderweg' : 'Gepland');
-                                ?>
-                                <span class="delivery-status <?= $statusClass ?>"><?= $statusText ?></span>
-                            </div>
-                        <?php endforeach; ?>
-                    <?php endif; ?>
+                        <div class="summary-body">
+                            <?php if (empty($upcomingDeliveries)): ?>
+                                <div class="empty-state">
+                                    <i class="bi bi-emoji-smile"></i>
+                                    Geen leveringen vandaag
+                                </div>
+                            <?php else: ?>
+                                <?php foreach ($upcomingDeliveries as $delivery): ?>
+                                    <div class="delivery-row">
+                                        <span class="delivery-name"><?= htmlspecialchars($delivery['bedrijfsnaam']) ?></span>
+                                        <?php
+                                        $status = $delivery['delivery_status'] ?? 'geplaatst';
+                                        $statusClass = $status === 'afgeleverd' ? 'afgeleverd' : ($status === 'onderweg' ? 'onderweg' : 'pending');
+                                        $statusText = $status === 'afgeleverd' ? 'Afgeleverd' : ($status === 'onderweg' ? 'Onderweg' : 'Gepland');
+                                        ?>
+                                        <span class="delivery-status <?= $statusClass ?>"><?= $statusText ?></span>
+                                    </div>
+                                <?php endforeach; ?>
+                            <?php endif; ?>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>
     </div>
+
     <script>
     if ('serviceWorker' in navigator) {
         navigator.serviceWorker.register('../sw.js', { scope: '/admin/' });

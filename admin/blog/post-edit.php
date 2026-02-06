@@ -2,6 +2,16 @@
 require_once '../config.php';
 requireLogin();
 
+$stmt = $pdo->query("SELECT COUNT(*) as count FROM business_accounts WHERE status = 'pending'");
+$sidebarPendingAccounts = $stmt->fetch()['count'];
+
+$stmt = $pdo->prepare("SELECT COUNT(*) as count FROM business_orders WHERE delivery_date = CURDATE() AND is_cancelled = 0 AND delivery_status = 'geplaatst'");
+$stmt->execute();
+$sidebarUnprocessedOrders = $stmt->fetch()['count'];
+
+$currentPage = 'blog';
+$adminBasePath = '../';
+
 $id = $_GET['id'] ?? null;
 $post = null;
 $error = '';
@@ -12,7 +22,7 @@ if ($id) {
     $stmt->execute([$id]);
     $post = $stmt->fetch();
     if (!$post) {
-        header('Location: ../index.php');
+        header('Location: posts.php');
         exit;
     }
 }
@@ -52,33 +62,21 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title><?= $id ? 'Post Bewerken' : 'Nieuwe Post' ?> | Civetta Admin</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
     <style>
         * { box-sizing: border-box; margin: 0; padding: 0; }
         body {
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-            background: #f5f2ed;
+            background: var(--cream);
             min-height: 100vh;
         }
-        .header {
-            background: linear-gradient(135deg, #8b5a2b, #5c3d1e);
-            color: white;
-            padding: 1rem 2rem;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-        }
-        .header h1 { font-size: 1.5rem; }
-        .header a {
-            color: white;
-            text-decoration: none;
-            padding: 0.5rem 1rem;
-            background: rgba(255,255,255,0.2);
-            border-radius: 6px;
-        }
-        .container {
+        .admin-content {
+            padding: 2rem;
             max-width: 800px;
-            margin: 2rem auto;
-            padding: 0 1rem;
+        }
+
+        @media (max-width: 768px) {
+            .admin-content { padding: 1.25rem; }
         }
         .card {
             background: white;
@@ -154,48 +152,85 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             color: #888;
             margin-top: 0.5rem;
         }
+        .breadcrumb {
+            margin-bottom: 1.5rem;
+        }
+        .breadcrumb a {
+            color: #8b5a2b;
+            text-decoration: none;
+        }
+        .breadcrumb a:hover {
+            text-decoration: underline;
+        }
+        .breadcrumb span {
+            color: #888;
+            margin: 0 0.5rem;
+        }
     </style>
 </head>
 <body>
-    <div class="header">
-        <h1>Civetta Admin</h1>
-        <a href="../index.php">← Terug naar overzicht</a>
-    </div>
-    
-    <div class="container">
-        <div class="card">
-            <h2><?= $id ? 'Post Bewerken' : 'Nieuwe Post' ?></h2>
-            
-            <?php if ($error): ?>
-                <div class="error"><?= htmlspecialchars($error) ?></div>
-            <?php endif; ?>
-            
-            <?php if ($success): ?>
-                <div class="success"><?= htmlspecialchars($success) ?></div>
-            <?php endif; ?>
-            
-            <form method="POST">
-                <div class="form-group">
-                    <label for="title">Titel</label>
-                    <input type="text" id="title" name="title" value="<?= htmlspecialchars($post['title'] ?? '') ?>" required>
+    <div class="admin-layout">
+        <?php include '../components/sidebar.php'; ?>
+
+        <div class="admin-main">
+            <header class="topbar">
+                <div class="topbar-left">
+                    <button class="mobile-toggle" onclick="toggleSidebar()">
+                        <i class="bi bi-list"></i>
+                    </button>
+                    <span class="topbar-title"><?= $id ? 'Post Bewerken' : 'Nieuwe Post' ?></span>
                 </div>
-                
-                <div class="form-group">
-                    <label for="post_date">Datum</label>
-                    <input type="date" id="post_date" name="post_date" value="<?= htmlspecialchars($post['post_date'] ?? date('Y-m-d')) ?>" required>
+                <div class="topbar-right">
+                    <a href="posts.php" class="topbar-link">
+                        <i class="bi bi-arrow-left"></i> <span>Terug naar overzicht</span>
+                    </a>
                 </div>
-                
-                <div class="form-group">
-                    <label for="content">Inhoud</label>
-                    <textarea id="content" name="content" required><?= htmlspecialchars($post['content'] ?? '') ?></textarea>
-                    <p class="help">Gebruik lege regels voor nieuwe paragrafen.</p>
+            </header>
+
+            <div class="admin-content">
+                <div class="breadcrumb">
+                    <a href="../index.php">Dashboard</a>
+                    <span>›</span>
+                    <a href="posts.php">Blog Posts</a>
+                    <span>›</span>
+                    <?= $id ? 'Bewerken' : 'Nieuw' ?>
                 </div>
-                
-                <div class="actions">
-                    <button type="submit" class="btn"><?= $id ? 'Opslaan' : 'Aanmaken' ?></button>
-                    <a href="../index.php" class="btn btn-secondary">Annuleren</a>
+
+                <div class="card">
+                    <h2><?= $id ? 'Post Bewerken' : 'Nieuwe Post' ?></h2>
+                    
+                    <?php if ($error): ?>
+                        <div class="error"><?= htmlspecialchars($error) ?></div>
+                    <?php endif; ?>
+                    
+                    <?php if ($success): ?>
+                        <div class="success"><?= htmlspecialchars($success) ?></div>
+                    <?php endif; ?>
+                    
+                    <form method="POST">
+                        <div class="form-group">
+                            <label for="title">Titel</label>
+                            <input type="text" id="title" name="title" value="<?= htmlspecialchars($post['title'] ?? '') ?>" required>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="post_date">Datum</label>
+                            <input type="date" id="post_date" name="post_date" value="<?= htmlspecialchars($post['post_date'] ?? date('Y-m-d')) ?>" required>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="content">Inhoud</label>
+                            <textarea id="content" name="content" required><?= htmlspecialchars($post['content'] ?? '') ?></textarea>
+                            <p class="help">Gebruik lege regels voor nieuwe paragrafen.</p>
+                        </div>
+                        
+                        <div class="actions">
+                            <button type="submit" class="btn"><?= $id ? 'Opslaan' : 'Aanmaken' ?></button>
+                            <a href="posts.php" class="btn btn-secondary">Annuleren</a>
+                        </div>
+                    </form>
                 </div>
-            </form>
+            </div>
         </div>
     </div>
 </body>

@@ -2,6 +2,16 @@
 require_once '../config.php';
 requireLogin();
 
+$stmt = $pdo->query("SELECT COUNT(*) as count FROM business_accounts WHERE status = 'pending'");
+$sidebarPendingAccounts = $stmt->fetch()['count'];
+
+$stmt = $pdo->prepare("SELECT COUNT(*) as count FROM business_orders WHERE delivery_date = CURDATE() AND is_cancelled = 0 AND delivery_status = 'geplaatst'");
+$stmt->execute();
+$sidebarUnprocessedOrders = $stmt->fetch()['count'];
+
+$currentPage = 'accounts';
+$adminBasePath = '../';
+
 $pendingAccounts = [];
 $approvedAccounts = [];
 
@@ -21,33 +31,22 @@ try {
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Bedrijfsaccounts | Civetta Admin</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
     <style>
         * { box-sizing: border-box; margin: 0; padding: 0; }
         body {
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-            background: #f5f2ed;
+            background: var(--cream);
+            color: var(--text-primary);
             min-height: 100vh;
         }
-        .header {
-            background: linear-gradient(135deg, #8b5a2b, #5c3d1e);
-            color: white;
-            padding: 1rem 2rem;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-        }
-        .header h1 { font-size: 1.5rem; }
-        .header a {
-            color: white;
-            text-decoration: none;
-            padding: 0.5rem 1rem;
-            background: rgba(255,255,255,0.2);
-            border-radius: 6px;
-        }
-        .container {
+        .admin-content {
+            padding: 2rem;
             max-width: 1100px;
-            margin: 2rem auto;
-            padding: 0 1rem;
+        }
+
+        @media (max-width: 768px) {
+            .admin-content { padding: 1.25rem; }
         }
         .breadcrumb {
             margin-bottom: 1.5rem;
@@ -311,12 +310,25 @@ try {
     </style>
 </head>
 <body>
-    <div class="header">
-        <h1>Civetta Admin</h1>
-        <a href="../logout.php">Uitloggen</a>
-    </div>
-    
-    <div class="container">
+    <div class="admin-layout">
+        <?php include '../components/sidebar.php'; ?>
+
+        <div class="admin-main">
+            <header class="topbar">
+                <div class="topbar-left">
+                    <button class="mobile-toggle" onclick="toggleSidebar()">
+                        <i class="bi bi-list"></i>
+                    </button>
+                    <span class="topbar-title">Bedrijfsaccounts</span>
+                </div>
+                <div class="topbar-right">
+                    <a href="accounts.php" class="topbar-link">
+                        <i class="bi bi-arrow-left"></i> <span>Terug</span>
+                    </a>
+                </div>
+            </header>
+
+            <div class="admin-content">
         <div class="breadcrumb">
             <a href="../index.php">Dashboard</a>
             <span>›</span>
@@ -461,6 +473,8 @@ try {
                     <?php endforeach; ?>
                 </div>
             <?php endif; ?>
+        </div>
+            </div>
         </div>
     </div>
 
