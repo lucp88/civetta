@@ -367,6 +367,11 @@ $currentPage = $currentPage ?? '';
             <i class="bi bi-heart"></i> Donaties
         </a>
 
+        <div class="nav-section">Rapportage</div>
+        <a href="<?= $adminBasePath ?? '' ?>reporting/analytics.php" class="nav-item <?= $currentPage === 'analytics' ? 'active' : '' ?>">
+            <i class="bi bi-bar-chart-line"></i> Analytics
+        </a>
+
         <div class="nav-section">Instellingen</div>
         <a href="<?= $adminBasePath ?? '' ?>settings/settings-bedrijf.php" class="nav-item <?= $currentPage === 'settings-bedrijf' ? 'active' : '' ?>">
             <i class="bi bi-building"></i> Bedrijfsgegevens
@@ -419,6 +424,11 @@ $currentPage = $currentPage ?? '';
         </a>
         <a href="<?= $adminBasePath ?? '' ?>donaties/donations.php" class="nav-item <?= $currentPage === 'donations' ? 'active' : '' ?>">
             <i class="bi bi-heart"></i> Donaties
+        </a>
+
+        <div class="nav-section">Rapportage</div>
+        <a href="<?= $adminBasePath ?? '' ?>reporting/analytics.php" class="nav-item <?= $currentPage === 'analytics' ? 'active' : '' ?>">
+            <i class="bi bi-bar-chart-line"></i> Analytics
         </a>
 
         <div class="nav-section">Instellingen</div>
