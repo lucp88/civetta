@@ -5,6 +5,66 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Bedankt voor je donatie | Bakkerij Civetta</title>
     <link rel="stylesheet" href="css/style.css">
+    <style>
+        .thank-you-page {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: var(--spacing-xl) 0;
+            min-height: 50vh;
+        }
+        .thank-you-card {
+            background: var(--color-warm-white);
+            border-radius: 20px;
+            padding: var(--spacing-xl);
+            max-width: 600px;
+            width: 100%;
+            margin: 0 auto;
+            text-align: center;
+            box-shadow: 0 8px 40px rgba(139, 90, 43, 0.12);
+        }
+        .thank-you-icon {
+            width: 80px;
+            height: 80px;
+            background: linear-gradient(135deg, #d1e7dd, #a3cfbb);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0 auto var(--spacing-md);
+            font-size: 2.5rem;
+        }
+        .thank-you-icon.pending {
+            background: linear-gradient(135deg, #fff3cd, #ffe69c);
+        }
+        .thank-you-icon.failed {
+            background: linear-gradient(135deg, #f8d7da, #f1aeb5);
+        }
+        .thank-you-card h1 {
+            color: var(--color-crust-dark);
+            margin-bottom: var(--spacing-sm);
+            font-size: 1.75rem;
+        }
+        .thank-you-card h1::after {
+            display: none;
+        }
+        .thank-you-card p {
+            color: var(--color-stone);
+            margin-bottom: var(--spacing-sm);
+            line-height: 1.7;
+        }
+        .loading-spinner {
+            display: inline-block;
+            animation: spin 1.5s linear infinite;
+        }
+        @keyframes spin {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
+        }
+        .thank-you-actions {
+            margin-top: var(--spacing-md);
+        }
+    </style>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link href="https://fonts.googleapis.com/css2?family=Libre+Baskerville:ital,wght@0,400;0,700;1,400&family=Source+Sans+Pro:wght@400;600&display=swap" rel="stylesheet">
 </head>
@@ -39,12 +99,51 @@
     </header>
 
     <main>
-        <section class="thank-you">
+        <section class="thank-you-page">
             <div class="container">
-                <h1>Bedankt voor je donatie!</h1>
-                <p>Je bijdrage wordt enorm gewaardeerd en helpt ons de bakkerij te realiseren.</p>
-                <p>We houden je op de hoogte van de voortgang via onze nieuwspagina.</p>
-                <a href="index.html" class="btn">Terug naar home</a>
+                <div id="donation-app" class="thank-you-card">
+                    <template v-if="loading">
+                        <div class="thank-you-icon pending">
+                            <span class="loading-spinner">&#9676;</span>
+                        </div>
+                        <h1>Even geduld...</h1>
+                        <p>We verwerken je betaling.</p>
+                    </template>
+                    
+                    <template v-else-if="status === 'paid'">
+                        <div class="thank-you-icon">
+                            <span>&#10003;</span>
+                        </div>
+                        <h1>Bedankt voor je donatie!</h1>
+                        <p>Je bijdrage wordt enorm gewaardeerd en helpt ons de bakkerij te realiseren.</p>
+                        <p>We houden je op de hoogte van de voortgang via onze nieuwspagina.</p>
+                        <div class="thank-you-actions">
+                            <a href="index.html" class="btn">Terug naar home</a>
+                        </div>
+                    </template>
+                    
+                    <template v-else-if="status === 'pending' || status === 'open'">
+                        <div class="thank-you-icon pending">
+                            <span>&#9203;</span>
+                        </div>
+                        <h1>Betaling wordt verwerkt</h1>
+                        <p>Je betaling wordt nog verwerkt. Dit kan enkele minuten duren.</p>
+                        <div class="thank-you-actions">
+                            <a href="index.html" class="btn">Terug naar home</a>
+                        </div>
+                    </template>
+                    
+                    <template v-else>
+                        <div class="thank-you-icon failed">
+                            <span>&#10007;</span>
+                        </div>
+                        <h1>Betaling niet gelukt</h1>
+                        <p>Helaas is de betaling niet geslaagd of geannuleerd. Je kunt het opnieuw proberen via onze crowdfunding pagina.</p>
+                        <div class="thank-you-actions">
+                            <a href="financiering.html" class="btn">Opnieuw proberen</a>
+                        </div>
+                    </template>
+                </div>
             </div>
         </section>
     </main>
@@ -64,6 +163,67 @@
         </div>
     </footer>
 
+    <script src="https://unpkg.com/vue@3/dist/vue.global.prod.js"></script>
     <script src="js/main.js"></script>
+    <script>
+        const { createApp } = Vue;
+        
+        createApp({
+            data() {
+                return {
+                    status: 'pending',
+                    loading: true,
+                    paymentId: null,
+                    pollCount: 0
+                };
+            },
+            
+            async mounted() {
+                const params = new URLSearchParams(window.location.search);
+                this.paymentId = params.get('payment_id');
+                
+                if (this.paymentId) {
+                    await this.pollStatus();
+                } else {
+                    this.status = 'failed';
+                    this.loading = false;
+                }
+            },
+            
+            methods: {
+                async pollStatus() {
+                    this.pollCount++;
+                    try {
+                        const response = await fetch('api/donation-status.php?payment_id=' + this.paymentId);
+                        const data = await response.json();
+                        
+                        if (data.success) {
+                            const isPaid = data.status === 'paid';
+                            const isFailed = ['failed', 'canceled', 'expired'].includes(data.status);
+                            
+                            if (isPaid) {
+                                this.status = 'paid';
+                                this.loading = false;
+                            } else if (isFailed) {
+                                this.status = 'failed';
+                                this.loading = false;
+                            } else if (this.pollCount < 30) {
+                                setTimeout(() => this.pollStatus(), 2000);
+                            } else {
+                                this.status = data.status;
+                                this.loading = false;
+                            }
+                        } else {
+                            this.status = 'failed';
+                            this.loading = false;
+                        }
+                    } catch (error) {
+                        this.status = 'failed';
+                        this.loading = false;
+                    }
+                }
+            }
+        }).mount('#donation-app');
+    </script>
 </body>
 </html>

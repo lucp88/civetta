@@ -42,10 +42,11 @@ switch ($method) {
                 
             } elseif ($action === 'orders') {
                 $stmt = $pdo->prepare("
-                    SELECT id, order_date, status, total_amount, notes, created_at 
+                    SELECT id, delivery_date, status, total_amount, notes, created_at,
+                           is_recurring, recurring_name, recurring_frequency, recurring_day, recurring_end_date
                     FROM business_orders 
                     WHERE account_id = ? 
-                    ORDER BY order_date DESC
+                    ORDER BY created_at DESC
                 ");
                 $stmt->execute([$accountId]);
                 $orders = $stmt->fetchAll();
@@ -124,6 +125,66 @@ switch ($method) {
         } catch (PDOException $e) {
             http_response_code(500);
             echo json_encode(['success' => false, 'error' => 'Database fout']);
+        }
+        break;
+        
+    case 'DELETE':
+        $data = json_decode(file_get_contents('php://input'), true);
+        $password = $data['password'] ?? '';
+        
+        if (!$password) {
+            http_response_code(400);
+            echo json_encode(['success' => false, 'error' => 'Wachtwoord is verplicht']);
+            exit;
+        }
+        
+        try {
+            $stmt = $pdo->prepare("SELECT password_hash FROM business_accounts WHERE id = ?");
+            $stmt->execute([$accountId]);
+            $account = $stmt->fetch();
+            
+            if (!$account || !password_verify($password, $account['password_hash'])) {
+                http_response_code(400);
+                echo json_encode(['success' => false, 'error' => 'Wachtwoord is onjuist']);
+                exit;
+            }
+            
+            $pdo->beginTransaction();
+            
+            $stmt = $pdo->prepare("SELECT id FROM business_orders WHERE account_id = ?");
+            $stmt->execute([$accountId]);
+            $orderIds = $stmt->fetchAll(PDO::FETCH_COLUMN);
+            
+            if (!empty($orderIds)) {
+                $placeholders = implode(',', array_fill(0, count($orderIds), '?'));
+                $pdo->prepare("DELETE FROM business_order_items WHERE order_id IN ($placeholders)")->execute($orderIds);
+            }
+            
+            $pdo->prepare("DELETE FROM business_orders WHERE account_id = ?")->execute([$accountId]);
+            
+            $stmt = $pdo->prepare("SELECT id FROM business_favorites WHERE account_id = ?");
+            $stmt->execute([$accountId]);
+            $favoriteIds = $stmt->fetchAll(PDO::FETCH_COLUMN);
+            
+            if (!empty($favoriteIds)) {
+                $placeholders = implode(',', array_fill(0, count($favoriteIds), '?'));
+                $pdo->prepare("DELETE FROM business_favorite_items WHERE favorite_id IN ($placeholders)")->execute($favoriteIds);
+            }
+            
+            $pdo->prepare("DELETE FROM business_favorites WHERE account_id = ?")->execute([$accountId]);
+            
+            $pdo->prepare("DELETE FROM business_accounts WHERE id = ?")->execute([$accountId]);
+            
+            $pdo->commit();
+            
+            session_destroy();
+            
+            echo json_encode(['success' => true, 'message' => 'Account verwijderd']);
+            
+        } catch (PDOException $e) {
+            $pdo->rollBack();
+            http_response_code(500);
+            echo json_encode(['success' => false, 'error' => 'Database fout bij verwijderen']);
         }
         break;
         

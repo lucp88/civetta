@@ -202,6 +202,7 @@ createApp({
         getStatusLabel(status) {
             const labels = {
                 'pending': 'In afwachting',
+                'pending_invoice': 'Factuur verzonden',
                 'paid': 'Betaald',
                 'confirmed': 'Bevestigd',
                 'delivered': 'Geleverd',
@@ -225,6 +226,16 @@ createApp({
         formatPrice(amount) {
             if (!amount) return '-';
             return new Intl.NumberFormat('nl-NL', { style: 'currency', currency: 'EUR' }).format(amount);
+        },
+        
+        downloadFactuur(order) {
+            if (order.factuur_url) {
+                window.open(order.factuur_url, '_blank');
+            }
+        },
+        
+        hasFactuur(order) {
+            return order.status === 'paid' && order.factuur_url;
         }
     }
 }).mount('#dashboard-app');

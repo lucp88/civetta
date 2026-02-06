@@ -22,67 +22,84 @@
         }
         .products-grid {
             display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
             gap: var(--spacing-md);
         }
-        .product-card {
+        .product-card-full {
             display: flex;
             flex-direction: column;
             background: var(--color-warm-white);
             border-radius: 16px;
             overflow: hidden;
             box-shadow: 0 4px 20px rgba(139, 90, 43, 0.08);
+            cursor: pointer;
+            transition: all 0.3s ease;
         }
-        .product-info {
+        .product-card-full:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 8px 30px rgba(139, 90, 43, 0.15);
+        }
+        .product-card-full .card-image {
+            width: 100%;
+            aspect-ratio: 4/3;
+            overflow: hidden;
+        }
+        .product-card-full .card-image img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            transition: transform 0.3s ease;
+        }
+        .product-card-full:hover .card-image img {
+            transform: scale(1.05);
+        }
+        .product-card-full .card-content {
             flex: 1;
             display: flex;
             flex-direction: column;
             padding: var(--spacing-md);
         }
-        .product-image {
-            width: 100%;
-            aspect-ratio: 4/3;
-        }
-        .product-image img {
-            width: 100%;
-            height: 100%;
-            object-fit: cover;
-        }
-        .product-naam {
+        .product-card-full .card-title {
             font-family: var(--font-display);
             font-size: 1.35rem;
             color: var(--color-crust-dark);
             margin-bottom: var(--spacing-xs);
         }
-        .product-beschrijving {
+        .product-card-full .card-description {
             color: var(--color-stone);
             font-size: 0.95rem;
             line-height: 1.6;
             margin-bottom: var(--spacing-sm);
+            display: -webkit-box;
+            -webkit-line-clamp: 3;
+            -webkit-box-orient: vertical;
+            overflow: hidden;
         }
-        .product-ingredienten {
-            font-size: 0.85rem;
-            color: var(--color-sage);
-            margin-bottom: var(--spacing-sm);
-            padding: var(--spacing-xs) var(--spacing-sm);
-            background: var(--color-parchment);
-            border-radius: 6px;
-        }
-        .product-ingredienten strong {
-            color: var(--color-crust);
-        }
-        .product-footer {
+        .product-card-full .card-footer {
             margin-top: auto;
             padding-top: var(--spacing-sm);
             border-top: 1px solid var(--color-parchment);
         }
-        .product-prijs {
+        .product-card-full .card-price {
             font-family: var(--font-display);
             font-size: 1.25rem;
             font-weight: 700;
             color: var(--color-crust);
         }
-            </style>
+        .product-card-full .card-variants {
+            display: flex;
+            align-items: baseline;
+            gap: 0.75rem;
+            flex-wrap: wrap;
+        }
+        .product-card-full .card-variants .card-price {
+            margin-right: 0;
+        }
+        .product-card-full .variant-others {
+            font-size: 0.75rem;
+            color: var(--color-stone);
+        }
+    </style>
 </head>
 <body>
     <header>
@@ -133,29 +150,36 @@
                     </div>
                     
                     <div v-else class="products-grid">
-                        <article v-for="product in products" :key="product.id" class="product-card">
-                            <div v-if="product.foto" class="product-image">
+                        <article v-for="product in products" :key="product.id" class="product-card-full" @click="showProductDetail(product)">
+                            <div v-if="product.foto" class="card-image">
                                 <img :src="product.foto" :alt="product.naam">
                             </div>
-                            <div class="product-info">
-                                <h3 class="product-naam">{{ product.naam }}</h3>
+                            <div class="card-content">
+                                <h3 class="card-title">{{ product.naam }}</h3>
                                 
-                                <p v-if="product.beschrijving" class="product-beschrijving">
+                                <p v-if="product.beschrijving" class="card-description">
                                     {{ product.beschrijving }}
                                 </p>
                                 
-                                <div v-if="product.ingredienten" class="product-ingredienten">
-                                    <strong>Ingredienten:</strong> {{ product.ingredienten }}
-                                </div>
-                                
-                                <div class="product-footer">
-                                    <span v-if="product.prijs" class="product-prijs">
+                                <div class="card-footer">
+                                    <div v-if="product.variants && product.variants.length > 0" class="card-variants">
+                                        <span class="card-price">{{ formatPrice(getLowestPrice(product)) }}</span>
+                                        <span v-if="product.variants.length > 1" class="variant-others">
+                                            {{ getOtherVariants(product) }}
+                                        </span>
+                                    </div>
+                                    <span v-else-if="product.prijs" class="card-price">
                                         {{ formatPrice(product.prijs) }}
                                     </span>
                                 </div>
                             </div>
                         </article>
                     </div>
+                    
+                    <product-detail-modal
+                        :product="selectedProduct"
+                        @close="selectedProduct = null">
+                    </product-detail-modal>
                 </div>
             </div>
         </section>
@@ -177,6 +201,7 @@
     </footer>
 
     <script src="js/main.js"></script>
-    <script src="js/products-app.js"></script>
+    <script src="js/product-card.js?v=3"></script>
+    <script src="js/products-app.js?v=2"></script>
 </body>
 </html>

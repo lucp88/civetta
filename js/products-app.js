@@ -1,10 +1,15 @@
 const { createApp } = Vue;
 
-createApp({
+const productsApp = createApp({
+    components: {
+        'product-detail-modal': ProductDetailModal
+    },
+    
     data() {
         return {
             products: [],
-            loading: true
+            loading: true,
+            selectedProduct: null
         };
     },
     
@@ -33,6 +38,24 @@ createApp({
                 style: 'currency',
                 currency: 'EUR'
             }).format(price);
+        },
+        
+        showProductDetail(product) {
+            this.selectedProduct = product;
+        },
+        
+        getLowestPrice(product) {
+            if (!product.variants || product.variants.length === 0) return product.prijs;
+            return Math.min(...product.variants.map(v => parseFloat(v.prijs)));
+        },
+        
+        getOtherVariants(product) {
+            if (!product.variants || product.variants.length <= 1) return '';
+            const sorted = [...product.variants].sort((a, b) => parseFloat(a.prijs) - parseFloat(b.prijs));
+            const others = sorted.slice(1);
+            return others.map(v => `${v.gewicht}g ${this.formatPrice(v.prijs)}`).join(' · ');
         }
     }
-}).mount('#products-app');
+});
+
+productsApp.mount('#products-app');
