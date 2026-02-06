@@ -22,6 +22,7 @@ Een webapplicatie voor een ambachtelijke bakkerij met productverkoop, B2B bestel
   /blog/                  - Blog beheer (posts CRUD, import)
   /donaties/              - Donaties overzicht
   /producten/             - Producten beheer (CRUD, varianten)
+  /reporting/             - Rapportages en analytics
   /settings/              - Instellingen (bedrijfsgegevens, boekhouding)
   /migrations/            - Database migrations (handmatig runnen)
   config.php              - Database connectie, helper functies, session config
@@ -56,6 +57,7 @@ Een webapplicatie voor een ambachtelijke bakkerij met productverkoop, B2B bestel
 - `api/factuur.php` - Factuur generatie
 - `api/bestelbon.php` - Bestelbon generatie
 - `api/email-templates.php` - HTML e-mail templates en sendHtmlEmail()
+- `api/analytics.php` - Analytics data API (omzet, producten, locaties)
 - `api/cors.php` - CORS headers helper
 
 ### Backend - Admin
@@ -66,6 +68,7 @@ Een webapplicatie voor een ambachtelijke bakkerij met productverkoop, B2B bestel
 - `admin/bakker/bakker-dashboard.php` - Bakker overzichtspagina
 - `admin/bakker/order-detail-modal.php` - Gedeelde bestelling detail modal (gebruikt door bereiden + leveren, kleur via PHP variabelen)
 - `admin/bestellingen/orders.php` - Admin bestellingen overzicht
+- `admin/reporting/analytics.php` - Analytics dashboard (omzet, verkoop, locaties)
 
 ### Frontend - JavaScript
 - `js/order-app.js` - Bestelproces, winkelwagen

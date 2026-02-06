@@ -170,6 +170,7 @@ $adminBasePath = '../';
         <div class="top-bar">
             <input type="text" v-model="recipeName" class="recipe-name-input" placeholder="Receptnaam...">
             <button class="btn btn-success" @click="saveRecipe" :disabled="saving"><i class="bi bi-save"></i> {{ currentRecipeId ? 'Opslaan' : 'Bewaar' }}</button>
+            <button class="btn btn-ghost" @click="duplicateRecipe" v-if="currentRecipeId"><i class="bi bi-copy"></i> Dupliceer</button>
             <button class="btn btn-ghost" @click="newRecipe"><i class="bi bi-plus-lg"></i> Nieuw</button>
         </div>
 
@@ -188,20 +189,29 @@ $adminBasePath = '../';
                 <div v-show="activeTab==='recept'">
                     <div class="panel">
                         <div class="panel-title"><i class="bi bi-gear"></i> Basisrecept</div>
+                        <div class="toggle-row" style="margin-bottom:1rem;padding:0.75rem;background:#f5f0e8;border-radius:8px">
+                            <div class="toggle" :class="{on: weightFromOrder}" @click="weightFromOrder = !weightFromOrder"></div>
+                            <span class="toggle-label">Gewicht uit bestelling</span>
+                            <span v-if="weightFromOrder" style="font-size:0.8rem;color:#888;margin-left:auto">Alleen percentages opslaan</span>
+                        </div>
                         <div class="form-grid">
-                            <div class="form-group">
+                            <div class="form-group" v-if="!weightFromOrder">
                                 <label class="form-label">Aantal bollen / broden</label>
                                 <div class="input-with-unit">
                                     <input type="number" v-model.number="numberOfBalls" class="form-input" min="1" step="1">
                                     <span class="input-unit">st</span>
                                 </div>
                             </div>
-                            <div class="form-group">
+                            <div class="form-group" v-if="!weightFromOrder">
                                 <label class="form-label">Gewicht per stuk (incl. zout)</label>
                                 <div class="input-with-unit">
                                     <input type="number" v-model.number="weightPerBall" class="form-input" min="1" step="10">
                                     <span class="input-unit">g</span>
                                 </div>
+                            </div>
+                            <div class="form-group full" v-if="weightFromOrder" style="background:#e8f4e8;padding:1rem;border-radius:8px;text-align:center">
+                                <i class="bi bi-link-45deg" style="font-size:1.5rem;color:#2e7d32"></i>
+                                <p style="margin:0.5rem 0 0;color:#2e7d32;font-weight:500">Gewicht wordt bepaald door bestelling</p>
                             </div>
                             <div class="form-group">
                                 <label class="form-label">Hydratatie</label>
@@ -447,15 +457,21 @@ $adminBasePath = '../';
 
                 <div v-show="activeTab==='overzicht'">
                     <div class="panel">
-                        <div class="panel-title"><i class="bi bi-list-check"></i> Recept Overzicht</div>
+                        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem">
+                            <div class="panel-title" style="margin-bottom:0"><i class="bi bi-list-check"></i> Recept Overzicht</div>
+                            <button class="btn btn-primary" @click="printRecipe"><i class="bi bi-printer"></i> Print PDF</button>
+                        </div>
                         <div style="display:flex;gap:1.5rem;flex-wrap:wrap;margin-bottom:1.5rem">
-                            <div><span class="form-label">Bollen/broden</span><br><span class="calc-value">{{ numberOfBalls }}</span></div>
-                            <div><span class="form-label">Gewicht per stuk</span><br><span class="calc-value">{{ formatW(finalWeightPerBall) }}<span class="calc-unit">g</span></span></div>
-                            <div><span class="form-label">Totaal gewicht</span><br><span class="calc-value">{{ formatW(totalFinalWeight) }}<span class="calc-unit">g</span></span></div>
+                            <div v-if="!weightFromOrder"><span class="form-label">Bollen/broden</span><br><span class="calc-value">{{ numberOfBalls }}</span></div>
+                            <div v-if="!weightFromOrder"><span class="form-label">Gewicht per stuk</span><br><span class="calc-value">{{ formatW(finalWeightPerBall) }}<span class="calc-unit">g</span></span></div>
+                            <div v-if="!weightFromOrder"><span class="form-label">Totaal gewicht</span><br><span class="calc-value">{{ formatW(totalFinalWeight) }}<span class="calc-unit">g</span></span></div>
                             <div><span class="form-label">Hydratatie</span><br><span class="calc-value">{{ formatP(effectiveTotalHydration) }}<span class="calc-unit">%</span></span></div>
+                            <div><span class="form-label">Zout</span><br><span class="calc-value">{{ formatP(saltPct) }}<span class="calc-unit">%</span></span></div>
+                            <div><span class="form-label">Volkoren</span><br><span class="calc-value">{{ formatP(totalWholeGrainPct) }}<span class="calc-unit">%</span></span></div>
+                            <div v-if="weightFromOrder" style="background:#e8f4e8;padding:0.5rem 1rem;border-radius:8px"><span class="form-label" style="color:#2e7d32">Modus</span><br><span style="color:#2e7d32;font-weight:600">Alleen percentages</span></div>
                         </div>
 
-                        <div class="overview-grid">
+                        <div class="overview-grid" v-if="!weightFromOrder">
                             <div class="overview-section" v-if="useSourdough">
                                 <h4><i class="bi bi-fire"></i> Zuurdesem</h4>
                                 <template v-for="(g, i) in sourdoughGrains" :key="'osd'+i">
@@ -543,18 +559,85 @@ $adminBasePath = '../';
                             </div>
                         </div>
 
+                        <div class="overview-grid" v-if="weightFromOrder">
+                            <div class="overview-section" v-if="useSourdough">
+                                <h4><i class="bi bi-fire"></i> Zuurdesem</h4>
+                                <div class="overview-item">
+                                    <span class="name">Percentage</span>
+                                    <span class="value">{{ formatP(sourdoughPct) }}%</span>
+                                </div>
+                                <div class="overview-item">
+                                    <span class="name">Hydratatie</span>
+                                    <span class="value">{{ formatP(sourdoughHydration) }}%</span>
+                                </div>
+                                <template v-for="(g, i) in sourdoughGrains" :key="'osdp'+i">
+                                    <div class="overview-item sub" v-if="g.pct > 0">
+                                        <span class="name">{{ grainName(g.type) }}</span>
+                                        <span class="value">{{ formatP(g.pct) }}%</span>
+                                    </div>
+                                </template>
+                            </div>
+
+                            <div class="overview-section" v-if="usePreFerment">
+                                <h4><i class="bi bi-layers"></i> Voordeeg</h4>
+                                <div class="overview-item">
+                                    <span class="name">Percentage</span>
+                                    <span class="value">{{ formatP(preFermentPct) }}%</span>
+                                </div>
+                                <div class="overview-item">
+                                    <span class="name">Hydratatie</span>
+                                    <span class="value">{{ formatP(preFermentHydration) }}%</span>
+                                </div>
+                                <template v-for="(g, i) in preFermentGrains" :key="'opfp'+i">
+                                    <div class="overview-item sub" v-if="g.pct > 0">
+                                        <span class="name">{{ grainName(g.type) }}</span>
+                                        <span class="value">{{ formatP(g.pct) }}%</span>
+                                    </div>
+                                </template>
+                            </div>
+
+                            <div class="overview-section">
+                                <h4><i class="bi bi-moisture"></i> Hoofddeeg</h4>
+                                <template v-for="(g, i) in mainDoughGrains" :key="'omdp'+i">
+                                    <div class="overview-item" v-if="g.pct > 0">
+                                        <span class="name">{{ grainName(g.type) }}</span>
+                                        <span class="value">{{ formatP(g.pct) }}%</span>
+                                    </div>
+                                </template>
+                                <div class="overview-item" v-if="useYeast">
+                                    <span class="name">{{ yeastName }}</span>
+                                    <span class="value">{{ formatP(yeastPct) }}%</span>
+                                </div>
+                            </div>
+
+                            <div class="overview-section" v-if="mixins.length > 0">
+                                <h4><i class="bi bi-plus-circle"></i> Mix-ins ({{ mixinMode === 'flour' ? '% meel' : '% deeg' }})</h4>
+                                <template v-for="(m, i) in mixins" :key="'omxp'+i"><div class="overview-item" v-if="m.ingredient && m.pct > 0">
+                                    <span class="name">{{ m.ingredient }} <span class="category-label" :class="'cat-'+m.category">{{ categoryLabel(m.category) }}</span></span>
+                                    <span class="value">{{ formatP(m.pct) }}%</span>
+                                </div></template>
+                            </div>
+
+                            <div class="overview-section" v-if="toppings.length > 0">
+                                <h4><i class="bi bi-stars"></i> Toppings (% deeg)</h4>
+                                <template v-for="(t, i) in toppings" :key="'otpp'+i"><div class="overview-item" v-if="t.ingredient && t.pct > 0">
+                                    <span class="name">{{ t.ingredient }}</span>
+                                    <span class="value">{{ formatP(t.pct) }}%</span>
+                                </div></template>
+                            </div>
+                        </div>
+
                         <hr class="divider">
                         <div class="panel-title"><i class="bi bi-percent"></i> Baker's Percentages</div>
                         <table class="bp-table">
-                            <thead><tr><th>Ingrediënt</th><th>Gewicht</th><th>Baker's %</th></tr></thead>
+                            <thead><tr><th>Ingrediënt</th><th v-if="!weightFromOrder">Gewicht</th><th>Baker's %</th></tr></thead>
                             <tbody>
-                                <tr><td>Totaal meel</td><td>{{ formatW(totalFlour) }}g</td><td>100%</td></tr>
-                                <tr><td>Water</td><td>{{ formatW(totalWater) }}g</td><td>{{ formatP(hydration) }}%</td></tr>
-                                <tr><td>Zout</td><td>{{ formatW(saltWeight) }}g</td><td>{{ formatP(saltWeight / totalFlour * 100) }}%</td></tr>
-                                <tr v-if="useSourdough"><td>Zuurdesem</td><td>{{ formatW(sourdoughWeight) }}g</td><td>{{ formatP(sourdoughPct) }}%</td></tr>
-                                <tr v-if="useYeast"><td>{{ yeastName }}</td><td>{{ formatW(yeastWeight) }}g</td><td>{{ formatP(yeastPct) }}%</td></tr>
+                                <tr><td>Totaal meel</td><td v-if="!weightFromOrder">{{ formatW(totalFlour) }}g</td><td>100%</td></tr>
+                                <tr><td>Water</td><td v-if="!weightFromOrder">{{ formatW(totalWater) }}g</td><td>{{ formatP(hydration) }}%</td></tr>
+                                <tr><td>Zout</td><td v-if="!weightFromOrder">{{ formatW(saltWeight) }}g</td><td>{{ formatP(saltPct) }}%</td></tr>
+                                <tr v-if="useYeast"><td>{{ yeastName }}</td><td v-if="!weightFromOrder">{{ formatW(yeastWeight) }}g</td><td>{{ formatP(yeastPct) }}%</td></tr>
                                 <template v-for="(m, i) in mixins" :key="'bp'+i"><tr v-if="m.ingredient && m.pct > 0">
-                                    <td>{{ m.ingredient }}</td><td>{{ formatW(mixinWeight(i)) }}g</td><td>{{ formatP(mixinWeight(i) / totalFlour * 100) }}%</td>
+                                    <td>{{ m.ingredient }}</td><td v-if="!weightFromOrder">{{ formatW(mixinWeight(i)) }}g</td><td>{{ formatP(m.pct) }}%</td>
                                 </tr></template>
                             </tbody>
                         </table>
@@ -598,68 +681,79 @@ $adminBasePath = '../';
                     </div>
                     <div class="summary-body">
                         <div class="summary-section-title">Basis</div>
-                        <div class="summary-row">
+                        <div class="summary-row" v-if="!weightFromOrder">
                             <span class="summary-label">Totaal meel</span>
                             <span class="summary-value">{{ formatW(totalFlour) }}g</span>
                         </div>
-                        <div class="summary-row">
+                        <div class="summary-row" v-if="!weightFromOrder">
                             <span class="summary-label">Totaal water</span>
                             <span class="summary-value">{{ formatW(totalWater) }}g</span>
                         </div>
                         <div class="summary-row">
+                            <span class="summary-label">Hydratatie</span>
+                            <span class="summary-value">{{ formatP(hydration) }}%</span>
+                        </div>
+                        <div class="summary-row">
                             <span class="summary-label">Zout</span>
-                            <span class="summary-value">{{ formatW(saltWeight) }}g</span>
+                            <span class="summary-value" v-if="!weightFromOrder">{{ formatW(saltWeight) }}g</span>
+                            <span class="summary-value" v-else>{{ formatP(saltPct) }}%</span>
+                        </div>
+                        <div class="summary-row">
+                            <span class="summary-label">Volkoren</span>
+                            <span class="summary-value">{{ formatP(totalWholeGrainPct) }}%</span>
                         </div>
                         <div class="summary-section-title" v-if="useSourdough">Zuurdesem</div>
                         <div class="summary-row" v-if="useSourdough">
-                            <span class="summary-label">Meel in zuurdesem</span>
-                            <span class="summary-value">{{ formatW(sourdoughFlour) }}g</span>
+                            <span class="summary-label">Percentage</span>
+                            <span class="summary-value">{{ formatP(sourdoughPct) }}%</span>
                         </div>
                         <div class="summary-row" v-if="useSourdough">
-                            <span class="summary-label">Water in zuurdesem</span>
-                            <span class="summary-value">{{ formatW(sourdoughWater) }}g</span>
+                            <span class="summary-label">Hydratatie</span>
+                            <span class="summary-value">{{ formatP(sourdoughHydration) }}%</span>
                         </div>
 
                         <div class="summary-row" v-if="useYeast">
                             <span class="summary-label">{{ yeastName }}</span>
-                            <span class="summary-value">{{ formatW(yeastWeight) }}g</span>
+                            <span class="summary-value">{{ formatP(yeastPct) }}%</span>
                         </div>
 
                         <div class="summary-section-title" v-if="usePreFerment">Voordeeg</div>
                         <div class="summary-row" v-if="usePreFerment">
-                            <span class="summary-label">Meel in voordeeg</span>
-                            <span class="summary-value">{{ formatW(preFermentFlour) }}g</span>
+                            <span class="summary-label">Percentage</span>
+                            <span class="summary-value">{{ formatP(preFermentPct) }}%</span>
                         </div>
                         <div class="summary-row" v-if="usePreFerment">
-                            <span class="summary-label">Water in voordeeg</span>
-                            <span class="summary-value">{{ formatW(preFermentWater) }}g</span>
+                            <span class="summary-label">Hydratatie</span>
+                            <span class="summary-value">{{ formatP(preFermentHydration) }}%</span>
                         </div>
 
-                        <div class="summary-section-title" v-if="totalMixinWeight > 0">Mix-ins</div>
-                        <div class="summary-row" v-if="integratedMixinWeight > 0">
-                            <span class="summary-label">Geïntegreerd</span>
-                            <span class="summary-value">{{ formatW(integratedMixinWeight) }}g</span>
-                        </div>
-                        <div class="summary-row" v-if="nonIntegratedMixinWeight > 0">
-                            <span class="summary-label">Vast</span>
-                            <span class="summary-value">{{ formatW(nonIntegratedMixinWeight) }}g</span>
-                        </div>
-                        <div class="summary-row" v-if="liquidMixinWeight > 0">
-                            <span class="summary-label">Vloeistof</span>
-                            <span class="summary-value">{{ formatW(liquidMixinWeight) }}g</span>
-                        </div>
-                        <div class="summary-row" v-if="totalToppingWeight > 0">
-                            <span class="summary-label">Toppings</span>
-                            <span class="summary-value">{{ formatW(totalToppingWeight) }}g</span>
-                        </div>
+                        <div class="summary-section-title" v-if="mixins.length > 0">Mix-ins</div>
+                        <template v-for="(m, i) in mixins" :key="'sm'+i">
+                            <div class="summary-row" v-if="m.ingredient && m.pct > 0">
+                                <span class="summary-label">{{ m.ingredient }}</span>
+                                <span class="summary-value">{{ formatP(m.pct) }}%</span>
+                            </div>
+                        </template>
+                        <div class="summary-section-title" v-if="toppings.length > 0">Toppings</div>
+                        <template v-for="(t, i) in toppings" :key="'st'+i">
+                            <div class="summary-row" v-if="t.ingredient && t.pct > 0">
+                                <span class="summary-label">{{ t.ingredient }}</span>
+                                <span class="summary-value">{{ formatP(t.pct) }}%</span>
+                            </div>
+                        </template>
 
-                        <div class="summary-row total">
-                            <span class="summary-label" style="font-weight:700;color:#5c3d1e">Per stuk</span>
-                            <span class="summary-value accent">{{ formatW(finalWeightPerBall) }}g</span>
-                        </div>
-                        <div class="summary-row">
-                            <span class="summary-label" style="font-weight:700;color:#5c3d1e">Totaal</span>
-                            <span class="summary-value accent">{{ formatW(totalFinalWeight) }}g</span>
+                        <template v-if="!weightFromOrder">
+                            <div class="summary-row total">
+                                <span class="summary-label" style="font-weight:700;color:#5c3d1e">Per stuk</span>
+                                <span class="summary-value accent">{{ formatW(finalWeightPerBall) }}g</span>
+                            </div>
+                            <div class="summary-row">
+                                <span class="summary-label" style="font-weight:700;color:#5c3d1e">Totaal</span>
+                                <span class="summary-value accent">{{ formatW(totalFinalWeight) }}g</span>
+                            </div>
+                        </template>
+                        <div class="summary-row total" v-if="weightFromOrder">
+                            <span class="summary-label" style="font-weight:600;color:#2e7d32"><i class="bi bi-link-45deg"></i> Alleen %</span>
                         </div>
 
                         <div class="pct-bar">
@@ -694,6 +788,7 @@ $adminBasePath = '../';
                 currentRecipeId: null,
                 numberOfBalls: 24,
                 weightPerBall: 300,
+                weightFromOrder: false,
                 hydration: 62,
                 saltPct: 2.6,
                 useSourdough: false,
@@ -850,7 +945,7 @@ $adminBasePath = '../';
             },
 
             totalDryWeight() { return this.totalFlour + this.integratedMixinWeight; },
-            saltWeight() { return this.totalFlour * (this.saltPct / 100); },
+            saltWeight() { return this.totalDryWeight * (this.saltPct / 100); },
 
             totalToppingWeight() {
                 return this.toppings.reduce((s, t) => s + this.totalDoughWeight * (t.pct / 100), 0);
@@ -876,6 +971,34 @@ $adminBasePath = '../';
             flourPct() { return this.totalFinalWeight > 0 ? (this.totalFlour / this.totalFinalWeight * 100) : 0; },
             waterPct() { return this.totalFinalWeight > 0 ? (this.totalWater / this.totalFinalWeight * 100) : 0; },
             otherPct() { return Math.max(0, 100 - this.flourPct - this.waterPct); },
+
+            totalWholeGrainPct() {
+                if (this.totalFlour === 0) return 0;
+                let wholeGrainFlour = 0;
+                const isWholeGrain = (type) => type && type.includes('_whole');
+                
+                if (this.useSourdough) {
+                    this.sourdoughGrains.forEach((g, i) => {
+                        if (isWholeGrain(g.type)) {
+                            wholeGrainFlour += this.sourdoughGrainDetail(i).total;
+                        }
+                    });
+                }
+                if (this.usePreFerment) {
+                    this.preFermentGrains.forEach((g, i) => {
+                        if (isWholeGrain(g.type)) {
+                            wholeGrainFlour += this.preFermentGrainDetail(i).total;
+                        }
+                    });
+                }
+                this.mainDoughGrains.forEach((g, i) => {
+                    if (isWholeGrain(g.type)) {
+                        wholeGrainFlour += this.mainDoughGrainDetail(i).total;
+                    }
+                });
+                
+                return (wholeGrainFlour / this.totalFlour) * 100;
+            },
         },
 
         watch: {
@@ -916,7 +1039,7 @@ $adminBasePath = '../';
                 if (ing) m.category = ing.cat;
             },
 
-            formatW(v) { return Math.round(v).toLocaleString('nl-NL'); },
+            formatW(v) { return Math.round(v).toString(); },
             formatP(v) { return (Math.round(v * 10) / 10).toString().replace('.', ','); },
             formatDate(d) {
                 if (!d) return '';
@@ -933,6 +1056,7 @@ $adminBasePath = '../';
                 return {
                     numberOfBalls: this.numberOfBalls,
                     weightPerBall: this.weightPerBall,
+                    weightFromOrder: this.weightFromOrder,
                     hydration: this.hydration,
                     saltPct: this.saltPct,
                     useSourdough: this.useSourdough,
@@ -955,7 +1079,7 @@ $adminBasePath = '../';
             },
 
             applyRecipeData(d) {
-                const fields = ['numberOfBalls','weightPerBall','hydration','saltPct',
+                const fields = ['numberOfBalls','weightPerBall','weightFromOrder','hydration','saltPct',
                     'useSourdough','sourdoughPct','sourdoughHydration','sourdoughGrains',
                     'useYeast','yeastType','yeastPct',
                     'usePreFerment','preFermentPct','preFermentHydration',
@@ -1024,11 +1148,49 @@ $adminBasePath = '../';
                 } catch (e) { console.error(e); }
             },
 
+            duplicateRecipe() {
+                this.currentRecipeId = null;
+                this.recipeName = this.recipeName + ' (kopie)';
+                this.showToast('Recept gedupliceerd - pas aan en sla op');
+            },
+
+            async printRecipe() {
+                const data = {
+                    name: this.recipeName || 'Recept',
+                    recipe_data: this.getRecipeData()
+                };
+                try {
+                    const res = await fetch('../../api/recipe-pdf.php', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(data)
+                    });
+                    if (res.ok) {
+                        const blob = await res.blob();
+                        const url = window.URL.createObjectURL(blob);
+                        const a = document.createElement('a');
+                        a.href = url;
+                        a.download = 'Recept_' + (this.recipeName || 'Recept').replace(/[^a-zA-Z0-9]/g, '_') + '.pdf';
+                        document.body.appendChild(a);
+                        a.click();
+                        a.remove();
+                        window.URL.revokeObjectURL(url);
+                        this.showToast('PDF gedownload');
+                    } else {
+                        this.showToast('Fout bij genereren PDF');
+                    }
+                } catch (e) {
+                    console.error(e);
+                    this.showToast('Fout bij genereren PDF');
+                }
+            },
+
             newRecipe() {
                 this.currentRecipeId = null;
                 this.recipeName = '';
                 this.numberOfBalls = 24;
                 this.weightPerBall = 300;
+                this.weightFromOrder = false;
                 this.hydration = 62;
                 this.saltPct = 2.6;
                 this.useSourdough = false;
