@@ -20,7 +20,7 @@ if (!is_dir($uploadDir)) {
 $id = $_GET['id'] ?? null;
 $product = null;
 $variants = [];
-$deegtypes = $pdo->query("SELECT * FROM deegtypes ORDER BY naam ASC")->fetchAll();
+$recipes = $pdo->query("SELECT id, name FROM baker_recipes ORDER BY name ASC")->fetchAll();
 $error = '';
 $success = '';
 
@@ -43,7 +43,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $ingredienten = trim($_POST['ingredienten'] ?? '');
     $beschrijving = trim($_POST['beschrijving'] ?? '');
     $prijs = $_POST['prijs'] !== '' ? floatval($_POST['prijs']) : null;
-    $deegtype_id = $_POST['deegtype_id'] !== '' ? intval($_POST['deegtype_id']) : null;
+    $recipe_id = $_POST['recipe_id'] !== '' ? intval($_POST['recipe_id']) : null;
+    $standard_weight = $_POST['standard_weight'] !== '' ? intval($_POST['standard_weight']) : 300;
     $foto = $product['foto'] ?? '';
     
     $variantGewichten = $_POST['variant_gewicht'] ?? [];
@@ -71,11 +72,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if ($naam) {
         try {
             if ($id) {
-                $stmt = $pdo->prepare("UPDATE products SET naam = ?, ingredienten = ?, beschrijving = ?, prijs = ?, foto = ?, deegtype_id = ? WHERE id = ?");
-                $stmt->execute([$naam, $ingredienten, $beschrijving, $prijs, $foto, $deegtype_id, $id]);
+                $stmt = $pdo->prepare("UPDATE products SET naam = ?, ingredienten = ?, beschrijving = ?, prijs = ?, foto = ?, recipe_id = ?, standard_weight = ? WHERE id = ?");
+                $stmt->execute([$naam, $ingredienten, $beschrijving, $prijs, $foto, $recipe_id, $standard_weight, $id]);
             } else {
-                $stmt = $pdo->prepare("INSERT INTO products (naam, ingredienten, beschrijving, prijs, foto, deegtype_id) VALUES (?, ?, ?, ?, ?, ?)");
-                $stmt->execute([$naam, $ingredienten, $beschrijving, $prijs, $foto, $deegtype_id]);
+                $stmt = $pdo->prepare("INSERT INTO products (naam, ingredienten, beschrijving, prijs, foto, recipe_id, standard_weight) VALUES (?, ?, ?, ?, ?, ?, ?)");
+                $stmt->execute([$naam, $ingredienten, $beschrijving, $prijs, $foto, $recipe_id, $standard_weight]);
                 $id = $pdo->lastInsertId();
             }
             
@@ -244,6 +245,26 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
         .price-input input {
             padding-left: 1.75rem;
+        }
+        .input-with-unit {
+            display: flex;
+            align-items: stretch;
+        }
+        .input-with-unit input {
+            border-top-right-radius: 0;
+            border-bottom-right-radius: 0;
+            flex: 1;
+        }
+        .input-unit {
+            padding: 0.75rem;
+            background: #f5f2ed;
+            border: 2px solid #e8dfd2;
+            border-left: none;
+            border-radius: 0 8px 8px 0;
+            font-size: 0.9rem;
+            color: #666;
+            display: flex;
+            align-items: center;
         }
         .file-input {
             padding: 0.5rem;
@@ -455,14 +476,23 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         </div>
                         
                         <div class="form-group">
-                            <label for="deegtype_id">Deegtype</label>
-                            <select id="deegtype_id" name="deegtype_id">
-                                <option value="">- Geen deegtype -</option>
-                                <?php foreach ($deegtypes as $dt): ?>
-                                    <option value="<?= $dt['id'] ?>" <?= ($product['deegtype_id'] ?? '') == $dt['id'] ? 'selected' : '' ?>><?= htmlspecialchars($dt['naam']) ?></option>
+                            <label for="recipe_id">Recept (voor bakker)</label>
+                            <select id="recipe_id" name="recipe_id">
+                                <option value="">- Geen recept gekoppeld -</option>
+                                <?php foreach ($recipes as $r): ?>
+                                    <option value="<?= $r['id'] ?>" <?= ($product['recipe_id'] ?? '') == $r['id'] ? 'selected' : '' ?>><?= htmlspecialchars($r['name']) ?></option>
                                 <?php endforeach; ?>
                             </select>
-                            <p class="help">Intern gebruik (niet zichtbaar voor klanten)</p>
+                            <p class="help">Koppel aan een recept uit de Bak Calculator voor ingrediëntenberekening</p>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="standard_weight">Standaard Gewicht</label>
+                            <div class="input-with-unit">
+                                <input type="number" id="standard_weight" name="standard_weight" min="1" step="10" value="<?= $product['standard_weight'] ?? 300 ?>">
+                                <span class="input-unit">gram</span>
+                            </div>
+                            <p class="help">Gewicht per stuk voor receptberekening</p>
                         </div>
 
                         <div class="form-group">

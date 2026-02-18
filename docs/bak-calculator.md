@@ -5,11 +5,14 @@ Interne tool voor de bakker om recepten te berekenen op basis van baker's percen
 ## Locatie
 
 - **Pagina**: `admin/bakker/bakcalculator.php`
+- **Dagproductie**: `admin/bakker/dagproductie.php`
 - **API**: `api/baker-recipes.php`
+- **Dagproductie API**: `api/production-day.php`
 - **PDF API**: `api/recipe-pdf.php`
 - **PDF Generator**: `lib/recipe/RecipePDF.php`
-- **Migration**: `admin/migrations/010_baker_recipes.php`
-- **Navigatie**: Toegankelijk via admin dashboard en bakker-dashboard
+- **Migration recepten**: `admin/migrations/010_baker_recipes.php`
+- **Migration product-recept link**: `admin/migrations/011_product_recipe_link.php`
+- **Navigatie**: Toegankelijk via admin dashboard, bakker-dashboard en bereiden pagina
 
 ## Database
 
@@ -24,6 +27,17 @@ Interne tool voor de bakker om recepten te berekenen op basis van baker's percen
 | updated_at | TIMESTAMP | Laatste wijziging |
 
 **Migration draaien**: `php admin/migrations/010_baker_recipes.php`
+
+### Product-Recept Koppeling
+
+Producten kunnen gekoppeld worden aan recepten via:
+
+| Kolom | Type | Beschrijving |
+|-------|------|-------------|
+| products.recipe_id | INT NULL | FK naar baker_recipes.id |
+| products.standard_weight | INT DEFAULT 300 | Standaard gewicht per stuk (gram) |
+
+**Migration draaien**: `php admin/migrations/011_product_recipe_link.php`
 
 ## API Endpoints
 
@@ -127,40 +141,84 @@ totalFinalWeight = totalDoughWeight + saltWeight + levenerWeight + mixinWeight +
 finalWeightPerBall = totalFinalWeight / numberOfBalls
 ```
 
-## Gewicht uit Bestelling (toekomstige feature)
+## Product-Recept Koppeling
 
-### Toggle `weightFromOrder`
+Producten kunnen gekoppeld worden aan recepten voor automatische ingrediëntenberekening.
 
-**`weightFromOrder: false` (standaard)**
+### Configuratie in Product Bewerken
+
+In `admin/producten/product-edit.php`:
+- **Recept dropdown**: Selecteer een opgeslagen recept uit de calculator
+- **Standaard gewicht**: Gewicht per stuk voor berekeningen (default 300g)
+
+### Bereiden Pagina
+
+De bereiden pagina (`admin/bakker/bereiden.php`) toont nu:
+- **Producten tab**: Alle producten met aantallen en bedragen
+- **Recepten tab**: Producten gegroepeerd per recept met totaal stuks en kg
+- **Bekijk ingrediënten knop**: Link naar dagproductie pagina
+
+### Dagproductie Pagina
+
+`admin/bakker/dagproductie.php` toont voor een bereidingsdag:
+- Overzicht van alle recepten met benodigde aantallen
+- **Per recept:**
+  - Welke producten dit recept gebruiken
+  - Totaal meel (per meelsoort)
+  - Water en zout
+  - Rijsmiddelen (gist, zuurdesem)
+  - Voordeeg berekeningen (indien van toepassing)
+  - Mix-ins en toppings
+- Print-vriendelijke layout voor in de bakkerij
+- Waarschuwing voor producten zonder gekoppeld recept
+
+### Dagproductie API
+
+`api/production-day.php?date=YYYY-MM-DD`
+
+Retourneert JSON met:
+```json
+{
+  "success": true,
+  "date": "2024-01-15",
+  "delivery_date": "2024-01-16",
+  "recipes": [{
+    "id": 1,
+    "name": "Volkoren",
+    "products": {"Volkoren 400g": {"qty": 24, "weight": 400}},
+    "total_qty": 24,
+    "total_weight": 9600,
+    "ingredients": {
+      "totalFlour": 5800,
+      "totalWater": 3596,
+      "saltWeight": 151,
+      "grains": [{"name": "Tarwe volkoren", "weight": 5800, "pct": 100}],
+      "leveners": [{"name": "Instant gist", "weight": 81, "pct": 1.4}],
+      "sourdough": null,
+      "preFerment": null,
+      "mixins": [],
+      "toppings": []
+    }
+  }],
+  "no_recipe": {"products": {...}, "total_qty": 5},
+  "totals": {"products": 29, "weight": 10500, "recipe_count": 1}
+}
+```
+
+## Gewicht uit Bestelling Toggle
+
+### `weightFromOrder: false` (standaard)
 - Gebruiker vult handmatig in: aantal bollen × gewicht per stuk
 - Calculator berekent exacte gewichten
 
-**`weightFromOrder: true`**
+### `weightFromOrder: true`
 - Aantal en gewicht velden zijn verborgen
 - Sidebar toont alleen percentages, geen gewichten
 - Overzicht toont alleen percentages
 - Baker's Percentages tabel verbergt gewichtskolom
 - Print PDF toont alleen percentages
-- Recept slaat alleen percentages op (hydratatie, zout, meelverhoudingen, etc.)
-- Gewichten worden later ingevuld vanuit bestellingen
-
-### Toekomstige koppeling met dagbestellingen
-
-**Doel:** Bereiden pagina toont bestellingen voor morgen (bijv. 24× Volkoren, 12× Speltbrood). Bakker klikt op product → gekoppeld recept opent met automatisch ingevulde aantallen.
-
-**Benodigde stappen:**
-1. Product koppelen aan recept (`products.recipe_id` foreign key)
-2. Standaard gewicht per product opslaan (`products.standard_weight`)
-3. Bereiden pagina: knop "Open recept" per product
-4. Calculator ontvangt parameters via URL: `?recipe_id=X&quantity=24&weight=300`
-5. Calculator vult `numberOfBalls` en `weightPerBall` automatisch in
-
-**Flow:**
-```
-Bereiden pagina → Klik "Volkoren" → 
-Calculator opent met recipe_id=5, quantity=24, weight=300 →
-Toont exacte gewichten voor die dagproductie
-```
+- Recept slaat alleen percentages op
+- Gewichten worden berekend via dagproductie pagina
 
 ## Overzicht Tab
 
