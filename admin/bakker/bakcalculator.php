@@ -505,7 +505,7 @@ $monthlyBreadCount = (int)$stmt->fetch()['total_breads'];
                             <div><span class="form-label">Hydratatie</span><br><span class="calc-value">{{ formatP(effectiveTotalHydration) }}<span class="calc-unit">%</span></span></div>
                             <div><span class="form-label">Zout</span><br><span class="calc-value">{{ formatP(saltPct) }}<span class="calc-unit">%</span></span></div>
                             <div><span class="form-label">Volkoren</span><br><span class="calc-value">{{ formatP(totalWholeGrainPct) }}<span class="calc-unit">%</span></span></div>
-                            <div><span class="form-label">Wit</span><br><span class="calc-value">{{ formatP(100 - totalWholeGrainPct) }}<span class="calc-unit">%</span></span></div>
+                            <div><span class="form-label">Wit</span><br><span class="calc-value">{{ formatP(100 - Math.round(totalWholeGrainPct * 10) / 10) }}<span class="calc-unit">%</span></span></div>
                         </div>
 
                         <div class="overview-grid">
@@ -603,7 +603,7 @@ $monthlyBreadCount = (int)$stmt->fetch()['total_breads'];
                                 </div>
                                 <div class="overview-item">
                                     <span class="name">Wit</span>
-                                    <span class="value">{{ formatP(100 - totalWholeGrainPct) }}%</span>
+                                    <span class="value">{{ formatP(100 - Math.round(totalWholeGrainPct * 10) / 10) }}%</span>
                                 </div>
                                 <div class="overview-total" style="margin-top:0.25rem;padding-top:0.5rem">
                                     <span>Graansoort</span>
@@ -766,7 +766,7 @@ $monthlyBreadCount = (int)$stmt->fetch()['total_breads'];
                         </div>
                         <div class="summary-row">
                             <span class="summary-label">Wit</span>
-                            <span class="summary-value">{{ formatP(100 - totalWholeGrainPct) }}%</span>
+                            <span class="summary-value">{{ formatP(100 - Math.round(totalWholeGrainPct * 10) / 10) }}%</span>
                         </div>
                         <template v-if="grainTypeDistribution.length > 0">
                             <div class="summary-section-title">Graanverdeling</div>
@@ -1000,34 +1000,24 @@ $monthlyBreadCount = (int)$stmt->fetch()['total_breads'];
             otherPct() { return Math.max(0, 100 - this.flourPct - this.waterPct); },
 
             totalWholeGrainPct() {
-                if (this.totalFlour === 0) return 0;
                 let wholeGrainFlour = 0;
+                let totalGrainFlour = 0;
                 const isWholeGrain = (type) => {
                     const grain = this.grainTypes.find(g => g.id == type);
                     return grain ? grain.isWholeGrain : (type && type.toString().includes('_whole'));
                 };
-                
+                const addGrain = (amount, type) => {
+                    totalGrainFlour += amount;
+                    if (isWholeGrain(type)) wholeGrainFlour += amount;
+                };
                 if (this.useSourdough) {
-                    this.sourdoughGrains.forEach((g, i) => {
-                        if (isWholeGrain(g.type)) {
-                            wholeGrainFlour += this.sourdoughGrainDetail(i).total;
-                        }
-                    });
+                    this.sourdoughGrains.forEach((g, i) => addGrain(this.sourdoughGrainDetail(i).total, g.type));
                 }
                 if (this.usePreFerment) {
-                    this.preFermentGrains.forEach((g, i) => {
-                        if (isWholeGrain(g.type)) {
-                            wholeGrainFlour += this.preFermentGrainDetail(i).total;
-                        }
-                    });
+                    this.preFermentGrains.forEach((g, i) => addGrain(this.preFermentGrainDetail(i).total, g.type));
                 }
-                this.mainDoughGrains.forEach((g, i) => {
-                    if (isWholeGrain(g.type)) {
-                        wholeGrainFlour += this.mainDoughGrainDetail(i).total;
-                    }
-                });
-                
-                return (wholeGrainFlour / this.totalFlour) * 100;
+                this.mainDoughGrains.forEach((g, i) => addGrain(this.mainDoughGrainDetail(i).total, g.type));
+                return totalGrainFlour > 0 ? (wholeGrainFlour / totalGrainFlour) * 100 : 0;
             },
 
             grainTypeDistribution() {
