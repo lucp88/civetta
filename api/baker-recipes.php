@@ -25,7 +25,8 @@ switch ($method) {
             }
         } else {
             $stmt = $pdo->query("
-                SELECT r.id, r.name, r.dough_type_id, r.created_at, r.updated_at, dt.name as dough_type_name
+                SELECT r.id, r.name, r.dough_type_id, r.created_at, r.updated_at, dt.name as dough_type_name,
+                       EXISTS(SELECT 1 FROM product_variants WHERE recipe_id = r.id) as linked_to_product
                 FROM baker_recipes r
                 LEFT JOIN dough_types dt ON r.dough_type_id = dt.id
                 ORDER BY dt.name ASC, r.name ASC

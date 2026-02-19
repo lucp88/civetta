@@ -717,6 +717,10 @@ $doughTypes = $pdo->query("SELECT id, name FROM dough_types ORDER BY name ASC")-
                                                 {{ r.name }}
                                             </h4>
                                             <small>{{ formatDate(r.updated_at) }}</small>
+                                            <div style="margin-top:0.2rem">
+                                                <span v-if="r.linked_to_product" style="color:#2e7d32;font-size:0.75rem;font-weight:600"><i class="bi bi-link-45deg"></i> Gekoppeld aan product</span>
+                                                <span v-else style="color:#bbb;font-size:0.75rem"><i class="bi bi-x"></i> Niet gekoppeld</span>
+                                            </div>
                                         </div>
                                         <div class="recipe-actions">
                                             <button class="btn btn-primary btn-sm" @click="loadRecipe(r.id)"><i class="bi bi-folder2-open"></i> Laden</button>

@@ -3,10 +3,14 @@ require_once '../config.php';
 requireLogin();
 
 $products = $pdo->query("SELECT * FROM products ORDER BY naam ASC")->fetchAll();
-$variants = $pdo->query("SELECT product_id, gewicht, prijs FROM product_variants ORDER BY gewicht ASC")->fetchAll();
+$variants = $pdo->query("SELECT product_id, gewicht, prijs, recipe_id FROM product_variants ORDER BY gewicht ASC")->fetchAll();
 $variantsByProduct = [];
+$recipeLinkedByProduct = [];
 foreach ($variants as $v) {
     $variantsByProduct[$v['product_id']][] = $v;
+    if (!empty($v['recipe_id'])) {
+        $recipeLinkedByProduct[$v['product_id']] = true;
+    }
 }
 
 $stmt = $pdo->query("SELECT COUNT(*) as count FROM business_accounts WHERE status = 'pending'");
@@ -205,6 +209,7 @@ $adminBasePath = '../';
                             <th>Product</th>
                             <th>Beschrijving</th>
                             <th>Varianten</th>
+                            <th>Recept</th>
                             <th>Acties</th>
                         </tr>
                     </thead>
@@ -227,6 +232,13 @@ $adminBasePath = '../';
                                         <span class="single-price">&euro;<?= number_format($product['prijs'], 2, ',', '.') ?></span>
                                     <?php else: ?>
                                         <span style="color:#aaa">-</span>
+                                    <?php endif; ?>
+                                </td>
+                                <td>
+                                    <?php if (!empty($recipeLinkedByProduct[$product['id']])): ?>
+                                        <span style="color:#2e7d32;font-size:0.85rem;font-weight:600"><i class="bi bi-check-circle-fill"></i> Ja</span>
+                                    <?php else: ?>
+                                        <span style="color:#bbb;font-size:0.85rem"><i class="bi bi-x-circle"></i> Nee</span>
                                     <?php endif; ?>
                                 </td>
                                 <td class="actions">
