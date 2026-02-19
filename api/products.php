@@ -65,39 +65,41 @@ function computeIngredientList($recipeData, $lookup = []) {
         'fresh_yeast' => 'verse gist', 'instant_yeast' => 'gist', 'sourdough_culture' => 'desemcultuur',
     ];
 
-    $ingredients = [];
-
+    // Grains always come first as a group, sorted among themselves by %
+    $grains = [];
     foreach ($recipeData['mainDoughGrains'] ?? [] as $grain) {
         if (($grain['pct'] ?? 0) > 0) {
-            $ingredients[] = ['name' => grainDisplayName($grain['type'] ?? '', $lookup), 'amount' => (float)$grain['pct']];
+            $grains[] = ['name' => grainDisplayName($grain['type'] ?? '', $lookup), 'amount' => (float)$grain['pct']];
         }
     }
+    usort($grains, fn($a, $b) => $b['amount'] <=> $a['amount']);
 
-    $ingredients[] = ['name' => 'water', 'amount' => (float)($recipeData['hydration'] ?? 65)];
-
+    // Non-grain ingredients sorted by amount
+    $others = [];
     // Sourdough is omitted: it is flour + water, not a separate ingredient
-
-    $ingredients[] = ['name' => 'zout', 'amount' => (float)($recipeData['saltPct'] ?? 2.6)];
+    $others[] = ['name' => 'water', 'amount' => (float)($recipeData['hydration'] ?? 65)];
+    $others[] = ['name' => 'zout', 'amount' => (float)($recipeData['saltPct'] ?? 2.6)];
 
     if (!empty($recipeData['useYeast'])) {
         $yeastType = $recipeData['yeastType'] ?? 'instant_yeast';
-        $ingredients[] = ['name' => $yeastNames[$yeastType] ?? 'gist', 'amount' => (float)($recipeData['yeastPct'] ?? 1)];
+        $others[] = ['name' => $yeastNames[$yeastType] ?? 'gist', 'amount' => (float)($recipeData['yeastPct'] ?? 1)];
     }
 
     foreach ($recipeData['mixins'] ?? [] as $mixin) {
         if (!empty($mixin['ingredient']) && ($mixin['pct'] ?? 0) > 0) {
-            $ingredients[] = ['name' => strtolower($mixin['ingredient']), 'amount' => (float)$mixin['pct']];
+            $others[] = ['name' => strtolower($mixin['ingredient']), 'amount' => (float)$mixin['pct']];
         }
     }
 
     foreach ($recipeData['toppings'] ?? [] as $topping) {
         if (!empty($topping['ingredient']) && ($topping['pct'] ?? 0) > 0) {
-            $ingredients[] = ['name' => strtolower($topping['ingredient']), 'amount' => (float)$topping['pct']];
+            $others[] = ['name' => strtolower($topping['ingredient']), 'amount' => (float)$topping['pct']];
         }
     }
 
-    usort($ingredients, fn($a, $b) => $b['amount'] <=> $a['amount']);
-    $names = array_column($ingredients, 'name');
+    usort($others, fn($a, $b) => $b['amount'] <=> $a['amount']);
+
+    $names = array_column(array_merge($grains, $others), 'name');
     return !empty($names) ? implode(', ', $names) : null;
 }
 
@@ -139,52 +141,62 @@ try {
                 }
             }
 
-            $recipesById = [];
-            if (!empty($recipeIdByProduct)) {
-                $uniqueIds = array_unique(array_values($recipeIdByProduct));
-                $placeholders = implode(',', array_fill(0, count($uniqueIds), '?'));
-                $recipeStmt = $pdo->prepare("SELECT id, recipe_data FROM baker_recipes WHERE id IN ($placeholders)");
-                $recipeStmt->execute($uniqueIds);
-                foreach ($recipeStmt->fetchAll() as $r) {
-                    $recipesById[$r['id']] = json_decode($r['recipe_data'], true);
-                }
+            // Attach variants (without recipe derivation — that's done below)
+            foreach ($products as &$product) {
+                $product['variants'] = $variantsByProduct[$product['id']] ?? [];
             }
+            unset($product);
 
-            // Collect numeric grain IDs used across all recipes for name lookup
-            $allGrainIds = [];
-            foreach ($recipesById as $rd) {
-                foreach (['mainDoughGrains', 'sourdoughGrains', 'preFermentGrains'] as $key) {
-                    foreach ($rd[$key] ?? [] as $grain) {
-                        if (is_numeric($grain['type'] ?? '')) {
-                            $allGrainIds[] = (int)$grain['type'];
+            // Derive ingredient list from recipes — wrapped so any DB error here
+            // never prevents the basic product list from being returned
+            try {
+                $recipesById = [];
+                if (!empty($recipeIdByProduct)) {
+                    $uniqueIds = array_unique(array_values($recipeIdByProduct));
+                    $placeholders = implode(',', array_fill(0, count($uniqueIds), '?'));
+                    $recipeStmt = $pdo->prepare("SELECT id, recipe_data FROM baker_recipes WHERE id IN ($placeholders)");
+                    $recipeStmt->execute($uniqueIds);
+                    foreach ($recipeStmt->fetchAll() as $r) {
+                        $recipesById[$r['id']] = json_decode($r['recipe_data'], true);
+                    }
+                }
+
+                $allGrainIds = [];
+                foreach ($recipesById as $rd) {
+                    foreach (['mainDoughGrains', 'sourdoughGrains', 'preFermentGrains'] as $key) {
+                        foreach ($rd[$key] ?? [] as $grain) {
+                            if (is_numeric($grain['type'] ?? '')) {
+                                $allGrainIds[] = (int)$grain['type'];
+                            }
                         }
                     }
                 }
-            }
-            $ingredientLookup = [];
-            if (!empty($allGrainIds)) {
-                $uniqueGrainIds = array_unique($allGrainIds);
-                $grainPlaceholders = implode(',', array_fill(0, count($uniqueGrainIds), '?'));
-                $ingStmt = $pdo->prepare("SELECT id, name, is_whole_grain FROM ingredients WHERE id IN ($grainPlaceholders)");
-                $ingStmt->execute($uniqueGrainIds);
-                foreach ($ingStmt->fetchAll() as $ing) {
-                    $ingredientLookup[(int)$ing['id']] = ['name' => $ing['name'], 'is_whole_grain' => (bool)$ing['is_whole_grain']];
-                }
-            }
-
-            foreach ($products as &$product) {
-                $pid = $product['id'];
-                $product['variants'] = $variantsByProduct[$pid] ?? [];
-                if (isset($recipeIdByProduct[$pid]) && isset($recipesById[$recipeIdByProduct[$pid]])) {
-                    $rd = $recipesById[$recipeIdByProduct[$pid]];
-                    $list = computeIngredientList($rd, $ingredientLookup);
-                    if ($list !== null) {
-                        $product['ingredienten_recipe'] = $list;
-                        $product['recipe_details'] = computeRecipeDetails($rd, $ingredientLookup);
+                $ingredientLookup = [];
+                if (!empty($allGrainIds)) {
+                    $uniqueGrainIds = array_unique($allGrainIds);
+                    $grainPlaceholders = implode(',', array_fill(0, count($uniqueGrainIds), '?'));
+                    $ingStmt = $pdo->prepare("SELECT id, name, is_whole_grain FROM ingredients WHERE id IN ($grainPlaceholders)");
+                    $ingStmt->execute($uniqueGrainIds);
+                    foreach ($ingStmt->fetchAll() as $ing) {
+                        $ingredientLookup[(int)$ing['id']] = ['name' => $ing['name'], 'is_whole_grain' => (bool)$ing['is_whole_grain']];
                     }
                 }
+
+                foreach ($products as &$product) {
+                    $pid = $product['id'];
+                    if (isset($recipeIdByProduct[$pid]) && isset($recipesById[$recipeIdByProduct[$pid]])) {
+                        $rd = $recipesById[$recipeIdByProduct[$pid]];
+                        $list = computeIngredientList($rd, $ingredientLookup);
+                        if ($list !== null) {
+                            $product['ingredienten_recipe'] = $list;
+                            $product['recipe_details'] = computeRecipeDetails($rd, $ingredientLookup);
+                        }
+                    }
+                }
+                unset($product);
+            } catch (Exception $e) {
+                // Recipe/ingredient data unavailable — products still returned without it
             }
-            unset($product);
 
             $stmt = $pdo->query("SELECT setting_value FROM settings WHERE setting_key = 'btw_tarief'");
             $btwTarief = floatval($stmt->fetchColumn() ?: 9);
