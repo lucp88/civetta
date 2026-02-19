@@ -48,7 +48,7 @@ const productDetailApp = createApp({
                     return;
                 }
 
-                const product = data.products.find(p => p.id === id);
+                const product = data.products.find(p => parseInt(p.id) === id);
                 if (!product) {
                     this.error = 'Product niet gevonden.';
                     this.loading = false;
