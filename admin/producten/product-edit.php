@@ -39,9 +39,83 @@ if ($id) {
     $variants = $stmt->fetchAll();
 }
 
+// Compute ingredient list from first variant's recipe
+$computedIngredientList = null;
+$computedRecipeDetails = null;
+$firstRecipeId = null;
+foreach ($variants as $v) {
+    if (!empty($v['recipe_id'])) { $firstRecipeId = (int)$v['recipe_id']; break; }
+}
+if ($firstRecipeId) {
+    $rStmt = $pdo->prepare("SELECT recipe_data FROM baker_recipes WHERE id = ?");
+    $rStmt->execute([$firstRecipeId]);
+    $rd = json_decode($rStmt->fetchColumn() ?: '{}', true) ?? [];
+
+    $grainIds = [];
+    foreach (['mainDoughGrains', 'sourdoughGrains', 'preFermentGrains'] as $key) {
+        foreach ($rd[$key] ?? [] as $grain) {
+            if (is_numeric($grain['type'] ?? '')) $grainIds[] = (int)$grain['type'];
+        }
+    }
+    $lookup = [];
+    if (!empty($grainIds)) {
+        $gIds = array_unique($grainIds);
+        $gp = implode(',', array_fill(0, count($gIds), '?'));
+        $gStmt = $pdo->prepare("SELECT id, name, is_whole_grain FROM ingredients WHERE id IN ($gp)");
+        $gStmt->execute($gIds);
+        foreach ($gStmt->fetchAll() as $ing) {
+            $lookup[(int)$ing['id']] = ['name' => $ing['name'], 'is_whole_grain' => (bool)$ing['is_whole_grain']];
+        }
+    }
+
+    $items = [];
+    foreach ($rd['mainDoughGrains'] ?? [] as $grain) {
+        if (($grain['pct'] ?? 0) > 0) {
+            $t = $grain['type'] ?? '';
+            $n = is_numeric($t) && isset($lookup[(int)$t]) ? strtolower($lookup[(int)$t]['name']) : (string)$t;
+            $items[] = ['name' => $n, 'amount' => (float)$grain['pct']];
+        }
+    }
+    $items[] = ['name' => 'water', 'amount' => (float)($rd['hydration'] ?? 65)];
+    $items[] = ['name' => 'zout', 'amount' => (float)($rd['saltPct'] ?? 2.6)];
+    if (!empty($rd['useYeast'])) {
+        $yn = ['fresh_yeast' => 'verse gist', 'instant_yeast' => 'gist', 'sourdough_culture' => 'desemcultuur'];
+        $items[] = ['name' => $yn[$rd['yeastType'] ?? 'instant_yeast'] ?? 'gist', 'amount' => (float)($rd['yeastPct'] ?? 1)];
+    }
+    foreach (array_merge($rd['mixins'] ?? [], $rd['toppings'] ?? []) as $item) {
+        if (!empty($item['ingredient']) && ($item['pct'] ?? 0) > 0) {
+            $items[] = ['name' => strtolower($item['ingredient']), 'amount' => (float)$item['pct']];
+        }
+    }
+    usort($items, fn($a, $b) => $b['amount'] <=> $a['amount']);
+    $computedIngredientList = implode(', ', array_column($items, 'name'));
+
+    $grains = [];
+    foreach ($rd['mainDoughGrains'] ?? [] as $grain) {
+        if (($grain['pct'] ?? 0) > 0) {
+            $t = $grain['type'] ?? '';
+            $n = is_numeric($t) && isset($lookup[(int)$t]) ? $lookup[(int)$t]['name'] : (string)$t;
+            $grains[] = ['name' => $n, 'pct' => (int)round((float)$grain['pct'])];
+        }
+    }
+    usort($grains, fn($a, $b) => $b['pct'] <=> $a['pct']);
+
+    $allG = [];
+    foreach (['mainDoughGrains', 'sourdoughGrains', 'preFermentGrains'] as $key) {
+        if (!empty($rd[$key])) $allG = array_merge($allG, $rd[$key]);
+    }
+    $totP = 0; $wholeP = 0;
+    foreach ($allG as $grain) {
+        $pct = $grain['pct'] ?? 0; $t = $grain['type'] ?? '';
+        $totP += $pct;
+        $isWhole = is_numeric($t) && isset($lookup[(int)$t]) ? (bool)$lookup[(int)$t]['is_whole_grain'] : strpos($t, '_whole') !== false;
+        if ($isWhole) $wholeP += $pct;
+    }
+    $computedRecipeDetails = ['volkoren_pct' => $totP > 0 ? (int)round(($wholeP / $totP) * 100) : 0, 'grains' => $grains];
+}
+
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $naam = trim($_POST['naam'] ?? '');
-    $ingredienten = trim($_POST['ingredienten'] ?? '');
     $beschrijving = trim($_POST['beschrijving'] ?? '');
     $doughTypeId = !empty($_POST['dough_type_id']) ? intval($_POST['dough_type_id']) : null;
     $foto = $product['foto'] ?? '';
@@ -72,11 +146,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if ($naam) {
         try {
             if ($id) {
-                $stmt = $pdo->prepare("UPDATE products SET naam = ?, ingredienten = ?, beschrijving = ?, foto = ?, dough_type_id = ? WHERE id = ?");
-                $stmt->execute([$naam, $ingredienten, $beschrijving, $foto, $doughTypeId, $id]);
+                $stmt = $pdo->prepare("UPDATE products SET naam = ?, beschrijving = ?, foto = ?, dough_type_id = ? WHERE id = ?");
+                $stmt->execute([$naam, $beschrijving, $foto, $doughTypeId, $id]);
             } else {
-                $stmt = $pdo->prepare("INSERT INTO products (naam, ingredienten, beschrijving, foto, dough_type_id) VALUES (?, ?, ?, ?, ?)");
-                $stmt->execute([$naam, $ingredienten, $beschrijving, $foto, $doughTypeId]);
+                $stmt = $pdo->prepare("INSERT INTO products (naam, beschrijving, foto, dough_type_id) VALUES (?, ?, ?, ?)");
+                $stmt->execute([$naam, $beschrijving, $foto, $doughTypeId]);
                 $id = $pdo->lastInsertId();
             }
             
@@ -429,6 +503,43 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         .preview-variant .gewicht {
             color: #666;
         }
+        .computed-ingredients-box {
+            padding: 0.75rem 1rem;
+            background: #f5f2ed;
+            border: 2px solid #e8dfd2;
+            border-radius: 8px;
+            font-size: 0.95rem;
+            color: #4a433d;
+            line-height: 1.5;
+        }
+        .computed-ingredients-box.empty {
+            color: #aaa;
+            font-style: italic;
+        }
+        .recipe-details-box {
+            margin-top: 0.75rem;
+            padding: 0.75rem 1rem;
+            background: #faf7f3;
+            border: 1px solid #e8dfd2;
+            border-radius: 8px;
+            font-size: 0.875rem;
+        }
+        .recipe-details-box .detail-row {
+            display: flex;
+            justify-content: space-between;
+            padding: 0.2rem 0;
+            color: #5c3d1e;
+            border-bottom: 1px solid #f0e6d8;
+        }
+        .recipe-details-box .detail-row:last-child { border-bottom: none; }
+        .recipe-details-box .detail-subtitle {
+            font-size: 0.75rem;
+            font-weight: 700;
+            color: #8b5a2b;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            margin: 0.5rem 0 0.2rem 0;
+        }
     </style>
 </head>
 <body>
@@ -478,9 +589,24 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         </div>
                         
                         <div class="form-group">
-                            <label for="ingredienten">Ingredienten</label>
-                            <textarea id="ingredienten" name="ingredienten"><?= htmlspecialchars($product['ingredienten'] ?? '') ?></textarea>
-                            <p class="help">Lijst van ingredienten, bijv. "tarwebloem, water, zout, gist"</p>
+                            <label>Ingrediënten</label>
+                            <?php if ($computedIngredientList): ?>
+                                <div class="computed-ingredients-box"><?= htmlspecialchars($computedIngredientList) ?></div>
+                                <?php if ($computedRecipeDetails && !empty($computedRecipeDetails['grains'])): ?>
+                                <div class="recipe-details-box">
+                                    <?php if ($computedRecipeDetails['volkoren_pct'] > 0): ?>
+                                        <div class="detail-row"><span>Volkoren</span><span><?= $computedRecipeDetails['volkoren_pct'] ?>%</span></div>
+                                    <?php endif; ?>
+                                    <div class="detail-subtitle">Meelsoorten</div>
+                                    <?php foreach ($computedRecipeDetails['grains'] as $grain): ?>
+                                        <div class="detail-row"><span><?= htmlspecialchars($grain['name']) ?></span><span><?= $grain['pct'] ?>%</span></div>
+                                    <?php endforeach; ?>
+                                </div>
+                                <?php endif; ?>
+                                <p class="help">Automatisch bepaald vanuit het recept van de variant</p>
+                            <?php else: ?>
+                                <div class="computed-ingredients-box empty">Wordt bepaald zodra een recept aan een variant is gekoppeld</div>
+                            <?php endif; ?>
                         </div>
                         
                         <div class="form-group">
@@ -554,9 +680,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                                 <div class="preview-info">
                                     <h4 class="preview-naam" id="preview-naam"><?= htmlspecialchars($product['naam'] ?? 'Product naam') ?></h4>
                                     <p class="preview-beschrijving" id="preview-beschrijving"><?= htmlspecialchars($product['beschrijving'] ?? 'Beschrijving...') ?></p>
-                                    <div class="preview-ingredienten" id="preview-ingredienten">
-                                        <strong>Ingredienten:</strong> <span id="preview-ingredienten-text"><?= htmlspecialchars($product['ingredienten'] ?? 'ingredienten...') ?></span>
+                                    <?php if ($computedIngredientList): ?>
+                                    <div class="preview-ingredienten">
+                                        <strong>Ingrediënten:</strong> <?= htmlspecialchars($computedIngredientList) ?>
                                     </div>
+                                    <?php endif; ?>
                                     <div class="preview-footer">
                                         <div class="preview-variants" id="preview-variants">
                                             <?php foreach ($variants as $variant): ?>
@@ -581,9 +709,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         });
         document.getElementById('beschrijving').addEventListener('input', function() {
             document.getElementById('preview-beschrijving').textContent = this.value || 'Beschrijving...';
-        });
-        document.getElementById('ingredienten').addEventListener('input', function() {
-            document.getElementById('preview-ingredienten-text').textContent = this.value || 'ingredienten...';
         });
         document.getElementById('foto_upload').addEventListener('change', function(e) {
             const file = e.target.files[0];
