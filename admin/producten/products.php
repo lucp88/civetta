@@ -2,14 +2,12 @@
 require_once '../config.php';
 requireLogin();
 
-$products = $pdo->query("SELECT p.*, d.naam as deegtype_naam FROM products p LEFT JOIN deegtypes d ON p.deegtype_id = d.id ORDER BY p.naam ASC")->fetchAll();
+$products = $pdo->query("SELECT * FROM products ORDER BY naam ASC")->fetchAll();
 $variants = $pdo->query("SELECT product_id, gewicht, prijs FROM product_variants ORDER BY gewicht ASC")->fetchAll();
 $variantsByProduct = [];
 foreach ($variants as $v) {
     $variantsByProduct[$v['product_id']][] = $v;
 }
-
-$deegtypes = $pdo->query("SELECT * FROM deegtypes ORDER BY naam ASC")->fetchAll();
 
 $stmt = $pdo->query("SELECT COUNT(*) as count FROM business_accounts WHERE status = 'pending'");
 $sidebarPendingAccounts = $stmt->fetch()['count'];
@@ -21,44 +19,6 @@ $sidebarUnprocessedOrders = $stmt->fetch()['count'];
 $currentPage = 'products';
 $adminBasePath = '../';
 
-$deegMessage = '';
-if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    $action = $_POST['deeg_action'] ?? '';
-    
-    if ($action === 'create') {
-        $naam = trim($_POST['deeg_naam'] ?? '');
-        $beschrijving = trim($_POST['deeg_beschrijving'] ?? '');
-        if ($naam) {
-            $stmt = $pdo->prepare("INSERT INTO deegtypes (naam, beschrijving) VALUES (?, ?)");
-            $stmt->execute([$naam, $beschrijving]);
-            header('Location: products.php?deeg_msg=aangemaakt');
-            exit;
-        }
-    } elseif ($action === 'update') {
-        $id = intval($_POST['deeg_id'] ?? 0);
-        $naam = trim($_POST['deeg_naam'] ?? '');
-        $beschrijving = trim($_POST['deeg_beschrijving'] ?? '');
-        if ($id && $naam) {
-            $stmt = $pdo->prepare("UPDATE deegtypes SET naam = ?, beschrijving = ? WHERE id = ?");
-            $stmt->execute([$naam, $beschrijving, $id]);
-            header('Location: products.php?deeg_msg=bijgewerkt');
-            exit;
-        }
-    } elseif ($action === 'delete') {
-        $id = intval($_POST['deeg_id'] ?? 0);
-        if ($id) {
-            $pdo->prepare("UPDATE products SET deegtype_id = NULL WHERE deegtype_id = ?")->execute([$id]);
-            $pdo->prepare("DELETE FROM deegtypes WHERE id = ?")->execute([$id]);
-            header('Location: products.php?deeg_msg=verwijderd');
-            exit;
-        }
-    }
-}
-
-if (isset($_GET['deeg_msg'])) {
-    $msgs = ['aangemaakt' => 'Deegtype aangemaakt', 'bijgewerkt' => 'Deegtype bijgewerkt', 'verwijderd' => 'Deegtype verwijderd'];
-    $deegMessage = $msgs[$_GET['deeg_msg']] ?? '';
-}
 ?>
 <!DOCTYPE html>
 <html lang="nl">
@@ -210,84 +170,6 @@ if (isset($_GET['deeg_msg'])) {
             width: 80px;
             font-size: 1rem;
         }
-        .alert {
-            padding: 0.75rem 1rem;
-            border-radius: 6px;
-            margin-bottom: 1rem;
-            background: #d4edda;
-            color: #155724;
-        }
-        .modal-overlay {
-            position: fixed;
-            top: 0; left: 0; right: 0; bottom: 0;
-            background: rgba(0,0,0,0.5);
-            display: none;
-            align-items: center;
-            justify-content: center;
-            z-index: 1000;
-            padding: 1rem;
-        }
-        .modal-overlay.active { display: flex; }
-        .modal {
-            background: white;
-            border-radius: 12px;
-            max-width: 500px;
-            width: 100%;
-            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
-        }
-        .modal-header {
-            background: linear-gradient(135deg, #8b5a2b, #5c3d1e);
-            color: white;
-            padding: 1rem 1.25rem;
-            border-radius: 12px 12px 0 0;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-        }
-        .modal-header h3 { margin: 0; }
-        .modal-close {
-            width: 32px; height: 32px;
-            border: none;
-            background: rgba(255,255,255,0.2);
-            border-radius: 6px;
-            cursor: pointer;
-            font-size: 1.2rem;
-            color: white;
-        }
-        .modal-close:hover { background: rgba(255,255,255,0.3); }
-        .modal-body { padding: 1.25rem; }
-        .modal-body .form-group { margin-bottom: 1rem; }
-        .modal-body label {
-            display: block;
-            margin-bottom: 0.4rem;
-            font-weight: 500;
-            color: #4a433d;
-        }
-        .modal-body input,
-        .modal-body textarea {
-            width: 100%;
-            padding: 0.6rem;
-            border: 2px solid #e8dfd2;
-            border-radius: 6px;
-            font-size: 0.95rem;
-            font-family: inherit;
-        }
-        .modal-body textarea { min-height: 80px; resize: vertical; }
-        .modal-body input:focus,
-        .modal-body textarea:focus { outline: none; border-color: #d4a574; }
-        .modal-actions {
-            padding: 1rem 1.25rem;
-            border-top: 1px solid #eee;
-            display: flex;
-            gap: 0.75rem;
-            justify-content: flex-end;
-        }
-        .btn-secondary { background: #888; }
-        .btn-secondary:hover { background: #666; }
-        .deeg-beschrijving {
-            font-size: 0.85rem;
-            color: #888;
-        }
     </style>
 </head>
 <body>
@@ -322,8 +204,7 @@ if (isset($_GET['deeg_msg'])) {
                         <tr>
                             <th>Product</th>
                             <th>Beschrijving</th>
-                            <th>Deegtype</th>
-                            <th>Prijs / Varianten</th>
+                            <th>Varianten</th>
                             <th>Acties</th>
                         </tr>
                     </thead>
@@ -335,7 +216,6 @@ if (isset($_GET['deeg_msg'])) {
                                     <div class="product-naam"><?= htmlspecialchars($product['naam']) ?></div>
                                 </td>
                                 <td class="product-beschrijving"><?= htmlspecialchars(substr($product['beschrijving'] ?? '', 0, 60)) ?><?= strlen($product['beschrijving'] ?? '') > 60 ? '...' : '' ?></td>
-                                <td class="product-deegtype"><?= htmlspecialchars($product['deegtype_naam'] ?? '-') ?></td>
                                 <td>
                                     <?php if (!empty($pv)): ?>
                                         <div class="variant-badges">
@@ -359,106 +239,8 @@ if (isset($_GET['deeg_msg'])) {
                 </table>
             <?php endif; ?>
         </div>
-        <div class="card">
-            <h2>
-                Deegtypes
-                <button class="btn" onclick="openDeegModal()">+ Nieuw Deegtype</button>
-            </h2>
-
-            <?php if ($deegMessage): ?>
-                <div class="alert"><?= htmlspecialchars($deegMessage) ?></div>
-            <?php endif; ?>
-
-            <?php if (empty($deegtypes)): ?>
-                <div class="empty">Nog geen deegtypes. Voeg je eerste deegtype toe!</div>
-            <?php else: ?>
-                <table>
-                    <thead>
-                        <tr>
-                            <th>Naam</th>
-                            <th>Beschrijving</th>
-                            <th>Acties</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        <?php foreach ($deegtypes as $dt): ?>
-                            <tr>
-                                <td><?= htmlspecialchars($dt['naam']) ?></td>
-                                <td class="deeg-beschrijving"><?= htmlspecialchars($dt['beschrijving'] ?? '-') ?></td>
-                                <td class="actions">
-                                    <button class="btn btn-small" onclick="openDeegModal(<?= $dt['id'] ?>, '<?= htmlspecialchars(addslashes($dt['naam'])) ?>', `<?= htmlspecialchars(addslashes($dt['beschrijving'] ?? '')) ?>`)">Bewerken</button>
-                                    <form method="POST" style="display:inline" onsubmit="return confirm('Weet je zeker dat je dit deegtype wilt verwijderen?')">
-                                        <input type="hidden" name="deeg_action" value="delete">
-                                        <input type="hidden" name="deeg_id" value="<?= $dt['id'] ?>">
-                                        <button type="submit" class="btn btn-small btn-danger">Verwijderen</button>
-                                    </form>
-                                </td>
-                            </tr>
-                        <?php endforeach; ?>
-                    </tbody>
-                </table>
-            <?php endif; ?>
-            </div>
             </div>
         </div>
     </div>
-
-    <div class="modal-overlay" id="deegModal">
-        <div class="modal">
-            <div class="modal-header">
-                <h3 id="deegModalTitle">Nieuw Deegtype</h3>
-                <button class="modal-close" onclick="closeDeegModal()">&times;</button>
-            </div>
-            <form method="POST">
-                <div class="modal-body">
-                    <input type="hidden" name="deeg_action" id="deegAction" value="create">
-                    <input type="hidden" name="deeg_id" id="deegId" value="">
-                    <div class="form-group">
-                        <label>Naam *</label>
-                        <input type="text" name="deeg_naam" id="deegNaam" required>
-                    </div>
-                    <div class="form-group">
-                        <label>Beschrijving</label>
-                        <textarea name="deeg_beschrijving" id="deegBeschrijving"></textarea>
-                    </div>
-                </div>
-                <div class="modal-actions">
-                    <button type="button" class="btn btn-secondary" onclick="closeDeegModal()">Annuleren</button>
-                    <button type="submit" class="btn">Opslaan</button>
-                </div>
-            </form>
-        </div>
-    </div>
-
-    <script>
-    function openDeegModal(id, naam, beschrijving) {
-        if (id) {
-            document.getElementById('deegModalTitle').textContent = 'Deegtype Bewerken';
-            document.getElementById('deegAction').value = 'update';
-            document.getElementById('deegId').value = id;
-            document.getElementById('deegNaam').value = naam;
-            document.getElementById('deegBeschrijving').value = beschrijving;
-        } else {
-            document.getElementById('deegModalTitle').textContent = 'Nieuw Deegtype';
-            document.getElementById('deegAction').value = 'create';
-            document.getElementById('deegId').value = '';
-            document.getElementById('deegNaam').value = '';
-            document.getElementById('deegBeschrijving').value = '';
-        }
-        document.getElementById('deegModal').classList.add('active');
-    }
-
-    function closeDeegModal() {
-        document.getElementById('deegModal').classList.remove('active');
-    }
-
-    document.getElementById('deegModal').addEventListener('click', function(e) {
-        if (e.target === this) closeDeegModal();
-    });
-
-    document.addEventListener('keydown', function(e) {
-        if (e.key === 'Escape') closeDeegModal();
-    });
-    </script>
 </body>
 </html>

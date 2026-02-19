@@ -10,15 +10,17 @@ $deliveryDate->modify('+1 day');
 $stmt = $pdo->prepare("
     SELECT 
         boi.product_name, 
-        boi.quantity, 
-        p.recipe_id,
-        COALESCE(p.standard_weight, 300) as standard_weight,
+        boi.quantity,
+        boi.unit_price,
+        pv.recipe_id,
+        pv.gewicht as variant_weight,
         br.name as recipe_name,
         br.recipe_data
     FROM business_orders bo
     JOIN business_order_items boi ON bo.id = boi.order_id
-    LEFT JOIN products p ON boi.product_name = p.naam
-    LEFT JOIN baker_recipes br ON p.recipe_id = br.id
+    LEFT JOIN products p ON LOWER(TRIM(boi.product_name)) = LOWER(TRIM(p.naam))
+    LEFT JOIN product_variants pv ON pv.product_id = p.id AND ROUND(pv.prijs, 2) = ROUND(boi.unit_price, 2)
+    LEFT JOIN baker_recipes br ON pv.recipe_id = br.id
     WHERE bo.delivery_date = ?
     AND bo.is_cancelled = 0
 ");
@@ -30,7 +32,14 @@ $noRecipe = ['products' => [], 'total_qty' => 0, 'total_weight' => 0];
 
 foreach ($items as $item) {
     $qty = intval($item['quantity']);
-    $weight = intval($item['standard_weight']);
+    $variantWeight = intval($item['variant_weight'] ?? 0);
+    
+    $doughWeight = 0;
+    if (!empty($item['recipe_data'])) {
+        $recipeData = json_decode($item['recipe_data'], true);
+        $doughWeight = intval($recipeData['doughWeight'] ?? 0);
+    }
+    $weight = $doughWeight > 0 ? $doughWeight : ($variantWeight > 0 ? $variantWeight : 300);
     
     if ($item['recipe_id'] && $item['recipe_data']) {
         $recipeId = $item['recipe_id'];

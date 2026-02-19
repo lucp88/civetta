@@ -336,10 +336,13 @@ $currentPage = $currentPage ?? '';
 
         <div class="nav-section">Bakkerij</div>
         <a href="<?= $adminBasePath ?? '' ?>bakker/bakker-dashboard.php" class="nav-item <?= $currentPage === 'bakker-dashboard' ? 'active' : '' ?>">
-            <i class="bi bi-calendar3"></i> Bakker Planning
+            <i class="bi bi-calendar3"></i> Planning
         </a>
         <a href="<?= $adminBasePath ?? '' ?>bakker/bakcalculator.php" class="nav-item <?= $currentPage === 'bakcalculator' ? 'active' : '' ?>">
-            <i class="bi bi-calculator"></i> Bak Calculator
+            <i class="bi bi-journal-text"></i> Receptuur
+        </a>
+        <a href="<?= $adminBasePath ?? '' ?>bakker/voorraad.php" class="nav-item <?= $currentPage === 'voorraad' ? 'active' : '' ?>">
+            <i class="bi bi-box-seam-fill"></i> Voorraadbeheer
         </a>
 
         <div class="nav-section">Beheer</div>
@@ -395,10 +398,13 @@ $currentPage = $currentPage ?? '';
 
         <div class="nav-section">Bakkerij</div>
         <a href="<?= $adminBasePath ?? '' ?>bakker/bakker-dashboard.php" class="nav-item <?= $currentPage === 'bakker-dashboard' ? 'active' : '' ?>">
-            <i class="bi bi-calendar3"></i> Bakker Planning
+            <i class="bi bi-calendar3"></i> Planning
         </a>
         <a href="<?= $adminBasePath ?? '' ?>bakker/bakcalculator.php" class="nav-item <?= $currentPage === 'bakcalculator' ? 'active' : '' ?>">
-            <i class="bi bi-calculator"></i> Bak Calculator
+            <i class="bi bi-journal-text"></i> Receptuur
+        </a>
+        <a href="<?= $adminBasePath ?? '' ?>bakker/voorraad.php" class="nav-item <?= $currentPage === 'voorraad' ? 'active' : '' ?>">
+            <i class="bi bi-box-seam-fill"></i> Voorraadbeheer
         </a>
 
         <div class="nav-section">Beheer</div>
