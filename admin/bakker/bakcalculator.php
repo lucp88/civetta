@@ -501,7 +501,7 @@ $monthlyBreadCount = (int)$stmt->fetch()['total_breads'];
                             <div class="form-group">
                                 <select v-model="t.ingredient" class="form-select">
                                     <option value="">Kies ingrediënt...</option>
-                                    <option v-for="ing in toppingIngredients" :key="ing.id" :value="ing.name">{{ ing.name }}</option>
+                                    <option v-for="ing in mixinIngredients" :key="ing.id" :value="ing.name">{{ ing.name }}</option>
                                 </select>
                             </div>
                             <div class="form-group" style="flex:0.6">
@@ -1687,21 +1687,15 @@ $monthlyBreadCount = (int)$stmt->fetch()['total_breads'];
                         }
                         
                         this.mixinIngredients = data.ingredients
-                            .filter(i => i.category === 'mixin')
-                            .map(i => ({ 
+                            .filter(i => i.category === 'mixin' || i.category === 'topping')
+                            .map(i => ({
                                 id: i.id,
-                                name: i.name, 
+                                name: i.name,
                                 cat: 'non-integrated',
                                 pricePerKg: parseFloat(i.current_price_per_kg) || 0
                             }));
-                        
-                        this.toppingIngredients = data.ingredients
-                            .filter(i => i.category === 'topping')
-                            .map(i => ({ 
-                                id: i.id,
-                                name: i.name,
-                                pricePerKg: parseFloat(i.current_price_per_kg) || 0
-                            }));
+
+                        this.toppingIngredients = this.mixinIngredients;
                         
                         this.ingredientsLoaded = true;
                     }
