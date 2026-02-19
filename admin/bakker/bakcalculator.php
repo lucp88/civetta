@@ -12,11 +12,18 @@ $sidebarUnprocessedOrders = $stmt->fetch()['count'];
 $currentPage = 'bakcalculator';
 $adminBasePath = '../';
 
-$doughTypes = $pdo->query("SELECT id, name, recipe_data FROM dough_types ORDER BY name ASC")->fetchAll();
-foreach ($doughTypes as &$dt) {
-    $dt['recipe_data'] = $dt['recipe_data'] ? json_decode($dt['recipe_data'], true) : null;
+try {
+    $doughTypes = $pdo->query("SELECT id, name, recipe_data FROM dough_types ORDER BY name ASC")->fetchAll();
+    foreach ($doughTypes as &$dt) {
+        $dt['recipe_data'] = $dt['recipe_data'] ? json_decode($dt['recipe_data'], true) : null;
+    }
+    unset($dt);
+} catch (PDOException $e) {
+    // recipe_data column missing — migration 024 not yet run; fall back to name-only
+    $doughTypes = $pdo->query("SELECT id, name FROM dough_types ORDER BY name ASC")->fetchAll();
+    foreach ($doughTypes as &$dt) { $dt['recipe_data'] = null; }
+    unset($dt);
 }
-unset($dt);
 
 $currentMonth = date('Y-m');
 $stmt = $pdo->prepare("

@@ -48,29 +48,33 @@ foreach ($variants as $v) {
     if (!empty($v['recipe_id'])) { $firstRecipeId = (int)$v['recipe_id']; break; }
 }
 if ($firstRecipeId) {
-    $rStmt = $pdo->prepare("SELECT recipe_data FROM baker_recipes WHERE id = ?");
-    $rStmt->execute([$firstRecipeId]);
-    $rd = json_decode($rStmt->fetchColumn() ?: '{}', true) ?? [];
+    try {
+        $rStmt = $pdo->prepare("SELECT recipe_data FROM baker_recipes WHERE id = ?");
+        $rStmt->execute([$firstRecipeId]);
+        $rd = json_decode($rStmt->fetchColumn() ?: '{}', true) ?? [];
 
-    $grainIds = [];
-    foreach (['mainDoughGrains', 'sourdoughGrains', 'preFermentGrains'] as $key) {
-        foreach ($rd[$key] ?? [] as $grain) {
-            if (is_numeric($grain['type'] ?? '')) $grainIds[] = (int)$grain['type'];
+        $grainIds = [];
+        foreach (['mainDoughGrains', 'sourdoughGrains', 'preFermentGrains'] as $key) {
+            foreach ($rd[$key] ?? [] as $grain) {
+                if (is_numeric($grain['type'] ?? '')) $grainIds[] = (int)$grain['type'];
+            }
         }
-    }
-    $lookup = [];
-    if (!empty($grainIds)) {
-        $gIds = array_unique($grainIds);
-        $gp = implode(',', array_fill(0, count($gIds), '?'));
-        $gStmt = $pdo->prepare("SELECT id, name, is_whole_grain FROM ingredients WHERE id IN ($gp)");
-        $gStmt->execute($gIds);
-        foreach ($gStmt->fetchAll() as $ing) {
-            $lookup[(int)$ing['id']] = ['name' => $ing['name'], 'is_whole_grain' => (bool)$ing['is_whole_grain']];
+        $lookup = [];
+        if (!empty($grainIds)) {
+            $gIds = array_values(array_unique($grainIds));
+            $gp = implode(',', array_fill(0, count($gIds), '?'));
+            $gStmt = $pdo->prepare("SELECT id, name, is_whole_grain FROM ingredients WHERE id IN ($gp)");
+            $gStmt->execute($gIds);
+            foreach ($gStmt->fetchAll() as $ing) {
+                $lookup[(int)$ing['id']] = ['name' => $ing['name'], 'is_whole_grain' => (bool)$ing['is_whole_grain']];
+            }
         }
-    }
 
-    $computedIngredientList = computeIngredientList($rd, $lookup);
-    $computedRecipeDetails  = computeRecipeDetails($rd, $lookup);
+        $computedIngredientList = computeIngredientList($rd, $lookup);
+        $computedRecipeDetails  = computeRecipeDetails($rd, $lookup);
+    } catch (Exception $e) {
+        // Ingredient computation is non-critical — page still loads without it
+    }
 }
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
