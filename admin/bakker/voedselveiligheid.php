@@ -62,6 +62,7 @@ $adminBasePath = '../';
 
         /* Date bar */
         .date-bar { display: flex; align-items: center; gap: 0.6rem; margin-bottom: 1.5rem; flex-wrap: wrap; }
+        .date-bar-divider { width: 1px; height: 24px; background: #e0d5c7; margin: 0 0.1rem; flex-shrink: 0; }
         .date-input { padding: 0.5rem 0.75rem; border: 1.5px solid #e0d5c7; border-radius: 8px; font-size: 0.9rem; color: #333; background: white; font-family: inherit; }
         .date-input:focus { outline: none; border-color: #8b5a2b; }
 
@@ -164,12 +165,14 @@ $adminBasePath = '../';
             .admin-main { margin-left: 0 !important; }
             .admin-content { padding: 0 !important; max-width: 100% !important; }
             .tab-content { display: block !important; }
-            #tab-items, #tab-overzicht { display: none !important; }
+            #tab-items { display: none !important; }
+            #overzichtView { display: none !important; }
+            #formulierView { display: block !important; }
             .panel { box-shadow: none !important; border: 1px solid #ccc !important; padding: 0.5rem !important; }
             .status-bar { display: none !important; }
             .print-header { display: block !important; }
             table.checklist { font-size: 9pt; }
-            .col-notities, .col-uitvoerder, .col-tijdstip, .col-frequentie, .col-type { display: table-cell !important; }
+            .col-notities, .col-uitvoerder, .col-tijdstip, .col-frequentie { display: table-cell !important; }
             table.checklist tr.item-not-due td { opacity: 1; }
         }
         .print-header { display: none; margin-bottom: 1rem; text-align: center; border-bottom: 2px solid #333; padding-bottom: 0.75rem; }
@@ -197,87 +200,133 @@ $adminBasePath = '../';
     <div class="admin-content">
 
         <div class="tabs no-print">
-            <div class="tab active" onclick="switchTab('formulier')"><i class="bi bi-clipboard-check"></i> Formulier</div>
+            <div class="tab active" onclick="switchTab('overzicht')"><i class="bi bi-calendar3"></i> Overzicht</div>
             <div class="tab" onclick="switchTab('items')"><i class="bi bi-list-ul"></i> Items beheer</div>
-            <div class="tab" onclick="switchTab('overzicht')"><i class="bi bi-calendar3"></i> Overzicht</div>
         </div>
 
-        <!-- ==================== FORMULIER TAB ==================== -->
-        <div id="tab-formulier" class="tab-content active">
+        <!-- ==================== OVERZICHT TAB ==================== -->
+        <div id="tab-overzicht" class="tab-content active">
 
-            <div class="print-header">
-                <h2>Bakkerij Civetta — Voedselveiligheid</h2>
-                <p id="printDateLabel"></p>
-            </div>
-
-            <div class="date-bar no-print">
-                <button class="btn btn-ghost btn-sm" onclick="changeDate(-1)"><i class="bi bi-chevron-left"></i></button>
-                <input type="date" class="date-input" id="listDate" value="<?= date('Y-m-d') ?>" onchange="loadList()">
-                <button class="btn btn-ghost btn-sm" onclick="changeDate(1)"><i class="bi bi-chevron-right"></i></button>
-                <button class="btn btn-ghost btn-sm" onclick="goToday()"><i class="bi bi-calendar-check"></i> Vandaag</button>
-                <div style="margin-left:auto; display:flex; gap:0.5rem;" class="btn-group-actions">
-                    <button class="btn btn-ghost btn-sm" onclick="window.print()"><i class="bi bi-printer"></i> Printen</button>
-                    <button class="btn btn-success" id="saveBtn" style="display:none;" onclick="saveList(false)">
-                        <i class="bi bi-floppy"></i> Opslaan
-                    </button>
-                </div>
-            </div>
-
-            <div id="statusBar" style="display:none;"></div>
-
-            <div id="listLoading" class="loading">
-                <i class="bi bi-arrow-clockwise spin"></i> Laden…
-            </div>
-
-            <!-- No form yet -->
-            <div id="noListPanel" class="panel" style="display:none;">
-                <div class="empty-state">
-                    <i class="bi bi-clipboard-x"></i>
-                    <p>Er is nog geen formulier voor <strong id="noListDate"></strong>.</p>
-                    <button class="btn btn-primary" onclick="createList()">
-                        <i class="bi bi-plus-lg"></i> Nieuw formulier aanmaken
-                    </button>
-                </div>
-            </div>
-
-            <!-- Checklist -->
-            <div id="listPanel" class="panel" style="display:none;">
-                <div class="panel-header no-print">
-                    <div class="panel-title">
-                        <i class="bi bi-clipboard-check"></i>
-                        <span id="panelTitle">Formulier</span>
+            <!-- Overview list -->
+            <div id="overzichtView">
+                <div class="panel">
+                    <div class="panel-header">
+                        <div class="panel-title"><i class="bi bi-calendar3"></i> Overzicht formulieren</div>
+                        <div style="display:flex; gap:0.5rem; align-items:center; flex-wrap:wrap;">
+                            <label style="font-size:0.83rem; color:#666;">Van:</label>
+                            <input type="date" class="date-input" id="filterVan" style="font-size:0.83rem;">
+                            <label style="font-size:0.83rem; color:#666;">Tot:</label>
+                            <input type="date" class="date-input" id="filterTot" style="font-size:0.83rem;">
+                            <button class="btn btn-ghost btn-sm" onclick="loadOverzicht()"><i class="bi bi-search"></i></button>
+                            <button class="btn btn-primary" onclick="nieuwFormulier()">
+                                <i class="bi bi-plus-lg"></i> Nieuw formulier
+                            </button>
+                        </div>
                     </div>
-                    <div style="display:flex; align-items:center; gap:0.75rem; flex-wrap:wrap;">
-                        <span id="progressLabel" style="font-size:0.84rem; color:#666;"></span>
-                        <label style="display:flex; align-items:center; gap:0.35rem; font-size:0.84rem; color:#666; cursor:pointer; user-select:none;">
-                            <input type="checkbox" id="showNonDue" onchange="renderChecklist()" style="cursor:pointer; accent-color:#8b5a2b;">
-                            Toon ook niet-due items
-                        </label>
+                    <div id="overzichtLoading" class="loading"><i class="bi bi-arrow-clockwise spin"></i> Laden…</div>
+                    <div class="table-wrapper" id="overzichtTableWrap" style="display:none;">
+                        <table class="overzicht">
+                            <thead>
+                                <tr><th>Datum</th><th>Status</th><th>Voortgang</th><th class="no-print"></th></tr>
+                            </thead>
+                            <tbody id="overzichtBody"></tbody>
+                        </table>
+                    </div>
+                    <div id="overzichtEmpty" class="empty-state" style="display:none;">
+                        <i class="bi bi-calendar-x"></i>
+                        <p>Geen formulieren gevonden. Klik op <strong>Nieuw formulier</strong> om te beginnen.</p>
                     </div>
                 </div>
+            </div>
 
-                <div class="table-wrapper">
-                    <table class="checklist" id="checklistTable">
-                        <thead>
-                            <tr>
-                                <th style="width:28px;">#</th>
-                                <th>Item naam</th>
-                                <th class="col-type">Type</th>
-                                <th class="col-frequentie">Frequentie</th>
-                                <th>Status / Volgende due</th>
-                                <th style="width:68px; text-align:center;">Afgevinkt</th>
-                                <th class="col-notities">Notities</th>
-                                <th class="col-uitvoerder">Uitvoerder</th>
-                                <th class="col-tijdstip">Tijdstip</th>
-                            </tr>
-                        </thead>
-                        <tbody id="checklistBody"></tbody>
-                    </table>
+            <!-- Formulier view (hidden by default) -->
+            <div id="formulierView" style="display:none;">
+
+                <div class="print-header">
+                    <h2>Bakkerij Civetta — Voedselveiligheid</h2>
+                    <p id="printDateLabel"></p>
                 </div>
 
-                <div id="emptyList" class="empty-state" style="display:none; padding:1.5rem;">
-                    <i class="bi bi-inbox"></i>
-                    <p>Geen items geconfigureerd. Voeg items toe via <strong>Items beheer</strong>.</p>
+                <div class="date-bar no-print">
+                    <button class="btn btn-ghost btn-sm" onclick="showOverzichtView()">
+                        <i class="bi bi-arrow-left"></i> Terug
+                    </button>
+                    <div class="date-bar-divider"></div>
+                    <button class="btn btn-ghost btn-sm" onclick="changeDate(-1)"><i class="bi bi-chevron-left"></i></button>
+                    <input type="date" class="date-input" id="listDate" value="<?= date('Y-m-d') ?>" onchange="loadList()">
+                    <button class="btn btn-ghost btn-sm" onclick="changeDate(1)"><i class="bi bi-chevron-right"></i></button>
+                    <button class="btn btn-ghost btn-sm" onclick="goToday()"><i class="bi bi-calendar-check"></i> Vandaag</button>
+                    <div style="margin-left:auto; display:flex; gap:0.5rem;" class="btn-group-actions">
+                        <button class="btn btn-ghost btn-sm" onclick="window.print()"><i class="bi bi-printer"></i> Printen</button>
+                        <button class="btn btn-success" id="saveBtn" style="display:none;" onclick="saveList(false)">
+                            <i class="bi bi-floppy"></i> Opslaan
+                        </button>
+                    </div>
+                </div>
+
+                <div id="statusBar" style="display:none;"></div>
+
+                <div id="listLoading" class="loading">
+                    <i class="bi bi-arrow-clockwise spin"></i> Laden…
+                </div>
+
+                <!-- No form yet -->
+                <div id="noListPanel" class="panel" style="display:none;">
+                    <div class="empty-state">
+                        <i class="bi bi-clipboard-x"></i>
+                        <p>Er is nog geen formulier voor <strong id="noListDate"></strong>.</p>
+                        <button class="btn btn-primary" onclick="createList()">
+                            <i class="bi bi-plus-lg"></i> Formulier aanmaken
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Checklist -->
+                <div id="listPanel" class="panel" style="display:none;">
+                    <div class="panel-header no-print">
+                        <div class="panel-title">
+                            <i class="bi bi-clipboard-check"></i>
+                            <span id="panelTitle">Formulier</span>
+                        </div>
+                        <div style="display:flex; align-items:center; gap:0.75rem; flex-wrap:wrap;">
+                            <span id="progressLabel" style="font-size:0.84rem; color:#666;"></span>
+                            <label style="display:flex; align-items:center; gap:0.35rem; font-size:0.84rem; color:#666; cursor:pointer; user-select:none;">
+                                <input type="checkbox" id="showNonDue" onchange="renderChecklist()" style="cursor:pointer; accent-color:#8b5a2b;">
+                                Toon ook niet-due items
+                            </label>
+                        </div>
+                    </div>
+
+                    <div class="table-wrapper">
+                        <table class="checklist" id="checklistTable">
+                            <thead>
+                                <tr>
+                                    <th style="width:28px;">#</th>
+                                    <th>Item naam</th>
+                                    <th class="col-frequentie">Frequentie</th>
+                                    <th>Status / Volgende due</th>
+                                    <th style="width:68px; text-align:center;">Afgevinkt</th>
+                                    <th class="col-notities">Notities</th>
+                                    <th class="col-uitvoerder">Uitvoerder</th>
+                                    <th class="col-tijdstip">Tijdstip</th>
+                                </tr>
+                            </thead>
+                            <tbody id="checklistBody"></tbody>
+                        </table>
+                    </div>
+
+                    <div id="emptyList" class="empty-state" style="display:none; padding:1.5rem;">
+                        <i class="bi bi-inbox"></i>
+                        <p>Geen items geconfigureerd.</p>
+                        <div style="display:flex; gap:0.5rem; justify-content:center; flex-wrap:wrap;">
+                            <button class="btn btn-ghost btn-sm" onclick="switchTab('items')">
+                                <i class="bi bi-list-ul"></i> Naar Items beheer
+                            </button>
+                            <button class="btn btn-primary btn-sm" onclick="refreshList()">
+                                <i class="bi bi-arrow-clockwise"></i> Formulier vernieuwen
+                            </button>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>
@@ -312,7 +361,6 @@ $adminBasePath = '../';
                         <thead>
                             <tr>
                                 <th>Item naam</th>
-                                <th>Type</th>
                                 <th>Frequentie</th>
                                 <th>Status</th>
                                 <th style="width:80px;"></th>
@@ -328,35 +376,6 @@ $adminBasePath = '../';
             </div>
         </div>
 
-        <!-- ==================== OVERZICHT TAB ==================== -->
-        <div id="tab-overzicht" class="tab-content">
-            <div class="panel">
-                <div class="panel-header">
-                    <div class="panel-title"><i class="bi bi-calendar3"></i> Overzicht formulieren</div>
-                    <div style="display:flex; gap:0.5rem; align-items:center; flex-wrap:wrap;">
-                        <label style="font-size:0.83rem; color:#666;">Van:</label>
-                        <input type="date" class="date-input" id="filterVan" style="font-size:0.83rem;">
-                        <label style="font-size:0.83rem; color:#666;">Tot:</label>
-                        <input type="date" class="date-input" id="filterTot" style="font-size:0.83rem;">
-                        <button class="btn btn-ghost btn-sm" onclick="loadOverzicht()"><i class="bi bi-search"></i></button>
-                    </div>
-                </div>
-                <div id="overzichtLoading" class="loading" style="display:none;"><i class="bi bi-arrow-clockwise spin"></i> Laden…</div>
-                <div class="table-wrapper" id="overzichtTableWrap" style="display:none;">
-                    <table class="overzicht">
-                        <thead>
-                            <tr><th>Datum</th><th>Status</th><th>Voortgang</th><th class="no-print"></th></tr>
-                        </thead>
-                        <tbody id="overzichtBody"></tbody>
-                    </table>
-                </div>
-                <div id="overzichtEmpty" class="empty-state" style="display:none;">
-                    <i class="bi bi-calendar-x"></i>
-                    <p>Geen formulieren gevonden in de geselecteerde periode.</p>
-                </div>
-            </div>
-        </div>
-
     </div>
 </div>
 
@@ -367,7 +386,7 @@ $adminBasePath = '../';
         <div class="modal-body">
             <p>De volgende items zijn als <strong>due</strong> gemarkeerd maar nog niet afgevinkt. Weet je zeker dat je wilt opslaan?</p>
             <table class="warning-table">
-                <thead><tr><th>Item</th><th>Type</th><th>Frequentie</th></tr></thead>
+                <thead><tr><th>Item</th><th>Frequentie</th></tr></thead>
                 <tbody id="warningItems"></tbody>
             </table>
         </div>
@@ -391,13 +410,6 @@ $adminBasePath = '../';
             <div class="form-group">
                 <label class="form-label">Categorie</label>
                 <select class="form-control" id="itemCategorie"></select>
-            </div>
-            <div class="form-group">
-                <label class="form-label">Type *</label>
-                <select class="form-control" id="itemType">
-                    <option value="schoonmaak">Schoonmaak</option>
-                    <option value="voorraad">Voorraad</option>
-                </select>
             </div>
             <div class="form-group">
                 <label class="form-label">Frequentie *</label>
@@ -453,11 +465,28 @@ let categorieen  = [];
 
 // ==================== TABS ====================
 function switchTab(tab) {
-    const names = ['formulier', 'items', 'overzicht'];
+    const names = ['overzicht', 'items'];
     document.querySelectorAll('.tabs .tab').forEach((el, i) => el.classList.toggle('active', names[i] === tab));
     document.querySelectorAll('.tab-content').forEach(c => c.classList.toggle('active', c.id === 'tab-' + tab));
-    if (tab === 'items')     loadItemsTab();
-    if (tab === 'overzicht') loadOverzicht();
+    if (tab === 'items') loadItemsTab();
+}
+
+// ==================== OVERZICHT / FORMULIER VIEW ====================
+function showFormulierView() {
+    hideEl('overzichtView');
+    document.getElementById('formulierView').style.display = 'block';
+}
+function showOverzichtView() {
+    document.getElementById('formulierView').style.display = 'none';
+    document.getElementById('overzichtView').style.display = 'block';
+    loadOverzicht();
+}
+function nieuwFormulier() {
+    document.getElementById('listDate').value = '<?= date('Y-m-d') ?>';
+    showFormulierView();
+    showEl('listLoading'); hideEl('listPanel'); hideEl('noListPanel'); hideEl('statusBar');
+    document.getElementById('saveBtn').style.display = 'none';
+    loadList();
 }
 
 // ==================== DATE NAV ====================
@@ -507,6 +536,22 @@ async function createList() {
     }
 }
 
+// ==================== REFRESH LIST ====================
+async function refreshList() {
+    if (!currentList) return;
+    if (!confirm('Formulier opnieuw opbouwen met de huidige actieve items?')) return;
+    showEl('listLoading'); hideEl('listPanel');
+    try {
+        const datum = document.getElementById('listDate').value;
+        const data  = await callApi(null, { action: 'refresh_list', lijst_id: currentList.id });
+        hideEl('listLoading');
+        applyListData(data, datum);
+    } catch (e) {
+        document.getElementById('listLoading').innerHTML =
+            `<i class="bi bi-exclamation-triangle" style="color:#c62828;"></i> Fout: ${e.message}`;
+    }
+}
+
 function applyListData(data, datum) {
     currentList  = data.lijst;
     currentItems = data.items;
@@ -534,10 +579,9 @@ function renderChecklist() {
     const body       = document.getElementById('checklistBody');
     const table      = document.getElementById('checklistTable');
     const empty      = document.getElementById('emptyList');
-    const datum      = document.getElementById('listDate').value;
     const showNonDue = document.getElementById('showNonDue').checked;
 
-    document.getElementById('panelTitle').textContent = 'Formulier — ' + formatDate(datum);
+    document.getElementById('panelTitle').textContent = 'Formulier';
 
     if (!currentItems || currentItems.length === 0) {
         body.innerHTML = ''; table.style.display = 'none'; empty.style.display = 'block';
@@ -559,7 +603,7 @@ function renderChecklist() {
     let rowNum = 0;
     let html   = '';
     for (const cat of order) {
-        html += `<tr class="cat-header"><td colspan="9"><i class="bi bi-tag-fill" style="margin-right:0.35rem;"></i>${escHtml(cat)}</td></tr>`;
+        html += `<tr class="cat-header"><td colspan="8"><i class="bi bi-tag-fill" style="margin-right:0.35rem;"></i>${escHtml(cat)}</td></tr>`;
         groups[cat].forEach(item => {
             rowNum++;
             const idx     = item._idx;
@@ -578,7 +622,6 @@ function renderChecklist() {
             html += `<tr class="${rowCls}" id="row-${idx}">
                 <td style="color:#bbb; font-size:0.75rem;">${rowNum}</td>
                 <td><strong>${escHtml(item.naam)}</strong></td>
-                <td class="col-type"><span class="badge badge-${item.type}">${formatType(item.type)}</span></td>
                 <td class="col-frequentie" style="font-size:0.8rem; color:#777;">${formatFreq(item.frequentie)}</td>
                 <td>${dueBadge}${dueDate}</td>
                 <td>
@@ -602,7 +645,7 @@ function renderChecklist() {
     }
 
     if (!html) {
-        html = `<tr><td colspan="9" style="text-align:center; padding:1.5rem; color:#888; font-size:0.88rem;">
+        html = `<tr><td colspan="8" style="text-align:center; padding:1.5rem; color:#888; font-size:0.88rem;">
             Alle items zijn momenteel <strong>niet due</strong>. Zet "Toon ook niet-due items" aan om ze toch te zien.
         </td></tr>`;
     }
@@ -628,10 +671,10 @@ function updateField(idx, field, val) { currentItems[idx][field] = val; }
 
 function updateProgress() {
     if (!currentItems) return;
-    const due        = currentItems.filter(i => parseInt(i.is_due) === 1).length;
-    const total      = currentItems.length;
-    const doneTotal  = currentItems.filter(i => parseInt(i.afgevinkt) === 1).length;
-    const doneDue    = currentItems.filter(i => parseInt(i.is_due) === 1 && parseInt(i.afgevinkt) === 1).length;
+    const due       = currentItems.filter(i => parseInt(i.is_due) === 1).length;
+    const total     = currentItems.length;
+    const doneTotal = currentItems.filter(i => parseInt(i.afgevinkt) === 1).length;
+    const doneDue   = currentItems.filter(i => parseInt(i.is_due) === 1 && parseInt(i.afgevinkt) === 1).length;
     document.getElementById('progressLabel').textContent =
         total > 0 ? `${doneDue}/${due} due afgevinkt · ${doneTotal}/${total} totaal` : '';
 }
@@ -652,7 +695,6 @@ async function saveList(force) {
             document.getElementById('warningItems').innerHTML = data.overdue_items.map(i =>
                 `<tr>
                     <td>${escHtml(i.naam)}</td>
-                    <td><span class="badge badge-${i.type}">${formatType(i.type)}</span></td>
                     <td style="font-size:0.82rem;">${formatFreq(i.frequentie)}</td>
                 </tr>`
             ).join('');
@@ -794,13 +836,12 @@ function renderItems() {
     let html = '';
     for (const cat of order) {
         html += `<tr class="cat-header">
-            <td colspan="5"><i class="bi bi-tag-fill" style="margin-right:0.35rem; color:#c8913a;"></i>${escHtml(cat)}</td>
+            <td colspan="4"><i class="bi bi-tag-fill" style="margin-right:0.35rem; color:#c8913a;"></i>${escHtml(cat)}</td>
         </tr>`;
         groups[cat].forEach(item => {
             const active = parseInt(item.actief) === 1;
             html += `<tr class="${active ? '' : 'inactive'}">
                 <td><strong>${escHtml(item.naam)}</strong></td>
-                <td><span class="badge badge-${item.type}">${formatType(item.type)}</span></td>
                 <td style="font-size:0.84rem; color:#666;">${formatFreq(item.frequentie)}</td>
                 <td>
                     <span class="badge" style="${active
@@ -861,7 +902,6 @@ async function saveItem() {
     const id         = document.getElementById('itemId').value;
     const naam       = document.getElementById('itemNaam').value.trim();
     const catId      = document.getElementById('itemCategorie').value;
-    const type       = document.getElementById('itemType').value;
     const frequentie = document.getElementById('itemFrequentie').value;
     const actief     = document.getElementById('itemActief').value;
 
@@ -869,7 +909,7 @@ async function saveItem() {
     try {
         await callApi(null, {
             action: 'save_item', id: id || null, naam,
-            categorie_id: catId, type, frequentie, actief,
+            categorie_id: catId, type: 'schoonmaak', frequentie, actief,
         });
         closeModal('itemModal');
         showToast(id ? 'Item bijgewerkt' : 'Item toegevoegd', 'success');
@@ -916,9 +956,12 @@ async function loadOverzicht() {
                         <span style="font-size:0.79rem; color:#666;">${afgevinkt}/${totaal}</span>
                     </div>
                 </td>
-                <td class="no-print">
+                <td class="no-print" style="white-space:nowrap;">
                     <button class="btn btn-ghost btn-sm" onclick="openListDate('${l.datum}')">
                         <i class="bi bi-eye"></i> Openen
+                    </button>
+                    <button class="btn-icon danger" style="margin-left:0.35rem;" onclick="deleteList(${l.id}, '${l.datum}')" title="Verwijderen">
+                        <i class="bi bi-trash"></i>
                     </button>
                 </td>
             </tr>`;
@@ -934,8 +977,22 @@ async function loadOverzicht() {
 
 function openListDate(datum) {
     document.getElementById('listDate').value = datum;
-    switchTab('formulier');
+    showFormulierView();
+    showEl('listLoading'); hideEl('listPanel'); hideEl('noListPanel'); hideEl('statusBar');
+    document.getElementById('saveBtn').style.display = 'none';
     loadList();
+}
+
+async function deleteList(id, datum) {
+    if (!confirm(`Formulier van ${formatDate(datum)} verwijderen? Dit kan niet ongedaan worden.`)) return;
+    try {
+        await callApi(null, { action: 'delete_list', lijst_id: id });
+        showToast('Formulier verwijderd', 'success');
+        if (currentList && currentList.id == id) {
+            currentList = null; currentItems = [];
+        }
+        loadOverzicht();
+    } catch (e) { showToast('Fout: ' + e.message, 'error'); }
 }
 
 // ==================== UTILS ====================
@@ -996,9 +1053,8 @@ document.addEventListener('keydown', e => {
     monthAgo.setDate(monthAgo.getDate() - 30);
     document.getElementById('filterVan').value = monthAgo.toISOString().split('T')[0];
     document.getElementById('filterTot').value = today.toISOString().split('T')[0];
+    loadOverzicht();
 })();
-
-loadList();
 </script>
 </body>
 </html>

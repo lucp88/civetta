@@ -174,6 +174,76 @@ switch ($action) {
         ]);
         break;
 
+    // ==================== REFRESH LIST (rebuild items from current master) ====================
+    case 'refresh_list':
+        $lijstId = $jsonBody['lijst_id'] ?? null;
+        if (!$lijstId) { echo json_encode(['success' => false, 'error' => 'Geen lijst ID']); exit; }
+
+        $stmt = $pdo->prepare("SELECT * FROM schoonmaak_lijsten WHERE id = ?");
+        $stmt->execute([$lijstId]);
+        $lijst = $stmt->fetch();
+        if (!$lijst) { echo json_encode(['success' => false, 'error' => 'Formulier niet gevonden']); exit; }
+
+        $stmt = $pdo->prepare("DELETE FROM schoonmaak_lijst_items WHERE lijst_id = ?");
+        $stmt->execute([$lijstId]);
+
+        $stmt = $pdo->query("
+            SELECT i.*, c.naam AS categorie_naam
+            FROM schoonmaak_items i
+            LEFT JOIN schoonmaak_categorieen c ON c.id = i.categorie_id
+            WHERE i.actief = 1
+            ORDER BY c.volgorde, c.naam, i.volgorde, i.naam
+        ");
+        $masterItems     = $stmt->fetchAll();
+        $lastCompletions = getLastCompletions($pdo);
+
+        foreach ($masterItems as $item) {
+            $lastDone = $lastCompletions[(int)$item['id']] ?? null;
+            $due      = isDue($item['frequentie'], $lastDone) ? 1 : 0;
+            $dueDate  = nextDueDate($item['frequentie'], $lastDone);
+
+            $stmt = $pdo->prepare("
+                INSERT INTO schoonmaak_lijst_items
+                    (lijst_id, item_id, naam, categorie_naam, type, frequentie, due_date, is_due)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+            ");
+            $stmt->execute([
+                $lijstId, $item['id'], $item['naam'],
+                $item['categorie_naam'], $item['type'],
+                $item['frequentie'], $dueDate, $due,
+            ]);
+        }
+
+        $stmt = $pdo->prepare("
+            SELECT * FROM schoonmaak_lijst_items
+            WHERE lijst_id = ?
+            ORDER BY categorie_naam IS NULL, categorie_naam, type, naam
+        ");
+        $stmt->execute([$lijstId]);
+        $lijstItems = $stmt->fetchAll();
+
+        $daysDiff = (int)((strtotime(date('Y-m-d')) - strtotime($lijst['datum'])) / 86400);
+
+        echo json_encode([
+            'success'      => true,
+            'lijst'        => $lijst,
+            'items'        => $lijstItems,
+            'is_late_edit' => $daysDiff > 0,
+        ]);
+        break;
+
+    // ==================== DELETE LIST ====================
+    case 'delete_list':
+        $lijstId = $jsonBody['lijst_id'] ?? null;
+        if (!$lijstId) { echo json_encode(['success' => false, 'error' => 'Geen lijst ID']); exit; }
+
+        // CASCADE deletes schoonmaak_lijst_items automatically
+        $stmt = $pdo->prepare("DELETE FROM schoonmaak_lijsten WHERE id = ?");
+        $stmt->execute([$lijstId]);
+
+        echo json_encode(['success' => true]);
+        break;
+
     // ==================== GET MASTER ITEMS ====================
     case 'get_items':
         $stmt = $pdo->query("
