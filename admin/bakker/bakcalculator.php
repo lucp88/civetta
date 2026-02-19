@@ -722,7 +722,10 @@ $monthlyBreadCount = (int)$stmt->fetch()['total_breads'];
                     <div class="panel">
                         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem">
                             <div class="panel-title" style="margin-bottom:0"><i class="bi bi-bookmark"></i> Opgeslagen Recepten</div>
-                            <button class="btn btn-primary btn-sm" @click="newRecipe"><i class="bi bi-plus-lg"></i> Nieuw Recept</button>
+                            <div style="display:flex;gap:0.5rem">
+                                <button class="btn btn-ghost btn-sm" @click="showDoughTypeModal = true; newDoughType()" title="Nieuwe deegsoort aanmaken"><i class="bi bi-layers"></i> Nieuwe deegsoort</button>
+                                <button class="btn btn-primary btn-sm" @click="newRecipe"><i class="bi bi-plus-lg"></i> Nieuw Recept</button>
+                            </div>
                         </div>
                         <div v-if="savedRecipes.length === 0" class="empty-state">
                             <i class="bi bi-bookmark-star"></i>
@@ -737,6 +740,7 @@ $monthlyBreadCount = (int)$stmt->fetch()['total_breads'];
                                         {{ group.name }}
                                     </span>
                                     <span class="recipe-group-count">{{ group.recipes.length }}</span>
+                                    <button v-if="group.id" class="btn-icon" style="margin-left:auto;width:26px;height:26px;font-size:0.8rem" @click.stop="showDoughTypeModal = true; editDoughType(doughTypes.find(d => d.id === group.id))" title="Deegsoort bewerken"><i class="bi bi-pencil"></i></button>
                                 </div>
                                 <ul class="recipe-group-items" :class="{ collapsed: isGroupCollapsed(group.id) }">
                                     <li v-for="r in group.recipes" :key="r.id" class="recipe-item">
