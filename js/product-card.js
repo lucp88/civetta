@@ -163,20 +163,36 @@ const ProductDetailModal = {
             default: null
         }
     },
-    
+
     emits: ['close'],
-    
+
+    data() {
+        return {
+            showDetails: false
+        };
+    },
+
+    watch: {
+        product(newVal) {
+            if (newVal) this.showDetails = false;
+        }
+    },
+
     computed: {
         hasVariants() {
             return this.product && this.product.variants && this.product.variants.length > 0;
+        },
+        ingredientList() {
+            if (!this.product) return null;
+            return this.product.ingredienten_recipe || this.product.ingredienten || null;
         }
     },
-    
+
     template: `
         <div class="product-modal-overlay" :class="{ active: product }" @click.self="$emit('close')">
             <div class="product-modal" v-if="product">
                 <button class="product-modal-close" @click="$emit('close')">&times;</button>
-                
+
                 <div class="product-modal-image">
                     <img v-if="product.foto" :src="product.foto" :alt="product.naam">
                     <div v-else class="product-modal-placeholder">
@@ -189,18 +205,37 @@ const ProductDetailModal = {
                         </svg>
                     </div>
                 </div>
-                
+
                 <div class="product-modal-content">
                     <h2 class="product-modal-title">{{ product.naam }}</h2>
-                    
+
                     <p v-if="product.beschrijving" class="product-modal-description">
                         {{ product.beschrijving }}
                     </p>
-                    
-                    <div v-if="product.ingredienten" class="product-modal-ingredients">
-                        <strong>Ingrediënten:</strong> {{ product.ingredienten }}
+
+                    <div v-if="ingredientList" class="product-modal-ingredients">
+                        <strong>Ingrediënten:</strong> {{ ingredientList }}
                     </div>
-                    
+
+                    <div v-if="product.recipe_details" class="product-modal-recipe-details">
+                        <button class="recipe-details-toggle" @click="showDetails = !showDetails">
+                            Samenstelling <span class="toggle-arrow">{{ showDetails ? '▲' : '▼' }}</span>
+                        </button>
+                        <div v-if="showDetails" class="recipe-details-content">
+                            <div v-if="product.recipe_details.volkoren_pct > 0" class="recipe-detail-row recipe-detail-volkoren">
+                                <span>Volkoren</span>
+                                <span>{{ product.recipe_details.volkoren_pct }}%</span>
+                            </div>
+                            <template v-if="product.recipe_details.grains && product.recipe_details.grains.length > 0">
+                                <div class="recipe-detail-subtitle">Meelsoorten</div>
+                                <div v-for="grain in product.recipe_details.grains" :key="grain.name" class="recipe-detail-row">
+                                    <span>{{ grain.name }}</span>
+                                    <span>{{ grain.pct }}%</span>
+                                </div>
+                            </template>
+                        </div>
+                    </div>
+
                     <div v-if="hasVariants" class="product-modal-variants">
                         <div v-for="v in product.variants" :key="v.id" class="product-modal-variant">
                             <span class="variant-gewicht">{{ v.gewicht }}g</span>
@@ -214,7 +249,7 @@ const ProductDetailModal = {
             </div>
         </div>
     `,
-    
+
     methods: {
         formatPrice(amount) {
             return new Intl.NumberFormat('nl-NL', { style: 'currency', currency: 'EUR' }).format(amount);
@@ -543,10 +578,63 @@ const productCardStyles = `
         padding: 0.75rem 1rem;
         background: var(--color-parchment);
         border-radius: 8px;
-        margin-bottom: 1rem;
+        margin-bottom: 0.5rem;
     }
     .product-modal-ingredients strong {
         color: var(--color-crust);
+    }
+    .product-modal-recipe-details {
+        margin-bottom: 1rem;
+    }
+    .recipe-details-toggle {
+        background: none;
+        border: none;
+        color: var(--color-crust);
+        font-size: 0.85rem;
+        font-weight: 600;
+        cursor: pointer;
+        padding: 0.35rem 0;
+        display: flex;
+        align-items: center;
+        gap: 0.35rem;
+        text-decoration: underline;
+        text-underline-offset: 3px;
+    }
+    .recipe-details-toggle:hover {
+        color: var(--color-terracotta);
+    }
+    .toggle-arrow {
+        font-size: 0.7rem;
+    }
+    .recipe-details-content {
+        padding: 0.6rem 0.9rem;
+        background: var(--color-parchment);
+        border-radius: 8px;
+        margin-top: 0.25rem;
+    }
+    .recipe-detail-subtitle {
+        font-size: 0.75rem;
+        font-weight: 700;
+        color: var(--color-crust);
+        text-transform: uppercase;
+        letter-spacing: 0.06em;
+        margin: 0.5rem 0 0.2rem 0;
+    }
+    .recipe-detail-row {
+        display: flex;
+        justify-content: space-between;
+        padding: 0.2rem 0;
+        font-size: 0.875rem;
+        color: var(--color-stone);
+        border-bottom: 1px solid rgba(139,90,43,0.08);
+    }
+    .recipe-detail-row:last-child {
+        border-bottom: none;
+    }
+    .recipe-detail-volkoren {
+        color: var(--color-crust);
+        font-weight: 600;
+        margin-bottom: 0.1rem;
     }
     .product-modal-price {
         font-family: var(--font-display);

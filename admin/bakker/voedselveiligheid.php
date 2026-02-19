@@ -1028,11 +1028,13 @@ document.addEventListener('keydown', e => {
 
 // Init
 (function () {
+    const pad = n => String(n).padStart(2, '0');
+    const toLocal = d => `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;
     const today    = new Date();
-    const monthAgo = new Date(today);
-    monthAgo.setDate(monthAgo.getDate() - 30);
-    document.getElementById('filterVan').value = monthAgo.toISOString().split('T')[0];
-    document.getElementById('filterTot').value = today.toISOString().split('T')[0];
+    const firstDay = new Date(today.getFullYear(), today.getMonth(), 1);
+    const lastDay  = new Date(today.getFullYear(), today.getMonth() + 1, 0);
+    document.getElementById('filterVan').value = toLocal(firstDay);
+    document.getElementById('filterTot').value = toLocal(lastDay);
     loadOverzicht();
 })();
 </script>

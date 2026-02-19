@@ -12,31 +12,158 @@ if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
 $method = $_SERVER['REQUEST_METHOD'];
 $isAdmin = isset($_SESSION['admin_logged_in']) && $_SESSION['admin_logged_in'] === true;
 
+function calculateWholeGrainPct($recipe) {
+    $allGrains = [];
+    if (!empty($recipe['mainDoughGrains'])) {
+        $allGrains = array_merge($allGrains, $recipe['mainDoughGrains']);
+    }
+    if (!empty($recipe['useSourdough']) && !empty($recipe['sourdoughGrains'])) {
+        $allGrains = array_merge($allGrains, $recipe['sourdoughGrains']);
+    }
+    if (!empty($recipe['usePreFerment']) && !empty($recipe['preFermentGrains'])) {
+        $allGrains = array_merge($allGrains, $recipe['preFermentGrains']);
+    }
+    $totalPct = 0;
+    $wholePct = 0;
+    foreach ($allGrains as $grain) {
+        $pct = $grain['pct'] ?? 0;
+        $totalPct += $pct;
+        if (strpos($grain['type'] ?? '', '_whole') !== false) {
+            $wholePct += $pct;
+        }
+    }
+    return $totalPct > 0 ? ($wholePct / $totalPct) * 100 : 0;
+}
+
+function computeIngredientList($recipeData) {
+    $grainNames = [
+        'wheat_white' => 'tarwebloem', 'wheat_whole' => 'volkorenmeel',
+        'spelt_white' => 'speltbloem', 'spelt_whole' => 'volkorenspeltmeel',
+        'durum' => 'durummeel', 'emmer' => 'emmermeel',
+        'rye_white' => 'roggebloem', 'rye_whole' => 'volkorenroggemeel',
+        'einkorn' => 'einkornmeel', 'buckwheat' => 'boekweitmeel',
+        'rice' => 'rijstmeel', 'barley' => 'gerstemeel', 'teff' => 'teffmeel',
+    ];
+    $yeastNames = [
+        'fresh_yeast' => 'verse gist', 'instant_yeast' => 'gist', 'sourdough_culture' => 'desemcultuur',
+    ];
+
+    $ingredients = [];
+
+    foreach ($recipeData['mainDoughGrains'] ?? [] as $grain) {
+        if (($grain['pct'] ?? 0) > 0) {
+            $name = $grainNames[$grain['type'] ?? ''] ?? $grain['type'];
+            $ingredients[] = ['name' => $name, 'amount' => (float)$grain['pct']];
+        }
+    }
+
+    $hydration = $recipeData['hydration'] ?? 65;
+    $ingredients[] = ['name' => 'water', 'amount' => (float)$hydration];
+
+    if (!empty($recipeData['useSourdough'])) {
+        $ingredients[] = ['name' => 'zuurdesem', 'amount' => (float)($recipeData['sourdoughPct'] ?? 20)];
+    }
+
+    $ingredients[] = ['name' => 'zout', 'amount' => (float)($recipeData['saltPct'] ?? 2.6)];
+
+    if (!empty($recipeData['useYeast'])) {
+        $yeastType = $recipeData['yeastType'] ?? 'instant_yeast';
+        $ingredients[] = ['name' => $yeastNames[$yeastType] ?? 'gist', 'amount' => (float)($recipeData['yeastPct'] ?? 1)];
+    }
+
+    foreach ($recipeData['mixins'] ?? [] as $mixin) {
+        if (!empty($mixin['ingredient']) && ($mixin['pct'] ?? 0) > 0) {
+            $ingredients[] = ['name' => strtolower($mixin['ingredient']), 'amount' => (float)$mixin['pct']];
+        }
+    }
+
+    foreach ($recipeData['toppings'] ?? [] as $topping) {
+        if (!empty($topping['ingredient']) && ($topping['pct'] ?? 0) > 0) {
+            $ingredients[] = ['name' => strtolower($topping['ingredient']), 'amount' => (float)$topping['pct']];
+        }
+    }
+
+    usort($ingredients, fn($a, $b) => $b['amount'] <=> $a['amount']);
+    $names = array_column($ingredients, 'name');
+    return !empty($names) ? implode(', ', $names) : null;
+}
+
+function computeRecipeDetails($recipeData) {
+    $grainNames = [
+        'wheat_white' => 'Tarwebloem', 'wheat_whole' => 'Volkorenmeel',
+        'spelt_white' => 'Speltbloem', 'spelt_whole' => 'Volkorenspeltmeel',
+        'durum' => 'Durummeel', 'emmer' => 'Emmermeel',
+        'rye_white' => 'Roggebloem', 'rye_whole' => 'Volkorenroggemeel',
+        'einkorn' => 'Einkornmeel', 'buckwheat' => 'Boekweitmeel',
+        'rice' => 'Rijstmeel', 'barley' => 'Gerstemeel', 'teff' => 'Teffmeel',
+    ];
+
+    $grains = [];
+    foreach ($recipeData['mainDoughGrains'] ?? [] as $grain) {
+        if (($grain['pct'] ?? 0) > 0) {
+            $name = $grainNames[$grain['type'] ?? ''] ?? $grain['type'];
+            $grains[] = ['name' => $name, 'pct' => (int)round((float)$grain['pct'])];
+        }
+    }
+    usort($grains, fn($a, $b) => $b['pct'] <=> $a['pct']);
+
+    return [
+        'volkoren_pct' => (int)round(calculateWholeGrainPct($recipeData)),
+        'grains' => $grains,
+    ];
+}
+
 try {
     switch ($method) {
         case 'GET':
             $stmt = $pdo->query("SELECT id, naam, ingredienten, beschrijving, prijs, foto FROM products ORDER BY naam ASC");
             $products = $stmt->fetchAll();
-            
-            $variantStmt = $pdo->query("SELECT id, product_id, gewicht, prijs FROM product_variants ORDER BY gewicht ASC");
+
+            $variantStmt = $pdo->query("SELECT id, product_id, gewicht, prijs, recipe_id FROM product_variants ORDER BY gewicht ASC");
             $allVariants = $variantStmt->fetchAll();
-            
+
             $variantsByProduct = [];
+            $recipeIdByProduct = [];
             foreach ($allVariants as $v) {
-                $variantsByProduct[$v['product_id']][] = [
+                $pid = $v['product_id'];
+                $variantsByProduct[$pid][] = [
                     'id' => (int)$v['id'],
                     'gewicht' => (int)$v['gewicht'],
                     'prijs' => (float)$v['prijs']
                 ];
+                if (!isset($recipeIdByProduct[$pid]) && !empty($v['recipe_id'])) {
+                    $recipeIdByProduct[$pid] = (int)$v['recipe_id'];
+                }
             }
-            
+
+            $recipesById = [];
+            if (!empty($recipeIdByProduct)) {
+                $uniqueIds = array_unique(array_values($recipeIdByProduct));
+                $placeholders = implode(',', array_fill(0, count($uniqueIds), '?'));
+                $recipeStmt = $pdo->prepare("SELECT id, recipe_data FROM baker_recipes WHERE id IN ($placeholders)");
+                $recipeStmt->execute($uniqueIds);
+                foreach ($recipeStmt->fetchAll() as $r) {
+                    $recipesById[$r['id']] = json_decode($r['recipe_data'], true);
+                }
+            }
+
             foreach ($products as &$product) {
-                $product['variants'] = $variantsByProduct[$product['id']] ?? [];
+                $pid = $product['id'];
+                $product['variants'] = $variantsByProduct[$pid] ?? [];
+                if (isset($recipeIdByProduct[$pid]) && isset($recipesById[$recipeIdByProduct[$pid]])) {
+                    $rd = $recipesById[$recipeIdByProduct[$pid]];
+                    $list = computeIngredientList($rd);
+                    if ($list !== null) {
+                        $product['ingredienten_recipe'] = $list;
+                        $product['recipe_details'] = computeRecipeDetails($rd);
+                    }
+                }
             }
-            
+            unset($product);
+
             $stmt = $pdo->query("SELECT setting_value FROM settings WHERE setting_key = 'btw_tarief'");
             $btwTarief = floatval($stmt->fetchColumn() ?: 9);
-            
+
             echo json_encode(['success' => true, 'products' => $products, 'btw_tarief' => $btwTarief]);
             break;
             
