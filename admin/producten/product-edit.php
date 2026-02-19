@@ -1,5 +1,6 @@
 <?php
 require_once '../config.php';
+require_once '../../lib/shared.php';
 requireLogin();
 
 $stmt = $pdo->query("SELECT COUNT(*) as count FROM business_accounts WHERE status = 'pending'");
@@ -68,80 +69,8 @@ if ($firstRecipeId) {
         }
     }
 
-    // Calculate flour fractions per section relative to totalFlour
-    // sourdoughWeight = totalFlour * sourdoughPct/100
-    // sourdoughFlour  = sourdoughWeight / (1 + sourdoughHydration/100)
-    // same for pre-ferment; mainDoughFlour = totalFlour - sourdoughFlour - preFermentFlour
-    $useSourdough = !empty($rd['useSourdough']);
-    $usePreFerment = !empty($rd['usePreFerment']);
-    $sourdoughHydration = (float)($rd['sourdoughHydration'] ?? 100);
-    $preFermentHydration = (float)($rd['preFermentHydration'] ?? 100);
-    $sourdoughFlourFraction = $useSourdough
-        ? ($rd['sourdoughPct'] ?? 0) / 100 / (1 + $sourdoughHydration / 100)
-        : 0;
-    $preFermentFlourFraction = $usePreFerment
-        ? ($rd['preFermentPct'] ?? 0) / 100 / (1 + $preFermentHydration / 100)
-        : 0;
-    $mainDoughFlourFraction = 1 - $sourdoughFlourFraction - $preFermentFlourFraction;
-
-    // Aggregate all grains into a map keyed by type, weighted by their section's flour fraction
-    $typeMap = [];
-    $sections = [
-        ['key' => 'sourdoughGrains',  'fraction' => $sourdoughFlourFraction,  'active' => $useSourdough],
-        ['key' => 'preFermentGrains', 'fraction' => $preFermentFlourFraction, 'active' => $usePreFerment],
-        ['key' => 'mainDoughGrains',  'fraction' => $mainDoughFlourFraction,  'active' => true],
-    ];
-    foreach ($sections as $section) {
-        if (!$section['active']) continue;
-        foreach ($rd[$section['key']] ?? [] as $grain) {
-            $pct = (float)($grain['pct'] ?? 0);
-            if ($pct <= 0) continue;
-            $t = $grain['type'] ?? '';
-            $actualPct = $pct * $section['fraction'];
-            $isWhole = is_numeric($t) && isset($lookup[(int)$t]) ? (bool)$lookup[(int)$t]['is_whole_grain'] : strpos($t, '_whole') !== false;
-            $mapKey = is_numeric($t) ? 'id_' . (int)$t : $t;
-            if (!isset($typeMap[$mapKey])) {
-                $name = is_numeric($t) && isset($lookup[(int)$t]) ? $lookup[(int)$t]['name'] : (string)$t;
-                $typeMap[$mapKey] = ['name' => $name, 'totalPct' => 0, 'isWhole' => $isWhole];
-            }
-            $typeMap[$mapKey]['totalPct'] += $actualPct;
-        }
-    }
-
-    // Build ingredient list (grains as % of totalFlour)
-    $items = [];
-    foreach ($typeMap as $entry) {
-        if ($entry['totalPct'] > 0) {
-            $items[] = ['name' => strtolower($entry['name']), 'amount' => $entry['totalPct']];
-        }
-    }
-    $items[] = ['name' => 'water', 'amount' => (float)($rd['hydration'] ?? 65)];
-    $items[] = ['name' => 'zout', 'amount' => (float)($rd['saltPct'] ?? 2.6)];
-    if (!empty($rd['useYeast'])) {
-        $yn = ['fresh_yeast' => 'verse gist', 'instant_yeast' => 'gist', 'sourdough_culture' => 'desemcultuur'];
-        $items[] = ['name' => $yn[$rd['yeastType'] ?? 'instant_yeast'] ?? 'gist', 'amount' => (float)($rd['yeastPct'] ?? 1)];
-    }
-    foreach (array_merge($rd['mixins'] ?? [], $rd['toppings'] ?? []) as $item) {
-        if (!empty($item['ingredient']) && ($item['pct'] ?? 0) > 0) {
-            $items[] = ['name' => strtolower($item['ingredient']), 'amount' => (float)$item['pct']];
-        }
-    }
-    usort($items, fn($a, $b) => $b['amount'] <=> $a['amount']);
-    $computedIngredientList = implode(', ', array_column($items, 'name'));
-
-    // Build grains display (as % of totalFlour, all sections combined)
-    $grains = [];
-    foreach ($typeMap as $entry) {
-        if ($entry['totalPct'] > 0) {
-            $grains[] = ['name' => $entry['name'], 'pct' => (int)round($entry['totalPct'])];
-        }
-    }
-    usort($grains, fn($a, $b) => $b['pct'] <=> $a['pct']);
-
-    // Calculate volkoren percentage using correctly weighted flour fractions
-    $totalFlourPct = array_sum(array_column($typeMap, 'totalPct'));
-    $wholeFlourPct = array_sum(array_map(fn($g) => $g['isWhole'] ? $g['totalPct'] : 0, $typeMap));
-    $computedRecipeDetails = ['volkoren_pct' => $totalFlourPct > 0 ? (int)round(($wholeFlourPct / $totalFlourPct) * 100) : 0, 'grains' => $grains];
+    $computedIngredientList = computeIngredientList($rd, $lookup);
+    $computedRecipeDetails  = computeRecipeDetails($rd, $lookup);
 }
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
