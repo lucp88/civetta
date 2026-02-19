@@ -224,6 +224,17 @@ $adminBasePath = '../';
                 <i class="bi bi-arrow-clockwise spin"></i> Laden…
             </div>
 
+            <!-- No list state -->
+            <div id="noListPanel" class="panel" style="display:none;">
+                <div class="empty-state">
+                    <i class="bi bi-clipboard-x" style="color:#c8913a;"></i>
+                    <p style="margin-bottom:1.25rem;">Er bestaat nog geen checklist voor <strong id="noListDate"></strong>.</p>
+                    <button class="btn btn-primary" onclick="createList()">
+                        <i class="bi bi-plus-lg"></i> Lijst aanmaken voor deze datum
+                    </button>
+                </div>
+            </div>
+
             <!-- Checklist panel -->
             <div id="listPanel" class="panel" style="display:none;">
                 <div class="panel-header no-print">
@@ -447,14 +458,25 @@ function goToday() {
 async function loadList() {
     const datum = document.getElementById('listDate').value;
 
-    document.getElementById('listLoading').style.display = 'flex';
-    document.getElementById('listPanel').style.display   = 'none';
-    document.getElementById('statusBar').style.display   = 'none';
+    document.getElementById('listLoading').style.display  = 'flex';
+    document.getElementById('listPanel').style.display    = 'none';
+    document.getElementById('noListPanel').style.display  = 'none';
+    document.getElementById('statusBar').style.display    = 'none';
+    document.getElementById('saveBtn').style.display      = '';
 
     try {
         const res  = await fetch(`${API}?action=get_list&datum=${datum}`);
         const data = await res.json();
         if (!data.success) throw new Error(data.error || 'Fout bij laden');
+
+        document.getElementById('listLoading').style.display = 'none';
+
+        if (!data.exists) {
+            document.getElementById('noListDate').textContent = formatDate(datum);
+            document.getElementById('noListPanel').style.display = 'block';
+            document.getElementById('saveBtn').style.display = 'none';
+            return;
+        }
 
         currentList  = data.lijst;
         currentItems = data.items;
@@ -476,9 +498,50 @@ async function loadList() {
         }
 
         renderChecklist();
+        document.getElementById('listPanel').style.display = 'block';
+
+    } catch (e) {
+        document.getElementById('listLoading').innerHTML =
+            `<i class="bi bi-exclamation-triangle" style="color:#c62828;"></i> Fout: ${e.message}`;
+    }
+}
+
+// ==================== CREATE LIST ====================
+async function createList() {
+    const datum = document.getElementById('listDate').value;
+
+    document.getElementById('noListPanel').style.display = 'none';
+    document.getElementById('listLoading').style.display = 'flex';
+
+    try {
+        const res  = await fetch(API, {
+            method:  'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body:    JSON.stringify({ action: 'create_list', datum }),
+        });
+        const data = await res.json();
+        if (!data.success) throw new Error(data.error || 'Fout bij aanmaken');
+
+        currentList  = data.lijst;
+        currentItems = data.items;
 
         document.getElementById('listLoading').style.display = 'none';
-        document.getElementById('listPanel').style.display   = 'block';
+        document.getElementById('saveBtn').style.display     = '';
+        document.getElementById('printDateLabel').textContent = 'Datum: ' + formatDate(datum);
+
+        const bar = document.getElementById('statusBar');
+        bar.style.display = 'flex';
+        if (data.is_late_edit) {
+            bar.className = 'status-bar status-bar-late';
+            bar.innerHTML = '<i class="bi bi-clock-history" style="color:#e65100;"></i>'
+                + ' <strong>Let op:</strong> U bewerkt een lijst van een verstreken datum. Wijzigingen worden gelogd in het audit log.';
+        } else {
+            bar.className = 'status-bar status-bar-normal';
+            bar.innerHTML = `📋 <strong>Status:</strong> Onvolledig &nbsp;|&nbsp; <strong>Datum:</strong> ${formatDate(datum)}`;
+        }
+
+        renderChecklist();
+        document.getElementById('listPanel').style.display = 'block';
 
     } catch (e) {
         document.getElementById('listLoading').innerHTML =

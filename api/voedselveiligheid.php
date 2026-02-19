@@ -4,7 +4,8 @@ requireLogin();
 
 header('Content-Type: application/json; charset=utf-8');
 
-$action = $_GET['action'] ?? ($_POST['action'] ?? '');
+$jsonBody = json_decode(file_get_contents('php://input'), true) ?? [];
+$action   = $_GET['action'] ?? ($_POST['action'] ?? ($jsonBody['action'] ?? ''));
 
 function calculateDueDate($frequentie, $datum) {
     $date = new DateTime($datum);
@@ -27,7 +28,7 @@ function calculateDueDate($frequentie, $datum) {
 
 switch ($action) {
 
-    // ==================== GET LIST ====================
+    // ==================== GET LIST (check only, no auto-create) ====================
     case 'get_list':
         $datum = $_GET['datum'] ?? date('Y-m-d');
 
@@ -41,38 +42,74 @@ switch ($action) {
         $lijst = $stmt->fetch();
 
         if (!$lijst) {
-            // Create new list for this date
-            $stmt = $pdo->prepare("INSERT INTO schoonmaak_lijsten (datum, status) VALUES (?, 'onvolledig')");
-            $stmt->execute([$datum]);
-            $lijstId = $pdo->lastInsertId();
-
-            // Populate with all active master items
-            $stmt = $pdo->query("SELECT * FROM schoonmaak_items WHERE actief = 1 ORDER BY volgorde, id");
-            $masterItems = $stmt->fetchAll();
-
-            foreach ($masterItems as $item) {
-                $dueDate = calculateDueDate($item['frequentie'], $datum);
-                $stmt = $pdo->prepare("
-                    INSERT INTO schoonmaak_lijst_items (lijst_id, item_id, naam, type, frequentie, due_date)
-                    VALUES (?, ?, ?, ?, ?, ?)
-                ");
-                $stmt->execute([$lijstId, $item['id'], $item['naam'], $item['type'], $item['frequentie'], $dueDate]);
-            }
-
-            $stmt = $pdo->prepare("SELECT * FROM schoonmaak_lijsten WHERE id = ?");
-            $stmt->execute([$lijstId]);
-            $lijst = $stmt->fetch();
+            echo json_encode(['success' => true, 'exists' => false, 'datum' => $datum]);
+            break;
         }
 
         $stmt = $pdo->prepare("SELECT * FROM schoonmaak_lijst_items WHERE lijst_id = ? ORDER BY type, id");
         $stmt->execute([$lijst['id']]);
         $lijstItems = $stmt->fetchAll();
 
-        // Determine edit mode (all edits are allowed; late = past date = tracked)
         $listDateTs = strtotime($datum);
         $todayTs    = strtotime(date('Y-m-d'));
         $daysDiff   = (int)(($todayTs - $listDateTs) / 86400);
-        $isLateEdit = $daysDiff > 0; // past date
+        $isLateEdit = $daysDiff > 0;
+
+        echo json_encode([
+            'success'      => true,
+            'exists'       => true,
+            'lijst'        => $lijst,
+            'items'        => $lijstItems,
+            'is_late_edit' => $isLateEdit,
+        ]);
+        break;
+
+    // ==================== CREATE LIST (explicit) ====================
+    case 'create_list':
+        $datum = $jsonBody['datum'] ?? '';
+
+        if (!preg_match('/^\d{4}-\d{2}-\d{2}$/', $datum)) {
+            echo json_encode(['success' => false, 'error' => 'Ongeldige datum']);
+            exit;
+        }
+
+        // Check if already exists
+        $stmt = $pdo->prepare("SELECT id FROM schoonmaak_lijsten WHERE datum = ?");
+        $stmt->execute([$datum]);
+        if ($stmt->fetch()) {
+            echo json_encode(['success' => false, 'error' => 'Er bestaat al een lijst voor deze datum']);
+            exit;
+        }
+
+        $stmt = $pdo->prepare("INSERT INTO schoonmaak_lijsten (datum, status) VALUES (?, 'onvolledig')");
+        $stmt->execute([$datum]);
+        $lijstId = $pdo->lastInsertId();
+
+        // Populate with all active master items
+        $stmt = $pdo->query("SELECT * FROM schoonmaak_items WHERE actief = 1 ORDER BY volgorde, id");
+        $masterItems = $stmt->fetchAll();
+
+        foreach ($masterItems as $item) {
+            $dueDate = calculateDueDate($item['frequentie'], $datum);
+            $stmt = $pdo->prepare("
+                INSERT INTO schoonmaak_lijst_items (lijst_id, item_id, naam, type, frequentie, due_date)
+                VALUES (?, ?, ?, ?, ?, ?)
+            ");
+            $stmt->execute([$lijstId, $item['id'], $item['naam'], $item['type'], $item['frequentie'], $dueDate]);
+        }
+
+        $stmt = $pdo->prepare("SELECT * FROM schoonmaak_lijsten WHERE id = ?");
+        $stmt->execute([$lijstId]);
+        $lijst = $stmt->fetch();
+
+        $stmt = $pdo->prepare("SELECT * FROM schoonmaak_lijst_items WHERE lijst_id = ? ORDER BY type, id");
+        $stmt->execute([$lijstId]);
+        $lijstItems = $stmt->fetchAll();
+
+        $listDateTs = strtotime($datum);
+        $todayTs    = strtotime(date('Y-m-d'));
+        $daysDiff   = (int)(($todayTs - $listDateTs) / 86400);
+        $isLateEdit = $daysDiff > 0;
 
         echo json_encode([
             'success'      => true,
@@ -107,7 +144,7 @@ switch ($action) {
 
     // ==================== SAVE LIST ====================
     case 'save_list':
-        $data    = json_decode(file_get_contents('php://input'), true);
+        $data    = $jsonBody;
         $lijstId = $data['lijst_id'] ?? null;
         $items   = $data['items']    ?? [];
         $force   = !empty($data['force']);
@@ -217,7 +254,7 @@ switch ($action) {
 
     // ==================== SAVE MASTER ITEM ====================
     case 'save_item':
-        $data      = json_decode(file_get_contents('php://input'), true);
+        $data      = $jsonBody;
         $id        = $data['id']        ?? null;
         $naam      = trim($data['naam'] ?? '');
         $type      = $data['type']      ?? 'schoonmaak';
@@ -251,7 +288,7 @@ switch ($action) {
 
     // ==================== DEACTIVATE MASTER ITEM ====================
     case 'delete_item':
-        $data = json_decode(file_get_contents('php://input'), true);
+        $data = $jsonBody;
         $id   = $data['id'] ?? null;
 
         if (!$id) {
