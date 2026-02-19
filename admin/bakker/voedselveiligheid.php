@@ -410,7 +410,6 @@ $adminBasePath = '../';
                 <label class="form-label">Frequentie *</label>
                 <select class="form-control" id="itemFrequentie">
                     <option value="dagelijks">Dagelijks</option>
-                    <option value="dagelijks_mits_gebruikt">Dagelijks (mits gebruikt)</option>
                     <option value="wekelijks">Wekelijks</option>
                     <option value="maandelijks">Maandelijks</option>
                 </select>
@@ -997,7 +996,7 @@ function formatDate(d) {
 }
 function formatStatus(s) { return { volledig: 'Volledig', onvolledig: 'Onvolledig', afwijking: 'Afwijking' }[s] || s; }
 function statusIcon(s)   { return { volledig: '✅', onvolledig: '❌', afwijking: '⚠️' }[s] || '📋'; }
-function formatFreq(f)   { return { dagelijks: 'Dagelijks', dagelijks_mits_gebruikt: 'Dagelijks (mits gebruikt)', wekelijks: 'Wekelijks', maandelijks: 'Maandelijks' }[f] || f; }
+function formatFreq(f)   { return { dagelijks: 'Dagelijks', wekelijks: 'Wekelijks', maandelijks: 'Maandelijks' }[f] || f; }
 function escHtml(s) { return s ? String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;') : ''; }
 function escAttr(s) { return s ? String(s).replace(/"/g,'&quot;').replace(/'/g,'&#39;') : ''; }
 function showToast(msg, type) {
