@@ -73,17 +73,23 @@ function computeIngredientList($recipe, $lookup = []) {
     }
     usort($grains, fn($a, $b) => $b['amount'] <=> $a['amount']);
 
-    $others = [
-        ['name' => 'water', 'amount' => (float)($recipe['hydration'] ?? 65)],
-        ['name' => 'zout',  'amount' => (float)($recipe['saltPct']   ?? 2.6)],
+    $othersMap = [
+        'water' => (float)($recipe['hydration'] ?? 65),
+        'zout'  => (float)($recipe['saltPct']   ?? 2.6),
     ];
     if (!empty($recipe['useYeast'])) {
-        $others[] = ['name' => $yeastNames[$recipe['yeastType'] ?? 'instant_yeast'] ?? 'gist', 'amount' => (float)($recipe['yeastPct'] ?? 1)];
+        $yn = $yeastNames[$recipe['yeastType'] ?? 'instant_yeast'] ?? 'gist';
+        $othersMap[$yn] = ($othersMap[$yn] ?? 0) + (float)($recipe['yeastPct'] ?? 1);
     }
     foreach (array_merge($recipe['mixins'] ?? [], $recipe['toppings'] ?? []) as $item) {
         if (!empty($item['ingredient']) && ($item['pct'] ?? 0) > 0) {
-            $others[] = ['name' => strtolower($item['ingredient']), 'amount' => (float)$item['pct']];
+            $key = strtolower($item['ingredient']);
+            $othersMap[$key] = ($othersMap[$key] ?? 0) + (float)$item['pct'];
         }
+    }
+    $others = [];
+    foreach ($othersMap as $name => $amount) {
+        $others[] = ['name' => $name, 'amount' => $amount];
     }
     usort($others, fn($a, $b) => $b['amount'] <=> $a['amount']);
 
