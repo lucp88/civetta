@@ -491,7 +491,7 @@ $monthlyBreadCount = (int)$stmt->fetch()['total_breads'];
                             <p style="color:#bbb">Nog geen toppings toegevoegd</p>
                         </div>
                         <datalist id="topping-suggestions">
-                            <option v-for="ing in toppingIngredients" :value="ing"></option>
+                            <option v-for="ing in toppingIngredients" :value="ing.name"></option>
                         </datalist>
                         <div class="topping-row" v-for="(t, i) in toppings" :key="'tp'+i">
                             <div class="form-group">
