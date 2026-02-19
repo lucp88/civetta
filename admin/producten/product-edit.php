@@ -383,7 +383,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             width: 100%;
         }
         .variant-row .variant-recipe {
-            width: 140px;
+            flex: 1;
+            min-width: 160px;
             padding: 0.5rem;
             border: 2px solid #e8dfd2;
             border-radius: 8px;
@@ -601,7 +602,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             const doughTypeId = document.getElementById('dough_type_id').value;
             let options = '<option value="">Recept...</option>';
             recipesJson.forEach(r => {
-                if (!doughTypeId || r.dough_type_id == doughTypeId) {
+                if (!doughTypeId || r.dough_type_id == doughTypeId || r.id == selectedRecipeId) {
                     const selected = r.id == selectedRecipeId ? 'selected' : '';
                     options += `<option value="${r.id}" ${selected}>${r.name}</option>`;
                 }

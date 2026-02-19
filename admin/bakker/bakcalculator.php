@@ -13,6 +13,17 @@ $currentPage = 'bakcalculator';
 $adminBasePath = '../';
 
 $doughTypes = $pdo->query("SELECT id, name FROM dough_types ORDER BY name ASC")->fetchAll();
+
+$currentMonth = date('Y-m');
+$stmt = $pdo->prepare("
+    SELECT COALESCE(SUM(boi.quantity), 0) as total_breads
+    FROM business_orders bo
+    JOIN business_order_items boi ON bo.id = boi.order_id
+    WHERE DATE_FORMAT(bo.delivery_date, '%Y-%m') = ?
+    AND bo.is_cancelled = 0
+");
+$stmt->execute([$currentMonth]);
+$monthlyBreadCount = (int)$stmt->fetch()['total_breads'];
 ?>
 <!DOCTYPE html>
 <html lang="nl">
@@ -650,18 +661,10 @@ $doughTypes = $pdo->query("SELECT id, name FROM dough_types ORDER BY name ASC")-
                                 </div>
                             </div>
                             <div class="overview-section" style="background:#fff3e0">
-                                <h4 style="color:#e65100"><i class="bi bi-lightning-charge"></i> Vaste kosten (geschat)</h4>
-                                <div class="overview-item">
-                                    <span class="name">Water (maand / 30)</span>
-                                    <span class="value">€{{ formatEuro(utilityCosts.water / 30) }}</span>
-                                </div>
-                                <div class="overview-item">
-                                    <span class="name">Elektra (maand / 30)</span>
-                                    <span class="value">€{{ formatEuro(utilityCosts.electricity / 30) }}</span>
-                                </div>
+                                <h4 style="color:#e65100"><i class="bi bi-lightning-charge"></i> Nutskosten</h4>
                                 <div class="overview-total">
-                                    <span>Subtotaal vaste kosten</span>
-                                    <span>€{{ formatEuro(totalUtilityCostPerRecipe) }}</span>
+                                    <span>Per brood ({{ monthlyBreadCount }} broden deze maand)</span>
+                                    <span>{{ monthlyBreadCount ? '€' + formatEuro(totalUtilityCostPerRecipe) : '—' }}</span>
                                 </div>
                             </div>
                             <div class="overview-section" style="background:#e8f5e9">
@@ -718,8 +721,8 @@ $doughTypes = $pdo->query("SELECT id, name FROM dough_types ORDER BY name ASC")-
                                             </h4>
                                             <small>{{ formatDate(r.updated_at) }}</small>
                                             <div style="margin-top:0.2rem">
-                                                <span v-if="r.linked_to_product" style="color:#2e7d32;font-size:0.75rem;font-weight:600"><i class="bi bi-link-45deg"></i> Gekoppeld aan product</span>
-                                                <span v-else style="color:#bbb;font-size:0.75rem"><i class="bi bi-x"></i> Niet gekoppeld</span>
+                                                <span v-if="r.linked_to_product == 1" style="color:#2e7d32;font-size:0.85rem" title="Gekoppeld aan product"><i class="bi bi-link-45deg"></i></span>
+                                                <span v-else style="color:#ccc;font-size:0.85rem" title="Niet gekoppeld aan product"><i class="bi bi-x"></i></span>
                                             </div>
                                         </div>
                                         <div class="recipe-actions">
@@ -906,7 +909,8 @@ $doughTypes = $pdo->query("SELECT id, name FROM dough_types ORDER BY name ASC")-
                 mixinIngredients: [],
                 toppingIngredients: [],
                 allIngredients: [],
-                utilityCosts: { water: 0, electricity: 0 },
+                utilityCosts: { total: 0 },
+                monthlyBreadCount: <?= $monthlyBreadCount ?>,
                 ingredientsLoaded: false,
                 fifoCosts: {},
                 fifoLoading: false,
@@ -1166,9 +1170,8 @@ $doughTypes = $pdo->query("SELECT id, name FROM dough_types ORDER BY name ASC")-
             },
 
             totalUtilityCostPerRecipe() {
-                const monthlyProduction = 30;
-                const totalMonthly = (this.utilityCosts.water || 0) + (this.utilityCosts.electricity || 0);
-                return totalMonthly / monthlyProduction;
+                if (!this.monthlyBreadCount) return 0;
+                return (this.utilityCosts.total || 0) / this.monthlyBreadCount;
             },
 
             totalCostWithUtilities() {
@@ -1520,12 +1523,8 @@ $doughTypes = $pdo->query("SELECT id, name FROM dough_types ORDER BY name ASC")-
                     const res = await fetch(`../../api/utility-costs.php?year_month=${currentMonth}`);
                     const data = await res.json();
                     if (data.success) {
-                        const water = data.costs.find(c => c.type === 'water');
-                        const elec = data.costs.find(c => c.type === 'electricity');
-                        this.utilityCosts = {
-                            water: water ? parseFloat(water.cost) : 0,
-                            electricity: elec ? parseFloat(elec.cost) : 0
-                        };
+                        const pick = (obj) => obj ? (obj.cost !== null ? parseFloat(obj.cost) : (obj.estimated_cost !== null ? parseFloat(obj.estimated_cost) : 0)) : 0;
+                        this.utilityCosts = { total: pick(data.costs.water) + pick(data.costs.electricity) };
                     }
                 } catch(e) { console.error('Error loading utility costs:', e); }
             },
