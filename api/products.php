@@ -12,7 +12,32 @@ if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
 $method = $_SERVER['REQUEST_METHOD'];
 $isAdmin = isset($_SESSION['admin_logged_in']) && $_SESSION['admin_logged_in'] === true;
 
-function calculateWholeGrainPct($recipe) {
+function grainDisplayName($type, $lookup, $capitalize = false) {
+    if (is_numeric($type) && isset($lookup[(int)$type])) {
+        $name = $lookup[(int)$type]['name'];
+        return $capitalize ? $name : strtolower($name);
+    }
+    // Legacy string fallback (recipes saved before ingredient IDs were used)
+    $legacy = [
+        'wheat_white' => 'tarwebloem', 'wheat_whole' => 'volkorenmeel',
+        'spelt_white' => 'speltbloem', 'spelt_whole' => 'volkorenspeltmeel',
+        'durum' => 'durummeel', 'emmer' => 'emmermeel',
+        'rye_white' => 'roggebloem', 'rye_whole' => 'volkorenroggemeel',
+        'einkorn' => 'einkornmeel', 'buckwheat' => 'boekweitmeel',
+        'rice' => 'rijstmeel', 'barley' => 'gerstemeel', 'teff' => 'teffmeel',
+    ];
+    $name = $legacy[$type] ?? (string)$type;
+    return $capitalize ? ucfirst($name) : $name;
+}
+
+function grainIsWhole($type, $lookup) {
+    if (is_numeric($type) && isset($lookup[(int)$type])) {
+        return (bool)$lookup[(int)$type]['is_whole_grain'];
+    }
+    return strpos((string)$type, '_whole') !== false;
+}
+
+function calculateWholeGrainPct($recipe, $lookup = []) {
     $allGrains = [];
     if (!empty($recipe['mainDoughGrains'])) {
         $allGrains = array_merge($allGrains, $recipe['mainDoughGrains']);
@@ -28,22 +53,14 @@ function calculateWholeGrainPct($recipe) {
     foreach ($allGrains as $grain) {
         $pct = $grain['pct'] ?? 0;
         $totalPct += $pct;
-        if (strpos($grain['type'] ?? '', '_whole') !== false) {
+        if (grainIsWhole($grain['type'] ?? '', $lookup)) {
             $wholePct += $pct;
         }
     }
     return $totalPct > 0 ? ($wholePct / $totalPct) * 100 : 0;
 }
 
-function computeIngredientList($recipeData) {
-    $grainNames = [
-        'wheat_white' => 'tarwebloem', 'wheat_whole' => 'volkorenmeel',
-        'spelt_white' => 'speltbloem', 'spelt_whole' => 'volkorenspeltmeel',
-        'durum' => 'durummeel', 'emmer' => 'emmermeel',
-        'rye_white' => 'roggebloem', 'rye_whole' => 'volkorenroggemeel',
-        'einkorn' => 'einkornmeel', 'buckwheat' => 'boekweitmeel',
-        'rice' => 'rijstmeel', 'barley' => 'gerstemeel', 'teff' => 'teffmeel',
-    ];
+function computeIngredientList($recipeData, $lookup = []) {
     $yeastNames = [
         'fresh_yeast' => 'verse gist', 'instant_yeast' => 'gist', 'sourdough_culture' => 'desemcultuur',
     ];
@@ -52,17 +69,13 @@ function computeIngredientList($recipeData) {
 
     foreach ($recipeData['mainDoughGrains'] ?? [] as $grain) {
         if (($grain['pct'] ?? 0) > 0) {
-            $name = $grainNames[$grain['type'] ?? ''] ?? $grain['type'];
-            $ingredients[] = ['name' => $name, 'amount' => (float)$grain['pct']];
+            $ingredients[] = ['name' => grainDisplayName($grain['type'] ?? '', $lookup), 'amount' => (float)$grain['pct']];
         }
     }
 
-    $hydration = $recipeData['hydration'] ?? 65;
-    $ingredients[] = ['name' => 'water', 'amount' => (float)$hydration];
+    $ingredients[] = ['name' => 'water', 'amount' => (float)($recipeData['hydration'] ?? 65)];
 
-    if (!empty($recipeData['useSourdough'])) {
-        $ingredients[] = ['name' => 'zuurdesem', 'amount' => (float)($recipeData['sourdoughPct'] ?? 20)];
-    }
+    // Sourdough is omitted: it is flour + water, not a separate ingredient
 
     $ingredients[] = ['name' => 'zout', 'amount' => (float)($recipeData['saltPct'] ?? 2.6)];
 
@@ -88,27 +101,17 @@ function computeIngredientList($recipeData) {
     return !empty($names) ? implode(', ', $names) : null;
 }
 
-function computeRecipeDetails($recipeData) {
-    $grainNames = [
-        'wheat_white' => 'Tarwebloem', 'wheat_whole' => 'Volkorenmeel',
-        'spelt_white' => 'Speltbloem', 'spelt_whole' => 'Volkorenspeltmeel',
-        'durum' => 'Durummeel', 'emmer' => 'Emmermeel',
-        'rye_white' => 'Roggebloem', 'rye_whole' => 'Volkorenroggemeel',
-        'einkorn' => 'Einkornmeel', 'buckwheat' => 'Boekweitmeel',
-        'rice' => 'Rijstmeel', 'barley' => 'Gerstemeel', 'teff' => 'Teffmeel',
-    ];
-
+function computeRecipeDetails($recipeData, $lookup = []) {
     $grains = [];
     foreach ($recipeData['mainDoughGrains'] ?? [] as $grain) {
         if (($grain['pct'] ?? 0) > 0) {
-            $name = $grainNames[$grain['type'] ?? ''] ?? $grain['type'];
-            $grains[] = ['name' => $name, 'pct' => (int)round((float)$grain['pct'])];
+            $grains[] = ['name' => grainDisplayName($grain['type'] ?? '', $lookup, true), 'pct' => (int)round((float)$grain['pct'])];
         }
     }
     usort($grains, fn($a, $b) => $b['pct'] <=> $a['pct']);
 
     return [
-        'volkoren_pct' => (int)round(calculateWholeGrainPct($recipeData)),
+        'volkoren_pct' => (int)round(calculateWholeGrainPct($recipeData, $lookup)),
         'grains' => $grains,
     ];
 }
@@ -147,15 +150,37 @@ try {
                 }
             }
 
+            // Collect numeric grain IDs used across all recipes for name lookup
+            $allGrainIds = [];
+            foreach ($recipesById as $rd) {
+                foreach (['mainDoughGrains', 'sourdoughGrains', 'preFermentGrains'] as $key) {
+                    foreach ($rd[$key] ?? [] as $grain) {
+                        if (is_numeric($grain['type'] ?? '')) {
+                            $allGrainIds[] = (int)$grain['type'];
+                        }
+                    }
+                }
+            }
+            $ingredientLookup = [];
+            if (!empty($allGrainIds)) {
+                $uniqueGrainIds = array_unique($allGrainIds);
+                $grainPlaceholders = implode(',', array_fill(0, count($uniqueGrainIds), '?'));
+                $ingStmt = $pdo->prepare("SELECT id, name, is_whole_grain FROM ingredients WHERE id IN ($grainPlaceholders)");
+                $ingStmt->execute($uniqueGrainIds);
+                foreach ($ingStmt->fetchAll() as $ing) {
+                    $ingredientLookup[(int)$ing['id']] = ['name' => $ing['name'], 'is_whole_grain' => (bool)$ing['is_whole_grain']];
+                }
+            }
+
             foreach ($products as &$product) {
                 $pid = $product['id'];
                 $product['variants'] = $variantsByProduct[$pid] ?? [];
                 if (isset($recipeIdByProduct[$pid]) && isset($recipesById[$recipeIdByProduct[$pid]])) {
                     $rd = $recipesById[$recipeIdByProduct[$pid]];
-                    $list = computeIngredientList($rd);
+                    $list = computeIngredientList($rd, $ingredientLookup);
                     if ($list !== null) {
                         $product['ingredienten_recipe'] = $list;
-                        $product['recipe_details'] = computeRecipeDetails($rd);
+                        $product['recipe_details'] = computeRecipeDetails($rd, $ingredientLookup);
                     }
                 }
             }
