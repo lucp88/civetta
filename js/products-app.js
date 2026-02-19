@@ -1,22 +1,17 @@
 const { createApp } = Vue;
 
 const productsApp = createApp({
-    components: {
-        'product-detail-modal': ProductDetailModal
-    },
-    
     data() {
         return {
             products: [],
-            loading: true,
-            selectedProduct: null
+            loading: true
         };
     },
-    
+
     mounted() {
         this.loadProducts();
     },
-    
+
     methods: {
         async loadProducts() {
             try {
@@ -31,7 +26,7 @@ const productsApp = createApp({
                 this.loading = false;
             }
         },
-        
+
         formatPrice(price) {
             if (!price) return null;
             return new Intl.NumberFormat('nl-NL', {
@@ -39,20 +34,18 @@ const productsApp = createApp({
                 currency: 'EUR'
             }).format(price);
         },
-        
-        showProductDetail(product) {
-            this.selectedProduct = product;
-        },
-        
+
         getLowestPrice(product) {
             if (!product.variants || product.variants.length === 0) return product.prijs;
-            return Math.min(...product.variants.map(v => parseFloat(v.prijs)));
+            const priced = product.variants.filter(v => parseFloat(v.prijs) > 0);
+            if (priced.length === 0) return product.prijs;
+            return Math.min(...priced.map(v => parseFloat(v.prijs)));
         },
-        
+
         getOtherVariants(product) {
             if (!product.variants || product.variants.length <= 1) return '';
             const sorted = [...product.variants].sort((a, b) => parseFloat(a.prijs) - parseFloat(b.prijs));
-            const others = sorted.slice(1);
+            const others = sorted.slice(1).filter(v => parseFloat(v.prijs) > 0);
             return others.map(v => `${v.gewicht}g ${this.formatPrice(v.prijs)}`).join(' · ');
         }
     }

@@ -344,6 +344,9 @@ $currentPage = $currentPage ?? '';
         <a href="<?= $adminBasePath ?? '' ?>bakker/voorraad.php" class="nav-item <?= $currentPage === 'voorraad' ? 'active' : '' ?>">
             <i class="bi bi-box-seam-fill"></i> Voorraadbeheer
         </a>
+        <a href="<?= $adminBasePath ?? '' ?>bakker/voedselveiligheid.php" class="nav-item <?= $currentPage === 'schoonmaak' ? 'active' : '' ?>">
+            <i class="bi bi-check2-square"></i> Voedselveiligheid
+        </a>
 
         <div class="nav-section">Beheer</div>
         <a href="<?= $adminBasePath ?? '' ?>bestellingen/orders.php" class="nav-item <?= $currentPage === 'orders' ? 'active' : '' ?>">
@@ -405,6 +408,9 @@ $currentPage = $currentPage ?? '';
         </a>
         <a href="<?= $adminBasePath ?? '' ?>bakker/voorraad.php" class="nav-item <?= $currentPage === 'voorraad' ? 'active' : '' ?>">
             <i class="bi bi-box-seam-fill"></i> Voorraadbeheer
+        </a>
+        <a href="<?= $adminBasePath ?? '' ?>bakker/voedselveiligheid.php" class="nav-item <?= $currentPage === 'schoonmaak' ? 'active' : '' ?>">
+            <i class="bi bi-check2-square"></i> Voedselveiligheid
         </a>
 
         <div class="nav-section">Beheer</div>

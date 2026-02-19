@@ -13,6 +13,17 @@ $currentPage = 'bakcalculator';
 $adminBasePath = '../';
 
 $doughTypes = $pdo->query("SELECT id, name FROM dough_types ORDER BY name ASC")->fetchAll();
+
+$currentMonth = date('Y-m');
+$stmt = $pdo->prepare("
+    SELECT COALESCE(SUM(boi.quantity), 0) as total_breads
+    FROM business_orders bo
+    JOIN business_order_items boi ON bo.id = boi.order_id
+    WHERE DATE_FORMAT(bo.delivery_date, '%Y-%m') = ?
+    AND bo.is_cancelled = 0
+");
+$stmt->execute([$currentMonth]);
+$monthlyBreadCount = (int)$stmt->fetch()['total_breads'];
 ?>
 <!DOCTYPE html>
 <html lang="nl">
@@ -73,7 +84,8 @@ $doughTypes = $pdo->query("SELECT id, name FROM dough_types ORDER BY name ASC")-
         .btn-ghost { background: transparent; color: #8b5a2b; border: 2px solid #e0d5c7; }
         .btn-ghost:hover { border-color: #8b5a2b; background: #faf6f1; }
         .btn-sm { padding: 0.35rem 0.7rem; font-size: 0.8rem; }
-        .tabs { display: flex; gap: 0.25rem; border-bottom: 2px solid #e0d5c7; margin-bottom: 1.5rem; overflow-x: auto; }
+        .tabs { display: flex; gap: 0.25rem; border-bottom: 2px solid #e0d5c7; margin-bottom: 1.5rem; overflow-x: auto; scrollbar-width: none; }
+        .tabs::-webkit-scrollbar { display: none; }
         .tab { padding: 0.7rem 1.2rem; cursor: pointer; font-weight: 500; color: #888; border-bottom: 3px solid transparent; margin-bottom: -2px; white-space: nowrap; transition: all 0.2s; user-select: none; }
         .tab:hover { color: #5c3d1e; }
         .tab.active { color: #8b5a2b; border-bottom-color: #c8913a; font-weight: 700; }
@@ -202,7 +214,7 @@ $doughTypes = $pdo->query("SELECT id, name FROM dough_types ORDER BY name ASC")-
 
             <div class="admin-content">
                 <div id="app">
-        <div class="top-bar">
+        <div class="top-bar" v-show="calculatorActive">
             <input type="text" v-model="recipeName" class="recipe-name-input" placeholder="Receptnaam...">
             <div class="dough-type-select">
                 <select v-model="doughTypeId" class="form-select-sm">
@@ -228,7 +240,7 @@ $doughTypes = $pdo->query("SELECT id, name FROM dough_types ORDER BY name ASC")-
         <div class="layout">
             <div class="main-content">
 
-                <div v-show="activeTab==='recept'">
+                <div v-show="calculatorActive && activeTab==='recept'">
                     <div class="panel">
                         <div class="panel-title"><i class="bi bi-gear"></i> Basisrecept</div>
                         <div class="form-grid">
@@ -298,7 +310,7 @@ $doughTypes = $pdo->query("SELECT id, name FROM dough_types ORDER BY name ASC")-
                     </div>
                 </div>
 
-                <div v-show="activeTab==='meel'">
+                <div v-show="calculatorActive && activeTab==='meel'">
                     <div class="panel" v-if="useSourdough">
                         <div class="panel-title"><i class="bi bi-fire"></i> Zuurdesem meelsoorten</div>
                         <div class="grain-row" v-for="(grain, i) in sourdoughGrains" :key="'sd'+i">
@@ -414,7 +426,7 @@ $doughTypes = $pdo->query("SELECT id, name FROM dough_types ORDER BY name ASC")-
                     </div>
                 </div>
 
-                <div v-show="activeTab==='toevoegingen'">
+                <div v-show="calculatorActive && activeTab==='toevoegingen'">
                     <div class="panel">
                         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem">
                             <div class="panel-title" style="margin-bottom:0"><i class="bi bi-plus-circle"></i> Mix-ins</div>
@@ -481,7 +493,7 @@ $doughTypes = $pdo->query("SELECT id, name FROM dough_types ORDER BY name ASC")-
                     </div>
                 </div>
 
-                <div v-show="activeTab==='overzicht'">
+                <div v-show="calculatorActive && activeTab==='overzicht'">
                     <div class="panel">
                         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem">
                             <div class="panel-title" style="margin-bottom:0"><i class="bi bi-list-check"></i> Recept Overzicht</div>
@@ -493,6 +505,7 @@ $doughTypes = $pdo->query("SELECT id, name FROM dough_types ORDER BY name ASC")-
                             <div><span class="form-label">Hydratatie</span><br><span class="calc-value">{{ formatP(effectiveTotalHydration) }}<span class="calc-unit">%</span></span></div>
                             <div><span class="form-label">Zout</span><br><span class="calc-value">{{ formatP(saltPct) }}<span class="calc-unit">%</span></span></div>
                             <div><span class="form-label">Volkoren</span><br><span class="calc-value">{{ formatP(totalWholeGrainPct) }}<span class="calc-unit">%</span></span></div>
+                            <div><span class="form-label">Wit</span><br><span class="calc-value">{{ formatP(100 - totalWholeGrainPct) }}<span class="calc-unit">%</span></span></div>
                         </div>
 
                         <div class="overview-grid">
@@ -581,6 +594,25 @@ $doughTypes = $pdo->query("SELECT id, name FROM dough_types ORDER BY name ASC")-
                                     <span>{{ formatW(totalToppingWeight) }}g</span>
                                 </div>
                             </div>
+
+                            <div class="overview-section" v-if="grainTypeDistribution.length > 0">
+                                <h4><i class="bi bi-moisture"></i> Meelverdeling</h4>
+                                <div class="overview-item">
+                                    <span class="name">Volkoren</span>
+                                    <span class="value">{{ formatP(totalWholeGrainPct) }}%</span>
+                                </div>
+                                <div class="overview-item">
+                                    <span class="name">Wit</span>
+                                    <span class="value">{{ formatP(100 - totalWholeGrainPct) }}%</span>
+                                </div>
+                                <div class="overview-total" style="margin-top:0.25rem;padding-top:0.5rem">
+                                    <span>Graansoort</span>
+                                </div>
+                                <div class="overview-item sub" v-for="gt in grainTypeDistribution" :key="gt.name">
+                                    <span class="name">{{ gt.name }}</span>
+                                    <span class="value">{{ formatP(gt.pct) }}%</span>
+                                </div>
+                            </div>
                         </div>
 
                         <hr class="divider">
@@ -629,18 +661,10 @@ $doughTypes = $pdo->query("SELECT id, name FROM dough_types ORDER BY name ASC")-
                                 </div>
                             </div>
                             <div class="overview-section" style="background:#fff3e0">
-                                <h4 style="color:#e65100"><i class="bi bi-lightning-charge"></i> Vaste kosten (geschat)</h4>
-                                <div class="overview-item">
-                                    <span class="name">Water (maand / 30)</span>
-                                    <span class="value">€{{ formatEuro(utilityCosts.water / 30) }}</span>
-                                </div>
-                                <div class="overview-item">
-                                    <span class="name">Elektra (maand / 30)</span>
-                                    <span class="value">€{{ formatEuro(utilityCosts.electricity / 30) }}</span>
-                                </div>
+                                <h4 style="color:#e65100"><i class="bi bi-lightning-charge"></i> Nutskosten</h4>
                                 <div class="overview-total">
-                                    <span>Subtotaal vaste kosten</span>
-                                    <span>€{{ formatEuro(totalUtilityCostPerRecipe) }}</span>
+                                    <span>Per brood ({{ monthlyBreadCount }} broden deze maand)</span>
+                                    <span>{{ monthlyBreadCount ? '€' + formatEuro(totalUtilityCostPerRecipe) : '—' }}</span>
                                 </div>
                             </div>
                             <div class="overview-section" style="background:#e8f5e9">
@@ -653,10 +677,6 @@ $doughTypes = $pdo->query("SELECT id, name FROM dough_types ORDER BY name ASC")-
                                     <span class="name">Per stuk ({{ formatW(finalWeightPerBall) }}g)</span>
                                     <span class="value" style="color:#2e7d32;font-size:1.1rem">€{{ formatEuro(costPerPiece) }}</span>
                                 </div>
-                                <div class="overview-item">
-                                    <span class="name">Totaal recept</span>
-                                    <span class="value" style="color:#2e7d32;font-size:1.2rem;font-weight:700">€{{ formatEuro(totalCostWithUtilities) }}</span>
-                                </div>
                             </div>
                         </div>
                         <p v-if="ingredientsLoaded && totalIngredientCost === 0" style="color:#888;font-size:0.85rem;margin-top:0.5rem">
@@ -665,7 +685,7 @@ $doughTypes = $pdo->query("SELECT id, name FROM dough_types ORDER BY name ASC")-
                     </div>
                 </div>
 
-                <div v-show="activeTab==='methode'">
+                <div v-show="calculatorActive && activeTab==='methode'">
                     <div class="panel">
                         <div class="panel-title"><i class="bi bi-journal-text"></i> Bereidingswijze</div>
                         <textarea v-model="method" class="method-textarea" placeholder="Beschrijf hier je bereidingswijze, tijden, temperaturen..."></textarea>
@@ -674,7 +694,10 @@ $doughTypes = $pdo->query("SELECT id, name FROM dough_types ORDER BY name ASC")-
 
                 <div v-show="activeTab==='recepten'">
                     <div class="panel">
-                        <div class="panel-title"><i class="bi bi-bookmark"></i> Opgeslagen Recepten</div>
+                        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem">
+                            <div class="panel-title" style="margin-bottom:0"><i class="bi bi-bookmark"></i> Opgeslagen Recepten</div>
+                            <button class="btn btn-primary btn-sm" @click="newRecipe"><i class="bi bi-plus-lg"></i> Nieuw Recept</button>
+                        </div>
                         <div v-if="savedRecipes.length === 0" class="empty-state">
                             <i class="bi bi-bookmark-star"></i>
                             <p>Nog geen recepten opgeslagen</p>
@@ -697,6 +720,10 @@ $doughTypes = $pdo->query("SELECT id, name FROM dough_types ORDER BY name ASC")-
                                                 {{ r.name }}
                                             </h4>
                                             <small>{{ formatDate(r.updated_at) }}</small>
+                                            <div style="margin-top:0.2rem">
+                                                <span v-if="r.linked_to_product == 1" style="color:#2e7d32;font-size:0.85rem" title="Gekoppeld aan product"><i class="bi bi-link-45deg"></i></span>
+                                                <span v-else style="color:#ccc;font-size:0.85rem" title="Niet gekoppeld aan product"><i class="bi bi-x"></i></span>
+                                            </div>
                                         </div>
                                         <div class="recipe-actions">
                                             <button class="btn btn-primary btn-sm" @click="loadRecipe(r.id)"><i class="bi bi-folder2-open"></i> Laden</button>
@@ -710,7 +737,7 @@ $doughTypes = $pdo->query("SELECT id, name FROM dough_types ORDER BY name ASC")-
                 </div>
             </div>
 
-            <div class="calc-sidebar">
+            <div class="calc-sidebar" v-show="calculatorActive">
                 <div class="summary-card">
                     <div class="summary-header">
                         <h3><i class="bi bi-calculator"></i> Live Berekening</h3>
@@ -737,6 +764,17 @@ $doughTypes = $pdo->query("SELECT id, name FROM dough_types ORDER BY name ASC")-
                             <span class="summary-label">Volkoren</span>
                             <span class="summary-value">{{ formatP(totalWholeGrainPct) }}%</span>
                         </div>
+                        <div class="summary-row">
+                            <span class="summary-label">Wit</span>
+                            <span class="summary-value">{{ formatP(100 - totalWholeGrainPct) }}%</span>
+                        </div>
+                        <template v-if="grainTypeDistribution.length > 0">
+                            <div class="summary-section-title">Graanverdeling</div>
+                            <div class="summary-row" v-for="gt in grainTypeDistribution" :key="gt.name">
+                                <span class="summary-label">{{ gt.name }}</span>
+                                <span class="summary-value">{{ formatP(gt.pct) }}%</span>
+                            </div>
+                        </template>
                         <div class="summary-section-title" v-if="useSourdough">Zuurdesem</div>
                         <div class="summary-row" v-if="useSourdough">
                             <span class="summary-label">Percentage</span>
@@ -835,7 +873,8 @@ $doughTypes = $pdo->query("SELECT id, name FROM dough_types ORDER BY name ASC")-
     createApp({
         data() {
             return {
-                activeTab: 'recept',
+                activeTab: 'recepten',
+                calculatorActive: false,
                 recipeName: '',
                 currentRecipeId: null,
                 doughTypeId: null,
@@ -870,10 +909,12 @@ $doughTypes = $pdo->query("SELECT id, name FROM dough_types ORDER BY name ASC")-
                 mixinIngredients: [],
                 toppingIngredients: [],
                 allIngredients: [],
-                utilityCosts: { water: 0, electricity: 0 },
+                utilityCosts: { total: 0 },
+                monthlyBreadCount: <?= $monthlyBreadCount ?>,
                 ingredientsLoaded: false,
                 fifoCosts: {},
                 fifoLoading: false,
+                grainTypeNames: [],
             };
         },
 
@@ -961,7 +1002,10 @@ $doughTypes = $pdo->query("SELECT id, name FROM dough_types ORDER BY name ASC")-
             totalWholeGrainPct() {
                 if (this.totalFlour === 0) return 0;
                 let wholeGrainFlour = 0;
-                const isWholeGrain = (type) => type && type.includes('_whole');
+                const isWholeGrain = (type) => {
+                    const grain = this.grainTypes.find(g => g.id == type);
+                    return grain ? grain.isWholeGrain : (type && type.toString().includes('_whole'));
+                };
                 
                 if (this.useSourdough) {
                     this.sourdoughGrains.forEach((g, i) => {
@@ -984,6 +1028,33 @@ $doughTypes = $pdo->query("SELECT id, name FROM dough_types ORDER BY name ASC")-
                 });
                 
                 return (wholeGrainFlour / this.totalFlour) * 100;
+            },
+
+            grainTypeDistribution() {
+                if (this.totalFlour === 0 || this.grainTypes.length === 0) return [];
+                const typeMap = {};
+                const addToMap = (grainId, flourAmount) => {
+                    const grain = this.grainTypes.find(g => g.id == grainId);
+                    if (!grain || flourAmount <= 0) return;
+                    const gtId = grain.grainTypeId;
+                    const gtName = gtId
+                        ? ((this.grainTypeNames.find(g => g.id == gtId) || {}).name || 'Onbekend')
+                        : 'Onbekend';
+                    const key = gtId !== null ? gtId : 'unknown';
+                    if (!typeMap[key]) typeMap[key] = { name: gtName, amount: 0 };
+                    typeMap[key].amount += flourAmount;
+                };
+                if (this.useSourdough) {
+                    this.sourdoughGrains.forEach((g, i) => addToMap(g.type, this.sourdoughGrainDetail(i).total));
+                }
+                if (this.usePreFerment) {
+                    this.preFermentGrains.forEach((g, i) => addToMap(g.type, this.preFermentGrainDetail(i).total));
+                }
+                this.mainDoughGrains.forEach((g, i) => addToMap(g.type, this.mainDoughGrainDetail(i).total));
+                return Object.values(typeMap)
+                    .map(t => ({ name: t.name, pct: (t.amount / this.totalFlour) * 100 }))
+                    .filter(t => t.pct > 0)
+                    .sort((a, b) => b.pct - a.pct);
             },
 
             totalFlourCost() {
@@ -1099,9 +1170,8 @@ $doughTypes = $pdo->query("SELECT id, name FROM dough_types ORDER BY name ASC")-
             },
 
             totalUtilityCostPerRecipe() {
-                const monthlyProduction = 30;
-                const totalMonthly = (this.utilityCosts.water || 0) + (this.utilityCosts.electricity || 0);
-                return totalMonthly / monthlyProduction;
+                if (!this.monthlyBreadCount) return 0;
+                return (this.utilityCosts.total || 0) / this.monthlyBreadCount;
             },
 
             totalCostWithUtilities() {
@@ -1281,6 +1351,7 @@ $doughTypes = $pdo->query("SELECT id, name FROM dough_types ORDER BY name ASC")-
                         this.recipeName = data.recipe.name;
                         this.doughTypeId = data.recipe.dough_type_id;
                         this.applyRecipeData(data.recipe.recipe_data);
+                        this.calculatorActive = true;
                         this.activeTab = 'recept';
                         this.showToast('Recept geladen!');
                     }
@@ -1344,30 +1415,36 @@ $doughTypes = $pdo->query("SELECT id, name FROM dough_types ORDER BY name ASC")-
                 }
             },
 
-            newRecipe() {
-                this.currentRecipeId = null;
-                this.recipeName = '';
-                this.doughTypeId = null;
-                this.doughWeight = 300;
-                this.hydration = 62;
-                this.saltPct = 2.6;
-                this.useSourdough = false;
-                this.sourdoughPct = 20;
-                this.sourdoughHydration = 100;
-                this.sourdoughGrains = [{ type: 'wheat', pct: 100 }];
-                this.useYeast = true;
-                this.yeastType = 'instant_yeast';
-                this.yeastPct = 1.3;
-                this.usePreFerment = false;
-                this.preFermentPct = 20;
-                this.preFermentHydration = 100;
-                this.preFermentGrains = [{ type: 'wheat_white', pct: 100 }];
-                this.mainDoughGrains = [{ type: 'wheat_white', pct: 100 }];
-                this.mixinMode = 'flour';
-                this.mixins = [];
-                this.toppings = [];
-                this.method = '';
-                this.activeTab = 'recept';
+            async newRecipe() {
+                // Try to use the saved "Standaardrecept" as the starting template
+                if (this.savedRecipes.length === 0) {
+                    await this.loadSavedRecipes();
+                }
+                const template = this.savedRecipes.find(r => r.name.toLowerCase() === 'standaardrecept');
+                if (template) {
+                    await this.loadRecipe(template.id);
+                    // Clear identity so it's treated as a new unsaved recipe
+                    this.currentRecipeId = null;
+                    this.recipeName = '';
+                    this.doughTypeId = null;
+                } else {
+                    // No Standaardrecept found — open a blank calculator
+                    this.currentRecipeId = null;
+                    this.recipeName = '';
+                    this.doughTypeId = null;
+                    this.doughWeight = null;
+                    this.hydration = null;
+                    this.saltPct = null;
+                    this.useSourdough = false;
+                    this.useYeast = false;
+                    this.usePreFerment = false;
+                    this.mainDoughGrains = [];
+                    this.mixins = [];
+                    this.toppings = [];
+                    this.method = '';
+                    this.calculatorActive = true;
+                    this.activeTab = 'recept';
+                }
             },
 
             async loadIngredients() {
@@ -1379,11 +1456,12 @@ $doughTypes = $pdo->query("SELECT id, name FROM dough_types ORDER BY name ASC")-
                         
                         this.grainTypes = data.ingredients
                             .filter(i => i.category === 'meel')
-                            .map(i => ({ 
-                                id: i.id, 
-                                name: i.name, 
+                            .map(i => ({
+                                id: i.id,
+                                name: i.name,
                                 pricePerKg: parseFloat(i.current_price_per_kg) || 0,
-                                isWholeGrain: i.name.toLowerCase().includes('volkoren')
+                                isWholeGrain: parseInt(i.is_whole_grain) === 1,
+                                grainTypeId: i.grain_type_id ? parseInt(i.grain_type_id) : null,
                             }));
                         
                         if (this.grainTypes.length === 0) {
@@ -1431,18 +1509,22 @@ $doughTypes = $pdo->query("SELECT id, name FROM dough_types ORDER BY name ASC")-
                 } catch(e) { console.error('Error loading ingredients:', e); }
             },
 
+            async loadGrainTypeNames() {
+                try {
+                    const res = await fetch('../../api/grain-types.php');
+                    const data = await res.json();
+                    if (data.success) this.grainTypeNames = data.grain_types;
+                } catch(e) { console.error('Error loading grain types:', e); }
+            },
+
             async loadUtilityCosts() {
                 try {
                     const currentMonth = new Date().toISOString().slice(0, 7);
                     const res = await fetch(`../../api/utility-costs.php?year_month=${currentMonth}`);
                     const data = await res.json();
                     if (data.success) {
-                        const water = data.costs.find(c => c.type === 'water');
-                        const elec = data.costs.find(c => c.type === 'electricity');
-                        this.utilityCosts = {
-                            water: water ? parseFloat(water.cost) : 0,
-                            electricity: elec ? parseFloat(elec.cost) : 0
-                        };
+                        const pick = (obj) => obj ? (obj.cost !== null ? parseFloat(obj.cost) : (obj.estimated_cost !== null ? parseFloat(obj.estimated_cost) : 0)) : 0;
+                        this.utilityCosts = { total: pick(data.costs.water) + pick(data.costs.electricity) };
                     }
                 } catch(e) { console.error('Error loading utility costs:', e); }
             },
@@ -1577,6 +1659,7 @@ $doughTypes = $pdo->query("SELECT id, name FROM dough_types ORDER BY name ASC")-
 
         mounted() {
             this.loadIngredients();
+            this.loadGrainTypeNames();
             this.loadSavedRecipes();
             this.loadUtilityCosts();
         }

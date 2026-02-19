@@ -318,6 +318,7 @@ const app = createApp({
         },
         
         handleImageError(e) {
+            e.target.onerror = null;
             e.target.src = 'img/placeholder-bread.jpg';
         },
         
