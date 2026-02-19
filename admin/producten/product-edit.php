@@ -87,7 +87,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $variantPrijs = floatval($variantPrijzen[$i] ?? 0);
                 $variantRecipe = $variantRecipes[$i] !== '' ? intval($variantRecipes[$i]) : null;
                 
-                if ($gewicht > 0 && $variantPrijs > 0) {
+                if ($gewicht > 0) {
                     $stmt = $pdo->prepare("INSERT INTO product_variants (product_id, gewicht, prijs, recipe_id) VALUES (?, ?, ?, ?)");
                     $stmt->execute([$id, $gewicht, $variantPrijs, $variantRecipe]);
                 }
