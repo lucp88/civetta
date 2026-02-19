@@ -1,5 +1,6 @@
 <?php
 require_once '../admin/config.php';
+require_once '../lib/shared.php';
 require_once 'cors.php';
 
 header('Content-Type: application/json');
@@ -12,111 +13,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
 $method = $_SERVER['REQUEST_METHOD'];
 $isAdmin = isset($_SESSION['admin_logged_in']) && $_SESSION['admin_logged_in'] === true;
 
-function grainDisplayName($type, $lookup, $capitalize = false) {
-    if (is_numeric($type) && isset($lookup[(int)$type])) {
-        $name = $lookup[(int)$type]['name'];
-        return $capitalize ? $name : strtolower($name);
-    }
-    // Legacy string fallback (recipes saved before ingredient IDs were used)
-    $legacy = [
-        'wheat_white' => 'tarwebloem', 'wheat_whole' => 'volkorenmeel',
-        'spelt_white' => 'speltbloem', 'spelt_whole' => 'volkorenspeltmeel',
-        'durum' => 'durummeel', 'emmer' => 'emmermeel',
-        'rye_white' => 'roggebloem', 'rye_whole' => 'volkorenroggemeel',
-        'einkorn' => 'einkornmeel', 'buckwheat' => 'boekweitmeel',
-        'rice' => 'rijstmeel', 'barley' => 'gerstemeel', 'teff' => 'teffmeel',
-    ];
-    $name = $legacy[$type] ?? (string)$type;
-    return $capitalize ? ucfirst($name) : $name;
-}
-
-function grainIsWhole($type, $lookup) {
-    if (is_numeric($type) && isset($lookup[(int)$type])) {
-        return (bool)$lookup[(int)$type]['is_whole_grain'];
-    }
-    return strpos((string)$type, '_whole') !== false;
-}
-
-function calculateWholeGrainPct($recipe, $lookup = []) {
-    $allGrains = [];
-    if (!empty($recipe['mainDoughGrains'])) {
-        $allGrains = array_merge($allGrains, $recipe['mainDoughGrains']);
-    }
-    if (!empty($recipe['useSourdough']) && !empty($recipe['sourdoughGrains'])) {
-        $allGrains = array_merge($allGrains, $recipe['sourdoughGrains']);
-    }
-    if (!empty($recipe['usePreFerment']) && !empty($recipe['preFermentGrains'])) {
-        $allGrains = array_merge($allGrains, $recipe['preFermentGrains']);
-    }
-    $totalPct = 0;
-    $wholePct = 0;
-    foreach ($allGrains as $grain) {
-        $pct = $grain['pct'] ?? 0;
-        $totalPct += $pct;
-        if (grainIsWhole($grain['type'] ?? '', $lookup)) {
-            $wholePct += $pct;
-        }
-    }
-    return $totalPct > 0 ? ($wholePct / $totalPct) * 100 : 0;
-}
-
-function computeIngredientList($recipeData, $lookup = []) {
-    $yeastNames = [
-        'fresh_yeast' => 'verse gist', 'instant_yeast' => 'gist', 'sourdough_culture' => 'desemcultuur',
-    ];
-
-    // Grains always come first as a group, sorted among themselves by %
-    $grains = [];
-    foreach ($recipeData['mainDoughGrains'] ?? [] as $grain) {
-        if (($grain['pct'] ?? 0) > 0) {
-            $grains[] = ['name' => grainDisplayName($grain['type'] ?? '', $lookup), 'amount' => (float)$grain['pct']];
-        }
-    }
-    usort($grains, fn($a, $b) => $b['amount'] <=> $a['amount']);
-
-    // Non-grain ingredients sorted by amount
-    $others = [];
-    // Sourdough is omitted: it is flour + water, not a separate ingredient
-    $others[] = ['name' => 'water', 'amount' => (float)($recipeData['hydration'] ?? 65)];
-    $others[] = ['name' => 'zout', 'amount' => (float)($recipeData['saltPct'] ?? 2.6)];
-
-    if (!empty($recipeData['useYeast'])) {
-        $yeastType = $recipeData['yeastType'] ?? 'instant_yeast';
-        $others[] = ['name' => $yeastNames[$yeastType] ?? 'gist', 'amount' => (float)($recipeData['yeastPct'] ?? 1)];
-    }
-
-    foreach ($recipeData['mixins'] ?? [] as $mixin) {
-        if (!empty($mixin['ingredient']) && ($mixin['pct'] ?? 0) > 0) {
-            $others[] = ['name' => strtolower($mixin['ingredient']), 'amount' => (float)$mixin['pct']];
-        }
-    }
-
-    foreach ($recipeData['toppings'] ?? [] as $topping) {
-        if (!empty($topping['ingredient']) && ($topping['pct'] ?? 0) > 0) {
-            $others[] = ['name' => strtolower($topping['ingredient']), 'amount' => (float)$topping['pct']];
-        }
-    }
-
-    usort($others, fn($a, $b) => $b['amount'] <=> $a['amount']);
-
-    $names = array_column(array_merge($grains, $others), 'name');
-    return !empty($names) ? implode(', ', $names) : null;
-}
-
-function computeRecipeDetails($recipeData, $lookup = []) {
-    $grains = [];
-    foreach ($recipeData['mainDoughGrains'] ?? [] as $grain) {
-        if (($grain['pct'] ?? 0) > 0) {
-            $grains[] = ['name' => grainDisplayName($grain['type'] ?? '', $lookup, true), 'pct' => (int)round((float)$grain['pct'])];
-        }
-    }
-    usort($grains, fn($a, $b) => $b['pct'] <=> $a['pct']);
-
-    return [
-        'volkoren_pct' => (int)round(calculateWholeGrainPct($recipeData, $lookup)),
-        'grains' => $grains,
-    ];
-}
+// Recipe helper functions (grainIsWhole, grainDisplayName, buildFlourTypeMap,
+// computeIngredientList, computeRecipeDetails) are in lib/shared.php
 
 try {
     switch ($method) {

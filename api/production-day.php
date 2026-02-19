@@ -16,17 +16,20 @@ $deliveryDate = clone $bereidingDate;
 $deliveryDate->modify('+1 day');
 
 $stmt = $pdo->prepare("
-    SELECT 
-        boi.product_name, 
-        boi.quantity, 
-        p.recipe_id,
-        COALESCE(p.standard_weight, 300) as standard_weight,
+    SELECT
+        boi.product_name,
+        boi.quantity,
+        boi.unit_price,
+        pv.recipe_id,
+        COALESCE(pv.gewicht, 300) as variant_weight,
         br.name as recipe_name,
         br.recipe_data
     FROM business_orders bo
     JOIN business_order_items boi ON bo.id = boi.order_id
-    LEFT JOIN products p ON boi.product_name = p.naam
-    LEFT JOIN baker_recipes br ON p.recipe_id = br.id
+    LEFT JOIN products p ON LOWER(TRIM(boi.product_name)) = LOWER(TRIM(p.naam))
+    LEFT JOIN product_variants pv ON pv.product_id = p.id
+        AND ROUND(pv.prijs, 2) = ROUND(boi.unit_price, 2)
+    LEFT JOIN baker_recipes br ON pv.recipe_id = br.id
     WHERE bo.delivery_date = ?
     AND bo.is_cancelled = 0
 ");
@@ -38,8 +41,10 @@ $noRecipe = ['products' => [], 'total_qty' => 0, 'total_weight' => 0];
 
 foreach ($items as $item) {
     $qty = intval($item['quantity']);
-    $weight = intval($item['standard_weight']);
-    
+    $weight = intval($item['variant_weight']);
+    // Key by name + weight so different size variants appear separately
+    $productKey = $item['product_name'] . '_' . $weight . 'g';
+
     if ($item['recipe_id'] && $item['recipe_data']) {
         $recipeId = $item['recipe_id'];
         if (!isset($recipes[$recipeId])) {
@@ -52,17 +57,17 @@ foreach ($items as $item) {
                 'total_weight' => 0
             ];
         }
-        if (!isset($recipes[$recipeId]['products'][$item['product_name']])) {
-            $recipes[$recipeId]['products'][$item['product_name']] = ['qty' => 0, 'weight' => $weight];
+        if (!isset($recipes[$recipeId]['products'][$productKey])) {
+            $recipes[$recipeId]['products'][$productKey] = ['name' => $item['product_name'], 'qty' => 0, 'weight' => $weight];
         }
-        $recipes[$recipeId]['products'][$item['product_name']]['qty'] += $qty;
+        $recipes[$recipeId]['products'][$productKey]['qty'] += $qty;
         $recipes[$recipeId]['total_qty'] += $qty;
         $recipes[$recipeId]['total_weight'] += $qty * $weight;
     } else {
-        if (!isset($noRecipe['products'][$item['product_name']])) {
-            $noRecipe['products'][$item['product_name']] = ['qty' => 0, 'weight' => $weight];
+        if (!isset($noRecipe['products'][$productKey])) {
+            $noRecipe['products'][$productKey] = ['name' => $item['product_name'], 'qty' => 0, 'weight' => $weight];
         }
-        $noRecipe['products'][$item['product_name']]['qty'] += $qty;
+        $noRecipe['products'][$productKey]['qty'] += $qty;
         $noRecipe['total_qty'] += $qty;
         $noRecipe['total_weight'] += $qty * $weight;
     }

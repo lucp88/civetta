@@ -19,6 +19,16 @@ switch ($method) {
             $recipe = $stmt->fetch();
             if ($recipe) {
                 $recipe['recipe_data'] = json_decode($recipe['recipe_data'], true);
+                // Include the dough type's base recipe_data so the UI knows which fields are inherited
+                $recipe['base_recipe_data'] = null;
+                if ($recipe['dough_type_id']) {
+                    $dtStmt = $pdo->prepare("SELECT recipe_data FROM dough_types WHERE id = ?");
+                    $dtStmt->execute([$recipe['dough_type_id']]);
+                    $dtRow = $dtStmt->fetch();
+                    if ($dtRow && $dtRow['recipe_data']) {
+                        $recipe['base_recipe_data'] = json_decode($dtRow['recipe_data'], true);
+                    }
+                }
                 echo json_encode(['success' => true, 'recipe' => $recipe]);
             } else {
                 echo json_encode(['success' => false, 'error' => 'Recept niet gevonden']);

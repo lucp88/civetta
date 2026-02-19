@@ -1,5 +1,6 @@
 <?php
 require_once '../config.php';
+require_once '../../lib/shared.php';
 requireLogin();
 
 $stmt = $pdo->query("SELECT COUNT(*) as count FROM business_accounts WHERE status = 'pending'");
@@ -47,71 +48,33 @@ foreach ($variants as $v) {
     if (!empty($v['recipe_id'])) { $firstRecipeId = (int)$v['recipe_id']; break; }
 }
 if ($firstRecipeId) {
-    $rStmt = $pdo->prepare("SELECT recipe_data FROM baker_recipes WHERE id = ?");
-    $rStmt->execute([$firstRecipeId]);
-    $rd = json_decode($rStmt->fetchColumn() ?: '{}', true) ?? [];
+    try {
+        $rStmt = $pdo->prepare("SELECT recipe_data FROM baker_recipes WHERE id = ?");
+        $rStmt->execute([$firstRecipeId]);
+        $rd = json_decode($rStmt->fetchColumn() ?: '{}', true) ?? [];
 
-    $grainIds = [];
-    foreach (['mainDoughGrains', 'sourdoughGrains', 'preFermentGrains'] as $key) {
-        foreach ($rd[$key] ?? [] as $grain) {
-            if (is_numeric($grain['type'] ?? '')) $grainIds[] = (int)$grain['type'];
+        $grainIds = [];
+        foreach (['mainDoughGrains', 'sourdoughGrains', 'preFermentGrains'] as $key) {
+            foreach ($rd[$key] ?? [] as $grain) {
+                if (is_numeric($grain['type'] ?? '')) $grainIds[] = (int)$grain['type'];
+            }
         }
-    }
-    $lookup = [];
-    if (!empty($grainIds)) {
-        $gIds = array_unique($grainIds);
-        $gp = implode(',', array_fill(0, count($gIds), '?'));
-        $gStmt = $pdo->prepare("SELECT id, name, is_whole_grain FROM ingredients WHERE id IN ($gp)");
-        $gStmt->execute($gIds);
-        foreach ($gStmt->fetchAll() as $ing) {
-            $lookup[(int)$ing['id']] = ['name' => $ing['name'], 'is_whole_grain' => (bool)$ing['is_whole_grain']];
+        $lookup = [];
+        if (!empty($grainIds)) {
+            $gIds = array_values(array_unique($grainIds));
+            $gp = implode(',', array_fill(0, count($gIds), '?'));
+            $gStmt = $pdo->prepare("SELECT id, name, is_whole_grain FROM ingredients WHERE id IN ($gp)");
+            $gStmt->execute($gIds);
+            foreach ($gStmt->fetchAll() as $ing) {
+                $lookup[(int)$ing['id']] = ['name' => $ing['name'], 'is_whole_grain' => (bool)$ing['is_whole_grain']];
+            }
         }
-    }
 
-    $items = [];
-    foreach ($rd['mainDoughGrains'] ?? [] as $grain) {
-        if (($grain['pct'] ?? 0) > 0) {
-            $t = $grain['type'] ?? '';
-            $n = is_numeric($t) && isset($lookup[(int)$t]) ? strtolower($lookup[(int)$t]['name']) : (string)$t;
-            $items[] = ['name' => $n, 'amount' => (float)$grain['pct']];
-        }
+        $computedIngredientList = computeIngredientList($rd, $lookup);
+        $computedRecipeDetails  = computeRecipeDetails($rd, $lookup);
+    } catch (Exception $e) {
+        // Ingredient computation is non-critical — page still loads without it
     }
-    $items[] = ['name' => 'water', 'amount' => (float)($rd['hydration'] ?? 65)];
-    $items[] = ['name' => 'zout', 'amount' => (float)($rd['saltPct'] ?? 2.6)];
-    if (!empty($rd['useYeast'])) {
-        $yn = ['fresh_yeast' => 'verse gist', 'instant_yeast' => 'gist', 'sourdough_culture' => 'desemcultuur'];
-        $items[] = ['name' => $yn[$rd['yeastType'] ?? 'instant_yeast'] ?? 'gist', 'amount' => (float)($rd['yeastPct'] ?? 1)];
-    }
-    foreach (array_merge($rd['mixins'] ?? [], $rd['toppings'] ?? []) as $item) {
-        if (!empty($item['ingredient']) && ($item['pct'] ?? 0) > 0) {
-            $items[] = ['name' => strtolower($item['ingredient']), 'amount' => (float)$item['pct']];
-        }
-    }
-    usort($items, fn($a, $b) => $b['amount'] <=> $a['amount']);
-    $computedIngredientList = implode(', ', array_column($items, 'name'));
-
-    $grains = [];
-    foreach ($rd['mainDoughGrains'] ?? [] as $grain) {
-        if (($grain['pct'] ?? 0) > 0) {
-            $t = $grain['type'] ?? '';
-            $n = is_numeric($t) && isset($lookup[(int)$t]) ? $lookup[(int)$t]['name'] : (string)$t;
-            $grains[] = ['name' => $n, 'pct' => (int)round((float)$grain['pct'])];
-        }
-    }
-    usort($grains, fn($a, $b) => $b['pct'] <=> $a['pct']);
-
-    $allG = [];
-    foreach (['mainDoughGrains', 'sourdoughGrains', 'preFermentGrains'] as $key) {
-        if (!empty($rd[$key])) $allG = array_merge($allG, $rd[$key]);
-    }
-    $totP = 0; $wholeP = 0;
-    foreach ($allG as $grain) {
-        $pct = $grain['pct'] ?? 0; $t = $grain['type'] ?? '';
-        $totP += $pct;
-        $isWhole = is_numeric($t) && isset($lookup[(int)$t]) ? (bool)$lookup[(int)$t]['is_whole_grain'] : strpos($t, '_whole') !== false;
-        if ($isWhole) $wholeP += $pct;
-    }
-    $computedRecipeDetails = ['volkoren_pct' => $totP > 0 ? (int)round(($wholeP / $totP) * 100) : 0, 'grains' => $grains];
 }
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
