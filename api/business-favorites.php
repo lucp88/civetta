@@ -99,35 +99,7 @@ switch ($method) {
         break;
         
     case 'PUT':
-        $data = json_decode(file_get_contents('php://input'), true);
-        
-        $favoriteId = intval($data['id'] ?? 0);
-        $naam = trim($data['naam'] ?? '');
-        $items = $data['items'] ?? [];
-        
-        if (!$favoriteId) {
-            http_response_code(400);
-            echo json_encode(['success' => false, 'error' => 'Favoriet ID ontbreekt']);
-            exit;
-        }
-        
-        $stmt = $pdo->prepare("SELECT id FROM business_favorites WHERE id = ? AND account_id = ?");
-        $stmt->execute([$favoriteId, $accountId]);
-        if (!$stmt->fetch()) {
-            http_response_code(403);
-            echo json_encode(['success' => false, 'error' => 'Geen toegang tot deze favoriet']);
-            exit;
-        }
-        
-        try {
-            $pdo->beginTransaction();
-            
-            if (!empty($naam)) {
-                $stmt = $pdo->prepare("UPDATE business_favorites SET naam = ? WHERE id = ?");
-                $stmt->execute([$naam, $favoriteId]);
-            }
-            
-            if (!empty($items)) {
+
                 $pdo->prepare("DELETE FROM business_favorite_items WHERE favorite_id = ?")->execute([$favoriteId]);
                 
                 $stmt = $pdo->prepare("
