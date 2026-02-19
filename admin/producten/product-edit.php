@@ -20,7 +20,8 @@ if (!is_dir($uploadDir)) {
 $id = $_GET['id'] ?? null;
 $product = null;
 $variants = [];
-$deegtypes = $pdo->query("SELECT * FROM deegtypes ORDER BY naam ASC")->fetchAll();
+$doughTypes = $pdo->query("SELECT id, name FROM dough_types ORDER BY name ASC")->fetchAll();
+$recipes = $pdo->query("SELECT id, name, dough_type_id FROM baker_recipes ORDER BY name ASC")->fetchAll();
 $error = '';
 $success = '';
 
@@ -33,7 +34,7 @@ if ($id) {
         exit;
     }
     
-    $stmt = $pdo->prepare("SELECT * FROM product_variants WHERE product_id = ? ORDER BY gewicht ASC");
+    $stmt = $pdo->prepare("SELECT pv.*, br.name as recipe_name FROM product_variants pv LEFT JOIN baker_recipes br ON pv.recipe_id = br.id WHERE pv.product_id = ? ORDER BY pv.gewicht ASC");
     $stmt->execute([$id]);
     $variants = $stmt->fetchAll();
 }
@@ -42,12 +43,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $naam = trim($_POST['naam'] ?? '');
     $ingredienten = trim($_POST['ingredienten'] ?? '');
     $beschrijving = trim($_POST['beschrijving'] ?? '');
-    $prijs = $_POST['prijs'] !== '' ? floatval($_POST['prijs']) : null;
-    $deegtype_id = $_POST['deegtype_id'] !== '' ? intval($_POST['deegtype_id']) : null;
+    $doughTypeId = !empty($_POST['dough_type_id']) ? intval($_POST['dough_type_id']) : null;
     $foto = $product['foto'] ?? '';
     
     $variantGewichten = $_POST['variant_gewicht'] ?? [];
     $variantPrijzen = $_POST['variant_prijs'] ?? [];
+    $variantRecipes = $_POST['variant_recipe'] ?? [];
     
     if (isset($_FILES['foto_upload']) && $_FILES['foto_upload']['error'] === UPLOAD_ERR_OK) {
         $allowedTypes = ['image/jpeg', 'image/png', 'image/webp'];
@@ -71,11 +72,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if ($naam) {
         try {
             if ($id) {
-                $stmt = $pdo->prepare("UPDATE products SET naam = ?, ingredienten = ?, beschrijving = ?, prijs = ?, foto = ?, deegtype_id = ? WHERE id = ?");
-                $stmt->execute([$naam, $ingredienten, $beschrijving, $prijs, $foto, $deegtype_id, $id]);
+                $stmt = $pdo->prepare("UPDATE products SET naam = ?, ingredienten = ?, beschrijving = ?, foto = ?, dough_type_id = ? WHERE id = ?");
+                $stmt->execute([$naam, $ingredienten, $beschrijving, $foto, $doughTypeId, $id]);
             } else {
-                $stmt = $pdo->prepare("INSERT INTO products (naam, ingredienten, beschrijving, prijs, foto, deegtype_id) VALUES (?, ?, ?, ?, ?, ?)");
-                $stmt->execute([$naam, $ingredienten, $beschrijving, $prijs, $foto, $deegtype_id]);
+                $stmt = $pdo->prepare("INSERT INTO products (naam, ingredienten, beschrijving, foto, dough_type_id) VALUES (?, ?, ?, ?, ?)");
+                $stmt->execute([$naam, $ingredienten, $beschrijving, $foto, $doughTypeId]);
                 $id = $pdo->lastInsertId();
             }
             
@@ -84,10 +85,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             for ($i = 0; $i < count($variantGewichten); $i++) {
                 $gewicht = intval($variantGewichten[$i] ?? 0);
                 $variantPrijs = floatval($variantPrijzen[$i] ?? 0);
+                $variantRecipe = $variantRecipes[$i] !== '' ? intval($variantRecipes[$i]) : null;
                 
                 if ($gewicht > 0 && $variantPrijs > 0) {
-                    $stmt = $pdo->prepare("INSERT INTO product_variants (product_id, gewicht, prijs) VALUES (?, ?, ?)");
-                    $stmt->execute([$id, $gewicht, $variantPrijs]);
+                    $stmt = $pdo->prepare("INSERT INTO product_variants (product_id, gewicht, prijs, recipe_id) VALUES (?, ?, ?, ?)");
+                    $stmt->execute([$id, $gewicht, $variantPrijs, $variantRecipe]);
                 }
             }
             
@@ -245,6 +247,26 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         .price-input input {
             padding-left: 1.75rem;
         }
+        .input-with-unit {
+            display: flex;
+            align-items: stretch;
+        }
+        .input-with-unit input {
+            border-top-right-radius: 0;
+            border-bottom-right-radius: 0;
+            flex: 1;
+        }
+        .input-unit {
+            padding: 0.75rem;
+            background: #f5f2ed;
+            border: 2px solid #e8dfd2;
+            border-left: none;
+            border-radius: 0 8px 8px 0;
+            font-size: 0.9rem;
+            color: #666;
+            display: flex;
+            align-items: center;
+        }
         .file-input {
             padding: 0.5rem;
             background: #f5f2ed;
@@ -347,17 +369,28 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         .variant-row {
             display: flex;
             gap: 0.5rem;
-            margin-bottom: 0.5rem;
+            margin-bottom: 0.75rem;
             align-items: center;
+            flex-wrap: wrap;
         }
         .variant-row input[type="number"] {
-            width: 120px;
+            width: 100px;
         }
         .variant-row .variant-price {
-            width: 120px;
+            width: 100px;
         }
         .variant-row .variant-price input {
             width: 100%;
+        }
+        .variant-row .variant-recipe {
+            width: 140px;
+            padding: 0.5rem;
+            border: 2px solid #e8dfd2;
+            border-radius: 8px;
+            font-size: 0.85rem;
+        }
+        .variant-row .variant-dough {
+            width: 110px;
         }
         .btn-remove-variant {
             width: 32px;
@@ -455,27 +488,19 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         </div>
                         
                         <div class="form-group">
-                            <label for="deegtype_id">Deegtype</label>
-                            <select id="deegtype_id" name="deegtype_id">
-                                <option value="">- Geen deegtype -</option>
-                                <?php foreach ($deegtypes as $dt): ?>
-                                    <option value="<?= $dt['id'] ?>" <?= ($product['deegtype_id'] ?? '') == $dt['id'] ? 'selected' : '' ?>><?= htmlspecialchars($dt['naam']) ?></option>
+                            <label for="dough_type_id">Deegsoort</label>
+                            <select id="dough_type_id" name="dough_type_id" onchange="filterRecipesByDoughType()">
+                                <option value="">Geen deegsoort</option>
+                                <?php foreach ($doughTypes as $dt): ?>
+                                    <option value="<?= $dt['id'] ?>" <?= ($product['dough_type_id'] ?? '') == $dt['id'] ? 'selected' : '' ?>><?= htmlspecialchars($dt['name']) ?></option>
                                 <?php endforeach; ?>
                             </select>
-                            <p class="help">Intern gebruik (niet zichtbaar voor klanten)</p>
-                        </div>
-
-                        <div class="form-group">
-                            <label for="prijs">Standaard Prijs</label>
-                            <div class="price-input">
-                                <input type="number" id="prijs" name="prijs" step="0.01" min="0" value="<?= $product['prijs'] ?? '' ?>">
-                            </div>
-                            <p class="help">Basisprijs (wordt overschreven als er gewichtsvarianten zijn)</p>
+                            <p class="help">Kies een deegsoort om recepten te filteren bij varianten</p>
                         </div>
                         
                         <div class="form-group">
                             <label>Gewichtsvarianten</label>
-                            <p class="help">Voeg varianten toe met verschillende gewichten en prijzen</p>
+                            <p class="help">Voeg varianten toe met gewicht, prijs en receptkoppeling</p>
                             <div id="variants-container">
                                 <?php foreach ($variants as $variant): ?>
                                 <div class="variant-row">
@@ -483,6 +508,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                                     <div class="price-input variant-price">
                                         <input type="number" name="variant_prijs[]" step="0.01" min="0" placeholder="Prijs" value="<?= $variant['prijs'] ?>">
                                     </div>
+                                    <select name="variant_recipe[]" class="variant-recipe">
+                                        <option value="">Recept...</option>
+                                        <?php foreach ($recipes as $r): ?>
+                                            <option value="<?= $r['id'] ?>" <?= ($variant['recipe_id'] ?? '') == $r['id'] ? 'selected' : '' ?>><?= htmlspecialchars($r['name']) ?></option>
+                                        <?php endforeach; ?>
+                                    </select>
                                     <button type="button" class="btn-remove-variant" onclick="this.parentElement.remove(); updatePreviewVariants();">x</button>
                                 </div>
                                 <?php endforeach; ?>
@@ -526,7 +557,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                                         <strong>Ingredienten:</strong> <span id="preview-ingredienten-text"><?= htmlspecialchars($product['ingredienten'] ?? 'ingredienten...') ?></span>
                                     </div>
                                     <div class="preview-footer">
-                                        <span class="preview-prijs" id="preview-prijs"><?= $product['prijs'] ? 'EUR ' . number_format($product['prijs'], 2, ',', '.') : '' ?></span>
                                         <div class="preview-variants" id="preview-variants">
                                             <?php foreach ($variants as $variant): ?>
                                             <div class="preview-variant">
@@ -554,10 +584,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         document.getElementById('ingredienten').addEventListener('input', function() {
             document.getElementById('preview-ingredienten-text').textContent = this.value || 'ingredienten...';
         });
-        document.getElementById('prijs').addEventListener('input', function() {
-            const val = parseFloat(this.value);
-            document.getElementById('preview-prijs').textContent = val ? 'EUR ' + val.toFixed(2).replace('.', ',') : '';
-        });
         document.getElementById('foto_upload').addEventListener('change', function(e) {
             const file = e.target.files[0];
             if (file) {
@@ -569,6 +595,27 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             }
         });
         
+        const recipesJson = <?= json_encode($recipes) ?>;
+        
+        function getFilteredRecipeOptions(selectedRecipeId = '') {
+            const doughTypeId = document.getElementById('dough_type_id').value;
+            let options = '<option value="">Recept...</option>';
+            recipesJson.forEach(r => {
+                if (!doughTypeId || r.dough_type_id == doughTypeId) {
+                    const selected = r.id == selectedRecipeId ? 'selected' : '';
+                    options += `<option value="${r.id}" ${selected}>${r.name}</option>`;
+                }
+            });
+            return options;
+        }
+        
+        function filterRecipesByDoughType() {
+            document.querySelectorAll('select[name="variant_recipe[]"]').forEach(select => {
+                const currentValue = select.value;
+                select.innerHTML = getFilteredRecipeOptions(currentValue);
+            });
+        }
+        
         function addVariant() {
             const container = document.getElementById('variants-container');
             const row = document.createElement('div');
@@ -578,6 +625,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 <div class="price-input variant-price">
                     <input type="number" name="variant_prijs[]" step="0.01" min="0" placeholder="Prijs" oninput="updatePreviewVariants()">
                 </div>
+                <select name="variant_recipe[]" class="variant-recipe">${getFilteredRecipeOptions()}</select>
                 <button type="button" class="btn-remove-variant" onclick="this.parentElement.remove(); updatePreviewVariants();">x</button>
             `;
             container.appendChild(row);
@@ -602,6 +650,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         document.querySelectorAll('input[name="variant_gewicht[]"], input[name="variant_prijs[]"]').forEach(el => {
             el.addEventListener('input', updatePreviewVariants);
         });
+        
+        filterRecipesByDoughType();
     </script>
 </body>
 </html>

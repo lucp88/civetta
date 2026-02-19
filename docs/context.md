@@ -49,6 +49,7 @@ Een webapplicatie voor een ambachtelijke bakkerij met:
 - `api/business-orders.php` - B2B bestellingen CRUD
 - `api/mollie.php` - Payment creatie
 - `api/eboekhouden.php` - Boekhouding integratie
+- `api/analytics.php` - Analytics data (omzet, producten, locaties)
 
 ### HTML Pages
 - `bestelling-plaatsen.html` - Bestelformulier (Vue app)

@@ -1,4 +1,4 @@
-const CACHE_NAME = 'civetta-bakker-v3';
+const CACHE_NAME = 'civetta-bakker-v4';
 const PRECACHE_URLS = [
     '/admin/bakker/bakker-dashboard.php',
     '/admin/bakker/bereiden.php',
@@ -55,7 +55,11 @@ self.addEventListener('fetch', event => {
                 }
                 return response;
             })
-            .catch(() => caches.match(event.request))
+            .catch(() => 
+                caches.match(event.request).then(cached => 
+                    cached || new Response('Offline', { status: 503, statusText: 'Service Unavailable' })
+                )
+            )
     );
 });
 

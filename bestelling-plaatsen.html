@@ -380,13 +380,18 @@
                 try {
                     const response = await fetch('api/products.php');
                     const data = await response.json();
+                    console.log('Products API response:', data);
                     if (data.success) {
                         this.products = data.products.filter(p => (p.prijs && p.prijs > 0) || (p.variants && p.variants.length > 0));
+                        console.log('Filtered products:', this.products.length, 'of', data.products.length);
                         if (data.btw_tarief) {
                             this.btwTarief = data.btw_tarief;
                         }
+                    } else {
+                        console.error('Products API error:', data);
                     }
                 } catch (error) {
+                    console.error('Products fetch error:', error);
                     this.error = 'Kon producten niet laden';
                 } finally {
                     this.loading = false;

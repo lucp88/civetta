@@ -11,6 +11,8 @@ $sidebarUnprocessedOrders = $stmt->fetch()['count'];
 
 $currentPage = 'bakcalculator';
 $adminBasePath = '../';
+
+$doughTypes = $pdo->query("SELECT id, name FROM dough_types ORDER BY name ASC")->fetchAll();
 ?>
 <!DOCTYPE html>
 <html lang="nl">
@@ -41,6 +43,26 @@ $adminBasePath = '../';
         .recipe-name-input { flex: 1; min-width: 200px; padding: 0.6rem 1rem; border: 2px solid #e0d5c7; border-radius: 8px; font-size: 1.1rem; font-weight: 600; color: #5c3d1e; background: white; }
         .recipe-name-input:focus { outline: none; border-color: #c8913a; }
         .recipe-name-input::placeholder { color: #bbb; font-weight: 400; }
+        .dough-type-select { display: flex; gap: 0.25rem; align-items: center; }
+        .form-select-sm { padding: 0.5rem 0.75rem; border: 2px solid #e0d5c7; border-radius: 8px; font-size: 0.9rem; background: white; color: #5c3d1e; min-width: 140px; }
+        .form-select-sm:focus { outline: none; border-color: #c8913a; }
+        .btn-icon { width: 36px; height: 36px; border: 2px solid #e0d5c7; border-radius: 8px; background: white; cursor: pointer; display: flex; align-items: center; justify-content: center; color: #888; }
+        .btn-icon:hover { border-color: #c8913a; color: #c8913a; }
+        .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.5); display: flex; align-items: center; justify-content: center; z-index: 1000; }
+        .modal-content { background: white; border-radius: 12px; width: 90%; max-width: 400px; box-shadow: 0 10px 40px rgba(0,0,0,0.2); }
+        .modal-header { display: flex; justify-content: space-between; align-items: center; padding: 1rem 1.25rem; border-bottom: 1px solid #e0d5c7; }
+        .modal-header h3 { font-size: 1.1rem; color: #5c3d1e; margin: 0; display: flex; align-items: center; gap: 0.5rem; }
+        .modal-close { background: none; border: none; font-size: 1.5rem; color: #888; cursor: pointer; line-height: 1; }
+        .modal-close:hover { color: #c62828; }
+        .modal-body { padding: 1.25rem; }
+        .dough-type-list { max-height: 250px; overflow-y: auto; margin-bottom: 1rem; }
+        .dough-type-item { display: flex; justify-content: space-between; align-items: center; padding: 0.6rem 0.75rem; border-radius: 6px; background: #faf6f1; margin-bottom: 0.5rem; }
+        .dough-type-item span { font-weight: 500; color: #5c3d1e; }
+        .btn-icon-danger { width: 28px; height: 28px; border: none; border-radius: 6px; background: transparent; cursor: pointer; color: #888; display: flex; align-items: center; justify-content: center; }
+        .btn-icon-danger:hover { background: #ffebee; color: #c62828; }
+        .empty-msg { text-align: center; color: #888; padding: 1rem; font-size: 0.9rem; }
+        .add-dough-type { display: flex; gap: 0.5rem; }
+        .add-dough-type .form-input { flex: 1; }
         .btn { padding: 0.6rem 1.2rem; border: none; border-radius: 8px; font-size: 0.9rem; font-weight: 600; cursor: pointer; display: inline-flex; align-items: center; gap: 0.4rem; transition: all 0.2s; }
         .btn-primary { background: #8b5a2b; color: white; }
         .btn-primary:hover { background: #5c3d1e; }
@@ -106,11 +128,24 @@ $adminBasePath = '../';
         .pct-bar-water { background: #4a90d9; }
         .pct-bar-other { background: #8bc34a; }
         .recipe-list { list-style: none; }
-        .recipe-list li { display: flex; justify-content: space-between; align-items: center; padding: 0.75rem 0; border-bottom: 1px solid #f0f0f0; }
-        .recipe-list li:last-child { border-bottom: none; }
-        .recipe-info { flex: 1; }
-        .recipe-info h4 { color: #5c3d1e; font-size: 0.95rem; margin-bottom: 0.2rem; }
-        .recipe-info small { color: #999; font-size: 0.8rem; }
+        .recipe-group { margin-bottom: 1rem; }
+        .recipe-group:last-child { margin-bottom: 0; }
+        .recipe-group-header { display: flex; align-items: center; gap: 0.5rem; padding: 0.5rem 0; border-bottom: 2px solid #e8e0d5; margin-bottom: 0.25rem; cursor: pointer; user-select: none; }
+        .recipe-group-header:hover { background: #faf8f4; }
+        .recipe-group-header i { color: #8b5a2b; font-size: 0.9rem; transition: transform 0.2s; }
+        .recipe-group-header.collapsed i { transform: rotate(-90deg); }
+        .recipe-group-name { font-weight: 600; color: #5c3d1e; font-size: 0.9rem; }
+        .recipe-group-count { font-size: 0.75rem; color: #999; background: #f0f0f0; padding: 0.1rem 0.4rem; border-radius: 10px; }
+        .recipe-group-items { list-style: none; }
+        .recipe-group-items.collapsed { display: none; }
+        .recipe-item { display: flex; justify-content: space-between; align-items: center; padding: 0.6rem 0 0.6rem 1.5rem; border-bottom: 1px solid #f5f5f5; }
+        .recipe-item:last-child { border-bottom: none; }
+        .recipe-item::before { content: ''; position: absolute; left: 0.5rem; width: 0.75rem; height: 1px; background: #ddd; }
+        .recipe-info { flex: 1; position: relative; }
+        .recipe-info h4 { color: #5c3d1e; font-size: 0.9rem; margin-bottom: 0.15rem; display: flex; align-items: center; gap: 0.5rem; }
+        .recipe-info h4 .recipe-type-badge { font-size: 0.65rem; padding: 0.1rem 0.35rem; border-radius: 3px; font-weight: 500; background: #e8f5e9; color: #2e7d32; text-transform: uppercase; }
+        .recipe-info small { color: #999; font-size: 0.75rem; }
+        .uncategorized-header { color: #999; font-style: italic; }
         .recipe-actions { display: flex; gap: 0.5rem; }
         .overview-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem; }
         @media (max-width: 700px) { .overview-grid { grid-template-columns: 1fr; } }
@@ -169,7 +204,15 @@ $adminBasePath = '../';
                 <div id="app">
         <div class="top-bar">
             <input type="text" v-model="recipeName" class="recipe-name-input" placeholder="Receptnaam...">
+            <div class="dough-type-select">
+                <select v-model="doughTypeId" class="form-select-sm">
+                    <option :value="null">Geen deegsoort</option>
+                    <option v-for="dt in doughTypes" :key="dt.id" :value="dt.id">{{ dt.name }}</option>
+                </select>
+                <button type="button" class="btn-icon" @click="showDoughTypeModal = true" title="Deegsoorten beheren"><i class="bi bi-gear"></i></button>
+            </div>
             <button class="btn btn-success" @click="saveRecipe" :disabled="saving"><i class="bi bi-save"></i> {{ currentRecipeId ? 'Opslaan' : 'Bewaar' }}</button>
+            <button class="btn btn-ghost" @click="duplicateRecipe" v-if="currentRecipeId"><i class="bi bi-copy"></i> Dupliceer</button>
             <button class="btn btn-ghost" @click="newRecipe"><i class="bi bi-plus-lg"></i> Nieuw</button>
         </div>
 
@@ -190,16 +233,9 @@ $adminBasePath = '../';
                         <div class="panel-title"><i class="bi bi-gear"></i> Basisrecept</div>
                         <div class="form-grid">
                             <div class="form-group">
-                                <label class="form-label">Aantal bollen / broden</label>
+                                <label class="form-label">Deeggewicht per stuk</label>
                                 <div class="input-with-unit">
-                                    <input type="number" v-model.number="numberOfBalls" class="form-input" min="1" step="1">
-                                    <span class="input-unit">st</span>
-                                </div>
-                            </div>
-                            <div class="form-group">
-                                <label class="form-label">Gewicht per stuk (incl. zout)</label>
-                                <div class="input-with-unit">
-                                    <input type="number" v-model.number="weightPerBall" class="form-input" min="1" step="10">
+                                    <input type="number" v-model.number="doughWeight" class="form-input" min="1" step="10">
                                     <span class="input-unit">g</span>
                                 </div>
                             </div>
@@ -447,12 +483,16 @@ $adminBasePath = '../';
 
                 <div v-show="activeTab==='overzicht'">
                     <div class="panel">
-                        <div class="panel-title"><i class="bi bi-list-check"></i> Recept Overzicht</div>
+                        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem">
+                            <div class="panel-title" style="margin-bottom:0"><i class="bi bi-list-check"></i> Recept Overzicht</div>
+                            <button class="btn btn-primary" @click="printRecipe"><i class="bi bi-printer"></i> Print PDF</button>
+                        </div>
                         <div style="display:flex;gap:1.5rem;flex-wrap:wrap;margin-bottom:1.5rem">
-                            <div><span class="form-label">Bollen/broden</span><br><span class="calc-value">{{ numberOfBalls }}</span></div>
-                            <div><span class="form-label">Gewicht per stuk</span><br><span class="calc-value">{{ formatW(finalWeightPerBall) }}<span class="calc-unit">g</span></span></div>
+                            <div><span class="form-label">Deeggewicht</span><br><span class="calc-value">{{ formatW(doughWeight) }}<span class="calc-unit">g</span></span></div>
                             <div><span class="form-label">Totaal gewicht</span><br><span class="calc-value">{{ formatW(totalFinalWeight) }}<span class="calc-unit">g</span></span></div>
                             <div><span class="form-label">Hydratatie</span><br><span class="calc-value">{{ formatP(effectiveTotalHydration) }}<span class="calc-unit">%</span></span></div>
+                            <div><span class="form-label">Zout</span><br><span class="calc-value">{{ formatP(saltPct) }}<span class="calc-unit">%</span></span></div>
+                            <div><span class="form-label">Volkoren</span><br><span class="calc-value">{{ formatP(totalWholeGrainPct) }}<span class="calc-unit">%</span></span></div>
                         </div>
 
                         <div class="overview-grid">
@@ -550,14 +590,78 @@ $adminBasePath = '../';
                             <tbody>
                                 <tr><td>Totaal meel</td><td>{{ formatW(totalFlour) }}g</td><td>100%</td></tr>
                                 <tr><td>Water</td><td>{{ formatW(totalWater) }}g</td><td>{{ formatP(hydration) }}%</td></tr>
-                                <tr><td>Zout</td><td>{{ formatW(saltWeight) }}g</td><td>{{ formatP(saltWeight / totalFlour * 100) }}%</td></tr>
-                                <tr v-if="useSourdough"><td>Zuurdesem</td><td>{{ formatW(sourdoughWeight) }}g</td><td>{{ formatP(sourdoughPct) }}%</td></tr>
+                                <tr><td>Zout</td><td>{{ formatW(saltWeight) }}g</td><td>{{ formatP(saltPct) }}%</td></tr>
                                 <tr v-if="useYeast"><td>{{ yeastName }}</td><td>{{ formatW(yeastWeight) }}g</td><td>{{ formatP(yeastPct) }}%</td></tr>
                                 <template v-for="(m, i) in mixins" :key="'bp'+i"><tr v-if="m.ingredient && m.pct > 0">
-                                    <td>{{ m.ingredient }}</td><td>{{ formatW(mixinWeight(i)) }}g</td><td>{{ formatP(mixinWeight(i) / totalFlour * 100) }}%</td>
+                                    <td>{{ m.ingredient }}</td><td>{{ formatW(mixinWeight(i)) }}g</td><td>{{ formatP(m.pct) }}%</td>
                                 </tr></template>
                             </tbody>
                         </table>
+
+                        <hr class="divider" v-if="ingredientsLoaded">
+                        <div class="panel-title" v-if="ingredientsLoaded"><i class="bi bi-currency-euro"></i> Kostprijsberekening</div>
+                        <div v-if="ingredientsLoaded" class="overview-grid">
+                            <div class="overview-section">
+                                <h4><i class="bi bi-receipt"></i> Ingrediënten</h4>
+                                <div class="overview-item">
+                                    <span class="name">Meel</span>
+                                    <span class="value">€{{ formatEuro(totalFlourCost) }}</span>
+                                </div>
+                                <div class="overview-item" v-if="useYeast">
+                                    <span class="name">{{ yeastName }}</span>
+                                    <span class="value">€{{ formatEuro(totalYeastCost) }}</span>
+                                </div>
+                                <div class="overview-item">
+                                    <span class="name">Zout</span>
+                                    <span class="value">€{{ formatEuro(totalSaltCost) }}</span>
+                                </div>
+                                <div class="overview-item" v-if="mixins.length > 0">
+                                    <span class="name">Mix-ins</span>
+                                    <span class="value">€{{ formatEuro(totalMixinCost) }}</span>
+                                </div>
+                                <div class="overview-item" v-if="toppings.length > 0">
+                                    <span class="name">Toppings</span>
+                                    <span class="value">€{{ formatEuro(totalToppingCost) }}</span>
+                                </div>
+                                <div class="overview-total">
+                                    <span>Subtotaal ingrediënten</span>
+                                    <span>€{{ formatEuro(totalIngredientCost) }}</span>
+                                </div>
+                            </div>
+                            <div class="overview-section" style="background:#fff3e0">
+                                <h4 style="color:#e65100"><i class="bi bi-lightning-charge"></i> Vaste kosten (geschat)</h4>
+                                <div class="overview-item">
+                                    <span class="name">Water (maand / 30)</span>
+                                    <span class="value">€{{ formatEuro(utilityCosts.water / 30) }}</span>
+                                </div>
+                                <div class="overview-item">
+                                    <span class="name">Elektra (maand / 30)</span>
+                                    <span class="value">€{{ formatEuro(utilityCosts.electricity / 30) }}</span>
+                                </div>
+                                <div class="overview-total">
+                                    <span>Subtotaal vaste kosten</span>
+                                    <span>€{{ formatEuro(totalUtilityCostPerRecipe) }}</span>
+                                </div>
+                            </div>
+                            <div class="overview-section" style="background:#e8f5e9">
+                                <h4 style="color:#2e7d32"><i class="bi bi-calculator"></i> Kostprijs</h4>
+                                <div class="overview-item">
+                                    <span class="name">Per kg deeg</span>
+                                    <span class="value" style="color:#2e7d32;font-size:1.1rem">€{{ formatEuro(costPerKgDough) }}</span>
+                                </div>
+                                <div class="overview-item">
+                                    <span class="name">Per stuk ({{ formatW(finalWeightPerBall) }}g)</span>
+                                    <span class="value" style="color:#2e7d32;font-size:1.1rem">€{{ formatEuro(costPerPiece) }}</span>
+                                </div>
+                                <div class="overview-item">
+                                    <span class="name">Totaal recept</span>
+                                    <span class="value" style="color:#2e7d32;font-size:1.2rem;font-weight:700">€{{ formatEuro(totalCostWithUtilities) }}</span>
+                                </div>
+                            </div>
+                        </div>
+                        <p v-if="ingredientsLoaded && totalIngredientCost === 0" style="color:#888;font-size:0.85rem;margin-top:0.5rem">
+                            <i class="bi bi-info-circle"></i> Vul ingrediëntprijzen in via <a href="voorraad.php" style="color:#8b5a2b">Voorraadbeheer</a> voor kostprijsberekening.
+                        </p>
                     </div>
                 </div>
 
@@ -575,18 +679,33 @@ $adminBasePath = '../';
                             <i class="bi bi-bookmark-star"></i>
                             <p>Nog geen recepten opgeslagen</p>
                         </div>
-                        <ul class="recipe-list" v-else>
-                            <li v-for="r in savedRecipes" :key="r.id">
-                                <div class="recipe-info">
-                                    <h4>{{ r.name }}</h4>
-                                    <small>{{ formatDate(r.updated_at) }}</small>
+                        <div class="recipe-list" v-else>
+                            <div v-for="group in groupedRecipes" :key="group.id || '__uncategorized'" class="recipe-group">
+                                <div class="recipe-group-header" :class="{ collapsed: isGroupCollapsed(group.id) }" @click="toggleGroup(group.id)">
+                                    <i class="bi bi-chevron-down"></i>
+                                    <span class="recipe-group-name" :class="{ 'uncategorized-header': !group.id }">
+                                        <i :class="group.id ? 'bi bi-layers' : 'bi bi-question-circle'"></i>
+                                        {{ group.name }}
+                                    </span>
+                                    <span class="recipe-group-count">{{ group.recipes.length }}</span>
                                 </div>
-                                <div class="recipe-actions">
-                                    <button class="btn btn-primary btn-sm" @click="loadRecipe(r.id)"><i class="bi bi-folder2-open"></i> Laden</button>
-                                    <button class="btn btn-danger btn-sm" @click="deleteRecipe(r.id)"><i class="bi bi-trash"></i></button>
-                                </div>
-                            </li>
-                        </ul>
+                                <ul class="recipe-group-items" :class="{ collapsed: isGroupCollapsed(group.id) }">
+                                    <li v-for="r in group.recipes" :key="r.id" class="recipe-item">
+                                        <div class="recipe-info">
+                                            <h4>
+                                                <i class="bi bi-journal-text" style="color: #c8913a;"></i>
+                                                {{ r.name }}
+                                            </h4>
+                                            <small>{{ formatDate(r.updated_at) }}</small>
+                                        </div>
+                                        <div class="recipe-actions">
+                                            <button class="btn btn-primary btn-sm" @click="loadRecipe(r.id)"><i class="bi bi-folder2-open"></i> Laden</button>
+                                            <button class="btn btn-danger btn-sm" @click="deleteRecipe(r.id)"><i class="bi bi-trash"></i></button>
+                                        </div>
+                                    </li>
+                                </ul>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -607,55 +726,60 @@ $adminBasePath = '../';
                             <span class="summary-value">{{ formatW(totalWater) }}g</span>
                         </div>
                         <div class="summary-row">
+                            <span class="summary-label">Hydratatie</span>
+                            <span class="summary-value">{{ formatP(hydration) }}%</span>
+                        </div>
+                        <div class="summary-row">
                             <span class="summary-label">Zout</span>
                             <span class="summary-value">{{ formatW(saltWeight) }}g</span>
                         </div>
+                        <div class="summary-row">
+                            <span class="summary-label">Volkoren</span>
+                            <span class="summary-value">{{ formatP(totalWholeGrainPct) }}%</span>
+                        </div>
                         <div class="summary-section-title" v-if="useSourdough">Zuurdesem</div>
                         <div class="summary-row" v-if="useSourdough">
-                            <span class="summary-label">Meel in zuurdesem</span>
-                            <span class="summary-value">{{ formatW(sourdoughFlour) }}g</span>
+                            <span class="summary-label">Percentage</span>
+                            <span class="summary-value">{{ formatP(sourdoughPct) }}%</span>
                         </div>
                         <div class="summary-row" v-if="useSourdough">
-                            <span class="summary-label">Water in zuurdesem</span>
-                            <span class="summary-value">{{ formatW(sourdoughWater) }}g</span>
+                            <span class="summary-label">Hydratatie</span>
+                            <span class="summary-value">{{ formatP(sourdoughHydration) }}%</span>
                         </div>
 
                         <div class="summary-row" v-if="useYeast">
                             <span class="summary-label">{{ yeastName }}</span>
-                            <span class="summary-value">{{ formatW(yeastWeight) }}g</span>
+                            <span class="summary-value">{{ formatP(yeastPct) }}%</span>
                         </div>
 
                         <div class="summary-section-title" v-if="usePreFerment">Voordeeg</div>
                         <div class="summary-row" v-if="usePreFerment">
-                            <span class="summary-label">Meel in voordeeg</span>
-                            <span class="summary-value">{{ formatW(preFermentFlour) }}g</span>
+                            <span class="summary-label">Percentage</span>
+                            <span class="summary-value">{{ formatP(preFermentPct) }}%</span>
                         </div>
                         <div class="summary-row" v-if="usePreFerment">
-                            <span class="summary-label">Water in voordeeg</span>
-                            <span class="summary-value">{{ formatW(preFermentWater) }}g</span>
+                            <span class="summary-label">Hydratatie</span>
+                            <span class="summary-value">{{ formatP(preFermentHydration) }}%</span>
                         </div>
 
-                        <div class="summary-section-title" v-if="totalMixinWeight > 0">Mix-ins</div>
-                        <div class="summary-row" v-if="integratedMixinWeight > 0">
-                            <span class="summary-label">Geïntegreerd</span>
-                            <span class="summary-value">{{ formatW(integratedMixinWeight) }}g</span>
-                        </div>
-                        <div class="summary-row" v-if="nonIntegratedMixinWeight > 0">
-                            <span class="summary-label">Vast</span>
-                            <span class="summary-value">{{ formatW(nonIntegratedMixinWeight) }}g</span>
-                        </div>
-                        <div class="summary-row" v-if="liquidMixinWeight > 0">
-                            <span class="summary-label">Vloeistof</span>
-                            <span class="summary-value">{{ formatW(liquidMixinWeight) }}g</span>
-                        </div>
-                        <div class="summary-row" v-if="totalToppingWeight > 0">
-                            <span class="summary-label">Toppings</span>
-                            <span class="summary-value">{{ formatW(totalToppingWeight) }}g</span>
-                        </div>
+                        <div class="summary-section-title" v-if="mixins.length > 0">Mix-ins</div>
+                        <template v-for="(m, i) in mixins" :key="'sm'+i">
+                            <div class="summary-row" v-if="m.ingredient && m.pct > 0">
+                                <span class="summary-label">{{ m.ingredient }}</span>
+                                <span class="summary-value">{{ formatP(m.pct) }}%</span>
+                            </div>
+                        </template>
+                        <div class="summary-section-title" v-if="toppings.length > 0">Toppings</div>
+                        <template v-for="(t, i) in toppings" :key="'st'+i">
+                            <div class="summary-row" v-if="t.ingredient && t.pct > 0">
+                                <span class="summary-label">{{ t.ingredient }}</span>
+                                <span class="summary-value">{{ formatP(t.pct) }}%</span>
+                            </div>
+                        </template>
 
                         <div class="summary-row total">
-                            <span class="summary-label" style="font-weight:700;color:#5c3d1e">Per stuk</span>
-                            <span class="summary-value accent">{{ formatW(finalWeightPerBall) }}g</span>
+                            <span class="summary-label" style="font-weight:700;color:#5c3d1e">Deeggewicht</span>
+                            <span class="summary-value accent">{{ formatW(doughWeight) }}g</span>
                         </div>
                         <div class="summary-row">
                             <span class="summary-label" style="font-weight:700;color:#5c3d1e">Totaal</span>
@@ -678,6 +802,28 @@ $adminBasePath = '../';
         </div>
 
         <div class="toast success" v-if="toastMsg">{{ toastMsg }}</div>
+
+        <div class="modal-overlay" v-if="showDoughTypeModal" @click.self="showDoughTypeModal = false">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h3><i class="bi bi-layers"></i> Deegsoorten beheren</h3>
+                    <button class="modal-close" @click="showDoughTypeModal = false">&times;</button>
+                </div>
+                <div class="modal-body">
+                    <div class="dough-type-list">
+                        <div v-for="dt in doughTypes" :key="dt.id" class="dough-type-item">
+                            <span>{{ dt.name }}</span>
+                            <button class="btn-icon-danger" @click="deleteDoughType(dt.id)" title="Verwijderen"><i class="bi bi-trash"></i></button>
+                        </div>
+                        <div v-if="doughTypes.length === 0" class="empty-msg">Nog geen deegsoorten</div>
+                    </div>
+                    <div class="add-dough-type">
+                        <input type="text" v-model="newDoughTypeName" placeholder="Nieuwe deegsoort..." @keyup.enter="addDoughType" class="form-input">
+                        <button class="btn btn-primary" @click="addDoughType" :disabled="!newDoughTypeName.trim()"><i class="bi bi-plus"></i> Toevoegen</button>
+                    </div>
+                </div>
+            </div>
+        </div>
                 </div>
             </div>
         </div>
@@ -692,8 +838,11 @@ $adminBasePath = '../';
                 activeTab: 'recept',
                 recipeName: '',
                 currentRecipeId: null,
-                numberOfBalls: 24,
-                weightPerBall: 300,
+                doughTypeId: null,
+                doughTypes: <?= json_encode($doughTypes) ?>,
+                showDoughTypeModal: false,
+                newDoughTypeName: '',
+                doughWeight: 300,
                 hydration: 62,
                 saltPct: 2.6,
                 useSourdough: false,
@@ -713,90 +862,23 @@ $adminBasePath = '../';
                 toppings: [],
                 method: '',
                 savedRecipes: [],
+                collapsedGroups: {},
                 saving: false,
                 toastMsg: '',
-                grainTypes: [
-                    { id: 'wheat_white', name: 'Tarwe wit' },
-                    { id: 'wheat_whole', name: 'Tarwe volkoren' },
-                    { id: 'spelt_white', name: 'Spelt wit' },
-                    { id: 'spelt_whole', name: 'Spelt volkoren' },
-                    { id: 'durum', name: 'Durum' },
-                    { id: 'emmer', name: 'Emmer' },
-                    { id: 'rye_white', name: 'Rogge wit' },
-                    { id: 'rye_whole', name: 'Rogge volkoren' },
-                    { id: 'einkorn', name: 'Einkorn' },
-                    { id: 'buckwheat', name: 'Boekweit' },
-                    { id: 'rice', name: 'Rijst' },
-                    { id: 'barley', name: 'Gerst' },
-                    { id: 'teff', name: 'Teff' },
-                ],
-                yeastTypes: [
-                    { id: 'fresh_yeast', name: 'Verse gist', defaultPct: 4 },
-                    { id: 'instant_yeast', name: 'Instant gist', defaultPct: 2.8 },
-                    { id: 'sourdough_culture', name: 'Desemcultuur', defaultPct: 4 },
-                ],
-                mixinIngredients: [
-                    { name: 'Zonnebloempitten', cat: 'non-integrated' },
-                    { name: 'Pompoenpitten', cat: 'non-integrated' },
-                    { name: 'Maanzaad', cat: 'non-integrated' },
-                    { name: 'Sesamzaad', cat: 'non-integrated' },
-                    { name: 'Walnoten', cat: 'non-integrated' },
-                    { name: 'Pecannoten', cat: 'non-integrated' },
-                    { name: 'Amandelen', cat: 'non-integrated' },
-                    { name: 'Hazelnoten', cat: 'non-integrated' },
-                    { name: 'Pijnboompitten', cat: 'non-integrated' },
-                    { name: 'Rozijnen', cat: 'non-integrated' },
-                    { name: 'Gedroogde cranberries', cat: 'non-integrated' },
-                    { name: 'Gedroogde abrikozen', cat: 'non-integrated' },
-                    { name: 'Gedroogde vijgen', cat: 'non-integrated' },
-                    { name: 'Dadels', cat: 'non-integrated' },
-                    { name: 'Knoflook', cat: 'non-integrated' },
-                    { name: 'Uien', cat: 'non-integrated' },
-                    { name: 'Kruiden', cat: 'non-integrated' },
-                    { name: 'Olijven (gehakt)', cat: 'non-integrated' },
-                    { name: 'Kaneel', cat: 'non-integrated' },
-                    { name: 'Nootmuskaat', cat: 'non-integrated' },
-                    { name: 'Karwijzaad', cat: 'non-integrated' },
-                    { name: 'Anijszaad', cat: 'non-integrated' },
-                    { name: 'Zwarte peper', cat: 'non-integrated' },
-                    { name: 'Olijfolie', cat: 'non-integrated' },
-                    { name: 'Lijnzaad', cat: 'integrated' },
-                    { name: 'Chiazaad', cat: 'integrated' },
-                    { name: 'Quinoa', cat: 'integrated' },
-                    { name: 'Gierst', cat: 'integrated' },
-                    { name: 'Havervlokken', cat: 'integrated' },
-                    { name: 'Aardappelzetmeel', cat: 'integrated' },
-                    { name: 'Psyllium husk', cat: 'integrated' },
-                    { name: 'Cacaopoeder', cat: 'integrated' },
-                    { name: 'Koffiedik', cat: 'integrated' },
-                    { name: 'Bietenpoeder', cat: 'integrated' },
-                    { name: 'Spinaziepoeder', cat: 'integrated' },
-                    { name: 'Boter', cat: 'integrated' },
-                    { name: 'Kaas', cat: 'integrated' },
-                    { name: 'Ei', cat: 'integrated' },
-                    { name: 'Suiker', cat: 'integrated' },
-                    { name: 'Agavesiroop', cat: 'integrated' },
-                    { name: 'Ahornsiroop', cat: 'integrated' },
-                    { name: 'Melasse', cat: 'integrated' },
-                    { name: 'Water (extra)', cat: 'liquid' },
-                    { name: 'Melk', cat: 'liquid' },
-                    { name: 'Karnemelk', cat: 'liquid' },
-                    { name: 'Koffie', cat: 'liquid' },
-                    { name: 'Bier', cat: 'liquid' },
-                    { name: 'Appelciderazijn', cat: 'liquid' },
-                ],
-                toppingIngredients: [
-                    'Zadenmix', 'Zonnebloempitten', 'Pompoenpitten', 'Lijnzaad', 'Chiazaad',
-                    'Maanzaad', 'Sesamzaad', 'Havervlokken', 'Walnoten', 'Amandelen',
-                    'Rozijnen', 'Knoflook', 'Uien', 'Kruiden', 'Olijven',
-                    'Zeezoutvlokken', 'Zwarte peper', 'Chilivlokken', 'Kaneelsuiker',
-                    'Grove suiker', 'Tomaten', 'Cherrytomaatjes', 'Ansjovis',
-                ],
+                grainTypes: [],
+                yeastTypes: [],
+                mixinIngredients: [],
+                toppingIngredients: [],
+                allIngredients: [],
+                utilityCosts: { water: 0, electricity: 0 },
+                ingredientsLoaded: false,
+                fifoCosts: {},
+                fifoLoading: false,
             };
         },
 
         computed: {
-            totalDoughWeight() { return this.numberOfBalls * this.weightPerBall; },
+            totalDoughWeight() { return this.doughWeight; },
             totalFlour() { return this.totalDoughWeight / (1 + this.hydration / 100 + this.saltPct / 100); },
             totalWater() { return this.totalFlour * (this.hydration / 100); },
 
@@ -850,7 +932,7 @@ $adminBasePath = '../';
             },
 
             totalDryWeight() { return this.totalFlour + this.integratedMixinWeight; },
-            saltWeight() { return this.totalFlour * (this.saltPct / 100); },
+            saltWeight() { return this.totalDryWeight * (this.saltPct / 100); },
 
             totalToppingWeight() {
                 return this.toppings.reduce((s, t) => s + this.totalDoughWeight * (t.pct / 100), 0);
@@ -860,8 +942,7 @@ $adminBasePath = '../';
                 return this.totalDoughWeight + this.yeastWeight + this.totalMixinWeight + this.totalToppingWeight;
             },
             finalWeightPerBall() {
-                if (this.numberOfBalls === 0) return 0;
-                return this.totalFinalWeight / this.numberOfBalls;
+                return this.totalFinalWeight;
             },
             effectiveTotalHydration() {
                 const totalLiquid = this.totalWater + this.liquidMixinWeight;
@@ -876,13 +957,201 @@ $adminBasePath = '../';
             flourPct() { return this.totalFinalWeight > 0 ? (this.totalFlour / this.totalFinalWeight * 100) : 0; },
             waterPct() { return this.totalFinalWeight > 0 ? (this.totalWater / this.totalFinalWeight * 100) : 0; },
             otherPct() { return Math.max(0, 100 - this.flourPct - this.waterPct); },
+
+            totalWholeGrainPct() {
+                if (this.totalFlour === 0) return 0;
+                let wholeGrainFlour = 0;
+                const isWholeGrain = (type) => type && type.includes('_whole');
+                
+                if (this.useSourdough) {
+                    this.sourdoughGrains.forEach((g, i) => {
+                        if (isWholeGrain(g.type)) {
+                            wholeGrainFlour += this.sourdoughGrainDetail(i).total;
+                        }
+                    });
+                }
+                if (this.usePreFerment) {
+                    this.preFermentGrains.forEach((g, i) => {
+                        if (isWholeGrain(g.type)) {
+                            wholeGrainFlour += this.preFermentGrainDetail(i).total;
+                        }
+                    });
+                }
+                this.mainDoughGrains.forEach((g, i) => {
+                    if (isWholeGrain(g.type)) {
+                        wholeGrainFlour += this.mainDoughGrainDetail(i).total;
+                    }
+                });
+                
+                return (wholeGrainFlour / this.totalFlour) * 100;
+            },
+
+            totalFlourCost() {
+                let cost = 0;
+                if (this.useSourdough) {
+                    this.sourdoughGrains.forEach((g, i) => {
+                        const weight = this.sourdoughGrainDetail(i).total;
+                        const key = `grain_${g.type}_${Math.round(weight)}`;
+                        if (this.fifoCosts[key] !== undefined) {
+                            cost += this.fifoCosts[key];
+                        } else {
+                            const grain = this.grainTypes.find(gt => gt.id == g.type);
+                            if (grain) cost += (weight / 1000) * (grain.pricePerKg || 0);
+                        }
+                    });
+                }
+                if (this.usePreFerment) {
+                    this.preFermentGrains.forEach((g, i) => {
+                        const weight = this.preFermentGrainDetail(i).total;
+                        const key = `grain_${g.type}_${Math.round(weight)}`;
+                        if (this.fifoCosts[key] !== undefined) {
+                            cost += this.fifoCosts[key];
+                        } else {
+                            const grain = this.grainTypes.find(gt => gt.id == g.type);
+                            if (grain) cost += (weight / 1000) * (grain.pricePerKg || 0);
+                        }
+                    });
+                }
+                this.mainDoughGrains.forEach((g, i) => {
+                    const weight = this.mainDoughGrainDetail(i).total;
+                    const key = `grain_${g.type}_${Math.round(weight)}`;
+                    if (this.fifoCosts[key] !== undefined) {
+                        cost += this.fifoCosts[key];
+                    } else {
+                        const grain = this.grainTypes.find(gt => gt.id == g.type);
+                        if (grain) cost += (weight / 1000) * (grain.pricePerKg || 0);
+                    }
+                });
+                return cost;
+            },
+
+            totalYeastCost() {
+                if (!this.useYeast) return 0;
+                const weight = this.yeastWeight;
+                const key = `yeast_${this.yeastType}_${Math.round(weight)}`;
+                if (this.fifoCosts[key] !== undefined) {
+                    return this.fifoCosts[key];
+                }
+                const yeast = this.yeastTypes.find(y => y.id == this.yeastType);
+                if (!yeast) return 0;
+                return (weight / 1000) * (yeast.pricePerKg || 0);
+            },
+
+            totalSaltCost() {
+                const weight = this.saltWeight;
+                const saltIng = this.allIngredients.find(i => i.name === 'Zout');
+                if (saltIng) {
+                    const key = `ing_${saltIng.id}_${Math.round(weight)}`;
+                    if (this.fifoCosts[key] !== undefined) {
+                        return this.fifoCosts[key];
+                    }
+                }
+                const saltPrice = this.getIngredientPrice('Zout');
+                return (weight / 1000) * saltPrice;
+            },
+
+            totalWaterCost() {
+                return 0;
+            },
+
+            totalMixinCost() {
+                let cost = 0;
+                this.mixins.forEach((m, i) => {
+                    if (m.ingredient && m.pct > 0) {
+                        const weight = this.mixinWeight(i);
+                        const ing = this.allIngredients.find(x => x.name === m.ingredient);
+                        if (ing) {
+                            const key = `ing_${ing.id}_${Math.round(weight)}`;
+                            if (this.fifoCosts[key] !== undefined) {
+                                cost += this.fifoCosts[key];
+                                return;
+                            }
+                        }
+                        const price = this.getIngredientPrice(m.ingredient);
+                        cost += (weight / 1000) * price;
+                    }
+                });
+                return cost;
+            },
+
+            totalToppingCost() {
+                let cost = 0;
+                this.toppings.forEach((t, i) => {
+                    if (t.ingredient && t.pct > 0) {
+                        const weight = this.toppingWeight(i);
+                        const ing = this.allIngredients.find(x => x.name === t.ingredient);
+                        if (ing) {
+                            const key = `ing_${ing.id}_${Math.round(weight)}`;
+                            if (this.fifoCosts[key] !== undefined) {
+                                cost += this.fifoCosts[key];
+                                return;
+                            }
+                        }
+                        const price = this.getIngredientPrice(t.ingredient);
+                        cost += (weight / 1000) * price;
+                    }
+                });
+                return cost;
+            },
+
+            totalIngredientCost() {
+                return this.totalFlourCost + this.totalYeastCost + this.totalSaltCost + this.totalMixinCost + this.totalToppingCost;
+            },
+
+            totalUtilityCostPerRecipe() {
+                const monthlyProduction = 30;
+                const totalMonthly = (this.utilityCosts.water || 0) + (this.utilityCosts.electricity || 0);
+                return totalMonthly / monthlyProduction;
+            },
+
+            totalCostWithUtilities() {
+                return this.totalIngredientCost + this.totalUtilityCostPerRecipe;
+            },
+
+            costPerKgDough() {
+                if (this.totalFinalWeight === 0) return 0;
+                return (this.totalCostWithUtilities / this.totalFinalWeight) * 1000;
+            },
+
+            costPerPiece() {
+                return this.totalCostWithUtilities;
+            },
+
+            groupedRecipes() {
+                const groups = {};
+                const uncategorized = [];
+                this.savedRecipes.forEach(r => {
+                    if (r.dough_type_id) {
+                        if (!groups[r.dough_type_id]) {
+                            groups[r.dough_type_id] = {
+                                id: r.dough_type_id,
+                                name: r.dough_type_name,
+                                recipes: []
+                            };
+                        }
+                        groups[r.dough_type_id].recipes.push(r);
+                    } else {
+                        uncategorized.push(r);
+                    }
+                });
+                const result = Object.values(groups).sort((a, b) => a.name.localeCompare(b.name));
+                if (uncategorized.length > 0) {
+                    result.push({ id: null, name: 'Zonder deegsoort', recipes: uncategorized });
+                }
+                return result;
+            },
         },
 
         watch: {
             yeastType(val) {
                 const t = this.yeastTypes.find(y => y.id === val);
                 if (t && t.defaultPct) this.yeastPct = t.defaultPct;
-            }
+                this.debouncedFetchFifoCosts();
+            },
+            totalFlour: { handler() { this.debouncedFetchFifoCosts(); }, immediate: false },
+            useYeast: { handler() { this.debouncedFetchFifoCosts(); }, immediate: false },
+            mixins: { handler() { this.debouncedFetchFifoCosts(); }, deep: true },
+            toppings: { handler() { this.debouncedFetchFifoCosts(); }, deep: true },
         },
 
         methods: {
@@ -916,8 +1185,9 @@ $adminBasePath = '../';
                 if (ing) m.category = ing.cat;
             },
 
-            formatW(v) { return Math.round(v).toLocaleString('nl-NL'); },
+            formatW(v) { return Math.round(v).toString(); },
             formatP(v) { return (Math.round(v * 10) / 10).toString().replace('.', ','); },
+            formatEuro(v) { return (Math.round(v * 100) / 100).toFixed(2).replace('.', ','); },
             formatDate(d) {
                 if (!d) return '';
                 const dt = new Date(d);
@@ -931,8 +1201,7 @@ $adminBasePath = '../';
 
             getRecipeData() {
                 return {
-                    numberOfBalls: this.numberOfBalls,
-                    weightPerBall: this.weightPerBall,
+                    doughWeight: this.doughWeight,
                     hydration: this.hydration,
                     saltPct: this.saltPct,
                     useSourdough: this.useSourdough,
@@ -955,12 +1224,15 @@ $adminBasePath = '../';
             },
 
             applyRecipeData(d) {
-                const fields = ['numberOfBalls','weightPerBall','hydration','saltPct',
+                const fields = ['doughWeight','hydration','saltPct',
                     'useSourdough','sourdoughPct','sourdoughHydration','sourdoughGrains',
                     'useYeast','yeastType','yeastPct',
                     'usePreFerment','preFermentPct','preFermentHydration',
                     'preFermentGrains','mainDoughGrains','mixinMode','mixins','toppings','method'];
                 fields.forEach(f => { if (d[f] !== undefined) this[f] = d[f]; });
+                if (d.weightPerBall !== undefined && d.doughWeight === undefined) {
+                    this.doughWeight = d.weightPerBall;
+                }
                 if (d.levenerType !== undefined && d.useSourdough === undefined) {
                     if (d.levenerType === 'sourdough') {
                         this.useSourdough = true;
@@ -979,7 +1251,7 @@ $adminBasePath = '../';
                 if (!this.recipeName.trim()) { this.recipeName = 'Naamloos recept'; }
                 this.saving = true;
                 try {
-                    const body = { name: this.recipeName, recipe_data: this.getRecipeData() };
+                    const body = { name: this.recipeName, dough_type_id: this.doughTypeId, recipe_data: this.getRecipeData() };
                     if (this.currentRecipeId) body.id = this.currentRecipeId;
                     const method = this.currentRecipeId ? 'PUT' : 'POST';
                     const res = await fetch('../../api/baker-recipes.php', { method, headers: {'Content-Type':'application/json'}, body: JSON.stringify(body) });
@@ -1007,6 +1279,7 @@ $adminBasePath = '../';
                     if (data.success) {
                         this.currentRecipeId = data.recipe.id;
                         this.recipeName = data.recipe.name;
+                        this.doughTypeId = data.recipe.dough_type_id;
                         this.applyRecipeData(data.recipe.recipe_data);
                         this.activeTab = 'recept';
                         this.showToast('Recept geladen!');
@@ -1024,11 +1297,58 @@ $adminBasePath = '../';
                 } catch (e) { console.error(e); }
             },
 
+            duplicateRecipe() {
+                this.currentRecipeId = null;
+                this.recipeName = this.recipeName + ' (kopie)';
+                this.showToast('Recept gedupliceerd - pas aan en sla op');
+            },
+
+            toggleGroup(groupId) {
+                const key = groupId === null ? '__uncategorized' : groupId;
+                this.collapsedGroups[key] = !this.collapsedGroups[key];
+            },
+
+            isGroupCollapsed(groupId) {
+                const key = groupId === null ? '__uncategorized' : groupId;
+                return !!this.collapsedGroups[key];
+            },
+
+            async printRecipe() {
+                const data = {
+                    name: this.recipeName || 'Recept',
+                    recipe_data: this.getRecipeData()
+                };
+                try {
+                    const res = await fetch('../../api/recipe-pdf.php', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(data)
+                    });
+                    if (res.ok) {
+                        const blob = await res.blob();
+                        const url = window.URL.createObjectURL(blob);
+                        const a = document.createElement('a');
+                        a.href = url;
+                        a.download = 'Recept_' + (this.recipeName || 'Recept').replace(/[^a-zA-Z0-9]/g, '_') + '.pdf';
+                        document.body.appendChild(a);
+                        a.click();
+                        a.remove();
+                        window.URL.revokeObjectURL(url);
+                        this.showToast('PDF gedownload');
+                    } else {
+                        this.showToast('Fout bij genereren PDF');
+                    }
+                } catch (e) {
+                    console.error(e);
+                    this.showToast('Fout bij genereren PDF');
+                }
+            },
+
             newRecipe() {
                 this.currentRecipeId = null;
                 this.recipeName = '';
-                this.numberOfBalls = 24;
-                this.weightPerBall = 300;
+                this.doughTypeId = null;
+                this.doughWeight = 300;
                 this.hydration = 62;
                 this.saltPct = 2.6;
                 this.useSourdough = false;
@@ -1049,10 +1369,216 @@ $adminBasePath = '../';
                 this.method = '';
                 this.activeTab = 'recept';
             },
+
+            async loadIngredients() {
+                try {
+                    const res = await fetch('../../api/ingredients.php');
+                    const data = await res.json();
+                    if (data.success) {
+                        this.allIngredients = data.ingredients;
+                        
+                        this.grainTypes = data.ingredients
+                            .filter(i => i.category === 'meel')
+                            .map(i => ({ 
+                                id: i.id, 
+                                name: i.name, 
+                                pricePerKg: parseFloat(i.current_price_per_kg) || 0,
+                                isWholeGrain: i.name.toLowerCase().includes('volkoren')
+                            }));
+                        
+                        if (this.grainTypes.length === 0) {
+                            this.grainTypes = [
+                                { id: 'wheat_white', name: 'Tarwe wit', pricePerKg: 0 },
+                                { id: 'wheat_whole', name: 'Tarwe volkoren', pricePerKg: 0, isWholeGrain: true },
+                            ];
+                        }
+                        
+                        this.yeastTypes = data.ingredients
+                            .filter(i => i.category === 'gist')
+                            .map(i => ({ 
+                                id: i.id, 
+                                name: i.name, 
+                                defaultPct: i.name.toLowerCase().includes('verse') ? 4 : 2.8,
+                                pricePerKg: parseFloat(i.current_price_per_kg) || 0
+                            }));
+                        
+                        if (this.yeastTypes.length === 0) {
+                            this.yeastTypes = [
+                                { id: 'fresh_yeast', name: 'Verse gist', defaultPct: 4, pricePerKg: 0 },
+                                { id: 'instant_yeast', name: 'Instant gist', defaultPct: 2.8, pricePerKg: 0 },
+                            ];
+                        }
+                        
+                        this.mixinIngredients = data.ingredients
+                            .filter(i => i.category === 'mixin')
+                            .map(i => ({ 
+                                id: i.id,
+                                name: i.name, 
+                                cat: 'non-integrated',
+                                pricePerKg: parseFloat(i.current_price_per_kg) || 0
+                            }));
+                        
+                        this.toppingIngredients = data.ingredients
+                            .filter(i => i.category === 'topping')
+                            .map(i => ({ 
+                                id: i.id,
+                                name: i.name,
+                                pricePerKg: parseFloat(i.current_price_per_kg) || 0
+                            }));
+                        
+                        this.ingredientsLoaded = true;
+                    }
+                } catch(e) { console.error('Error loading ingredients:', e); }
+            },
+
+            async loadUtilityCosts() {
+                try {
+                    const currentMonth = new Date().toISOString().slice(0, 7);
+                    const res = await fetch(`../../api/utility-costs.php?year_month=${currentMonth}`);
+                    const data = await res.json();
+                    if (data.success) {
+                        const water = data.costs.find(c => c.type === 'water');
+                        const elec = data.costs.find(c => c.type === 'electricity');
+                        this.utilityCosts = {
+                            water: water ? parseFloat(water.cost) : 0,
+                            electricity: elec ? parseFloat(elec.cost) : 0
+                        };
+                    }
+                } catch(e) { console.error('Error loading utility costs:', e); }
+            },
+
+            getIngredientPrice(name) {
+                const ing = this.allIngredients.find(i => i.name === name);
+                return ing ? parseFloat(ing.current_price_per_kg) || 0 : 0;
+            },
+
+            getGrainPrice(grainId) {
+                const grain = this.grainTypes.find(g => g.id == grainId);
+                return grain ? grain.pricePerKg || 0 : 0;
+            },
+
+            calcGrainCost(grainId, weightGrams) {
+                const price = this.getGrainPrice(grainId);
+                return (weightGrams / 1000) * price;
+            },
+
+            calcMixinCost(ingredientName, weightGrams) {
+                const price = this.getIngredientPrice(ingredientName);
+                return (weightGrams / 1000) * price;
+            },
+
+            debouncedFetchFifoCosts() {
+                if (this._fifoTimeout) clearTimeout(this._fifoTimeout);
+                this._fifoTimeout = setTimeout(() => this.fetchFifoCosts(), 500);
+            },
+
+            async fetchFifoCosts() {
+                if (!this.ingredientsLoaded) return;
+                
+                this.fifoLoading = true;
+                const requests = [];
+                const keys = [];
+
+                const addRequest = (ingredientId, weight, keyPrefix) => {
+                    if (!ingredientId || weight <= 0) return;
+                    const key = `${keyPrefix}_${ingredientId}_${Math.round(weight)}`;
+                    if (this.fifoCosts[key] !== undefined) return;
+                    keys.push(key);
+                    requests.push(
+                        fetch(`../../api/inventory.php?action=calculate_cost&ingredient_id=${ingredientId}&quantity=${Math.round(weight)}`)
+                            .then(r => r.json())
+                            .then(data => ({ key, cost: data.success ? data.cost_calculation.total_cost : null }))
+                            .catch(() => ({ key, cost: null }))
+                    );
+                };
+
+                if (this.useSourdough) {
+                    this.sourdoughGrains.forEach((g, i) => {
+                        const weight = this.sourdoughGrainDetail(i).total;
+                        addRequest(g.type, weight, 'grain');
+                    });
+                }
+                if (this.usePreFerment) {
+                    this.preFermentGrains.forEach((g, i) => {
+                        const weight = this.preFermentGrainDetail(i).total;
+                        addRequest(g.type, weight, 'grain');
+                    });
+                }
+                this.mainDoughGrains.forEach((g, i) => {
+                    const weight = this.mainDoughGrainDetail(i).total;
+                    addRequest(g.type, weight, 'grain');
+                });
+
+                if (this.useYeast) {
+                    addRequest(this.yeastType, this.yeastWeight, 'yeast');
+                }
+
+                const saltIng = this.allIngredients.find(i => i.name === 'Zout');
+                if (saltIng) {
+                    addRequest(saltIng.id, this.saltWeight, 'ing');
+                }
+
+                this.mixins.forEach((m, i) => {
+                    if (m.ingredient && m.pct > 0) {
+                        const ing = this.allIngredients.find(x => x.name === m.ingredient);
+                        if (ing) addRequest(ing.id, this.mixinWeight(i), 'ing');
+                    }
+                });
+
+                this.toppings.forEach((t, i) => {
+                    if (t.ingredient && t.pct > 0) {
+                        const ing = this.allIngredients.find(x => x.name === t.ingredient);
+                        if (ing) addRequest(ing.id, this.toppingWeight(i), 'ing');
+                    }
+                });
+
+                if (requests.length > 0) {
+                    const results = await Promise.all(requests);
+                    const newCosts = { ...this.fifoCosts };
+                    results.forEach(r => {
+                        if (r.cost !== null) newCosts[r.key] = r.cost;
+                    });
+                    this.fifoCosts = newCosts;
+                }
+                this.fifoLoading = false;
+            },
+
+            async addDoughType() {
+                const name = this.newDoughTypeName.trim();
+                if (!name) return;
+                try {
+                    const res = await fetch('../../api/dough-types.php', {
+                        method: 'POST',
+                        headers: {'Content-Type': 'application/json'},
+                        body: JSON.stringify({ name })
+                    });
+                    const data = await res.json();
+                    if (data.success) {
+                        this.doughTypes.push({ id: data.id, name });
+                        this.newDoughTypeName = '';
+                        this.showToast('Deegsoort toegevoegd!');
+                    }
+                } catch (e) { console.error(e); }
+            },
+
+            async deleteDoughType(id) {
+                if (!confirm('Weet je zeker dat je deze deegsoort wilt verwijderen?')) return;
+                try {
+                    const res = await fetch('../../api/dough-types.php?id=' + id, { method: 'DELETE' });
+                    const data = await res.json();
+                    if (data.success) {
+                        this.doughTypes = this.doughTypes.filter(dt => dt.id !== id);
+                        if (this.doughTypeId === id) this.doughTypeId = null;
+                        this.showToast('Deegsoort verwijderd!');
+                    }
+                } catch (e) { console.error(e); }
+            },
         },
 
         mounted() {
+            this.loadIngredients();
             this.loadSavedRecipes();
+            this.loadUtilityCosts();
         }
     }).mount('#app');
     </script>

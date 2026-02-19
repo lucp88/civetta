@@ -24,7 +24,12 @@ switch ($method) {
                 echo json_encode(['success' => false, 'error' => 'Recept niet gevonden']);
             }
         } else {
-            $stmt = $pdo->query("SELECT id, name, created_at, updated_at FROM baker_recipes ORDER BY updated_at DESC");
+            $stmt = $pdo->query("
+                SELECT r.id, r.name, r.dough_type_id, r.created_at, r.updated_at, dt.name as dough_type_name
+                FROM baker_recipes r
+                LEFT JOIN dough_types dt ON r.dough_type_id = dt.id
+                ORDER BY dt.name ASC, r.name ASC
+            ");
             echo json_encode(['success' => true, 'recipes' => $stmt->fetchAll()]);
         }
         break;
@@ -35,8 +40,9 @@ switch ($method) {
             echo json_encode(['success' => false, 'error' => 'Naam is verplicht']);
             break;
         }
-        $stmt = $pdo->prepare("INSERT INTO baker_recipes (name, recipe_data) VALUES (?, ?)");
-        $stmt->execute([$data['name'], json_encode($data['recipe_data'])]);
+        $doughTypeId = isset($data['dough_type_id']) ? ($data['dough_type_id'] ?: null) : null;
+        $stmt = $pdo->prepare("INSERT INTO baker_recipes (name, dough_type_id, recipe_data) VALUES (?, ?, ?)");
+        $stmt->execute([$data['name'], $doughTypeId, json_encode($data['recipe_data'])]);
         echo json_encode(['success' => true, 'id' => $pdo->lastInsertId()]);
         break;
 
@@ -46,8 +52,9 @@ switch ($method) {
             echo json_encode(['success' => false, 'error' => 'ID is verplicht']);
             break;
         }
-        $stmt = $pdo->prepare("UPDATE baker_recipes SET name = ?, recipe_data = ? WHERE id = ?");
-        $stmt->execute([$data['name'], json_encode($data['recipe_data']), $data['id']]);
+        $doughTypeId = isset($data['dough_type_id']) ? ($data['dough_type_id'] ?: null) : null;
+        $stmt = $pdo->prepare("UPDATE baker_recipes SET name = ?, dough_type_id = ?, recipe_data = ? WHERE id = ?");
+        $stmt->execute([$data['name'], $doughTypeId, json_encode($data['recipe_data']), $data['id']]);
         echo json_encode(['success' => true]);
         break;
 

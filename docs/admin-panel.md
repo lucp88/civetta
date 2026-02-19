@@ -32,6 +32,8 @@ admin/
 │   └── orders.php            - Bestellingenbeheer
 ├── donaties/               - Financieel
 │   └── donations.php         - Donaties / crowdfunding
+├── reporting/              - Rapportages
+│   └── analytics.php         - Analytics dashboard
 └── settings/               - Instellingen
     ├── settings-bedrijf.php    - Bedrijfsgegevens
     └── settings-boekhouding.php - Boekhouding / e-Boekhouden
@@ -139,6 +141,20 @@ Eenmalig script voor het importeren van initiële blog posts.
 Donatie tracking met:
 - Handmatige invoer
 - Mollie betalingsintegratie overzicht
+
+## Rapportages
+
+### reporting/analytics.php - Analytics Dashboard
+Volledige analytics dashboard met:
+- **Date range filters**: Van/tot datum selectie
+- **Stats overview**: Totale omzet, producten verkocht, gemiddelde orderwaarde, actieve locaties
+- **Omzet over tijd chart**: Line chart met dag/week/maand/jaar granulariteit
+- **Broden verkocht over tijd chart**: Bar chart met dag/week/maand/jaar granulariteit
+- **Best verkopende broden ranking**: Lijst met progress bars (top 10)
+- **Best verkopende broden grafiek**: Horizontal bar chart (top 8)
+- **Verkoop per locatie heatmap**: Stad/dorp niveau met kleurcodering op basis van omzet
+
+Gebruikt Chart.js voor grafieken en haalt data op via `api/analytics.php`.
 
 ## Instellingen
 

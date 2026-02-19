@@ -51,9 +51,36 @@ $stmt->execute([$deliveryStart->format('Y-m-d'), $deliveryEnd->format('Y-m-d')])
 $allOrders = $stmt->fetchAll();
 
 foreach ($allOrders as &$order) {
-    $stmt = $pdo->prepare("SELECT boi.product_name, boi.quantity, boi.unit_price, COALESCE(d.naam, 'Overig') as deegtype_naam FROM business_order_items boi LEFT JOIN products p ON boi.product_name = p.naam LEFT JOIN deegtypes d ON p.deegtype_id = d.id WHERE boi.order_id = ?");
+    $stmt = $pdo->prepare("
+        SELECT 
+            boi.product_name, 
+            boi.quantity, 
+            boi.unit_price, 
+            pv.recipe_id,
+            pv.gewicht as variant_weight,
+            COALESCE(br.name, 'Geen recept') as recipe_name,
+            br.recipe_data,
+            br.dough_type_id,
+            COALESCE(dt.name, 'Geen deegsoort') as dough_type_name
+        FROM business_order_items boi 
+        LEFT JOIN products p ON LOWER(TRIM(boi.product_name)) = LOWER(TRIM(p.naam))
+        LEFT JOIN product_variants pv ON pv.product_id = p.id AND ROUND(pv.prijs, 2) = ROUND(boi.unit_price, 2)
+        LEFT JOIN baker_recipes br ON pv.recipe_id = br.id
+        LEFT JOIN dough_types dt ON br.dough_type_id = dt.id
+        WHERE boi.order_id = ?
+    ");
     $stmt->execute([$order['id']]);
-    $order['items'] = $stmt->fetchAll();
+    $items = $stmt->fetchAll();
+    foreach ($items as &$item) {
+        $item['dough_weight'] = 0;
+        if (!empty($item['recipe_data'])) {
+            $recipeData = json_decode($item['recipe_data'], true);
+            $item['dough_weight'] = $recipeData['doughWeight'] ?? 0;
+        }
+        unset($item['recipe_data']);
+    }
+    unset($item);
+    $order['items'] = $items;
     
     $deliveryDate = new DateTime($order['delivery_date']);
     $deliveryDate->modify('-1 day');
@@ -118,6 +145,57 @@ function formatDutchDate($date) {
         .calendar-cell.today { background: #fff8e1; }
         .calendar-cell.selected { background: #ffe0d0; }
         .calendar-preview-item + .calendar-preview-item[style] { color: #ff6b35; }
+        .dough-type-header {
+            font-weight: 700;
+            font-size: 0.95rem;
+            color: #5c3d1e;
+            padding: 0.75rem 0 0.4rem;
+            border-bottom: 3px solid #c8913a;
+            margin-top: 0.75rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background: linear-gradient(to bottom, #faf6f1, transparent);
+        }
+        .dough-type-header:first-child { margin-top: 0; }
+        .dough-type-header i { margin-right: 0.4rem; color: #c8913a; }
+        .recipe-group-title {
+            font-weight: 600;
+            font-size: 0.85rem;
+            color: #8b5a2b;
+            padding: 0.5rem 0 0.25rem;
+            border-bottom: 1px solid #e8dfd2;
+            margin-top: 0.4rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .recipe-group-title:first-child { margin-top: 0; }
+        .recipe-group-title i { margin-right: 0.3rem; color: #c8913a; }
+        .product-total-weight {
+            color: #888;
+            font-size: 0.8rem;
+        }
+        .btn-dagproductie {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.5rem;
+            width: 100%;
+            margin-top: 1rem;
+            padding: 0.75rem;
+            background: linear-gradient(135deg, #c8913a, #a0722e);
+            color: white;
+            text-decoration: none;
+            border-radius: 8px;
+            font-weight: 600;
+            font-size: 0.9rem;
+            transition: all 0.2s;
+        }
+        .btn-dagproductie:hover {
+            background: linear-gradient(135deg, #a0722e, #8b5a2b);
+            transform: translateY(-1px);
+        }
     </style>
 </head>
 <body>
@@ -204,24 +282,46 @@ function formatDutchDate($date) {
                             uasort($productTotals, function($a, $b) { return $b['qty'] - $a['qty']; });
                             ?>
                             <?php
-                            $deegtypeTotals = [];
+                            $doughTypeTotals = [];
                             foreach ($orders as $o) {
                                 foreach ($o['items'] as $item) {
-                                    $dt = $item['deegtype_naam'];
-                                    $name = $item['product_name'];
-                                    if (!isset($deegtypeTotals[$dt])) $deegtypeTotals[$dt] = [];
-                                    if (!isset($deegtypeTotals[$dt][$name])) $deegtypeTotals[$dt][$name] = ['qty' => 0, 'amount' => 0];
-                                    $deegtypeTotals[$dt][$name]['qty'] += $item['quantity'];
-                                    $deegtypeTotals[$dt][$name]['amount'] += $item['quantity'] * $item['unit_price'];
+                                    $doughTypeName = $item['dough_type_name'] ?? 'Geen deegsoort';
+                                    $recipeName = $item['recipe_name'] ?? 'Geen recept';
+                                    $doughWeight = $item['dough_weight'] ?? 0;
+                                    $productName = $item['product_name'];
+                                    
+                                    if ($doughWeight > 0) {
+                                        if (!isset($doughTypeTotals[$doughTypeName])) {
+                                            $doughTypeTotals[$doughTypeName] = ['recipes' => [], 'total_dough' => 0];
+                                        }
+                                        if (!isset($doughTypeTotals[$doughTypeName]['recipes'][$recipeName])) {
+                                            $doughTypeTotals[$doughTypeName]['recipes'][$recipeName] = ['weights' => [], 'total_dough' => 0];
+                                        }
+                                        if (!isset($doughTypeTotals[$doughTypeName]['recipes'][$recipeName]['weights'][$doughWeight])) {
+                                            $doughTypeTotals[$doughTypeName]['recipes'][$recipeName]['weights'][$doughWeight] = ['qty' => 0, 'products' => []];
+                                        }
+                                        $doughTypeTotals[$doughTypeName]['recipes'][$recipeName]['weights'][$doughWeight]['qty'] += $item['quantity'];
+                                        if (!isset($doughTypeTotals[$doughTypeName]['recipes'][$recipeName]['weights'][$doughWeight]['products'][$productName])) {
+                                            $doughTypeTotals[$doughTypeName]['recipes'][$recipeName]['weights'][$doughWeight]['products'][$productName] = 0;
+                                        }
+                                        $doughTypeTotals[$doughTypeName]['recipes'][$recipeName]['weights'][$doughWeight]['products'][$productName] += $item['quantity'];
+                                        $doughTypeTotals[$doughTypeName]['recipes'][$recipeName]['total_dough'] += $item['quantity'] * $doughWeight;
+                                        $doughTypeTotals[$doughTypeName]['total_dough'] += $item['quantity'] * $doughWeight;
+                                    }
                                 }
                             }
-                            ksort($deegtypeTotals);
+                            ksort($doughTypeTotals);
+                            foreach ($doughTypeTotals as &$dt) {
+                                ksort($dt['recipes']);
+                                foreach ($dt['recipes'] as &$r) { krsort($r['weights']); }
+                            }
+                            unset($dt, $r);
                             ?>
                             <div class="totals-section">
                                 <h4><i class="bi bi-list-check"></i> Totaal te bereiden</h4>
                                 <div class="totals-tabs">
                                     <button class="totals-tab active" onclick="switchTotalsTab(this, 'producten')">Producten</button>
-                                    <button class="totals-tab" onclick="switchTotalsTab(this, 'deegtypes')">Deegtypes</button>
+                                    <button class="totals-tab" onclick="switchTotalsTab(this, 'recepten')">Recepten</button>
                                 </div>
                                 <div class="totals-tab-content active" data-tab="producten">
                                     <div class="product-totals-list">
@@ -233,18 +333,34 @@ function formatDutchDate($date) {
                                         <?php endforeach; ?>
                                     </div>
                                 </div>
-                                <div class="totals-tab-content" data-tab="deegtypes">
+                                <div class="totals-tab-content" data-tab="recepten">
                                     <div class="product-totals-list">
-                                        <?php foreach ($deegtypeTotals as $deegtype => $products): ?>
-                                            <?php $groupTotal = array_sum(array_column($products, 'qty')); ?>
-                                            <div class="deegtype-group-title"><span><?= htmlspecialchars($deegtype) ?></span><span><?= $groupTotal ?></span></div>
-                                            <?php foreach ($products as $product => $data): ?>
-                                                <div class="product-total-item">
-                                                    <span><span class="product-total-qty"><?= $data['qty'] ?>x</span> <span class="product-total-name"><?= htmlspecialchars($product) ?></span></span>
+                                        <?php foreach ($doughTypeTotals as $doughType => $dtData): ?>
+                                            <div class="dough-type-header">
+                                                <span><i class="bi bi-layers"></i> <?= htmlspecialchars($doughType) ?></span>
+                                                <span style="font-weight:700;color:#5c3d1e"><?= number_format($dtData['total_dough']/1000, 2, ',', '.') ?> kg</span>
+                                            </div>
+                                            <?php foreach ($dtData['recipes'] as $recipe => $rData): ?>
+                                                <div class="recipe-group-title" style="margin-left:0.75rem">
+                                                    <span><i class="bi bi-journal-bookmark"></i> <?= htmlspecialchars($recipe) ?></span>
+                                                    <span style="font-weight:600;color:#c8913a"><?= number_format($rData['total_dough']/1000, 2, ',', '.') ?> kg</span>
                                                 </div>
+                                                <?php foreach ($rData['weights'] as $weight => $wdata): ?>
+                                                    <div class="product-total-item" style="margin-left:1.5rem;font-weight:600">
+                                                        <span><span class="product-total-qty"><?= $wdata['qty'] ?>x</span> <span class="product-total-name"><?= $weight ?>g</span></span>
+                                                    </div>
+                                                    <?php foreach ($wdata['products'] as $pname => $pqty): ?>
+                                                    <div class="product-total-item" style="margin-left:2.5rem;font-size:0.85rem;color:#666">
+                                                        <span><?= $pqty ?>x <?= htmlspecialchars($pname) ?></span>
+                                                    </div>
+                                                    <?php endforeach; ?>
+                                                <?php endforeach; ?>
                                             <?php endforeach; ?>
                                         <?php endforeach; ?>
                                     </div>
+                                    <a href="dagproductie.php?date=<?= $currentDate->format('Y-m-d') ?>" class="btn-dagproductie">
+                                        <i class="bi bi-calculator"></i> Bekijk ingrediënten
+                                    </a>
                                 </div>
                             </div>
                             <div class="orders-section">
@@ -402,33 +518,60 @@ function formatDutchDate($date) {
             
             const sortedProducts = Object.entries(productTotals).sort((a, b) => b[1].qty - a[1].qty);
             
-            const deegtypeTotals = {};
+            const doughTypeTotals = {};
             orders.forEach(order => {
                 order.items.forEach(item => {
-                    const dt = item.deegtype_naam || 'Overig';
-                    if (!deegtypeTotals[dt]) deegtypeTotals[dt] = {};
-                    if (!deegtypeTotals[dt][item.product_name]) deegtypeTotals[dt][item.product_name] = { qty: 0, amount: 0 };
-                    deegtypeTotals[dt][item.product_name].qty += parseInt(item.quantity);
-                    deegtypeTotals[dt][item.product_name].amount += parseInt(item.quantity) * parseFloat(item.unit_price);
+                    const doughTypeName = item.dough_type_name || 'Geen deegsoort';
+                    const recipeName = item.recipe_name || 'Geen recept';
+                    const doughWeight = parseInt(item.dough_weight) || 0;
+                    const productName = item.product_name;
+                    if (doughWeight > 0) {
+                        if (!doughTypeTotals[doughTypeName]) doughTypeTotals[doughTypeName] = { recipes: {}, totalDough: 0 };
+                        if (!doughTypeTotals[doughTypeName].recipes[recipeName]) doughTypeTotals[doughTypeName].recipes[recipeName] = { weights: {}, totalDough: 0 };
+                        if (!doughTypeTotals[doughTypeName].recipes[recipeName].weights[doughWeight]) {
+                            doughTypeTotals[doughTypeName].recipes[recipeName].weights[doughWeight] = { qty: 0, products: {} };
+                        }
+                        const qty = parseInt(item.quantity);
+                        doughTypeTotals[doughTypeName].recipes[recipeName].weights[doughWeight].qty += qty;
+                        if (!doughTypeTotals[doughTypeName].recipes[recipeName].weights[doughWeight].products[productName]) {
+                            doughTypeTotals[doughTypeName].recipes[recipeName].weights[doughWeight].products[productName] = 0;
+                        }
+                        doughTypeTotals[doughTypeName].recipes[recipeName].weights[doughWeight].products[productName] += qty;
+                        doughTypeTotals[doughTypeName].recipes[recipeName].totalDough += qty * doughWeight;
+                        doughTypeTotals[doughTypeName].totalDough += qty * doughWeight;
+                    }
                 });
             });
             
             html += '<div class="totals-section"><h4><i class="bi bi-list-check"></i> Totaal te bereiden</h4>';
-            html += '<div class="totals-tabs"><button class="totals-tab active" onclick="switchTotalsTab(this, \'producten\')">Producten</button><button class="totals-tab" onclick="switchTotalsTab(this, \'deegtypes\')">Deegtypes</button></div>';
+            html += '<div class="totals-tabs"><button class="totals-tab active" onclick="switchTotalsTab(this, \'producten\')">Producten</button><button class="totals-tab" onclick="switchTotalsTab(this, \'recepten\')">Recepten</button></div>';
             html += '<div class="totals-tab-content active" data-tab="producten"><div class="product-totals-list">';
             for (const [product, data] of sortedProducts) {
                 html += `<div class="product-total-item"><span><span class="product-total-qty">${data.qty}x</span> <span class="product-total-name">${escapeHtml(product)}</span></span><span class="product-total-price">\u20AC${data.amount.toFixed(2).replace('.', ',')}</span></div>`;
             }
             html += '</div></div>';
-            html += '<div class="totals-tab-content" data-tab="deegtypes"><div class="product-totals-list">';
-            for (const dt of Object.keys(deegtypeTotals).sort()) {
-                const dtTotal = Object.values(deegtypeTotals[dt]).reduce((sum, d) => sum + d.qty, 0);
-                html += `<div class="deegtype-group-title"><span>${escapeHtml(dt)}</span><span>${dtTotal}</span></div>`;
-                for (const [product, data] of Object.entries(deegtypeTotals[dt])) {
-                    html += `<div class="product-total-item"><span><span class="product-total-qty">${data.qty}x</span> <span class="product-total-name">${escapeHtml(product)}</span></span></div>`;
+            html += '<div class="totals-tab-content" data-tab="recepten"><div class="product-totals-list">';
+            for (const doughType of Object.keys(doughTypeTotals).sort()) {
+                const dtData = doughTypeTotals[doughType];
+                const kgTotal = (dtData.totalDough / 1000).toFixed(2).replace('.', ',');
+                html += `<div class="dough-type-header"><span><i class="bi bi-layers"></i> ${escapeHtml(doughType)}</span><span style="font-weight:700;color:#5c3d1e">${kgTotal} kg</span></div>`;
+                for (const recipe of Object.keys(dtData.recipes).sort()) {
+                    const rData = dtData.recipes[recipe];
+                    const kgRecipe = (rData.totalDough / 1000).toFixed(2).replace('.', ',');
+                    html += `<div class="recipe-group-title" style="margin-left:0.75rem"><span><i class="bi bi-journal-bookmark"></i> ${escapeHtml(recipe)}</span><span style="font-weight:600;color:#c8913a">${kgRecipe} kg</span></div>`;
+                    const sortedWeights = Object.keys(rData.weights).sort((a, b) => b - a);
+                    for (const weight of sortedWeights) {
+                        const wdata = rData.weights[weight];
+                        html += `<div class="product-total-item" style="margin-left:1.5rem;font-weight:600"><span><span class="product-total-qty">${wdata.qty}x</span> <span class="product-total-name">${weight}g</span></span></div>`;
+                        for (const [pname, pqty] of Object.entries(wdata.products)) {
+                            html += `<div class="product-total-item" style="margin-left:2.5rem;font-size:0.85rem;color:#666"><span>${pqty}x ${escapeHtml(pname)}</span></div>`;
+                        }
+                    }
                 }
             }
-            html += '</div></div></div>';
+            html += '</div>';
+            html += `<a href="dagproductie.php?date=${date}" class="btn-dagproductie"><i class="bi bi-calculator"></i> Bekijk ingrediënten</a>`;
+            html += '</div></div>';
             
             html += `<div class="orders-section"><h4><i class="bi bi-people"></i> Klanten (${orders.length})</h4>`;
             orders.forEach(order => {

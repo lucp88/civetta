@@ -36,15 +36,22 @@ $stmt->execute([$today]);
 $upcomingDeliveries = $stmt->fetchAll();
 
 $stmt = $pdo->prepare("
-    SELECT boi.product_name, SUM(boi.quantity) as total_qty
+    SELECT 
+        COALESCE(dt.name, 'Geen deegsoort') as dough_type_name,
+        SUM(boi.quantity * COALESCE(pv.dough_weight, 0)) as total_dough
     FROM business_order_items boi
     JOIN business_orders bo ON boi.order_id = bo.id
+    LEFT JOIN products p ON boi.product_name = p.naam
+    LEFT JOIN product_variants pv ON pv.product_id = p.id AND pv.prijs = boi.unit_price
+    LEFT JOIN baker_recipes br ON pv.recipe_id = br.id
+    LEFT JOIN dough_types dt ON br.dough_type_id = dt.id
     WHERE bo.delivery_date = ? AND bo.is_cancelled = 0
-    GROUP BY boi.product_name
-    ORDER BY total_qty DESC
+    GROUP BY dt.id, dt.name
+    HAVING total_dough > 0
+    ORDER BY total_dough DESC
 ");
 $stmt->execute([$tomorrow]);
-$productsToBake = $stmt->fetchAll();
+$doughToBake = $stmt->fetchAll();
 
 $stmt = $pdo->query("SELECT COUNT(*) as count FROM business_accounts WHERE status = 'pending'");
 $sidebarPendingAccounts = $stmt->fetch()['count'];
@@ -446,8 +453,8 @@ function getGreeting() {
                                 <div class="action-stat-label">Bestellingen</div>
                             </div>
                             <div class="action-stat">
-                                <div class="action-stat-value"><?= count($productsToBake) ?></div>
-                                <div class="action-stat-label">Producten</div>
+                                <div class="action-stat-value"><?= count($doughToBake) ?></div>
+                                <div class="action-stat-label">Deegsoorten</div>
                             </div>
                         </div>
                         <div class="action-card-arrow">
@@ -484,23 +491,23 @@ function getGreeting() {
                             <a href="bereiden.php?mode=day" class="summary-header-link">Bekijk alles</a>
                         </div>
                         <div class="summary-body">
-                            <?php if (empty($productsToBake)): ?>
+                            <?php if (empty($doughToBake)): ?>
                                 <div class="empty-state">
                                     <i class="bi bi-emoji-smile"></i>
                                     Niets te bereiden vandaag
                                 </div>
                             <?php else: ?>
-                                <?php foreach (array_slice($productsToBake, 0, 5) as $product): ?>
+                                <?php foreach (array_slice($doughToBake, 0, 5) as $dough): ?>
                                     <div class="product-row">
-                                        <span class="product-name"><?= htmlspecialchars($product['product_name']) ?></span>
-                                        <span class="product-qty"><?= $product['total_qty'] ?>x</span>
+                                        <span class="product-name"><?= htmlspecialchars($dough['dough_type_name']) ?></span>
+                                        <span class="product-qty"><?= number_format($dough['total_dough'] / 1000, 1, ',', '.') ?> kg</span>
                                     </div>
                                 <?php endforeach; ?>
                             <?php endif; ?>
                         </div>
-                        <?php if (count($productsToBake) > 5): ?>
+                        <?php if (count($doughToBake) > 5): ?>
                             <a href="bereiden.php?mode=day" class="more-link">
-                                +<?= count($productsToBake) - 5 ?> meer producten
+                                +<?= count($doughToBake) - 5 ?> meer deegsoorten
                             </a>
                         <?php endif; ?>
                     </div>
