@@ -195,13 +195,13 @@ try {
                 }
                 unset($product);
             } catch (Exception $e) {
-                // Recipe/ingredient data unavailable — products still returned without it
+                $recipeDebugError = $e->getMessage();
             }
 
             $stmt = $pdo->query("SELECT setting_value FROM settings WHERE setting_key = 'btw_tarief'");
             $btwTarief = floatval($stmt->fetchColumn() ?: 9);
 
-            echo json_encode(['success' => true, 'products' => $products, 'btw_tarief' => $btwTarief]);
+            echo json_encode(['success' => true, 'products' => $products, 'btw_tarief' => $btwTarief, '_debug' => $recipeDebugError ?? null]);
             break;
             
         case 'POST':
