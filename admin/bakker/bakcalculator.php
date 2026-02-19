@@ -464,12 +464,12 @@ $monthlyBreadCount = (int)$stmt->fetch()['total_breads'];
                         <div v-if="mixins.length === 0" class="empty-state" style="padding:1rem">
                             <p style="color:#bbb">Nog geen mix-ins toegevoegd</p>
                         </div>
-                        <datalist id="mixin-suggestions">
-                            <option v-for="ing in mixinIngredients" :value="ing.name"></option>
-                        </datalist>
                         <div class="mixin-row" v-for="(m, i) in mixins" :key="'mx'+i">
                             <div class="form-group">
-                                <input type="text" v-model="m.ingredient" class="form-input" list="mixin-suggestions" placeholder="Ingrediënt..." @input="autoCategory(m)">
+                                <select v-model="m.ingredient" class="form-select" @change="autoCategory(m)">
+                                    <option value="">Kies ingrediënt...</option>
+                                    <option v-for="ing in mixinIngredients" :key="ing.id" :value="ing.name">{{ ing.name }}</option>
+                                </select>
                             </div>
                             <div class="form-group" style="flex:0.6">
                                 <div class="input-with-unit">
@@ -497,12 +497,12 @@ $monthlyBreadCount = (int)$stmt->fetch()['total_breads'];
                         <div v-if="toppings.length === 0" class="empty-state" style="padding:1rem">
                             <p style="color:#bbb">Nog geen toppings toegevoegd</p>
                         </div>
-                        <datalist id="topping-suggestions">
-                            <option v-for="ing in toppingIngredients" :value="ing.name"></option>
-                        </datalist>
                         <div class="topping-row" v-for="(t, i) in toppings" :key="'tp'+i">
                             <div class="form-group">
-                                <input type="text" v-model="t.ingredient" class="form-input" list="topping-suggestions" placeholder="Topping...">
+                                <select v-model="t.ingredient" class="form-select">
+                                    <option value="">Kies ingrediënt...</option>
+                                    <option v-for="ing in toppingIngredients" :key="ing.id" :value="ing.name">{{ ing.name }}</option>
+                                </select>
                             </div>
                             <div class="form-group" style="flex:0.6">
                                 <div class="input-with-unit">
