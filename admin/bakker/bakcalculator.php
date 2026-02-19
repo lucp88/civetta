@@ -1686,8 +1686,10 @@ $monthlyBreadCount = (int)$stmt->fetch()['total_breads'];
                             ];
                         }
                         
+                        const seenNames = new Set();
                         this.mixinIngredients = data.ingredients
                             .filter(i => i.category === 'mixin' || i.category === 'topping')
+                            .filter(i => !seenNames.has(i.name) && seenNames.add(i.name))
                             .map(i => ({
                                 id: i.id,
                                 name: i.name,
