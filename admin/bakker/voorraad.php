@@ -483,49 +483,55 @@ $adminBasePath = '../';
                         <div class="utility-card">
                             <div class="utility-header">
                                 <div class="utility-title"><i class="bi bi-droplet"></i> Water</div>
-                                <span class="estimate-badge" v-if="waterCost.is_estimate">Schatting</span>
                             </div>
-                            <div class="form-row">
-                                <div class="form-group">
-                                    <label class="form-label">Kosten per maand</label>
+                            <div class="form-row" style="grid-template-columns:1fr 1fr auto;align-items:flex-end">
+                                <div class="form-group" style="margin-bottom:0">
+                                    <label class="form-label">Kosten</label>
                                     <div class="input-with-unit">
-                                        <input type="number" class="form-input" v-model.number="waterCost.cost" step="0.01" min="0">
+                                        <input type="number" class="form-input" v-model.number="waterCost.cost" step="0.01" min="0" placeholder="Werkelijk">
                                         <span class="input-unit">€</span>
                                     </div>
                                 </div>
-                                <div class="form-group" style="display:flex;align-items:flex-end">
+                                <div class="form-group" style="margin-bottom:0">
+                                    <label class="form-label">Geschatte Kosten</label>
+                                    <div class="input-with-unit">
+                                        <input type="number" class="form-input" v-model.number="waterCost.estimated_cost" step="0.01" min="0" placeholder="Schatting">
+                                        <span class="input-unit">€</span>
+                                    </div>
+                                </div>
+                                <div>
                                     <button class="btn btn-success" @click="saveUtilityCost('water')" :disabled="savingUtility">
-                                        <i class="bi bi-save"></i> {{ waterCost.is_estimate ? 'Definitief Opslaan' : 'Opslaan' }}
+                                        <i class="bi bi-save"></i> Invoeren
                                     </button>
                                 </div>
                             </div>
-                            <p style="font-size:0.8rem;color:#888;margin-top:0.5rem" v-if="waterCost.from_previous">
-                                <i class="bi bi-info-circle"></i> Overgenomen van vorige maand
-                            </p>
                         </div>
 
                         <div class="utility-card">
                             <div class="utility-header">
                                 <div class="utility-title"><i class="bi bi-lightning-charge"></i> Elektriciteit</div>
-                                <span class="estimate-badge" v-if="electricityCost.is_estimate">Schatting</span>
                             </div>
-                            <div class="form-row">
-                                <div class="form-group">
-                                    <label class="form-label">Kosten per maand</label>
+                            <div class="form-row" style="grid-template-columns:1fr 1fr auto;align-items:flex-end">
+                                <div class="form-group" style="margin-bottom:0">
+                                    <label class="form-label">Kosten</label>
                                     <div class="input-with-unit">
-                                        <input type="number" class="form-input" v-model.number="electricityCost.cost" step="0.01" min="0">
+                                        <input type="number" class="form-input" v-model.number="electricityCost.cost" step="0.01" min="0" placeholder="Werkelijk">
                                         <span class="input-unit">€</span>
                                     </div>
                                 </div>
-                                <div class="form-group" style="display:flex;align-items:flex-end">
+                                <div class="form-group" style="margin-bottom:0">
+                                    <label class="form-label">Geschatte Kosten</label>
+                                    <div class="input-with-unit">
+                                        <input type="number" class="form-input" v-model.number="electricityCost.estimated_cost" step="0.01" min="0" placeholder="Schatting">
+                                        <span class="input-unit">€</span>
+                                    </div>
+                                </div>
+                                <div>
                                     <button class="btn btn-success" @click="saveUtilityCost('electricity')" :disabled="savingUtility">
-                                        <i class="bi bi-save"></i> {{ electricityCost.is_estimate ? 'Definitief Opslaan' : 'Opslaan' }}
+                                        <i class="bi bi-save"></i> Invoeren
                                     </button>
                                 </div>
                             </div>
-                            <p style="font-size:0.8rem;color:#888;margin-top:0.5rem" v-if="electricityCost.from_previous">
-                                <i class="bi bi-info-circle"></i> Overgenomen van vorige maand - vul echte kosten in zodra bekend
-                            </p>
                         </div>
 
                         <div class="utility-card">
@@ -539,7 +545,7 @@ $adminBasePath = '../';
                                     <div style="font-size:0.8rem;color:#aaa;margin-top:0.2rem">{{ monthlyLoaves.gebakken }} gebakken &bull; {{ monthlyLoaves.te_bakken }} te bakken</div>
                                 </div>
                                 <div>
-                                    <div style="font-size:0.8rem;color:#888;margin-bottom:0.25rem">Energiekosten per brood</div>
+                                    <div style="font-size:0.8rem;color:#888;margin-bottom:0.25rem">Nutskosten per brood</div>
                                     <div style="font-size:1.75rem;font-weight:700;color:#c8913a" v-if="kostPerBrood !== null">&euro;{{ formatNumber(kostPerBrood) }}</div>
                                     <div style="font-size:0.95rem;color:#aaa" v-else>Vul kosten in</div>
                                 </div>
@@ -834,8 +840,8 @@ $adminBasePath = '../';
                 batchForm: { ingredient_id: '', quantity: '', unit: 'kg', price_per_kg: '', purchase_date: '', thd_date: '' },
 
                 currentMonth: new Date().getFullYear() + '-' + String(new Date().getMonth() + 1).padStart(2, '0'),
-                waterCost: { cost: null, is_estimate: true, from_previous: false },
-                electricityCost: { cost: null, is_estimate: true, from_previous: false },
+                waterCost: { cost: null, estimated_cost: null },
+                electricityCost: { cost: null, estimated_cost: null },
                 monthlyLoaves: { gebakken: 0, te_bakken: 0, totaal: 0 },
 
                 showConsolidationModal: false,
@@ -909,8 +915,10 @@ $adminBasePath = '../';
             kostPerBrood() {
                 const totaal = this.monthlyLoaves.totaal;
                 if (!totaal) return null;
-                const energy = (parseFloat(this.waterCost.cost) || 0) + (parseFloat(this.electricityCost.cost) || 0);
-                return energy / totaal;
+                const waterVal = this.waterCost.cost !== null ? parseFloat(this.waterCost.cost) : (this.waterCost.estimated_cost !== null ? parseFloat(this.waterCost.estimated_cost) : null);
+                const elecVal = this.electricityCost.cost !== null ? parseFloat(this.electricityCost.cost) : (this.electricityCost.estimated_cost !== null ? parseFloat(this.electricityCost.estimated_cost) : null);
+                if (waterVal === null && elecVal === null) return null;
+                return ((waterVal || 0) + (elecVal || 0)) / totaal;
             },
             monthName() {
                 const [y, m] = this.currentMonth.split('-');
@@ -953,10 +961,16 @@ $adminBasePath = '../';
                     const res = await fetch(`../../api/utility-costs.php?year_month=${this.currentMonth}`);
                     const data = await res.json();
                     if (data.success) {
-                        const water = data.costs.find(c => c.type === 'water') || { cost: null, is_estimate: true };
-                        const elec = data.costs.find(c => c.type === 'electricity') || { cost: null, is_estimate: true };
-                        this.waterCost = { cost: water.cost !== null ? parseFloat(water.cost) : null, is_estimate: water.is_estimate == 1, from_previous: water.from_previous || false };
-                        this.electricityCost = { cost: elec.cost !== null ? parseFloat(elec.cost) : null, is_estimate: elec.is_estimate == 1, from_previous: elec.from_previous || false };
+                        const water = data.costs.water;
+                        const elec = data.costs.electricity;
+                        this.waterCost = {
+                            cost: water.cost !== null ? parseFloat(water.cost) : null,
+                            estimated_cost: water.estimated_cost !== null ? parseFloat(water.estimated_cost) : null
+                        };
+                        this.electricityCost = {
+                            cost: elec.cost !== null ? parseFloat(elec.cost) : null,
+                            estimated_cost: elec.estimated_cost !== null ? parseFloat(elec.estimated_cost) : null
+                        };
                     }
                 } catch(e) { console.error(e); }
             },
@@ -1248,10 +1262,6 @@ $adminBasePath = '../';
 
             async saveUtilityCost(type) {
                 const cost = type === 'water' ? this.waterCost : this.electricityCost;
-                if (cost.cost === null || cost.cost === '') {
-                    this.showToast('Vul kosten in', 'error');
-                    return;
-                }
                 this.savingUtility = true;
                 try {
                     const res = await fetch('../../api/utility-costs.php', {
@@ -1260,15 +1270,14 @@ $adminBasePath = '../';
                         body: JSON.stringify({
                             type,
                             year_month: this.currentMonth,
-                            cost: cost.cost,
-                            is_estimate: false
+                            cost: cost.cost !== '' ? cost.cost : null,
+                            estimated_cost: cost.estimated_cost !== '' ? cost.estimated_cost : null
                         })
                     });
                     const data = await res.json();
                     if (data.success) {
                         this.showToast('Kosten opgeslagen');
                         this.loadUtilityCosts();
-                        this.loadMonthlyLoaves();
                     } else {
                         this.showToast(data.error || 'Fout bij opslaan', 'error');
                     }

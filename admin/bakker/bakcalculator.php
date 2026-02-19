@@ -73,7 +73,8 @@ $doughTypes = $pdo->query("SELECT id, name FROM dough_types ORDER BY name ASC")-
         .btn-ghost { background: transparent; color: #8b5a2b; border: 2px solid #e0d5c7; }
         .btn-ghost:hover { border-color: #8b5a2b; background: #faf6f1; }
         .btn-sm { padding: 0.35rem 0.7rem; font-size: 0.8rem; }
-        .tabs { display: flex; gap: 0.25rem; border-bottom: 2px solid #e0d5c7; margin-bottom: 1.5rem; overflow-x: auto; }
+        .tabs { display: flex; gap: 0.25rem; border-bottom: 2px solid #e0d5c7; margin-bottom: 1.5rem; overflow-x: auto; scrollbar-width: none; }
+        .tabs::-webkit-scrollbar { display: none; }
         .tab { padding: 0.7rem 1.2rem; cursor: pointer; font-weight: 500; color: #888; border-bottom: 3px solid transparent; margin-bottom: -2px; white-space: nowrap; transition: all 0.2s; user-select: none; }
         .tab:hover { color: #5c3d1e; }
         .tab.active { color: #8b5a2b; border-bottom-color: #c8913a; font-weight: 700; }
@@ -690,7 +691,10 @@ $doughTypes = $pdo->query("SELECT id, name FROM dough_types ORDER BY name ASC")-
 
                 <div v-show="activeTab==='recepten'">
                     <div class="panel">
-                        <div class="panel-title"><i class="bi bi-bookmark"></i> Opgeslagen Recepten</div>
+                        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem">
+                            <div class="panel-title" style="margin-bottom:0"><i class="bi bi-bookmark"></i> Opgeslagen Recepten</div>
+                            <button class="btn btn-primary btn-sm" @click="newRecipe"><i class="bi bi-plus-lg"></i> Nieuw Recept</button>
+                        </div>
                         <div v-if="savedRecipes.length === 0" class="empty-state">
                             <i class="bi bi-bookmark-star"></i>
                             <p>Nog geen recepten opgeslagen</p>
@@ -1404,31 +1408,36 @@ $doughTypes = $pdo->query("SELECT id, name FROM dough_types ORDER BY name ASC")-
                 }
             },
 
-            newRecipe() {
-                this.currentRecipeId = null;
-                this.recipeName = '';
-                this.doughTypeId = null;
-                this.doughWeight = 300;
-                this.hydration = 62;
-                this.saltPct = 2.6;
-                this.useSourdough = false;
-                this.sourdoughPct = 20;
-                this.sourdoughHydration = 100;
-                this.sourdoughGrains = [{ type: 'wheat', pct: 100 }];
-                this.useYeast = true;
-                this.yeastType = 'instant_yeast';
-                this.yeastPct = 1.3;
-                this.usePreFerment = false;
-                this.preFermentPct = 20;
-                this.preFermentHydration = 100;
-                this.preFermentGrains = [{ type: 'wheat_white', pct: 100 }];
-                this.mainDoughGrains = [{ type: 'wheat_white', pct: 100 }];
-                this.mixinMode = 'flour';
-                this.mixins = [];
-                this.toppings = [];
-                this.method = '';
-                this.calculatorActive = true;
-                this.activeTab = 'recept';
+            async newRecipe() {
+                // Try to use the saved "Standaardrecept" as the starting template
+                if (this.savedRecipes.length === 0) {
+                    await this.loadSavedRecipes();
+                }
+                const template = this.savedRecipes.find(r => r.name.toLowerCase() === 'standaardrecept');
+                if (template) {
+                    await this.loadRecipe(template.id);
+                    // Clear identity so it's treated as a new unsaved recipe
+                    this.currentRecipeId = null;
+                    this.recipeName = '';
+                    this.doughTypeId = null;
+                } else {
+                    // No Standaardrecept found — open a blank calculator
+                    this.currentRecipeId = null;
+                    this.recipeName = '';
+                    this.doughTypeId = null;
+                    this.doughWeight = null;
+                    this.hydration = null;
+                    this.saltPct = null;
+                    this.useSourdough = false;
+                    this.useYeast = false;
+                    this.usePreFerment = false;
+                    this.mainDoughGrains = [];
+                    this.mixins = [];
+                    this.toppings = [];
+                    this.method = '';
+                    this.calculatorActive = true;
+                    this.activeTab = 'recept';
+                }
             },
 
             async loadIngredients() {
