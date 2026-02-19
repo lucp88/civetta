@@ -1,8 +1,19 @@
 <?php
-require_once '../config.php';
+require_once __DIR__ . '/../config.php';
 requireLogin();
 
 header('Content-Type: text/html; charset=utf-8');
+
+function tableExists($pdo, $table) {
+    $stmt = $pdo->prepare("SHOW TABLES LIKE ?");
+    $stmt->execute([$table]);
+    return $stmt->rowCount() > 0;
+}
+
+function countRows($pdo, $table) {
+    if (!tableExists($pdo, $table)) return null;
+    return $pdo->query("SELECT COUNT(*) FROM `$table`")->fetchColumn();
+}
 
 $uitgevoerd = false;
 $fout = null;
@@ -11,16 +22,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['bevestig']) && $_POST
     try {
         $pdo->beginTransaction();
 
-        $pdo->exec("DELETE FROM renewal_reminders_sent");
+        // Verwijder in de juiste volgorde (child tables eerst)
         $pdo->exec("DELETE FROM business_order_items");
         $pdo->exec("DELETE FROM business_orders");
         $pdo->exec("DELETE FROM invoice_log");
+        if (tableExists($pdo, 'renewal_reminders_sent')) {
+            $pdo->exec("DELETE FROM renewal_reminders_sent");
+        }
 
         // Reset auto-increment zodat IDs opnieuw bij 1 beginnen
         $pdo->exec("ALTER TABLE business_orders AUTO_INCREMENT = 1");
         $pdo->exec("ALTER TABLE business_order_items AUTO_INCREMENT = 1");
         $pdo->exec("ALTER TABLE invoice_log AUTO_INCREMENT = 1");
-        $pdo->exec("ALTER TABLE renewal_reminders_sent AUTO_INCREMENT = 1");
 
         $pdo->commit();
         $uitgevoerd = true;
@@ -31,10 +44,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['bevestig']) && $_POST
 }
 
 // Tel huidige aantallen
-$aantalOrders       = $pdo->query("SELECT COUNT(*) FROM business_orders")->fetchColumn();
-$aantalOrderItems   = $pdo->query("SELECT COUNT(*) FROM business_order_items")->fetchColumn();
-$aantalInvoiceLogs  = $pdo->query("SELECT COUNT(*) FROM invoice_log")->fetchColumn();
-$aantalReminders    = $pdo->query("SELECT COUNT(*) FROM renewal_reminders_sent")->fetchColumn();
+$aantalOrders      = countRows($pdo, 'business_orders');
+$aantalOrderItems  = countRows($pdo, 'business_order_items');
+$aantalInvoiceLogs = countRows($pdo, 'invoice_log');
+$aantalReminders   = countRows($pdo, 'renewal_reminders_sent');
 ?>
 <!DOCTYPE html>
 <html lang="nl">
@@ -78,10 +91,12 @@ $aantalReminders    = $pdo->query("SELECT COUNT(*) FROM renewal_reminders_sent")
         </div>
         <table>
             <tr><th>Tabel</th><th>Resterende rijen</th></tr>
-            <tr><td>business_orders</td><td class="aantal nul"><?= $aantalOrders ?></td></tr>
-            <tr><td>business_order_items</td><td class="aantal nul"><?= $aantalOrderItems ?></td></tr>
-            <tr><td>invoice_log</td><td class="aantal nul"><?= $aantalInvoiceLogs ?></td></tr>
+            <tr><td>business_orders</td><td class="aantal nul"><?= $aantalOrders ?? '–' ?></td></tr>
+            <tr><td>business_order_items</td><td class="aantal nul"><?= $aantalOrderItems ?? '–' ?></td></tr>
+            <tr><td>invoice_log</td><td class="aantal nul"><?= $aantalInvoiceLogs ?? '–' ?></td></tr>
+            <?php if ($aantalReminders !== null): ?>
             <tr><td>renewal_reminders_sent</td><td class="aantal nul"><?= $aantalReminders ?></td></tr>
+            <?php endif; ?>
         </table>
         <a href="../bestellingen/orders.php" class="btn-terug">← Naar bestellingen</a>
 
@@ -107,15 +122,17 @@ $aantalReminders    = $pdo->query("SELECT COUNT(*) FROM renewal_reminders_sent")
                 <td>invoice_log <small style="color:#888">(factuurlogs)</small></td>
                 <td class="aantal <?= $aantalInvoiceLogs == 0 ? 'nul' : '' ?>"><?= $aantalInvoiceLogs ?></td>
             </tr>
+            <?php if ($aantalReminders !== null): ?>
             <tr>
                 <td>renewal_reminders_sent <small style="color:#888">(herhalingsherinneringen)</small></td>
                 <td class="aantal <?= $aantalReminders == 0 ? 'nul' : '' ?>"><?= $aantalReminders ?></td>
             </tr>
+            <?php endif; ?>
         </table>
 
         <p><strong>Business accounts worden niet aangeraakt.</strong> Alleen de bestellingen en bijbehorende data worden gewist.</p>
 
-        <?php if ($aantalOrders == 0 && $aantalOrderItems == 0 && $aantalInvoiceLogs == 0 && $aantalReminders == 0): ?>
+        <?php if ($aantalOrders == 0 && $aantalOrderItems == 0 && $aantalInvoiceLogs == 0 && ($aantalReminders === null || $aantalReminders == 0)): ?>
             <p class="leeg">Er is niets om te verwijderen – alle tabellen zijn al leeg.</p>
         <?php else: ?>
             <div class="waarschuwing">
