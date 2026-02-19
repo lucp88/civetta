@@ -173,7 +173,7 @@ try {
                 }
                 $ingredientLookup = [];
                 if (!empty($allGrainIds)) {
-                    $uniqueGrainIds = array_unique($allGrainIds);
+                    $uniqueGrainIds = array_values(array_unique($allGrainIds));
                     $grainPlaceholders = implode(',', array_fill(0, count($uniqueGrainIds), '?'));
                     $ingStmt = $pdo->prepare("SELECT id, name, is_whole_grain FROM ingredients WHERE id IN ($grainPlaceholders)");
                     $ingStmt->execute($uniqueGrainIds);
@@ -195,13 +195,13 @@ try {
                 }
                 unset($product);
             } catch (Exception $e) {
-                $recipeDebugError = $e->getMessage();
+                // Recipe/ingredient data unavailable — products still returned without it
             }
 
             $stmt = $pdo->query("SELECT setting_value FROM settings WHERE setting_key = 'btw_tarief'");
             $btwTarief = floatval($stmt->fetchColumn() ?: 9);
 
-            echo json_encode(['success' => true, 'products' => $products, 'btw_tarief' => $btwTarief, '_debug' => $recipeDebugError ?? null]);
+            echo json_encode(['success' => true, 'products' => $products, 'btw_tarief' => $btwTarief]);
             break;
             
         case 'POST':
