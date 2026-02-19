@@ -34,6 +34,8 @@
             box-shadow: 0 4px 20px rgba(139, 90, 43, 0.08);
             cursor: pointer;
             transition: all 0.3s ease;
+            text-decoration: none;
+            color: inherit;
         }
         .product-card-full:hover {
             transform: translateY(-4px);
@@ -150,17 +152,17 @@
                     </div>
                     
                     <div v-else class="products-grid">
-                        <article v-for="product in products" :key="product.id" class="product-card-full" @click="showProductDetail(product)">
+                        <a v-for="product in products" :key="product.id" :href="'product.html?id=' + product.id" class="product-card-full">
                             <div v-if="product.foto" class="card-image">
                                 <img :src="product.foto" :alt="product.naam">
                             </div>
                             <div class="card-content">
                                 <h3 class="card-title">{{ product.naam }}</h3>
-                                
+
                                 <p v-if="product.beschrijving" class="card-description">
                                     {{ product.beschrijving }}
                                 </p>
-                                
+
                                 <div class="card-footer">
                                     <div v-if="product.variants && product.variants.length > 0" class="card-variants">
                                         <span class="card-price">{{ formatPrice(getLowestPrice(product)) }}</span>
@@ -173,13 +175,8 @@
                                     </span>
                                 </div>
                             </div>
-                        </article>
+                        </a>
                     </div>
-                    
-                    <product-detail-modal
-                        :product="selectedProduct"
-                        @close="selectedProduct = null">
-                    </product-detail-modal>
                 </div>
             </div>
         </section>
@@ -201,7 +198,6 @@
     </footer>
 
     <script src="js/main.js"></script>
-    <script src="js/product-card.js?v=4"></script>
-    <script src="js/products-app.js?v=2"></script>
+    <script src="js/products-app.js?v=4"></script>
 </body>
 </html>

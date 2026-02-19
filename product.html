@@ -1,0 +1,333 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Product | Bakkerij Civetta</title>
+    <link rel="stylesheet" href="css/style.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Libre+Baskerville:ital,wght@0,400;0,700;1,400&family=Source+Sans+Pro:wght@400;600&display=swap" rel="stylesheet">
+    <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
+    <style>
+        .product-detail-loading,
+        .product-detail-error {
+            text-align: center;
+            padding: var(--spacing-lg);
+            color: var(--color-stone);
+        }
+        .product-detail-error a {
+            color: var(--color-crust);
+        }
+        .product-breadcrumb {
+            font-size: 0.9rem;
+            color: var(--color-stone);
+            margin-bottom: var(--spacing-md);
+        }
+        .product-breadcrumb a {
+            color: var(--color-crust);
+            text-decoration: none;
+        }
+        .product-breadcrumb a:hover {
+            text-decoration: underline;
+        }
+        .product-breadcrumb span {
+            margin: 0 0.4rem;
+            color: var(--color-wheat);
+        }
+        .product-detail-layout {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: var(--spacing-lg);
+            align-items: start;
+        }
+        @media (max-width: 700px) {
+            .product-detail-layout {
+                grid-template-columns: 1fr;
+            }
+        }
+        .product-detail-image {
+            border-radius: 16px;
+            overflow: hidden;
+            background: var(--color-parchment);
+            aspect-ratio: 4/3;
+        }
+        .product-detail-image img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            display: block;
+        }
+        .product-detail-image-placeholder {
+            width: 100%;
+            height: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .product-detail-image-placeholder svg {
+            width: 80px;
+            height: 80px;
+            opacity: 0.3;
+        }
+        .product-detail-info {
+            display: flex;
+            flex-direction: column;
+            gap: var(--spacing-sm);
+        }
+        .product-detail-name {
+            font-family: var(--font-display);
+            font-size: 2rem;
+            color: var(--color-crust-dark);
+            margin: 0;
+        }
+        .product-detail-description {
+            color: var(--color-stone);
+            font-size: 1rem;
+            line-height: 1.7;
+        }
+        .product-detail-section-label {
+            font-size: 0.8rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+            color: var(--color-wheat);
+            margin-bottom: 0.25rem;
+        }
+        .product-detail-ingredients {
+            font-size: 0.95rem;
+            color: var(--color-stone);
+            line-height: 1.6;
+        }
+        .product-detail-variants {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.5rem;
+        }
+        .product-detail-variant {
+            background: var(--color-parchment);
+            border-radius: 8px;
+            padding: 0.4rem 0.9rem;
+            font-size: 0.95rem;
+            color: var(--color-crust-dark);
+        }
+        .product-detail-variant strong {
+            font-family: var(--font-display);
+            color: var(--color-crust);
+        }
+        .product-detail-divider {
+            border: none;
+            border-top: 1px solid var(--color-parchment);
+            margin: 0;
+        }
+        /* Collapsible samenstelling */
+        .samenstelling-toggle {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            background: none;
+            border: 1px solid var(--color-parchment);
+            border-radius: 8px;
+            padding: 0.6rem 0.9rem;
+            width: 100%;
+            cursor: pointer;
+            font-family: var(--font-display);
+            font-size: 0.95rem;
+            color: var(--color-crust-dark);
+            transition: background 0.2s;
+        }
+        .samenstelling-toggle:hover {
+            background: var(--color-parchment);
+        }
+        .samenstelling-arrow {
+            font-size: 0.75rem;
+            transition: transform 0.2s;
+        }
+        .samenstelling-arrow.open {
+            transform: rotate(180deg);
+        }
+        .samenstelling-content {
+            background: var(--color-warm-white);
+            border: 1px solid var(--color-parchment);
+            border-top: none;
+            border-radius: 0 0 8px 8px;
+            padding: 0.75rem 0.9rem;
+            display: flex;
+            flex-direction: column;
+            gap: 0.35rem;
+        }
+        .samenstelling-volkoren {
+            font-size: 0.9rem;
+            color: var(--color-sage);
+            font-weight: 600;
+            margin-bottom: 0.25rem;
+        }
+        .samenstelling-subtitle {
+            font-size: 0.75rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.07em;
+            color: var(--color-wheat);
+            margin-bottom: 0.1rem;
+        }
+        .samenstelling-row {
+            display: flex;
+            justify-content: space-between;
+            font-size: 0.9rem;
+            color: var(--color-stone);
+            padding: 0.15rem 0;
+        }
+        .samenstelling-row strong {
+            color: var(--color-crust);
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <nav>
+            <div class="logo">
+                <a href="index.html">Civetta</a>
+            </div>
+            <ul class="nav-links">
+                <li><a href="index.html">Home</a></li>
+                <li><a href="ons-verhaal.html">Ons Verhaal</a></li>
+                <li><a href="producten.html" class="active">Producten</a></li>
+                <li><a href="galerij.html">Galerij</a></li>
+                <li><a href="leveranciers.html">Leveranciers</a></li>
+                <li><a href="financiering.html">Crowdfunding</a></li>
+                <li><a href="contact.html">Contact</a></li>
+                <li class="nav-login">
+                    <a href="javascript:void(0)" class="login-trigger">Inloggen</a>
+                    <div class="login-dropdown">
+                        <a href="login-bedrijven.html">Bedrijven</a>
+                        <a href="#" class="disabled">Particulieren (binnenkort)</a>
+                    </div>
+                </li>
+            </ul>
+            <button class="mobile-menu-btn" aria-label="Menu">
+                <span></span>
+                <span></span>
+                <span></span>
+            </button>
+        </nav>
+    </header>
+
+    <main id="product-detail-app">
+        <div v-if="loading" class="products">
+            <div class="container">
+                <div class="product-detail-loading">Product laden...</div>
+            </div>
+        </div>
+
+        <div v-else-if="error" class="products">
+            <div class="container">
+                <div class="product-detail-error">
+                    <p>{{ error }}</p>
+                    <p><a href="producten.html">← Terug naar producten</a></p>
+                </div>
+            </div>
+        </div>
+
+        <template v-else-if="product">
+            <section class="page-header">
+                <div class="container" style="text-align:left;">
+                    <div class="product-breadcrumb">
+                        <a href="producten.html">Producten</a>
+                        <span>›</span>
+                        <span>{{ product.naam }}</span>
+                    </div>
+                    <h1 style="font-size:2.5rem; margin:0;">{{ product.naam }}</h1>
+                </div>
+            </section>
+
+            <section class="products">
+                <div class="container">
+                    <div class="product-detail-layout">
+                        <!-- Image -->
+                        <div class="product-detail-image">
+                            <img v-if="product.foto" :src="product.foto" :alt="product.naam">
+                            <div v-else class="product-detail-image-placeholder">
+                                <svg viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                    <ellipse cx="50" cy="58" rx="35" ry="22" fill="#d4a574" opacity="0.6"/>
+                                    <ellipse cx="50" cy="52" rx="30" ry="18" fill="#c67b4e" opacity="0.7"/>
+                                    <ellipse cx="50" cy="47" rx="22" ry="12" fill="#8b5a2b" opacity="0.5"/>
+                                </svg>
+                            </div>
+                        </div>
+
+                        <!-- Info -->
+                        <div class="product-detail-info">
+                            <p v-if="product.beschrijving" class="product-detail-description">
+                                {{ product.beschrijving }}
+                            </p>
+
+                            <hr class="product-detail-divider">
+
+                            <!-- Ingredients -->
+                            <div v-if="ingredientList">
+                                <div class="product-detail-section-label">Ingrediënten</div>
+                                <div class="product-detail-ingredients">{{ ingredientList }}</div>
+                            </div>
+
+                            <!-- Samenstelling (collapsible) -->
+                            <div v-if="product.recipe_details">
+                                <button class="samenstelling-toggle" @click="showDetails = !showDetails">
+                                    <span>Samenstelling</span>
+                                    <span class="samenstelling-arrow" :class="{ open: showDetails }">▼</span>
+                                </button>
+                                <div v-if="showDetails" class="samenstelling-content">
+                                    <div v-if="product.recipe_details.volkoren_pct > 0" class="samenstelling-volkoren">
+                                        {{ product.recipe_details.volkoren_pct }}% volkoren
+                                    </div>
+                                    <div v-if="product.recipe_details.grains && product.recipe_details.grains.length > 0">
+                                        <div class="samenstelling-subtitle">Meelsoorten</div>
+                                        <div v-for="grain in product.recipe_details.grains" :key="grain.name" class="samenstelling-row">
+                                            <span>{{ grain.name }}</span>
+                                            <strong>{{ grain.pct }}%</strong>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <hr class="product-detail-divider">
+
+                            <!-- Variants / Price -->
+                            <div v-if="pricedVariants.length > 0">
+                                <div class="product-detail-section-label">Beschikbaar in</div>
+                                <div class="product-detail-variants">
+                                    <div v-for="v in pricedVariants" :key="v.id" class="product-detail-variant">
+                                        {{ v.gewicht }}g &mdash; <strong>{{ formatPrice(v.prijs) }}</strong>
+                                    </div>
+                                </div>
+                            </div>
+                            <div v-else-if="product.prijs">
+                                <div class="product-detail-section-label">Prijs</div>
+                                <div class="product-detail-variant">
+                                    <strong>{{ formatPrice(product.prijs) }}</strong>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+        </template>
+    </main>
+
+    <footer>
+        <div class="container">
+            <div class="footer-content">
+                <div class="footer-info">
+                    <p><strong>Bakkerij Civetta</strong></p>
+                    <p>Leersum, Utrecht</p>
+                </div>
+                <img src="img/logo.jpeg" alt="Civetta" class="footer-logo">
+                <div class="footer-contact">
+                    <p><a href="mailto:laurens@bakkerij-civetta.nl">laurens@bakkerij-civetta.nl</a></p>
+                </div>
+            </div>
+        </div>
+    </footer>
+
+    <script src="js/main.js"></script>
+    <script src="js/product-detail-app.js?v=1"></script>
+</body>
+</html>
