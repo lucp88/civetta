@@ -60,14 +60,12 @@ $adminBasePath = '../';
         .form-group { margin-bottom: 1rem; }
         .form-label { display: block; font-size: 0.85rem; font-weight: 600; color: #5c3d1e; margin-bottom: 0.35rem; }
 
-        /* Date bar */
-        .date-bar { display: flex; align-items: center; gap: 0.6rem; margin-bottom: 1.5rem; flex-wrap: wrap; }
-        .date-bar-divider { width: 1px; height: 24px; background: #e0d5c7; margin: 0 0.1rem; flex-shrink: 0; }
+        /* Date input */
         .date-input { padding: 0.5rem 0.75rem; border: 1.5px solid #e0d5c7; border-radius: 8px; font-size: 0.9rem; color: #333; background: white; font-family: inherit; }
         .date-input:focus { outline: none; border-color: #8b5a2b; }
 
         /* Status bar */
-        .status-bar { display: flex; align-items: center; gap: 0.75rem; padding: 0.7rem 1rem; border-radius: 8px; margin-bottom: 1rem; font-size: 0.88rem; flex-wrap: wrap; }
+        .status-bar { display: flex; align-items: center; gap: 0.75rem; padding: 0.65rem 1rem; border-radius: 8px; margin-bottom: 1rem; font-size: 0.87rem; flex-wrap: wrap; }
         .status-bar-normal { background: #f8f5f0; border: 1px solid #e8e0d5; }
         .status-bar-late   { background: #fff8e1; border: 1px solid #ffe082; }
 
@@ -93,8 +91,6 @@ $adminBasePath = '../';
 
         /* Badges */
         .badge { display: inline-block; padding: 0.18rem 0.5rem; border-radius: 4px; font-size: 0.72rem; font-weight: 700; white-space: nowrap; }
-        .badge-schoonmaak  { background: #e3f2fd; color: #1565c0; }
-        .badge-voorraad    { background: #f3e5f5; color: #6a1b9a; }
         .badge-due         { background: #fff3e0; color: #e65100; }
         .badge-not-due     { background: #f5f5f5; color: #9e9e9e; }
         .badge-status-volledig   { background: #e8f5e9; color: #2e7d32; }
@@ -119,14 +115,14 @@ $adminBasePath = '../';
         .progress-bar-fill { height: 100%; background: #2e7d32; border-radius: 3px; }
 
         /* Category management */
-        .cat-manage { border: 1px solid #e8e0d5; border-radius: 8px; overflow: hidden; margin-bottom: 0; }
+        .cat-manage { border: 1px solid #e8e0d5; border-radius: 8px; overflow: hidden; }
         .cat-manage-item { display: flex; align-items: center; gap: 0.5rem; padding: 0.55rem 0.75rem; border-bottom: 1px solid #f0ebe5; font-size: 0.88rem; }
         .cat-manage-item:last-child { border-bottom: none; }
         .cat-manage-item .cat-name { flex: 1; font-weight: 500; }
         .cat-add { display: flex; gap: 0.5rem; padding: 0.75rem; background: #faf8f5; border-top: 1px solid #e8e0d5; border-radius: 0 0 8px 8px; }
         .cat-add input { flex: 1; padding: 0.45rem 0.7rem; border: 1.5px solid #e0d5c7; border-radius: 7px; font-size: 0.88rem; font-family: inherit; background: white; }
         .cat-add input:focus { outline: none; border-color: #8b5a2b; }
-        .cat-empty { padding: 0.75rem; color: #999; font-size: 0.85rem; text-align: center; border: 1px solid #e8e0d5; border-radius: 8px; margin-bottom: 0; }
+        .cat-empty { padding: 0.75rem; color: #999; font-size: 0.85rem; text-align: center; border: 1px solid #e8e0d5; border-radius: 8px; }
 
         /* Empty state */
         .empty-state { text-align: center; padding: 2.5rem 1rem; color: #999; }
@@ -144,6 +140,14 @@ $adminBasePath = '../';
         .modal-body { margin-bottom: 1.25rem; }
         .modal-footer { display: flex; gap: 0.75rem; justify-content: flex-end; flex-wrap: wrap; }
 
+        /* Formulier modal (large) */
+        .formulier-modal { max-width: 980px; width: 96%; max-height: 94vh; padding: 0; display: flex; flex-direction: column; }
+        .fmodal-header { display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap; padding: 1rem 1.25rem; border-bottom: 1px solid #e8e0d5; flex-shrink: 0; }
+        .fmodal-title { font-size: 1rem; font-weight: 700; color: #5c3d1e; display: flex; align-items: center; gap: 0.4rem; white-space: nowrap; }
+        .fmodal-title i { color: #c8913a; }
+        .fmodal-divider { width: 1px; height: 22px; background: #e0d5c7; flex-shrink: 0; }
+        .fmodal-body { overflow-y: auto; padding: 1.25rem; flex: 1; }
+
         .warning-table { width: 100%; border-collapse: collapse; font-size: 0.84rem; margin-top: 0.75rem; }
         .warning-table th { padding: 0.45rem 0.6rem; text-align: left; background: #fff3e0; color: #e65100; font-size: 0.74rem; text-transform: uppercase; }
         .warning-table td { padding: 0.45rem 0.6rem; border-bottom: 1px solid #f0ebe5; }
@@ -154,26 +158,25 @@ $adminBasePath = '../';
         .toast.success { background: #2e7d32; }
         .toast.error   { background: #c62828; }
 
-        /* Responsive */
+        /* Responsive checklist columns */
         @media (max-width: 960px) { .col-notities, .col-uitvoerder, .col-tijdstip { display: none; } }
-        @media (max-width: 640px)  { .col-frequentie, .col-type { display: none; } }
+        @media (max-width: 640px)  { .col-frequentie { display: none; } }
 
         /* Print */
         @media print {
-            .sidebar, .mobile-overlay, .mobile-dropdown, .topbar,
-            .tabs, .date-bar, .btn-group-actions, .no-print { display: none !important; }
-            .admin-main { margin-left: 0 !important; }
-            .admin-content { padding: 0 !important; max-width: 100% !important; }
-            .tab-content { display: block !important; }
-            #tab-items { display: none !important; }
-            #overzichtView { display: none !important; }
-            #formulierView { display: block !important; }
-            .panel { box-shadow: none !important; border: 1px solid #ccc !important; padding: 0.5rem !important; }
+            body > * { display: none !important; }
+            body > #formulierModal { display: flex !important; position: static !important; background: none !important; }
+            .formulier-modal { max-width: 100% !important; width: 100% !important; max-height: none !important; overflow: visible !important; box-shadow: none !important; border-radius: 0 !important; }
+            .fmodal-header { display: none !important; }
+            .fmodal-body { overflow: visible !important; padding: 0 !important; }
             .status-bar { display: none !important; }
             .print-header { display: block !important; }
-            table.checklist { font-size: 9pt; }
+            .table-wrapper { overflow: visible !important; }
+            table.checklist { font-size: 9pt; width: 100% !important; }
             .col-notities, .col-uitvoerder, .col-tijdstip, .col-frequentie { display: table-cell !important; }
             table.checklist tr.item-not-due td { opacity: 1; }
+            .td-input { border: none !important; }
+            .no-print { display: none !important; }
         }
         .print-header { display: none; margin-bottom: 1rem; text-align: center; border-bottom: 2px solid #333; padding-bottom: 0.75rem; }
         .print-header h2 { font-size: 1.2rem; margin: 0 0 0.2rem; }
@@ -192,141 +195,46 @@ $adminBasePath = '../';
             <button class="mobile-toggle" onclick="toggleSidebar()"><i class="bi bi-list"></i></button>
             <span class="topbar-title"><i class="bi bi-check2-square"></i> Voedselveiligheid</span>
         </div>
-        <div class="topbar-right no-print">
+        <div class="topbar-right">
             <a href="bakker-dashboard.php" class="topbar-link"><i class="bi bi-arrow-left"></i> <span>Dashboard</span></a>
         </div>
     </div>
 
     <div class="admin-content">
 
-        <div class="tabs no-print">
+        <div class="tabs">
             <div class="tab active" onclick="switchTab('overzicht')"><i class="bi bi-calendar3"></i> Overzicht</div>
             <div class="tab" onclick="switchTab('items')"><i class="bi bi-list-ul"></i> Items beheer</div>
         </div>
 
         <!-- ==================== OVERZICHT TAB ==================== -->
         <div id="tab-overzicht" class="tab-content active">
-
-            <!-- Overview list -->
-            <div id="overzichtView">
-                <div class="panel">
-                    <div class="panel-header">
-                        <div class="panel-title"><i class="bi bi-calendar3"></i> Overzicht formulieren</div>
-                        <div style="display:flex; gap:0.5rem; align-items:center; flex-wrap:wrap;">
-                            <label style="font-size:0.83rem; color:#666;">Van:</label>
-                            <input type="date" class="date-input" id="filterVan" style="font-size:0.83rem;">
-                            <label style="font-size:0.83rem; color:#666;">Tot:</label>
-                            <input type="date" class="date-input" id="filterTot" style="font-size:0.83rem;">
-                            <button class="btn btn-ghost btn-sm" onclick="loadOverzicht()"><i class="bi bi-search"></i></button>
-                            <button class="btn btn-primary" onclick="nieuwFormulier()">
-                                <i class="bi bi-plus-lg"></i> Nieuw formulier
-                            </button>
-                        </div>
-                    </div>
-                    <div id="overzichtLoading" class="loading"><i class="bi bi-arrow-clockwise spin"></i> Laden…</div>
-                    <div class="table-wrapper" id="overzichtTableWrap" style="display:none;">
-                        <table class="overzicht">
-                            <thead>
-                                <tr><th>Datum</th><th>Status</th><th>Voortgang</th><th class="no-print"></th></tr>
-                            </thead>
-                            <tbody id="overzichtBody"></tbody>
-                        </table>
-                    </div>
-                    <div id="overzichtEmpty" class="empty-state" style="display:none;">
-                        <i class="bi bi-calendar-x"></i>
-                        <p>Geen formulieren gevonden. Klik op <strong>Nieuw formulier</strong> om te beginnen.</p>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Formulier view (hidden by default) -->
-            <div id="formulierView" style="display:none;">
-
-                <div class="print-header">
-                    <h2>Bakkerij Civetta — Voedselveiligheid</h2>
-                    <p id="printDateLabel"></p>
-                </div>
-
-                <div class="date-bar no-print">
-                    <button class="btn btn-ghost btn-sm" onclick="showOverzichtView()">
-                        <i class="bi bi-arrow-left"></i> Terug
-                    </button>
-                    <div class="date-bar-divider"></div>
-                    <button class="btn btn-ghost btn-sm" onclick="changeDate(-1)"><i class="bi bi-chevron-left"></i></button>
-                    <input type="date" class="date-input" id="listDate" value="<?= date('Y-m-d') ?>" onchange="loadList()">
-                    <button class="btn btn-ghost btn-sm" onclick="changeDate(1)"><i class="bi bi-chevron-right"></i></button>
-                    <button class="btn btn-ghost btn-sm" onclick="goToday()"><i class="bi bi-calendar-check"></i> Vandaag</button>
-                    <div style="margin-left:auto; display:flex; gap:0.5rem;" class="btn-group-actions">
-                        <button class="btn btn-ghost btn-sm" onclick="window.print()"><i class="bi bi-printer"></i> Printen</button>
-                        <button class="btn btn-success" id="saveBtn" style="display:none;" onclick="saveList(false)">
-                            <i class="bi bi-floppy"></i> Opslaan
+            <div class="panel">
+                <div class="panel-header">
+                    <div class="panel-title"><i class="bi bi-calendar3"></i> Overzicht formulieren</div>
+                    <div style="display:flex; gap:0.5rem; align-items:center; flex-wrap:wrap;">
+                        <label style="font-size:0.83rem; color:#666;">Van:</label>
+                        <input type="date" class="date-input" id="filterVan" style="font-size:0.83rem;">
+                        <label style="font-size:0.83rem; color:#666;">Tot:</label>
+                        <input type="date" class="date-input" id="filterTot" style="font-size:0.83rem;">
+                        <button class="btn btn-ghost btn-sm" onclick="loadOverzicht()"><i class="bi bi-search"></i></button>
+                        <button class="btn btn-primary" onclick="nieuwFormulier()">
+                            <i class="bi bi-plus-lg"></i> Nieuw formulier
                         </button>
                     </div>
                 </div>
-
-                <div id="statusBar" style="display:none;"></div>
-
-                <div id="listLoading" class="loading">
-                    <i class="bi bi-arrow-clockwise spin"></i> Laden…
+                <div id="overzichtLoading" class="loading"><i class="bi bi-arrow-clockwise spin"></i> Laden…</div>
+                <div class="table-wrapper" id="overzichtTableWrap" style="display:none;">
+                    <table class="overzicht">
+                        <thead>
+                            <tr><th>Datum</th><th>Status</th><th>Voortgang</th><th></th></tr>
+                        </thead>
+                        <tbody id="overzichtBody"></tbody>
+                    </table>
                 </div>
-
-                <!-- No form yet -->
-                <div id="noListPanel" class="panel" style="display:none;">
-                    <div class="empty-state">
-                        <i class="bi bi-clipboard-x"></i>
-                        <p>Er is nog geen formulier voor <strong id="noListDate"></strong>.</p>
-                        <button class="btn btn-primary" onclick="createList()">
-                            <i class="bi bi-plus-lg"></i> Formulier aanmaken
-                        </button>
-                    </div>
-                </div>
-
-                <!-- Checklist -->
-                <div id="listPanel" class="panel" style="display:none;">
-                    <div class="panel-header no-print">
-                        <div class="panel-title">
-                            <i class="bi bi-clipboard-check"></i>
-                            <span id="panelTitle">Formulier</span>
-                        </div>
-                        <div style="display:flex; align-items:center; gap:0.75rem; flex-wrap:wrap;">
-                            <span id="progressLabel" style="font-size:0.84rem; color:#666;"></span>
-                            <label style="display:flex; align-items:center; gap:0.35rem; font-size:0.84rem; color:#666; cursor:pointer; user-select:none;">
-                                <input type="checkbox" id="showNonDue" onchange="renderChecklist()" style="cursor:pointer; accent-color:#8b5a2b;">
-                                Toon ook niet-due items
-                            </label>
-                        </div>
-                    </div>
-
-                    <div class="table-wrapper">
-                        <table class="checklist" id="checklistTable">
-                            <thead>
-                                <tr>
-                                    <th style="width:28px;">#</th>
-                                    <th>Item naam</th>
-                                    <th class="col-frequentie">Frequentie</th>
-                                    <th>Status / Volgende due</th>
-                                    <th style="width:68px; text-align:center;">Afgevinkt</th>
-                                    <th class="col-notities">Notities</th>
-                                    <th class="col-uitvoerder">Uitvoerder</th>
-                                    <th class="col-tijdstip">Tijdstip</th>
-                                </tr>
-                            </thead>
-                            <tbody id="checklistBody"></tbody>
-                        </table>
-                    </div>
-
-                    <div id="emptyList" class="empty-state" style="display:none; padding:1.5rem;">
-                        <i class="bi bi-inbox"></i>
-                        <p>Geen items geconfigureerd.</p>
-                        <div style="display:flex; gap:0.5rem; justify-content:center; flex-wrap:wrap;">
-                            <button class="btn btn-ghost btn-sm" onclick="switchTab('items')">
-                                <i class="bi bi-list-ul"></i> Naar Items beheer
-                            </button>
-                            <button class="btn btn-primary btn-sm" onclick="refreshList()">
-                                <i class="bi bi-arrow-clockwise"></i> Formulier vernieuwen
-                            </button>
-                        </div>
-                    </div>
+                <div id="overzichtEmpty" class="empty-state" style="display:none;">
+                    <i class="bi bi-calendar-x"></i>
+                    <p>Geen formulieren gevonden. Klik op <strong>Nieuw formulier</strong> om te beginnen.</p>
                 </div>
             </div>
         </div>
@@ -334,7 +242,6 @@ $adminBasePath = '../';
         <!-- ==================== ITEMS BEHEER TAB ==================== -->
         <div id="tab-items" class="tab-content">
 
-            <!-- Categories -->
             <div class="panel">
                 <div class="panel-header">
                     <div class="panel-title"><i class="bi bi-tags"></i> Categorieën</div>
@@ -349,7 +256,6 @@ $adminBasePath = '../';
                 </div>
             </div>
 
-            <!-- Items -->
             <div class="panel">
                 <div class="panel-header">
                     <div class="panel-title"><i class="bi bi-list-ul"></i> Items</div>
@@ -379,12 +285,101 @@ $adminBasePath = '../';
     </div>
 </div>
 
+<!-- ==================== FORMULIER MODAL ==================== -->
+<div class="modal-overlay" id="formulierModal">
+    <div class="modal formulier-modal">
+
+        <!-- Header: title + date nav + progress + save + close -->
+        <div class="fmodal-header no-print">
+            <div class="fmodal-title"><i class="bi bi-clipboard-check"></i> Formulier</div>
+            <div class="fmodal-divider"></div>
+            <button class="btn btn-ghost btn-sm" onclick="changeDate(-1)"><i class="bi bi-chevron-left"></i></button>
+            <input type="date" class="date-input" id="listDate" value="<?= date('Y-m-d') ?>" onchange="loadList()" style="font-size:0.88rem;">
+            <button class="btn btn-ghost btn-sm" onclick="changeDate(1)"><i class="bi bi-chevron-right"></i></button>
+            <button class="btn btn-ghost btn-sm" onclick="goToday()"><i class="bi bi-calendar-check"></i> Vandaag</button>
+            <div style="margin-left:auto; display:flex; gap:0.5rem; align-items:center; flex-wrap:wrap;">
+                <span id="progressLabel" style="font-size:0.82rem; color:#666;"></span>
+                <label style="display:flex; align-items:center; gap:0.3rem; font-size:0.82rem; color:#666; cursor:pointer; user-select:none; white-space:nowrap;">
+                    <input type="checkbox" id="showNonDue" onchange="renderChecklist()" style="cursor:pointer; accent-color:#8b5a2b;">
+                    Niet-due
+                </label>
+                <button class="btn btn-ghost btn-sm" onclick="window.print()" title="Printen"><i class="bi bi-printer"></i></button>
+                <button class="btn btn-success btn-sm" id="saveBtn" style="display:none;" onclick="saveList(false)">
+                    <i class="bi bi-floppy"></i> Opslaan
+                </button>
+                <button class="btn-icon" onclick="closeModal('formulierModal')" title="Sluiten"><i class="bi bi-x-lg"></i></button>
+            </div>
+        </div>
+
+        <!-- Body -->
+        <div class="fmodal-body">
+
+            <div class="print-header">
+                <h2>Bakkerij Civetta — Voedselveiligheid</h2>
+                <p id="printDateLabel"></p>
+            </div>
+
+            <div id="statusBar" style="display:none;"></div>
+
+            <div id="listLoading" class="loading">
+                <i class="bi bi-arrow-clockwise spin"></i> Laden…
+            </div>
+
+            <!-- No form yet -->
+            <div id="noListPanel" style="display:none;">
+                <div class="empty-state">
+                    <i class="bi bi-clipboard-x"></i>
+                    <p>Er is nog geen formulier voor <strong id="noListDate"></strong>.</p>
+                    <button class="btn btn-primary" onclick="createList()">
+                        <i class="bi bi-plus-lg"></i> Formulier aanmaken
+                    </button>
+                </div>
+            </div>
+
+            <!-- Checklist -->
+            <div id="listPanel" style="display:none;">
+
+                <div class="table-wrapper">
+                    <table class="checklist" id="checklistTable">
+                        <thead>
+                            <tr>
+                                <th style="width:28px;">#</th>
+                                <th>Item naam</th>
+                                <th class="col-frequentie">Frequentie</th>
+                                <th>Status</th>
+                                <th style="width:68px; text-align:center;">Afgevinkt</th>
+                                <th class="col-notities">Notities</th>
+                                <th class="col-uitvoerder">Uitvoerder</th>
+                                <th class="col-tijdstip">Tijdstip</th>
+                            </tr>
+                        </thead>
+                        <tbody id="checklistBody"></tbody>
+                    </table>
+                </div>
+
+                <div id="emptyList" class="empty-state" style="display:none; padding:1.5rem;">
+                    <i class="bi bi-inbox"></i>
+                    <p>Geen items geconfigureerd.</p>
+                    <div style="display:flex; gap:0.5rem; justify-content:center; flex-wrap:wrap;">
+                        <button class="btn btn-ghost btn-sm" onclick="closeModal('formulierModal'); switchTab('items');">
+                            <i class="bi bi-list-ul"></i> Naar Items beheer
+                        </button>
+                        <button class="btn btn-primary btn-sm" onclick="refreshList()">
+                            <i class="bi bi-arrow-clockwise"></i> Formulier vernieuwen
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
 <!-- WARNING MODAL -->
 <div class="modal-overlay" id="warningModal">
     <div class="modal">
         <div class="modal-title"><i class="bi bi-exclamation-triangle-fill" style="color:#e65100;"></i> Openstaande items</div>
         <div class="modal-body">
-            <p>De volgende items zijn als <strong>due</strong> gemarkeerd maar nog niet afgevinkt. Weet je zeker dat je wilt opslaan?</p>
+            <p>De volgende items zijn als <strong>due</strong> gemarkeerd maar nog niet afgevinkt.</p>
             <table class="warning-table">
                 <thead><tr><th>Item</th><th>Frequentie</th></tr></thead>
                 <tbody id="warningItems"></tbody>
@@ -471,21 +466,14 @@ function switchTab(tab) {
     if (tab === 'items') loadItemsTab();
 }
 
-// ==================== OVERZICHT / FORMULIER VIEW ====================
-function showFormulierView() {
-    hideEl('overzichtView');
-    document.getElementById('formulierView').style.display = 'block';
+// ==================== FORMULIER MODAL ====================
+function openFormulierModal() {
+    document.getElementById('formulierModal').classList.add('open');
 }
-function showOverzichtView() {
-    document.getElementById('formulierView').style.display = 'none';
-    document.getElementById('overzichtView').style.display = 'block';
-    loadOverzicht();
-}
+
 function nieuwFormulier() {
     document.getElementById('listDate').value = '<?= date('Y-m-d') ?>';
-    showFormulierView();
-    showEl('listLoading'); hideEl('listPanel'); hideEl('noListPanel'); hideEl('statusBar');
-    document.getElementById('saveBtn').style.display = 'none';
+    openFormulierModal();
     loadList();
 }
 
@@ -561,12 +549,11 @@ function applyListData(data, datum) {
     if (data.is_late_edit) {
         bar.className = 'status-bar status-bar-late';
         bar.innerHTML = '<i class="bi bi-clock-history" style="color:#e65100;"></i>'
-            + ' <strong>Let op:</strong> U bewerkt een formulier van een verstreken datum. Wijzigingen worden gelogd.';
+            + ' <strong>Let op:</strong> Verstreken datum. Wijzigingen worden gelogd.';
     } else {
         bar.className = 'status-bar status-bar-normal';
         bar.innerHTML = `${statusIcon(currentList.status)} <strong>Status:</strong> ${formatStatus(currentList.status)}`
-            + ` &nbsp;|&nbsp; <strong>Datum:</strong> ${formatDate(datum)}`
-            + ` &nbsp;|&nbsp; <span style="color:#888; font-size:0.82rem;">Formulier kan altijd worden heropend.</span>`;
+            + ` &nbsp;|&nbsp; <strong>${formatDate(datum)}</strong>`;
     }
 
     document.getElementById('saveBtn').style.display = '';
@@ -581,8 +568,6 @@ function renderChecklist() {
     const empty      = document.getElementById('emptyList');
     const showNonDue = document.getElementById('showNonDue').checked;
 
-    document.getElementById('panelTitle').textContent = 'Formulier';
-
     if (!currentItems || currentItems.length === 0) {
         body.innerHTML = ''; table.style.display = 'none'; empty.style.display = 'block';
         updateProgress(); return;
@@ -590,8 +575,8 @@ function renderChecklist() {
     table.style.display = 'table'; empty.style.display = 'none';
 
     // Group by category
-    const groups  = {};
-    const order   = [];
+    const groups = {};
+    const order  = [];
     currentItems.forEach((item, idx) => {
         const isDue = parseInt(item.is_due) === 1;
         if (!isDue && !showNonDue) return;
@@ -612,18 +597,15 @@ function renderChecklist() {
             const rowCls  = checked ? 'item-checked' : (!isDue ? 'item-not-due' : '');
             const tijdstip = item.tijdstip_afgerond
                 ? item.tijdstip_afgerond.substring(0, 16).replace('T', ' ') : '';
-
             const dueBadge = isDue
                 ? `<span class="badge badge-due">Due</span>`
                 : `<span class="badge badge-not-due">Niet due</span>`;
-            const dueDate  = item.due_date
-                ? ` <span style="font-size:0.77rem; color:#aaa;">${item.due_date}</span>` : '';
 
             html += `<tr class="${rowCls}" id="row-${idx}">
                 <td style="color:#bbb; font-size:0.75rem;">${rowNum}</td>
                 <td><strong>${escHtml(item.naam)}</strong></td>
                 <td class="col-frequentie" style="font-size:0.8rem; color:#777;">${formatFreq(item.frequentie)}</td>
-                <td>${dueBadge}${dueDate}</td>
+                <td>${dueBadge}</td>
                 <td>
                     <div class="cb-wrap">
                         <input type="checkbox" ${checked ? 'checked' : ''} onchange="toggleItem(${idx}, this.checked)">
@@ -646,7 +628,7 @@ function renderChecklist() {
 
     if (!html) {
         html = `<tr><td colspan="8" style="text-align:center; padding:1.5rem; color:#888; font-size:0.88rem;">
-            Alle items zijn momenteel <strong>niet due</strong>. Zet "Toon ook niet-due items" aan om ze toch te zien.
+            Alle items zijn momenteel <strong>niet due</strong>. Zet "Niet-due" aan om ze toch te zien.
         </td></tr>`;
     }
 
@@ -661,8 +643,8 @@ function toggleItem(idx, checked) {
     } else if (!checked) {
         currentItems[idx].tijdstip_afgerond = null;
     }
-    const row    = document.getElementById(`row-${idx}`);
-    const isDue  = parseInt(currentItems[idx].is_due) === 1;
+    const row   = document.getElementById(`row-${idx}`);
+    const isDue = parseInt(currentItems[idx].is_due) === 1;
     if (row) row.className = checked ? 'item-checked' : (!isDue ? 'item-not-due' : '');
     updateProgress();
 }
@@ -676,7 +658,7 @@ function updateProgress() {
     const doneTotal = currentItems.filter(i => parseInt(i.afgevinkt) === 1).length;
     const doneDue   = currentItems.filter(i => parseInt(i.is_due) === 1 && parseInt(i.afgevinkt) === 1).length;
     document.getElementById('progressLabel').textContent =
-        total > 0 ? `${doneDue}/${due} due afgevinkt · ${doneTotal}/${total} totaal` : '';
+        total > 0 ? `${doneDue}/${due} due · ${doneTotal}/${total} totaal` : '';
 }
 
 // ==================== SAVE ====================
@@ -684,7 +666,7 @@ async function saveList(force) {
     if (!currentList) return;
     const btn = document.getElementById('saveBtn');
     btn.disabled = true;
-    btn.innerHTML = '<i class="bi bi-arrow-clockwise spin"></i> Opslaan…';
+    btn.innerHTML = '<i class="bi bi-arrow-clockwise spin"></i>';
 
     try {
         const data = await callApi(null, {
@@ -712,9 +694,9 @@ async function saveList(force) {
         const datum = document.getElementById('listDate').value;
         if (!bar.classList.contains('status-bar-late')) {
             bar.innerHTML = `${statusIcon(data.status)} <strong>Status:</strong> ${formatStatus(data.status)}`
-                + ` &nbsp;|&nbsp; <strong>Datum:</strong> ${formatDate(datum)}`
-                + ` &nbsp;|&nbsp; <span style="color:#888; font-size:0.82rem;">Formulier kan altijd worden heropend.</span>`;
+                + ` &nbsp;|&nbsp; <strong>${formatDate(datum)}</strong>`;
         }
+        loadOverzicht();
     } catch (e) { showToast('Fout: ' + e.message, 'error'); }
 
     btn.disabled = false;
@@ -868,7 +850,6 @@ function renderItems() {
     body.innerHTML = html;
 }
 
-// ── Item modal ────────────────────────────────────────────────────────────────
 function openItemModal(id) {
     document.getElementById('itemId').value = id || '';
     document.getElementById('itemModalTitle').textContent = id ? 'Item bewerken' : 'Item toevoegen';
@@ -883,14 +864,12 @@ function openItemModal(id) {
         if (item) {
             document.getElementById('itemNaam').value       = item.naam;
             document.getElementById('itemCategorie').value  = item.categorie_id || '';
-            document.getElementById('itemType').value       = item.type;
             document.getElementById('itemFrequentie').value = item.frequentie;
             document.getElementById('itemActief').value     = item.actief;
         }
     } else {
         document.getElementById('itemNaam').value       = '';
         document.getElementById('itemCategorie').value  = '';
-        document.getElementById('itemType').value       = 'schoonmaak';
         document.getElementById('itemFrequentie').value = 'dagelijks';
     }
 
@@ -956,7 +935,7 @@ async function loadOverzicht() {
                         <span style="font-size:0.79rem; color:#666;">${afgevinkt}/${totaal}</span>
                     </div>
                 </td>
-                <td class="no-print" style="white-space:nowrap;">
+                <td style="white-space:nowrap;">
                     <button class="btn btn-ghost btn-sm" onclick="openListDate('${l.datum}')">
                         <i class="bi bi-eye"></i> Openen
                     </button>
@@ -977,9 +956,7 @@ async function loadOverzicht() {
 
 function openListDate(datum) {
     document.getElementById('listDate').value = datum;
-    showFormulierView();
-    showEl('listLoading'); hideEl('listPanel'); hideEl('noListPanel'); hideEl('statusBar');
-    document.getElementById('saveBtn').style.display = 'none';
+    openFormulierModal();
     loadList();
 }
 
@@ -988,9 +965,7 @@ async function deleteList(id, datum) {
     try {
         await callApi(null, { action: 'delete_list', lijst_id: id });
         showToast('Formulier verwijderd', 'success');
-        if (currentList && currentList.id == id) {
-            currentList = null; currentItems = [];
-        }
+        if (currentList && currentList.id == id) { currentList = null; currentItems = []; }
         loadOverzicht();
     } catch (e) { showToast('Fout: ' + e.message, 'error'); }
 }
@@ -1022,7 +997,6 @@ function formatDate(d) {
 }
 function formatStatus(s) { return { volledig: 'Volledig', onvolledig: 'Onvolledig', afwijking: 'Afwijking' }[s] || s; }
 function statusIcon(s)   { return { volledig: '✅', onvolledig: '❌', afwijking: '⚠️' }[s] || '📋'; }
-function formatType(t)   { return { schoonmaak: 'Schoonmaak', voorraad: 'Voorraad' }[t] || t; }
 function formatFreq(f)   { return { dagelijks: 'Dagelijks', dagelijks_mits_gebruikt: 'Dagelijks (mits gebruikt)', wekelijks: 'Wekelijks', maandelijks: 'Maandelijks' }[f] || f; }
 function escHtml(s) { return s ? String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;') : ''; }
 function escAttr(s) { return s ? String(s).replace(/"/g,'&quot;').replace(/'/g,'&#39;') : ''; }
@@ -1034,11 +1008,18 @@ function showToast(msg, type) {
 function closeModal(id) { document.getElementById(id).classList.remove('open'); }
 
 document.querySelectorAll('.modal-overlay').forEach(el => {
-    el.addEventListener('click', e => { if (e.target === el) el.classList.remove('open'); });
+    el.addEventListener('click', e => {
+        if (e.target === el && el.id !== 'formulierModal') el.classList.remove('open');
+    });
 });
 
 document.addEventListener('keydown', e => {
-    if (e.key === 'Escape') document.querySelectorAll('.modal-overlay.open').forEach(m => m.classList.remove('open'));
+    if (e.key === 'Escape') {
+        // Only close small modals on Escape, not the formulier modal
+        document.querySelectorAll('.modal-overlay.open').forEach(m => {
+            if (m.id !== 'formulierModal') m.classList.remove('open');
+        });
+    }
     if ((e.ctrlKey || e.metaKey) && e.key === 's') {
         e.preventDefault();
         const btn = document.getElementById('saveBtn');
