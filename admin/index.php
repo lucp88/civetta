@@ -61,6 +61,29 @@ function getDutchDay($date) {
     return $dagen[date('w', strtotime($date))];
 }
 
+$monthStart = date('Y-m-01');
+$monthEnd = date('Y-m-t');
+
+$stmt = $pdo->prepare("
+    SELECT COALESCE(SUM(boi.quantity), 0) as total
+    FROM business_order_items boi
+    JOIN business_orders bo ON boi.order_id = bo.id
+    WHERE bo.delivery_date >= ? AND bo.delivery_date < ? AND bo.is_cancelled = 0
+");
+$stmt->execute([$monthStart, $today]);
+$brodenGebakken = (int)$stmt->fetch()['total'];
+
+$stmt = $pdo->prepare("
+    SELECT COALESCE(SUM(boi.quantity), 0) as total
+    FROM business_order_items boi
+    JOIN business_orders bo ON boi.order_id = bo.id
+    WHERE bo.delivery_date >= ? AND bo.delivery_date <= ? AND bo.is_cancelled = 0
+");
+$stmt->execute([$today, $monthEnd]);
+$brodenTeBakken = (int)$stmt->fetch()['total'];
+
+$brodenTotaal = $brodenGebakken + $brodenTeBakken;
+
 $currentPage = 'dashboard';
 $adminBasePath = '';
 $sidebarPendingAccounts = $pendingAccounts;
@@ -504,6 +527,35 @@ $sidebarUnprocessedOrders = $todayUnprocessed;
                         ?>
                         <div class="stat-card-value"><?= $weekData['count'] ?></div>
                         <div class="stat-card-sub">&euro;<?= number_format($weekData['total'], 2, ',', '.') ?> omzet</div>
+                    </div>
+                </div>
+
+                <div class="stats-grid" style="grid-template-columns: repeat(3, 1fr); margin-bottom: 2rem;">
+                    <div class="stat-card">
+                        <div class="stat-card-icon" style="background: #eafaf1; color: #27ae60;">
+                            <i class="bi bi-check-circle"></i>
+                        </div>
+                        <div class="stat-card-label">Broden gebakken deze maand</div>
+                        <div class="stat-card-value"><?= $brodenGebakken ?></div>
+                        <div class="stat-card-sub"><?= date('1 M') ?> – gisteren</div>
+                    </div>
+
+                    <div class="stat-card">
+                        <div class="stat-card-icon" style="background: #fef5e7; color: #e67e22;">
+                            <i class="bi bi-fire"></i>
+                        </div>
+                        <div class="stat-card-label">Te bakken broden deze maand</div>
+                        <div class="stat-card-value"><?= $brodenTeBakken ?></div>
+                        <div class="stat-card-sub">Vandaag – <?= date('t M') ?></div>
+                    </div>
+
+                    <div class="stat-card">
+                        <div class="stat-card-icon" style="background: #f5ece3; color: #8b5a2b;">
+                            <i class="bi bi-layers"></i>
+                        </div>
+                        <div class="stat-card-label">Totaal broden deze maand</div>
+                        <div class="stat-card-value"><?= $brodenTotaal ?></div>
+                        <div class="stat-card-sub"><?= date('M Y') ?></div>
                     </div>
                 </div>
 

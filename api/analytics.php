@@ -140,6 +140,39 @@ try {
             ]);
             break;
 
+        case 'monthly_loaves':
+            $yearMonth = $_GET['year_month'] ?? date('Y-m');
+            $mStart = $yearMonth . '-01';
+            $mEnd = date('Y-m-t', strtotime($mStart));
+            $todayDate = date('Y-m-d');
+
+            $stmt = $pdo->prepare("
+                SELECT COALESCE(SUM(boi.quantity), 0) as total
+                FROM business_order_items boi
+                JOIN business_orders bo ON boi.order_id = bo.id
+                WHERE bo.delivery_date >= ? AND bo.delivery_date < ? AND bo.is_cancelled = 0
+            ");
+            $stmt->execute([$mStart, $todayDate]);
+            $gebakken = (int)$stmt->fetch()['total'];
+
+            $stmt = $pdo->prepare("
+                SELECT COALESCE(SUM(boi.quantity), 0) as total
+                FROM business_order_items boi
+                JOIN business_orders bo ON boi.order_id = bo.id
+                WHERE bo.delivery_date >= ? AND bo.delivery_date <= ? AND bo.is_cancelled = 0
+            ");
+            $stmt->execute([$todayDate, $mEnd]);
+            $teBakken = (int)$stmt->fetch()['total'];
+
+            echo json_encode([
+                'success' => true,
+                'year_month' => $yearMonth,
+                'gebakken' => $gebakken,
+                'te_bakken' => $teBakken,
+                'totaal' => $gebakken + $teBakken
+            ]);
+            break;
+
         default:
             http_response_code(400);
             echo json_encode(['success' => false, 'error' => 'Ongeldige actie']);

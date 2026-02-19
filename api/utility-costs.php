@@ -89,12 +89,12 @@ try {
                 $isEstimate
             ]);
             
-            if (!$isEstimate) {
+            if (!$isEstimate && $data['year_month'] >= date('Y-m')) {
                 $nextMonth = date('Y-m', strtotime($data['year_month'] . '-01 +1 month'));
                 $stmt = $pdo->prepare("SELECT id FROM utility_costs WHERE type = ? AND year_month = ?");
                 $stmt->execute([$data['type'], $nextMonth]);
                 $nextExists = $stmt->fetch();
-                
+
                 if (!$nextExists) {
                     $stmt = $pdo->prepare("
                         INSERT INTO utility_costs (type, year_month, cost, is_estimate)
