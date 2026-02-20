@@ -72,22 +72,27 @@
                         <button @click="showEditor = true; editingPost = null" class="btn-small">+ Nieuwe post</button>
                     </div>
 
-                    <div v-if="showLogin" class="modal-overlay" @click.self="showLogin = false">
+                    <div v-if="showPasswordChange" class="modal-overlay" @click.self="showPasswordChange = false">
                         <div class="modal">
-                            <h3>Admin Login</h3>
-                            <div v-if="loginError" class="error-msg">{{ loginError }}</div>
-                            <form @submit.prevent="login">
+                            <h3>Wachtwoord wijzigen</h3>
+                            <div v-if="passwordError" class="error-msg">{{ passwordError }}</div>
+                            <div v-if="passwordSuccess" class="success-msg">{{ passwordSuccess }}</div>
+                            <form @submit.prevent="changePassword">
                                 <div class="form-group">
-                                    <label>Gebruikersnaam</label>
-                                    <input v-model="loginForm.username" type="text" required>
+                                    <label>Huidig wachtwoord</label>
+                                    <input v-model="passwordForm.current" type="password" required>
                                 </div>
                                 <div class="form-group">
-                                    <label>Wachtwoord</label>
-                                    <input v-model="loginForm.password" type="password" required>
+                                    <label>Nieuw wachtwoord</label>
+                                    <input v-model="passwordForm.new_password" type="password" required minlength="8">
+                                </div>
+                                <div class="form-group">
+                                    <label>Bevestig nieuw wachtwoord</label>
+                                    <input v-model="passwordForm.confirm" type="password" required minlength="8">
                                 </div>
                                 <div class="modal-buttons">
-                                    <button type="submit" class="btn">Inloggen</button>
-                                    <button type="button" @click="showLogin = false" class="btn btn-outline">Annuleren</button>
+                                    <button type="submit" class="btn">Wijzigen</button>
+                                    <button type="button" @click="showPasswordChange = false" class="btn btn-outline">Annuleren</button>
                                 </div>
                             </form>
                         </div>
@@ -155,6 +160,7 @@
 
     <script src="https://unpkg.com/vue@3/dist/vue.global.prod.js"></script>
     <script src="js/main.js"></script>
-    <script src="js/blog-app.js"></script>
+    <script src="js/admin-auth.js?v=1"></script>
+    <script src="js/blog-app.js?v=2"></script>
 </body>
 </html>

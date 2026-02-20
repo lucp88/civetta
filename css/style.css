@@ -1841,6 +1841,16 @@ footer::before {
     font-size: 0.9rem;
 }
 
+.success-msg {
+    background: #efe;
+    color: #2e7d32;
+    padding: 0.75rem;
+    border-radius: 8px;
+    margin-bottom: var(--spacing-sm);
+    text-align: center;
+    font-size: 0.9rem;
+}
+
 .post-header {
     display: flex;
     justify-content: space-between;

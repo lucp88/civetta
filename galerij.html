@@ -5,6 +5,34 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Galerij | Bakkerij Civetta</title>
     <link rel="stylesheet" href="css/style.css">
+    <style>
+        [v-cloak] { display: none; }
+        .gallery-item { position: relative; }
+        .gallery-delete {
+            position: absolute;
+            top: 8px;
+            right: 8px;
+            background: rgba(198, 40, 40, 0.9);
+            color: white;
+            border: none;
+            border-radius: 50%;
+            width: 32px;
+            height: 32px;
+            font-size: 1.1rem;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            opacity: 0;
+            transition: opacity 0.2s;
+        }
+        .gallery-item:hover .gallery-delete { opacity: 1; }
+        .gallery-alt {
+            padding: 0.5rem 0.75rem;
+            font-size: 0.85rem;
+            color: #666;
+        }
+    </style>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link href="https://fonts.googleapis.com/css2?family=Libre+Baskerville:ital,wght@0,400;0,700;1,400&family=Source+Sans+Pro:wght@400;600&display=swap" rel="stylesheet">
 </head>
@@ -47,16 +75,76 @@
 
         <section class="gallery">
             <div class="container">
-                <div class="page-content">
-                    <p class="placeholder-text">Foto's volgen binnenkort.</p>
-                </div>
-                
-                <div class="gallery-grid">
-                    <!-- Foto's hier toevoegen met dit format:
-                    <div class="gallery-item">
-                        <img src="img/galerij/foto1.jpg" alt="Beschrijving van de foto">
+                <div id="galerij-app" v-cloak>
+                    <div class="admin-bar" v-if="isAuthenticated">
+                        <button @click="showUpload = true" class="btn-small">+ Foto toevoegen</button>
                     </div>
-                    -->
+
+                    <!-- Password change modal -->
+                    <div v-if="showPasswordChange" class="modal-overlay" @click.self="showPasswordChange = false">
+                        <div class="modal">
+                            <h3>Wachtwoord wijzigen</h3>
+                            <div v-if="passwordError" class="error-msg">{{ passwordError }}</div>
+                            <div v-if="passwordSuccess" class="success-msg">{{ passwordSuccess }}</div>
+                            <form @submit.prevent="changePassword">
+                                <div class="form-group">
+                                    <label>Huidig wachtwoord</label>
+                                    <input v-model="passwordForm.current" type="password" required>
+                                </div>
+                                <div class="form-group">
+                                    <label>Nieuw wachtwoord</label>
+                                    <input v-model="passwordForm.new_password" type="password" required minlength="8">
+                                </div>
+                                <div class="form-group">
+                                    <label>Bevestig nieuw wachtwoord</label>
+                                    <input v-model="passwordForm.confirm" type="password" required minlength="8">
+                                </div>
+                                <div class="modal-buttons">
+                                    <button type="submit" class="btn">Wijzigen</button>
+                                    <button type="button" @click="showPasswordChange = false" class="btn btn-outline">Annuleren</button>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
+
+                    <!-- Upload modal -->
+                    <div v-if="showUpload" class="modal-overlay" @click.self="showUpload = false">
+                        <div class="modal">
+                            <h3>Foto toevoegen</h3>
+                            <div v-if="uploadError" class="error-msg">{{ uploadError }}</div>
+                            <form @submit.prevent="uploadImage">
+                                <div class="form-group">
+                                    <label>Foto (JPG, PNG of WebP)</label>
+                                    <input type="file" ref="fileInput" accept="image/jpeg,image/png,image/webp" required>
+                                </div>
+                                <div class="form-group">
+                                    <label>Beschrijving</label>
+                                    <input v-model="uploadAlt" type="text" placeholder="Korte beschrijving van de foto">
+                                </div>
+                                <div class="modal-buttons">
+                                    <button type="submit" class="btn" :disabled="uploading">
+                                        {{ uploading ? 'Uploaden...' : 'Toevoegen' }}
+                                    </button>
+                                    <button type="button" @click="showUpload = false" class="btn btn-outline">Annuleren</button>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
+
+                    <div v-if="loading" class="page-content">
+                        <p class="placeholder-text">Galerij wordt geladen...</p>
+                    </div>
+                    <div v-else-if="images.length === 0" class="page-content">
+                        <p class="placeholder-text">Foto's volgen binnenkort.</p>
+                    </div>
+
+                    <div v-if="images.length > 0" class="gallery-grid">
+                        <div v-for="image in images" :key="image.id" class="gallery-item">
+                            <img :src="'img/galerij/' + image.filename" :alt="image.alt_text || 'Galerij foto'">
+                            <div v-if="image.alt_text" class="gallery-alt">{{ image.alt_text }}</div>
+                            <button v-if="isAuthenticated" @click="deleteImage(image)" class="gallery-delete" title="Verwijderen">&times;</button>
+                        </div>
+                    </div>
                 </div>
             </div>
         </section>
@@ -77,6 +165,9 @@
         </div>
     </footer>
 
+    <script src="https://unpkg.com/vue@3/dist/vue.global.prod.js"></script>
     <script src="js/main.js"></script>
+    <script src="js/admin-auth.js?v=1"></script>
+    <script src="js/galerij-app.js?v=1"></script>
 </body>
 </html>
