@@ -22,7 +22,7 @@ try {
             $stmt = $pdo->query("SELECT id, naam, ingredienten, beschrijving, prijs, foto FROM products ORDER BY naam ASC");
             $products = $stmt->fetchAll();
 
-            $variantStmt = $pdo->query("SELECT id, product_id, naam, gewicht, prijs, foto, recipe_id FROM product_variants ORDER BY naam ASC, gewicht ASC");
+            $variantStmt = $pdo->query("SELECT * FROM product_variants ORDER BY naam ASC, gewicht ASC");
             $allVariants = $variantStmt->fetchAll();
 
             $variantsByProduct = [];
@@ -31,10 +31,10 @@ try {
                 $pid = $v['product_id'];
                 $variantsByProduct[$pid][] = [
                     'id' => (int)$v['id'],
-                    'naam' => $v['naam'],
+                    'naam' => $v['naam'] ?? null,
                     'gewicht' => (int)$v['gewicht'],
                     'prijs' => (float)$v['prijs'],
-                    'foto' => $v['foto'],
+                    'foto' => $v['foto'] ?? null,
                     'recipe_id' => !empty($v['recipe_id']) ? (int)$v['recipe_id'] : null
                 ];
                 if (!empty($v['recipe_id'])) {

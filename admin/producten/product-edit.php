@@ -634,7 +634,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                             <div id="variants-container">
                                 <?php foreach ($variants as $variant): ?>
                                 <div class="variant-row">
-                                    <input type="text" name="variant_naam[]" placeholder="Naam (bijv. Walnoot)" value="<?= htmlspecialchars($variant['naam'] ?? '') ?>" class="variant-naam">
+                                    <input type="text" name="variant_naam[]" placeholder="Naam" value="<?= htmlspecialchars($variant['naam'] ?? '') ?>" class="variant-naam">
                                     <input type="number" name="variant_gewicht[]" placeholder="Gewicht (g)" value="<?= $variant['gewicht'] ?>" min="1">
                                     <div class="price-input variant-price">
                                         <input type="number" name="variant_prijs[]" step="0.01" min="0" placeholder="Prijs" value="<?= $variant['prijs'] ?>">
@@ -758,7 +758,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             const row = document.createElement('div');
             row.className = 'variant-row';
             row.innerHTML = `
-                <input type="text" name="variant_naam[]" placeholder="Naam (bijv. Walnoot)" class="variant-naam" oninput="updatePreviewVariants()">
+                <input type="text" name="variant_naam[]" placeholder="Naam" class="variant-naam" oninput="updatePreviewVariants()">
                 <input type="number" name="variant_gewicht[]" placeholder="Gewicht (g)" min="1" oninput="updatePreviewVariants()">
                 <div class="price-input variant-price">
                     <input type="number" name="variant_prijs[]" step="0.01" min="0" placeholder="Prijs" oninput="updatePreviewVariants()">
