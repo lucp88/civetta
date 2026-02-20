@@ -80,7 +80,6 @@ foreach ($allOrders as &$order) {
             boi.product_name,
             boi.quantity,
             boi.unit_price,
-            pv.recipe_id,
             pv.gewicht as variant_weight,
             COALESCE(br.name, 'Geen recept') as recipe_name,
             br.recipe_data,
@@ -89,8 +88,9 @@ foreach ($allOrders as &$order) {
             COALESCE(dt.name, 'Geen deegsoort') as dough_type_name
         FROM business_order_items boi
         LEFT JOIN products p ON LOWER(TRIM(boi.product_name)) = LOWER(TRIM(p.naam))
-        LEFT JOIN product_variants pv ON pv.product_id = p.id AND ROUND(pv.prijs, 2) = ROUND(boi.unit_price, 2)
-        LEFT JOIN baker_recipes br ON pv.recipe_id = br.id
+        LEFT JOIN baker_recipes br ON br.id = (
+            SELECT pv.recipe_id FROM product_variants pv WHERE pv.product_id = p.id AND pv.recipe_id IS NOT NULL LIMIT 1
+        )
         LEFT JOIN dough_types dt ON br.dough_type_id = dt.id
         WHERE boi.order_id = ?
     ");
@@ -291,13 +291,13 @@ function formatDutchDate($date) {
             grid-column: 1 / -1;
             background: white;
             padding: 0.5rem 0.25rem;
-            display: flex;
-            flex-direction: column;
-            gap: 0.35rem;
+            display: grid;
+            grid-template-columns: repeat(7, 1fr);
+            gap: 0.25rem;
             min-height: 56px;
         }
         .prep-bar {
-            display: grid;
+            display: flex;
             align-items: center;
             background: linear-gradient(135deg, #fff0e8, #fff0e8dd);
             border-radius: 8px;
@@ -319,9 +319,13 @@ function formatDutchDate($date) {
             color: #5c3d1e;
             font-weight: 600;
             font-size: 0.85rem;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
         }
         .prep-bar-inner i {
             color: #ff6b35;
+            flex-shrink: 0;
         }
         .prep-bar-count {
             margin-left: auto;
@@ -715,9 +719,9 @@ function formatDutchDate($date) {
                                 $barBg = $recipeColorMap[$recipeName]['bg'];
                         ?>
                         <div class="prep-bar"
-                             style="display: grid; grid-template-columns: repeat(7, 1fr); border-left-color: <?= $barColor ?>; background: linear-gradient(135deg, <?= $barBg ?>, <?= $barBg ?>dd);"
+                             style="grid-column: <?= $colStart ?> / <?= $colEnd + 1 ?>; border-left-color: <?= $barColor ?>; background: linear-gradient(135deg, <?= $barBg ?>, <?= $barBg ?>dd);"
                              onclick="openDayModal('<?= $bakdag ?>', '<?= formatDutchDate($bakdagDt) ?>')">
-                            <div class="prep-bar-inner" style="grid-column: <?= $colStart ?> / <?= $colEnd + 1 ?>;">
+                            <div class="prep-bar-inner">
                                 <i class="bi bi-journal-bookmark" style="color: <?= $barColor ?>;"></i>
                                 <span><?= htmlspecialchars($recipeName) ?></span>
                                 <span class="prep-bar-days">(<?= $dayCount ?> dag<?= $dayCount !== 1 ? 'en' : '' ?>)</span>
