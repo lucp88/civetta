@@ -80,8 +80,6 @@ foreach ($allOrders as &$order) {
             boi.product_name,
             boi.quantity,
             boi.unit_price,
-            boi.variant_id as debug_variant_id,
-            pv.recipe_id as debug_recipe_id,
             COALESCE(br.name, 'Geen recept') as recipe_name,
             br.recipe_data,
             br.dough_type_id,
@@ -137,32 +135,33 @@ foreach ($allOrders as $order) {
     $ordersByBereidingDate[$date][] = $order;
 }
 
-// Build per-recipe bars data for week view
+// Build per-dough-type bars data for week view
 $recipeBarsByBakdag = [];
 foreach ($bakdagen as $bakdag) {
     $orders = $ordersByBereidingDate[$bakdag] ?? [];
-    $recipeMap = [];
+    $doughMap = [];
     foreach ($orders as $order) {
         foreach ($order['items'] as $item) {
-            $recipeName = $item['recipe_name'] ?? 'Geen recept';
-            if (!isset($recipeMap[$recipeName])) {
-                $recipeMap[$recipeName] = [
+            $doughName = $item['dough_type_name'] ?? 'Geen deegsoort';
+            if (!isset($doughMap[$doughName])) {
+                $doughMap[$doughName] = [
                     'method_days_count' => $item['method_days_count'],
                     'total_qty' => 0,
                     'order_ids' => [],
                 ];
             }
-            $recipeMap[$recipeName]['total_qty'] += (int)$item['quantity'];
-            $recipeMap[$recipeName]['order_ids'][$order['id']] = true;
+            $doughMap[$doughName]['total_qty'] += (int)$item['quantity'];
+            $doughMap[$doughName]['method_days_count'] = max($doughMap[$doughName]['method_days_count'], $item['method_days_count']);
+            $doughMap[$doughName]['order_ids'][$order['id']] = true;
         }
     }
-    foreach ($recipeMap as &$rdata) {
+    foreach ($doughMap as &$rdata) {
         $rdata['order_count'] = count($rdata['order_ids']);
         unset($rdata['order_ids']);
     }
     unset($rdata);
-    if (!empty($recipeMap)) {
-        $recipeBarsByBakdag[$bakdag] = $recipeMap;
+    if (!empty($doughMap)) {
+        $recipeBarsByBakdag[$bakdag] = $doughMap;
     }
 }
 
@@ -185,19 +184,6 @@ function formatDutchDate($date) {
     return getDutchDayNameFull($date) . ' ' . $date->format('j') . ' ' . getDutchMonthName($date);
 }
 ?>
-<!-- DEBUG: variant_id chain -->
-<pre style="background:#fff3cd;padding:1rem;margin:0;font-size:0.8rem;max-height:300px;overflow:auto">
-<?php
-foreach ($allOrders as $order) {
-    echo "Order #{$order['id']} ({$order['delivery_date']}):\n";
-    foreach ($order['items'] as $item) {
-        echo "  - {$item['product_name']}: variant_id=" . ($item['debug_variant_id'] ?? 'NULL')
-             . ", recipe_id=" . ($item['debug_recipe_id'] ?? 'NULL')
-             . ", recipe=" . ($item['recipe_name'] ?? '?') . "\n";
-    }
-}
-?>
-</pre>
 <!DOCTYPE html>
 <html lang="nl">
 <head>
@@ -704,39 +690,39 @@ foreach ($allOrders as $order) {
                         <div class="calendar-header-cell"><?= $day ?></div>
                     <?php endforeach; ?>
 
-                    <!-- Preparation bars row (per recipe) -->
+                    <!-- Preparation bars row (per dough type) -->
                     <div class="week-bars-container">
                         <?php
                         $barColors = ['#ff6b35', '#c8913a', '#4caf50', '#2196f3', '#9c27b0', '#e91e63', '#00bcd4', '#795548'];
                         $barBgColors = ['#fff0e8', '#faf3e8', '#e8f5e9', '#e3f2fd', '#f3e5f5', '#fce4ec', '#e0f7fa', '#efebe9'];
                         $colorIndex = 0;
-                        $recipeColorMap = [];
+                        $doughColorMap = [];
 
                         foreach ($bakdagen as $bakdag):
                             if (!isset($recipeBarsByBakdag[$bakdag])) continue;
                             $bakdagDt = new DateTime($bakdag);
                             $colEnd = (int)$bakdagDt->format('N'); // 1=Mon..7=Sun
 
-                            foreach ($recipeBarsByBakdag[$bakdag] as $recipeName => $rdata):
+                            foreach ($recipeBarsByBakdag[$bakdag] as $doughName => $rdata):
                                 $dayCount = $rdata['method_days_count'];
                                 $colStart = max(1, $colEnd - $dayCount + 1);
                                 $totalQty = $rdata['total_qty'];
 
-                                // Assign consistent color per recipe
-                                if (!isset($recipeColorMap[$recipeName])) {
+                                // Assign consistent color per dough type
+                                if (!isset($doughColorMap[$doughName])) {
                                     $ci = $colorIndex % count($barColors);
-                                    $recipeColorMap[$recipeName] = ['color' => $barColors[$ci], 'bg' => $barBgColors[$ci]];
+                                    $doughColorMap[$doughName] = ['color' => $barColors[$ci], 'bg' => $barBgColors[$ci]];
                                     $colorIndex++;
                                 }
-                                $barColor = $recipeColorMap[$recipeName]['color'];
-                                $barBg = $recipeColorMap[$recipeName]['bg'];
+                                $barColor = $doughColorMap[$doughName]['color'];
+                                $barBg = $doughColorMap[$doughName]['bg'];
                         ?>
                         <div class="prep-bar"
                              style="grid-column: <?= $colStart ?> / <?= $colEnd + 1 ?>; border-left-color: <?= $barColor ?>; background: linear-gradient(135deg, <?= $barBg ?>, <?= $barBg ?>dd);"
                              onclick="openDayModal('<?= $bakdag ?>', '<?= formatDutchDate($bakdagDt) ?>')">
                             <div class="prep-bar-inner">
-                                <i class="bi bi-journal-bookmark" style="color: <?= $barColor ?>;"></i>
-                                <span><?= htmlspecialchars($recipeName) ?></span>
+                                <i class="bi bi-layers" style="color: <?= $barColor ?>;"></i>
+                                <span><?= htmlspecialchars($doughName) ?></span>
                                 <span class="prep-bar-days">(<?= $dayCount ?> dag<?= $dayCount !== 1 ? 'en' : '' ?>)</span>
                                 <span class="prep-bar-count" style="background: <?= $barColor ?>;"><?= $totalQty ?>x</span>
                             </div>
