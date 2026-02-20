@@ -194,7 +194,11 @@ $monthlyBreadCount = (int)$stmt->fetch()['total_breads'];
         .method-day { background: #faf7f2; border: 2px solid #e8e0d5; border-radius: 10px; padding: 1rem; margin-bottom: 1rem; }
         .method-day-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 0.75rem; }
         .method-day-header h4 { margin: 0; font-size: 1rem; color: #5c3d1e; display: flex; align-items: center; gap: 0.4rem; }
-        .method-step { display: flex; align-items: flex-start; gap: 0.5rem; margin-bottom: 0.5rem; }
+        .method-step { display: flex; align-items: flex-start; gap: 0.5rem; margin-bottom: 0.5rem; border-radius: 6px; padding: 0.2rem; transition: background 0.15s, opacity 0.15s; }
+        .method-step.dragging { opacity: 0.4; }
+        .method-step.drag-over { background: #e8f0fe; box-shadow: inset 0 -2px 0 #c8913a; }
+        .method-step-handle { cursor: grab; color: #bbb; display: flex; align-items: center; padding: 0.3rem 0; margin-top: 0.35rem; font-size: 1rem; }
+        .method-step-handle:active { cursor: grabbing; }
         .method-step-num { min-width: 1.6rem; height: 1.6rem; background: #c8913a; color: white; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 0.75rem; font-weight: 700; margin-top: 0.4rem; flex-shrink: 0; }
         .method-step textarea { flex: 1; padding: 0.5rem 0.75rem; border: 2px solid #e8e0d5; border-radius: 6px; font-family: inherit; font-size: 0.9rem; resize: vertical; min-height: 2.4rem; color: #333; }
         .method-step textarea:focus { outline: none; border-color: #c8913a; }
@@ -737,7 +741,16 @@ $monthlyBreadCount = (int)$stmt->fetch()['total_breads'];
                                 <h4><i class="bi bi-calendar-day"></i> Dag {{ di + 1 }}</h4>
                                 <button class="btn-remove" @click="removeDay(di)" v-if="!isInherited && methodDays.length > 1" title="Dag verwijderen"><i class="bi bi-x-lg"></i></button>
                             </div>
-                            <div v-for="(step, si) in day.steps" :key="si" class="method-step">
+                            <div v-for="(step, si) in day.steps" :key="di+'-'+si"
+                                class="method-step"
+                                :class="{ dragging: dragStep && dragStep.di === di && dragStep.si === si, 'drag-over': dragOverStep && dragOverStep.di === di && dragOverStep.si === si }"
+                                draggable="true"
+                                @dragstart="onStepDragStart(di, si, $event)"
+                                @dragover.prevent="onStepDragOver(di, si, $event)"
+                                @dragleave="onStepDragLeave(di, si)"
+                                @drop.prevent="onStepDrop(di, si)"
+                                @dragend="onStepDragEnd()">
+                                <span class="method-step-handle" title="Sleep om te verplaatsen"><i class="bi bi-grip-vertical"></i></span>
                                 <span class="method-step-num">{{ si + 1 }}</span>
                                 <textarea v-model="day.steps[si]" placeholder="Beschrijf deze stap..." rows="1" @input="autoResizeStep($event)"></textarea>
                                 <button class="btn-remove" @click="removeStep(di, si)" v-if="day.steps.length > 1" title="Stap verwijderen"><i class="bi bi-x"></i></button>
@@ -1096,7 +1109,16 @@ $monthlyBreadCount = (int)$stmt->fetch()['total_breads'];
                                 <h4><i class="bi bi-calendar-day"></i> Dag {{ di + 1 }}</h4>
                                 <button class="btn-remove" @click="editingDoughType.methodDays.splice(di, 1)" v-if="editingDoughType.methodDays.length > 1" title="Dag verwijderen"><i class="bi bi-x-lg"></i></button>
                             </div>
-                            <div v-for="(step, si) in day.steps" :key="'dtstep'+di+'-'+si" class="method-step">
+                            <div v-for="(step, si) in day.steps" :key="'dtstep'+di+'-'+si"
+                                class="method-step"
+                                :class="{ dragging: dragStep && dragStep.di === ('dt'+di) && dragStep.si === si, 'drag-over': dragOverStep && dragOverStep.di === ('dt'+di) && dragOverStep.si === si }"
+                                draggable="true"
+                                @dragstart="onStepDragStart('dt'+di, si, $event)"
+                                @dragover.prevent="onStepDragOver('dt'+di, si, $event)"
+                                @dragleave="onStepDragLeave('dt'+di, si)"
+                                @drop.prevent="onStepDropDt(di, si)"
+                                @dragend="onStepDragEnd()">
+                                <span class="method-step-handle" title="Sleep om te verplaatsen"><i class="bi bi-grip-vertical"></i></span>
                                 <span class="method-step-num">{{ si + 1 }}</span>
                                 <textarea v-model="day.steps[si]" placeholder="Beschrijf deze stap..." rows="1" @input="autoResizeStep($event)"></textarea>
                                 <button class="btn-remove" @click="day.steps.splice(si, 1)" v-if="day.steps.length > 1"><i class="bi bi-x"></i></button>
@@ -1157,6 +1179,8 @@ $monthlyBreadCount = (int)$stmt->fetch()['total_breads'];
                 mixins: [],
                 toppings: [],
                 methodDays: [{ label: 'Dag 1', steps: [''] }],
+                dragStep: null,
+                dragOverStep: null,
                 savedRecipes: [],
                 collapsedGroups: {},
                 saving: false,
@@ -1528,6 +1552,44 @@ $monthlyBreadCount = (int)$stmt->fetch()['total_breads'];
                 const el = e.target;
                 el.style.height = 'auto';
                 el.style.height = el.scrollHeight + 'px';
+            },
+            onStepDragStart(di, si, e) {
+                this.dragStep = { di, si };
+                e.dataTransfer.effectAllowed = 'move';
+            },
+            onStepDragOver(di, si) {
+                if (!this.dragStep || this.dragStep.di !== di) return;
+                this.dragOverStep = { di, si };
+            },
+            onStepDragLeave(di, si) {
+                if (this.dragOverStep && this.dragOverStep.di === di && this.dragOverStep.si === si) {
+                    this.dragOverStep = null;
+                }
+            },
+            onStepDrop(di, si) {
+                if (!this.dragStep || this.dragStep.di !== di) return;
+                const from = this.dragStep.si;
+                if (from === si) return;
+                const steps = this.methodDays[di].steps;
+                const [moved] = steps.splice(from, 1);
+                steps.splice(si, 0, moved);
+                this.dragStep = null;
+                this.dragOverStep = null;
+            },
+            onStepDropDt(di, si) {
+                const key = 'dt' + di;
+                if (!this.dragStep || this.dragStep.di !== key) return;
+                const from = this.dragStep.si;
+                if (from === si) return;
+                const steps = this.editingDoughType.methodDays[di].steps;
+                const [moved] = steps.splice(from, 1);
+                steps.splice(si, 0, moved);
+                this.dragStep = null;
+                this.dragOverStep = null;
+            },
+            onStepDragEnd() {
+                this.dragStep = null;
+                this.dragOverStep = null;
             },
             applyDoughTypeMethod() {
                 if (!this.inheritedMethodDays) return;
