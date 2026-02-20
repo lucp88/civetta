@@ -280,26 +280,13 @@
                             </p>
 
                             <!-- Variant selector -->
-                            <div v-if="pricedVariants.length > 1">
+                            <div v-if="selectableVariants.length > 1">
                                 <div class="product-detail-section-label">Variant</div>
                                 <select class="variant-select" v-model="selectedVariantId" @change="showDetails = false">
-                                    <option v-for="v in pricedVariants" :key="v.id" :value="v.id">
-                                        {{ variantLabel(v) }} &mdash; {{ formatPrice(v.prijs) }}
+                                    <option v-for="v in selectableVariants" :key="v.id" :value="v.id">
+                                        {{ variantLabel(v) }}
                                     </option>
                                 </select>
-                            </div>
-                            <div v-else-if="pricedVariants.length === 1">
-                                <div class="product-detail-section-label">Prijs</div>
-                                <div class="product-detail-variant">
-                                    <span v-if="pricedVariants[0].naam">{{ pricedVariants[0].naam }} &mdash; </span>
-                                    <strong>{{ formatPrice(pricedVariants[0].prijs) }}</strong>
-                                </div>
-                            </div>
-                            <div v-else-if="product.prijs">
-                                <div class="product-detail-section-label">Prijs</div>
-                                <div class="product-detail-variant">
-                                    <strong>{{ formatPrice(product.prijs) }}</strong>
-                                </div>
                             </div>
 
                             <hr class="product-detail-divider">
@@ -354,6 +341,6 @@
     </footer>
 
     <script src="js/main.js"></script>
-    <script src="js/product-detail-app.js?v=2"></script>
+    <script src="js/product-detail-app.js?v=3"></script>
 </body>
 </html>

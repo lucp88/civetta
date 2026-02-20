@@ -12,11 +12,14 @@ const productDetailApp = createApp({
     },
 
     computed: {
-        pricedVariants() {
+        selectableVariants() {
             if (!this.product || !this.product.variants) return [];
-            return this.product.variants
-                .filter(v => parseFloat(v.prijs) > 0)
-                .sort((a, b) => parseFloat(a.prijs) - parseFloat(b.prijs));
+            return [...this.product.variants].sort((a, b) => {
+                const nameA = (a.naam || '').toLowerCase();
+                const nameB = (b.naam || '').toLowerCase();
+                if (nameA !== nameB) return nameA.localeCompare(nameB);
+                return (a.gewicht || 0) - (b.gewicht || 0);
+            });
         },
 
         selectedVariant() {
@@ -79,10 +82,9 @@ const productDetailApp = createApp({
                 this.product = product;
                 document.title = product.naam + ' | Bakkerij Civetta';
 
-                // Auto-select first priced variant
-                const priced = (product.variants || []).filter(v => parseFloat(v.prijs) > 0);
-                if (priced.length > 0) {
-                    this.selectedVariantId = priced.sort((a, b) => parseFloat(a.prijs) - parseFloat(b.prijs))[0].id;
+                // Auto-select first variant
+                if (product.variants && product.variants.length > 0) {
+                    this.selectedVariantId = this.selectableVariants[0].id;
                 }
             } catch (e) {
                 this.error = 'Er ging iets mis bij het laden van het product.';
@@ -92,9 +94,12 @@ const productDetailApp = createApp({
         },
 
         variantLabel(v) {
-            if (v.naam && v.gewicht) return v.naam + ' ' + v.gewicht + 'g';
-            if (v.naam) return v.naam;
-            return v.gewicht + 'g';
+            let label = '';
+            if (v.naam && v.gewicht) label = v.naam + ' ' + v.gewicht + 'g';
+            else if (v.naam) label = v.naam;
+            else label = v.gewicht + 'g';
+            if (parseFloat(v.prijs) > 0) label += ' — ' + this.formatPrice(v.prijs);
+            return label;
         },
 
         formatPrice(price) {
