@@ -58,7 +58,261 @@ switch ($method) {
 
     case 'POST':
         $data = json_decode(file_get_contents('php://input'), true);
+        $action = $data['action'] ?? 'create';
 
+        // Settle internal order
+        if ($action === 'settle_internal') {
+            $orderId = intval($data['order_id'] ?? 0);
+            $soldItems = $data['items'] ?? [];
+
+            if (!$orderId || empty($soldItems)) {
+                http_response_code(400);
+                echo json_encode(['success' => false, 'error' => 'Order ID en items zijn verplicht']);
+                exit;
+            }
+
+            $stmt = $pdo->prepare("SELECT id, is_internal, settled_at, total_amount FROM business_orders WHERE id = ?");
+            $stmt->execute([$orderId]);
+            $order = $stmt->fetch();
+
+            if (!$order) {
+                http_response_code(404);
+                echo json_encode(['success' => false, 'error' => 'Bestelling niet gevonden']);
+                exit;
+            }
+            if (empty($order['is_internal'])) {
+                http_response_code(400);
+                echo json_encode(['success' => false, 'error' => 'Alleen interne bestellingen kunnen afgehandeld worden']);
+                exit;
+            }
+
+            try {
+                $pdo->beginTransaction();
+
+                $stmtUpdate = $pdo->prepare("UPDATE business_order_items SET quantity_sold = ? WHERE id = ? AND order_id = ?");
+                $settledAmount = 0;
+                $totalQuantity = 0;
+                $totalSold = 0;
+                $remainderItems = [];
+
+                foreach ($soldItems as $item) {
+                    $itemId = intval($item['item_id']);
+                    $qtySold = intval($item['quantity_sold']);
+                    $stmtUpdate->execute([$qtySold, $itemId, $orderId]);
+
+                    // Fetch item details for summary
+                    $stmtItem = $pdo->prepare("SELECT product_name, quantity, unit_price FROM business_order_items WHERE id = ?");
+                    $stmtItem->execute([$itemId]);
+                    $itemData = $stmtItem->fetch();
+                    if ($itemData) {
+                        $settledAmount += $qtySold * floatval($itemData['unit_price']);
+                        $totalQuantity += intval($itemData['quantity']);
+                        $totalSold += $qtySold;
+                        $remainder = intval($itemData['quantity']) - $qtySold;
+                        if ($remainder > 0) {
+                            $remainderItems[] = [
+                                'product_name' => $itemData['product_name'],
+                                'quantity' => $remainder,
+                                'unit_price' => floatval($itemData['unit_price'])
+                            ];
+                        }
+                    }
+                }
+
+                $stmt = $pdo->prepare("UPDATE business_orders SET settled_amount = ?, settled_at = NOW() WHERE id = ?");
+                $stmt->execute([$settledAmount, $orderId]);
+
+                $pdo->commit();
+
+                echo json_encode([
+                    'success' => true,
+                    'message' => "Bestelling #$orderId afgehandeld. $totalSold/$totalQuantity verkocht.",
+                    'settled_amount' => $settledAmount,
+                    'total_sold' => $totalSold,
+                    'total_quantity' => $totalQuantity,
+                    'remainder_items' => $remainderItems
+                ]);
+
+            } catch (PDOException $e) {
+                $pdo->rollBack();
+                http_response_code(500);
+                echo json_encode(['success' => false, 'error' => 'Database fout bij afhandelen bestelling']);
+            }
+            break;
+        }
+
+        // Create invoice for settled internal order
+        if ($action === 'create_invoice_internal') {
+            $orderId = intval($data['order_id'] ?? 0);
+
+            if (!$orderId) {
+                http_response_code(400);
+                echo json_encode(['success' => false, 'error' => 'Order ID is verplicht']);
+                exit;
+            }
+
+            $stmt = $pdo->prepare("
+                SELECT bo.*, ba.bedrijfsnaam, ba.contactpersoon, ba.email, ba.telefoon,
+                       ba.adres, ba.postcode, ba.plaats, ba.kvk_nummer, ba.btw_id
+                FROM business_orders bo
+                JOIN business_accounts ba ON bo.account_id = ba.id
+                WHERE bo.id = ?
+            ");
+            $stmt->execute([$orderId]);
+            $order = $stmt->fetch();
+
+            if (!$order) {
+                http_response_code(404);
+                echo json_encode(['success' => false, 'error' => 'Bestelling niet gevonden']);
+                exit;
+            }
+            if (empty($order['is_internal'])) {
+                http_response_code(400);
+                echo json_encode(['success' => false, 'error' => 'Alleen interne bestellingen']);
+                exit;
+            }
+            if (empty($order['settled_at'])) {
+                http_response_code(400);
+                echo json_encode(['success' => false, 'error' => 'Bestelling moet eerst afgehandeld worden']);
+                exit;
+            }
+            if (!empty($order['eboekhouden_invoice_id']) || !empty($order['invoice_number'])) {
+                http_response_code(400);
+                echo json_encode(['success' => false, 'error' => 'Er is al een factuur aangemaakt voor deze bestelling']);
+                exit;
+            }
+
+            // Fetch items with quantity_sold for invoice
+            $stmt = $pdo->prepare("SELECT product_name, quantity, unit_price, quantity_sold FROM business_order_items WHERE order_id = ?");
+            $stmt->execute([$orderId]);
+            $rawItems = $stmt->fetchAll();
+
+            $invoiceItems = [];
+            foreach ($rawItems as $item) {
+                $qty = ($item['quantity_sold'] !== null) ? intval($item['quantity_sold']) : intval($item['quantity']);
+                if ($qty > 0) {
+                    $invoiceItems[] = [
+                        'product_name' => $item['product_name'],
+                        'quantity' => $qty,
+                        'unit_price' => floatval($item['unit_price'])
+                    ];
+                }
+            }
+
+            if (empty($invoiceItems)) {
+                http_response_code(400);
+                echo json_encode(['success' => false, 'error' => 'Geen verkochte items om te factureren']);
+                exit;
+            }
+
+            // Get facturatie settings
+            $settingKeys = ['facturatie_systeem', 'eboekhouden_api_token', 'eboekhouden_template_id_openstaand', 'eboekhouden_ledger_id', 'eboekhouden_debiteuren_ledger_id', 'btw_tarief'];
+            $settings = [];
+            foreach ($settingKeys as $key) {
+                $stmtS = $pdo->prepare("SELECT setting_value FROM settings WHERE setting_key = ?");
+                $stmtS->execute([$key]);
+                $settings[$key] = $stmtS->fetchColumn() ?: '';
+            }
+
+            try {
+                if ($settings['facturatie_systeem'] === 'eboekhouden' && !empty($settings['eboekhouden_api_token'])) {
+                    // e-Boekhouden invoice
+                    require_once __DIR__ . '/eboekhouden.php';
+
+                    $client = new EBoekhoudenClient($settings['eboekhouden_api_token']);
+
+                    $btwCode = 'LAAG_VERK_9';
+                    if (floatval($settings['btw_tarief']) == 21) {
+                        $btwCode = 'HOOG_VERK_21';
+                    }
+
+                    $accountData = [
+                        'email' => $order['email'],
+                        'bedrijfsnaam' => $order['bedrijfsnaam'],
+                        'contactpersoon' => $order['contactpersoon'],
+                        'adres' => $order['adres'],
+                        'postcode' => $order['postcode'],
+                        'plaats' => $order['plaats'],
+                        'telefoon' => $order['telefoon'],
+                        'kvk_nummer' => $order['kvk_nummer'],
+                        'btw_id' => $order['btw_id'],
+                        'delivery_date' => $order['delivery_date'],
+                        'btw_tarief' => floatval($settings['btw_tarief'] ?? 9)
+                    ];
+
+                    $result = $client->createFullInvoice(
+                        $accountData,
+                        $invoiceItems,
+                        $settings['eboekhouden_template_id_openstaand'],
+                        $settings['eboekhouden_ledger_id'],
+                        $btwCode,
+                        true,
+                        $settings['eboekhouden_debiteuren_ledger_id'] ?: null
+                    );
+
+                    $stmt = $pdo->prepare("
+                        UPDATE business_orders
+                        SET eboekhouden_invoice_id = ?,
+                            eboekhouden_factuurnummer = ?,
+                            eboekhouden_pdf_url = ?,
+                            facturatie_systeem = 'eboekhouden',
+                            invoiced_at = NOW(),
+                            invoice_status = 'gefactureerd'
+                        WHERE id = ?
+                    ");
+                    $stmt->execute([
+                        $result['id'],
+                        $result['invoiceNumber'],
+                        $result['pdfUrl'],
+                        $orderId
+                    ]);
+
+                    echo json_encode([
+                        'success' => true,
+                        'message' => "Factuur {$result['invoiceNumber']} aangemaakt via e-Boekhouden voor bestelling #$orderId",
+                        'invoice_number' => $result['invoiceNumber']
+                    ]);
+
+                } else {
+                    // Local invoice
+                    $invoiceNumber = 'F' . date('Y') . '-' . str_pad($orderId, 4, '0', STR_PAD_LEFT);
+
+                    $stmt = $pdo->prepare("
+                        UPDATE business_orders
+                        SET invoice_number = ?,
+                            invoiced_at = NOW(),
+                            facturatie_systeem = 'eigen',
+                            invoice_status = 'gefactureerd'
+                        WHERE id = ?
+                    ");
+                    $stmt->execute([$invoiceNumber, $orderId]);
+
+                    require_once __DIR__ . '/../lib/factuur/functions.php';
+
+                    $facturenDir = __DIR__ . '/../facturen';
+                    if (!is_dir($facturenDir)) {
+                        mkdir($facturenDir, 0755, true);
+                    }
+
+                    $factuurFile = $facturenDir . '/factuur-' . $orderId . '.pdf';
+                    generateFactuur($pdo, $orderId, $factuurFile);
+                    sendFactuurEmail($pdo, $orderId);
+
+                    echo json_encode([
+                        'success' => true,
+                        'message' => "Factuur $invoiceNumber aangemaakt en verstuurd voor bestelling #$orderId",
+                        'invoice_number' => $invoiceNumber
+                    ]);
+                }
+
+            } catch (Exception $e) {
+                http_response_code(500);
+                echo json_encode(['success' => false, 'error' => 'Fout bij aanmaken factuur: ' . $e->getMessage()]);
+            }
+            break;
+        }
+
+        // Create new order (existing logic)
         $accountId = intval($data['account_id'] ?? 0);
         $deliveryDate = $data['delivery_date'] ?? '';
         $items = $data['items'] ?? [];

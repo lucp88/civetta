@@ -15,16 +15,33 @@ function generateFactuur($pdo, $orderId, $outputPath = null) {
     
     if (!$order) return false;
     
-    $stmt = $pdo->prepare("SELECT product_name, quantity, unit_price FROM business_order_items WHERE order_id = ?");
+    $isSettledInternal = !empty($order['is_internal']) && !empty($order['settled_at']);
+
+    $stmt = $pdo->prepare("SELECT product_name, quantity, unit_price, quantity_sold FROM business_order_items WHERE order_id = ?");
     $stmt->execute([$orderId]);
-    $items = $stmt->fetchAll();
-    
+    $rawItems = $stmt->fetchAll();
+
+    // For settled internal orders, use quantity_sold and filter out zero-sold items
+    $items = [];
+    foreach ($rawItems as $item) {
+        if ($isSettledInternal && $item['quantity_sold'] !== null) {
+            if (intval($item['quantity_sold']) > 0) {
+                $item['quantity'] = intval($item['quantity_sold']);
+                $items[] = $item;
+            }
+        } else {
+            $items[] = $item;
+        }
+    }
+
     $stmt = $pdo->query("SELECT setting_value FROM settings WHERE setting_key = 'btw_tarief'");
     $btwTarief = floatval($stmt->fetchColumn() ?: 9);
-    
+
     $bedrijf = getBedrijfsGegevens($pdo);
-    
-    $totalInclBtw = floatval($order['total_amount']);
+
+    $totalInclBtw = ($isSettledInternal && $order['settled_amount'] !== null)
+        ? floatval($order['settled_amount'])
+        : floatval($order['total_amount']);
     $btwBedrag = $totalInclBtw - ($totalInclBtw / (1 + $btwTarief / 100));
     $exclBtw = $totalInclBtw - $btwBedrag;
     
