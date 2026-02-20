@@ -18,11 +18,20 @@ $stmt = $pdo->prepare("
         br.recipe_data
     FROM business_orders bo
     JOIN business_order_items boi ON bo.id = boi.order_id
-    LEFT JOIN products p ON LOWER(TRIM(boi.product_name)) = LOWER(TRIM(p.naam))
     LEFT JOIN product_variants pv ON pv.id = (
-        SELECT pv2.id FROM product_variants pv2 WHERE pv2.product_id = p.id AND pv2.recipe_id IS NOT NULL LIMIT 1
+        SELECT pv2.id FROM product_variants pv2
+        WHERE LOWER(TRIM(pv2.naam)) = LOWER(TRIM(boi.product_name))
+        LIMIT 1
     )
-    LEFT JOIN baker_recipes br ON pv.recipe_id = br.id
+    LEFT JOIN products p ON p.id = COALESCE(
+        pv.product_id,
+        (SELECT p2.id FROM products p2 WHERE LOWER(TRIM(p2.naam)) = LOWER(TRIM(boi.product_name)) LIMIT 1),
+        (SELECT p2.id FROM products p2 WHERE LOWER(TRIM(boi.product_name)) LIKE CONCAT(LOWER(TRIM(p2.naam)), ' (%') LIMIT 1)
+    )
+    LEFT JOIN baker_recipes br ON br.id = COALESCE(
+        pv.recipe_id,
+        (SELECT pv3.recipe_id FROM product_variants pv3 WHERE pv3.product_id = p.id AND pv3.recipe_id IS NOT NULL LIMIT 1)
+    )
     WHERE bo.delivery_date = ?
     AND bo.is_cancelled = 0
 ");

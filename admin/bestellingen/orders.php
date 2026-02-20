@@ -28,13 +28,23 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['update_status'])) {
     $orderId = intval($_POST['order_id']);
     $paymentStatus = $_POST['payment_status'] ?? null;
     $isCancelled = isset($_POST['is_cancelled']) ? 1 : 0;
-    
+
     if ($paymentStatus && in_array($paymentStatus, ['pending', 'paid'])) {
         $stmt = $pdo->prepare("UPDATE business_orders SET payment_status = ?, is_cancelled = ? WHERE id = ?");
         $stmt->execute([$paymentStatus, $isCancelled, $orderId]);
         header('Location: orders.php?updated=1');
         exit;
     }
+}
+
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['delete_order'])) {
+    $orderId = intval($_POST['order_id']);
+    $stmt = $pdo->prepare("DELETE FROM business_order_items WHERE order_id = ?");
+    $stmt->execute([$orderId]);
+    $stmt = $pdo->prepare("DELETE FROM business_orders WHERE id = ?");
+    $stmt->execute([$orderId]);
+    header('Location: orders.php?deleted=1');
+    exit;
 }
 
 $upcomingOrders = $pdo->query("
@@ -410,6 +420,20 @@ $adminBasePath = '../';
             gap: 4px;
         }
         .btn-edit-order:hover { background: #138496; }
+        .btn-delete-order {
+            background: #dc3545;
+            color: white;
+            border: none;
+            padding: 0.4rem 0.9rem;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 0.85rem;
+            font-weight: 500;
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+        }
+        .btn-delete-order:hover { background: #b02a37; }
         .modal-overlay {
             display: none;
             position: fixed;
@@ -986,6 +1010,11 @@ $adminBasePath = '../';
                                         <i class="bi bi-clipboard-check"></i> Afhandelen
                                     </button>
                                 <?php endif; ?>
+                                <form method="POST" style="display:inline;" onsubmit="return confirm('Bestelling #<?= $order['id'] ?> van <?= htmlspecialchars($order['bedrijfsnaam']) ?> definitief verwijderen?')">
+                                    <input type="hidden" name="delete_order" value="1">
+                                    <input type="hidden" name="order_id" value="<?= $order['id'] ?>">
+                                    <button type="submit" class="btn-delete-order"><i class="bi bi-trash"></i> Verwijderen</button>
+                                </form>
                             </div>
                         </div>
                     <?php endforeach; ?>
@@ -1089,6 +1118,13 @@ $adminBasePath = '../';
                                             </button>
                                         <?php endif; ?>
                                     <?php endif; ?>
+                                </div>
+                                <div style="margin-top: 0.75rem; padding-top: 0.75rem; border-top: 1px solid #eee;">
+                                    <form method="POST" style="display:inline;" onsubmit="return confirm('Bestelling #<?= $order['id'] ?> van <?= htmlspecialchars($order['bedrijfsnaam']) ?> definitief verwijderen?')">
+                                        <input type="hidden" name="delete_order" value="1">
+                                        <input type="hidden" name="order_id" value="<?= $order['id'] ?>">
+                                        <button type="submit" class="btn-delete-order"><i class="bi bi-trash"></i> Verwijderen</button>
+                                    </form>
                                 </div>
                             </div>
                         </div>
