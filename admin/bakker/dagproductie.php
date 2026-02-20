@@ -28,7 +28,9 @@ $windowEnd->modify("+{$maxPrepDays} days");
 
 $stmt = $pdo->prepare("
     SELECT
+        bo.id as order_id,
         bo.delivery_date,
+        ba.bedrijfsnaam,
         boi.product_name,
         boi.quantity,
         boi.unit_price,
@@ -40,6 +42,7 @@ $stmt = $pdo->prepare("
         COALESCE(dt.name, 'Geen deegsoort') as dough_type_name,
         dt.recipe_data as dough_type_recipe_data
     FROM business_orders bo
+    JOIN business_accounts ba ON bo.account_id = ba.id
     JOIN business_order_items boi ON bo.id = boi.order_id
     LEFT JOIN product_variants pv ON boi.variant_id = pv.id
     LEFT JOIN products p ON COALESCE(boi.product_id, pv.product_id) = p.id
@@ -102,17 +105,21 @@ foreach ($allItems as $item) {
 
         if ($item['recipe_id'] && $item['recipe_data']) {
             if (!isset($doughGroups[$doughTypeName])) {
-                // Use dough_type recipe_data if available, otherwise first recipe's data
                 $dtRecipeData = !empty($item['dough_type_recipe_data']) ? json_decode($item['dough_type_recipe_data'], true) : null;
                 $doughGroups[$doughTypeName] = [
                     'dough_type_data' => $dtRecipeData,
                     'recipes' => [],
                     'products' => [],
+                    'orders' => [],
+                    'method_days_count' => $methodDaysCount,
+                    'delivery_date' => $item['delivery_date'],
                     'total_qty' => 0,
                     'total_weight' => 0
                 ];
             }
-            // Track per-recipe info for display
+            $doughGroups[$doughTypeName]['method_days_count'] = max($doughGroups[$doughTypeName]['method_days_count'], $methodDaysCount);
+
+            // Track per-recipe info
             $recipeName = $item['recipe_name'];
             if (!isset($doughGroups[$doughTypeName]['recipes'][$recipeName])) {
                 $doughGroups[$doughTypeName]['recipes'][$recipeName] = [
@@ -128,6 +135,20 @@ foreach ($allItems as $item) {
             $doughGroups[$doughTypeName]['recipes'][$recipeName]['products'][$item['product_name']]['qty'] += $qty;
             $doughGroups[$doughTypeName]['recipes'][$recipeName]['total_qty'] += $qty;
             $doughGroups[$doughTypeName]['recipes'][$recipeName]['total_weight'] += $qty * $weight;
+
+            // Track per-order info (for sorting when out of oven)
+            $orderId = $item['order_id'];
+            if (!isset($doughGroups[$doughTypeName]['orders'][$orderId])) {
+                $doughGroups[$doughTypeName]['orders'][$orderId] = [
+                    'bedrijfsnaam' => $item['bedrijfsnaam'],
+                    'items' => []
+                ];
+            }
+            $productKey = $item['product_name'];
+            if (!isset($doughGroups[$doughTypeName]['orders'][$orderId]['items'][$productKey])) {
+                $doughGroups[$doughTypeName]['orders'][$orderId]['items'][$productKey] = 0;
+            }
+            $doughGroups[$doughTypeName]['orders'][$orderId]['items'][$productKey] += $qty;
 
             // Track at dough type level
             if (!isset($doughGroups[$doughTypeName]['products'][$item['product_name']])) {
@@ -824,6 +845,44 @@ $totalWeight += $noRecipeGroup['total_weight'];
                                 </div>
                             </div>
 
+                            <?php
+                            // Baking process timeline
+                            $methodDaysCount = $doughGroup['method_days_count'];
+                            $deliveryDt = new DateTime($doughGroup['delivery_date']);
+                            // Get methodDays steps from dough type data or first recipe
+                            $firstRecipeData = reset($doughGroup['recipes'])['data'] ?? [];
+                            $dtData = $doughGroup['dough_type_data'];
+                            $methodDays = $dtData['methodDays'] ?? $firstRecipeData['methodDays'] ?? null;
+                            if ($methodDays && count($methodDays) > 0):
+                                $prepStartDt = clone $deliveryDt;
+                                $prepStartDt->modify('-' . (count($methodDays) - 1) . ' days');
+                            ?>
+                            <div style="margin-top:1.5rem;padding-top:1.5rem;border-top:2px solid #f0e6d8">
+                                <h3 style="font-size:0.95rem;color:#5c3d1e;margin-bottom:1rem"><i class="bi bi-calendar-week"></i> Bakproces <span style="font-weight:400;color:#888;font-size:0.85rem">(<?= count($methodDays) ?> dagen, levering <?= formatDutchDate($deliveryDt) ?>)</span></h3>
+                                <?php foreach ($methodDays as $di => $day):
+                                    $dayDt = clone $prepStartDt;
+                                    $dayDt->modify('+' . $di . ' days');
+                                    $isCurrentDay = ($dayDt->format('Y-m-d') === $bereidingDate->format('Y-m-d'));
+                                    $dayLabel = $day['label'] ?? ('Dag ' . ($di + 1));
+                                ?>
+                                    <div style="margin-bottom:0.75rem;padding:0.75rem;border-radius:8px;<?= $isCurrentDay ? 'background:#fff5f0;border:2px solid #ff6b35;' : 'background:#faf8f4;border:1px solid #e8e0d5;' ?>">
+                                        <div style="font-weight:700;color:<?= $isCurrentDay ? '#ff6b35' : '#5c3d1e' ?>;margin-bottom:0.3rem;display:flex;align-items:center;gap:0.5rem">
+                                            <?php if ($isCurrentDay): ?><i class="bi bi-arrow-right-circle-fill" style="color:#ff6b35"></i><?php endif; ?>
+                                            <?= htmlspecialchars($dayLabel) ?> — <?= getDutchDayName($dayDt) ?> <?= $dayDt->format('j') ?> <?= getDutchMonthName($dayDt) ?>
+                                            <?php if ($isCurrentDay): ?><span style="font-size:0.8rem;background:#ff6b35;color:white;padding:0.15rem 0.5rem;border-radius:4px;font-weight:600">Vandaag</span><?php endif; ?>
+                                        </div>
+                                        <?php if (!empty($day['steps'])): ?>
+                                            <?php foreach ($day['steps'] as $si => $step): ?>
+                                                <?php if (trim($step)): ?>
+                                                    <div style="color:#666;font-size:0.9rem;padding-left:1.5rem;margin-top:0.2rem"><span style="color:#c8913a;font-weight:600">Stap <?= $si + 1 ?>:</span> <?= htmlspecialchars($step) ?></div>
+                                                <?php endif; ?>
+                                            <?php endforeach; ?>
+                                        <?php endif; ?>
+                                    </div>
+                                <?php endforeach; ?>
+                            </div>
+                            <?php endif; ?>
+
                             <div style="margin-top:1.5rem;padding-top:1.5rem;border-top:2px solid #f0e6d8">
                                 <h3 style="font-size:0.95rem;color:#5c3d1e;margin-bottom:1rem"><i class="bi bi-box-seam"></i> Broden uit dit deeg</h3>
                                 <?php foreach ($doughGroup['recipes'] as $recipeName => $recipeInfo): ?>
@@ -832,6 +891,23 @@ $totalWeight += $noRecipeGroup['total_weight'];
                                         <div class="products-used" style="margin-bottom:0">
                                             <?php foreach ($recipeInfo['products'] as $name => $data): ?>
                                                 <span class="product-tag"><strong><?= $data['qty'] ?>x</strong> <?= htmlspecialchars($name) ?> (<?= $data['weight'] ?>g)</span>
+                                            <?php endforeach; ?>
+                                        </div>
+                                    </div>
+                                <?php endforeach; ?>
+                            </div>
+
+                            <div style="margin-top:1.5rem;padding-top:1.5rem;border-top:2px solid #f0e6d8">
+                                <h3 style="font-size:0.95rem;color:#5c3d1e;margin-bottom:1rem"><i class="bi bi-people"></i> Per bestelling</h3>
+                                <?php foreach ($doughGroup['orders'] as $orderId => $orderInfo): ?>
+                                    <div style="margin-bottom:0.5rem;padding:0.6rem 0.8rem;background:#faf8f4;border-radius:8px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:0.5rem">
+                                        <div>
+                                            <span style="font-weight:600;color:#5c3d1e"><?= htmlspecialchars($orderInfo['bedrijfsnaam']) ?></span>
+                                            <span style="color:#999;font-size:0.8rem;margin-left:0.5rem">#<?= $orderId ?></span>
+                                        </div>
+                                        <div class="products-used" style="margin-bottom:0;gap:0.3rem">
+                                            <?php foreach ($orderInfo['items'] as $productName => $qty): ?>
+                                                <span class="product-tag" style="font-size:0.8rem;padding:0.2rem 0.6rem"><strong><?= $qty ?>x</strong> <?= htmlspecialchars($productName) ?></span>
                                             <?php endforeach; ?>
                                         </div>
                                     </div>
