@@ -1695,7 +1695,13 @@ $adminBasePath = '../';
                 }
             }
 
-            items.push({ product_name: productName, quantity: qty, unit_price: price });
+            items.push({
+                product_name: productName,
+                quantity: qty,
+                unit_price: price,
+                variant_id: variantSelect && variantSelect.value ? parseInt(variantSelect.value) || null : null,
+                product_id: productId || null
+            });
         });
 
         if (items.length === 0) { alert('Voeg minimaal \u00e9\u00e9n product toe'); return; }
