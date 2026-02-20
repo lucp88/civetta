@@ -19,13 +19,36 @@ switch ($method) {
 
         if ($action === 'customers') {
             $stmt = $pdo->query("SELECT id, bedrijfsnaam, contactpersoon, email, telefoon, adres, postcode, plaats, delivery_same_as_business, delivery_adres, delivery_postcode, delivery_plaats FROM business_accounts WHERE status = 'approved' ORDER BY bedrijfsnaam ASC");
-            echo json_encode(['success' => true, 'customers' => $stmt->fetchAll()]);
+            $customers = $stmt->fetchAll();
+            foreach ($customers as &$c) {
+                $c['is_internal'] = ($c['bedrijfsnaam'] === 'Civetta (Intern)') ? 1 : 0;
+            }
+            unset($c);
+            echo json_encode(['success' => true, 'customers' => $customers]);
             exit;
         }
 
         if ($action === 'products') {
             $stmt = $pdo->query("SELECT id, naam, prijs FROM products ORDER BY naam ASC");
-            echo json_encode(['success' => true, 'products' => $stmt->fetchAll()]);
+            $products = $stmt->fetchAll();
+
+            $variantStmt = $pdo->query("SELECT id, product_id, naam, gewicht, prijs FROM product_variants ORDER BY gewicht ASC");
+            $allVariants = $variantStmt->fetchAll();
+            $variantsByProduct = [];
+            foreach ($allVariants as $v) {
+                $variantsByProduct[$v['product_id']][] = [
+                    'id' => (int)$v['id'],
+                    'naam' => $v['naam'],
+                    'gewicht' => (int)$v['gewicht'],
+                    'prijs' => (float)$v['prijs']
+                ];
+            }
+            foreach ($products as &$p) {
+                $p['variants'] = $variantsByProduct[$p['id']] ?? [];
+            }
+            unset($p);
+
+            echo json_encode(['success' => true, 'products' => $products]);
             exit;
         }
 
@@ -40,6 +63,7 @@ switch ($method) {
         $deliveryDate = $data['delivery_date'] ?? '';
         $items = $data['items'] ?? [];
         $notes = trim($data['notes'] ?? '');
+        $isInternal = !empty($data['is_internal']);
 
         if (!$accountId || !$deliveryDate || empty($items)) {
             http_response_code(400);
@@ -67,10 +91,10 @@ switch ($method) {
             $pdo->beginTransaction();
 
             $stmt = $pdo->prepare("
-                INSERT INTO business_orders (account_id, delivery_date, payment_status, total_amount, notes, payment_type, is_recurring, invoice_status, delivery_status, created_at)
-                VALUES (?, ?, 'pending', ?, ?, 'factuur', 0, 'bestelbon', 'geplaatst', NOW())
+                INSERT INTO business_orders (account_id, delivery_date, payment_status, total_amount, notes, payment_type, is_recurring, invoice_status, delivery_status, is_internal, created_at)
+                VALUES (?, ?, 'pending', ?, ?, 'factuur', 0, 'bestelbon', 'geplaatst', ?, NOW())
             ");
-            $stmt->execute([$accountId, $deliveryDate, $totalAmount, $notes]);
+            $stmt->execute([$accountId, $deliveryDate, $totalAmount, $notes, $isInternal ? 1 : 0]);
             $orderId = $pdo->lastInsertId();
 
             $stmt = $pdo->prepare("
@@ -99,49 +123,55 @@ switch ($method) {
 
             $pdo->commit();
 
-            sendBestelbonEmail($pdo, $orderId);
-
             $stmt = $pdo->prepare("SELECT bedrijfsnaam, contactpersoon, email FROM business_accounts WHERE id = ?");
             $stmt->execute([$accountId]);
             $accountInfo = $stmt->fetch();
 
-            $itemsList = "";
-            foreach ($items as $item) {
-                $itemsList .= "- {$item['quantity']}x {$item['product_name']} (€" . number_format($item['unit_price'], 2, ',', '.') . " p/st)\n";
+            if (!$isInternal) {
+                sendBestelbonEmail($pdo, $orderId);
+
+                $itemsList = "";
+                foreach ($items as $item) {
+                    $itemsList .= "- {$item['quantity']}x {$item['product_name']} (€" . number_format($item['unit_price'], 2, ',', '.') . " p/st)\n";
+                }
+
+                $to = "laurens@bakkerij-civetta.nl";
+                $subject = "Nieuwe bestelling (admin) van {$accountInfo['bedrijfsnaam']} (#$orderId)";
+                $body = "Er is een nieuwe bestelling geplaatst via het admin panel!\n\n";
+                $body .= "Bestelling #$orderId\n";
+                $body .= "Bedrijf: {$accountInfo['bedrijfsnaam']}\n";
+                $body .= "Contactpersoon: {$accountInfo['contactpersoon']}\n";
+                $body .= "E-mail: {$accountInfo['email']}\n\n";
+                $body .= "Gewenste leverdatum: " . date('d-m-Y', strtotime($deliveryDate)) . "\n\n";
+                $body .= "Producten:\n$itemsList\n";
+                $body .= "Totaalbedrag: €" . number_format($totalAmount, 2, ',', '.') . "\n\n";
+                if ($notes) {
+                    $body .= "Opmerkingen: $notes\n\n";
+                }
+                $body .= "Geplaatst door: Admin\n";
+
+                $headers = "From: noreply@bakkerij-civetta.nl\r\n";
+                $headers .= "Content-Type: text/plain; charset=UTF-8\r\n";
+                @mail($to, $subject, $body, $headers);
+
+                try {
+                    $pushTitle = 'Nieuwe bestelling (admin)';
+                    $pushBody = $accountInfo['bedrijfsnaam'] . ' - €' . number_format($totalAmount, 2, ',', '.') . ' (' . date('d-m-Y', strtotime($deliveryDate)) . ')';
+                    sendPushNotification($pdo, $pushTitle, $pushBody);
+                } catch (\Throwable $e) {
+                    error_log('Push notification fout: ' . $e->getMessage());
+                }
             }
 
-            $to = "laurens@bakkerij-civetta.nl";
-            $subject = "Nieuwe bestelling (admin) van {$accountInfo['bedrijfsnaam']} (#$orderId)";
-            $body = "Er is een nieuwe bestelling geplaatst via het admin panel!\n\n";
-            $body .= "Bestelling #$orderId\n";
-            $body .= "Bedrijf: {$accountInfo['bedrijfsnaam']}\n";
-            $body .= "Contactpersoon: {$accountInfo['contactpersoon']}\n";
-            $body .= "E-mail: {$accountInfo['email']}\n\n";
-            $body .= "Gewenste leverdatum: " . date('d-m-Y', strtotime($deliveryDate)) . "\n\n";
-            $body .= "Producten:\n$itemsList\n";
-            $body .= "Totaalbedrag: €" . number_format($totalAmount, 2, ',', '.') . "\n\n";
-            if ($notes) {
-                $body .= "Opmerkingen: $notes\n\n";
-            }
-            $body .= "Geplaatst door: Admin\n";
-
-            $headers = "From: noreply@bakkerij-civetta.nl\r\n";
-            $headers .= "Content-Type: text/plain; charset=UTF-8\r\n";
-            @mail($to, $subject, $body, $headers);
-
-            try {
-                $pushTitle = 'Nieuwe bestelling (admin)';
-                $pushBody = $accountInfo['bedrijfsnaam'] . ' - €' . number_format($totalAmount, 2, ',', '.') . ' (' . date('d-m-Y', strtotime($deliveryDate)) . ')';
-                sendPushNotification($pdo, $pushTitle, $pushBody);
-            } catch (\Throwable $e) {
-                error_log('Push notification fout: ' . $e->getMessage());
-            }
+            $message = $isInternal
+                ? "Interne bestelling #$orderId geplaatst voor " . date('d-m-Y', strtotime($deliveryDate))
+                : "Bestelling #$orderId geplaatst voor {$accountInfo['bedrijfsnaam']}";
 
             echo json_encode([
                 'success' => true,
                 'order_id' => $orderId,
                 'bestelbon_number' => $bestelbonNumber,
-                'message' => "Bestelling #$orderId geplaatst voor {$accountInfo['bedrijfsnaam']}"
+                'message' => $message
             ]);
 
         } catch (PDOException $e) {
@@ -220,26 +250,33 @@ switch ($method) {
 
             $pdo->commit();
 
-            $stmtBtw = $pdo->query("SELECT setting_value FROM settings WHERE setting_key = 'btw_tarief'");
-            $btwTarief = floatval($stmtBtw->fetchColumn() ?: 9);
-
-            $stmtBedrijf = $pdo->query("SELECT setting_key, setting_value FROM settings WHERE setting_key LIKE 'bedrijf_%'");
-            $bedrijf = $stmtBedrijf->fetchAll(PDO::FETCH_KEY_PAIR);
-
             $order['total_amount'] = $totalAmount;
             if ($notes !== null) $order['notes'] = trim($notes);
 
-            $emailHtml = buildAdminOrderEditEmail($order, $oldItems, $items, $bedrijf, $btwTarief);
-            sendHtmlEmail(
-                $order['email'],
-                'Uw bestelling #' . $orderId . ' is aangepast door Bakkerij Civetta',
-                $emailHtml
-            );
+            if (empty($order['is_internal'])) {
+                $stmtBtw = $pdo->query("SELECT setting_value FROM settings WHERE setting_key = 'btw_tarief'");
+                $btwTarief = floatval($stmtBtw->fetchColumn() ?: 9);
 
-            echo json_encode([
-                'success' => true,
-                'message' => "Bestelling #$orderId bijgewerkt. De klant is per e-mail geïnformeerd."
-            ]);
+                $stmtBedrijf = $pdo->query("SELECT setting_key, setting_value FROM settings WHERE setting_key LIKE 'bedrijf_%'");
+                $bedrijf = $stmtBedrijf->fetchAll(PDO::FETCH_KEY_PAIR);
+
+                $emailHtml = buildAdminOrderEditEmail($order, $oldItems, $items, $bedrijf, $btwTarief);
+                sendHtmlEmail(
+                    $order['email'],
+                    'Uw bestelling #' . $orderId . ' is aangepast door Bakkerij Civetta',
+                    $emailHtml
+                );
+
+                echo json_encode([
+                    'success' => true,
+                    'message' => "Bestelling #$orderId bijgewerkt. De klant is per e-mail geïnformeerd."
+                ]);
+            } else {
+                echo json_encode([
+                    'success' => true,
+                    'message' => "Interne bestelling #$orderId bijgewerkt."
+                ]);
+            }
 
         } catch (PDOException $e) {
             $pdo->rollBack();
