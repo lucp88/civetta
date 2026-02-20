@@ -80,7 +80,6 @@ foreach ($allOrders as &$order) {
             boi.product_name,
             boi.quantity,
             boi.unit_price,
-            pv.gewicht as variant_weight,
             COALESCE(br.name, 'Geen recept') as recipe_name,
             br.recipe_data,
             br.dough_type_id,
