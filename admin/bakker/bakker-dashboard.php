@@ -68,8 +68,8 @@ $stmt = $pdo->prepare("
         SUM(boi.quantity * COALESCE(pv.dough_weight, 0)) as total_dough
     FROM business_order_items boi
     JOIN business_orders bo ON boi.order_id = bo.id
-    LEFT JOIN products p ON boi.product_name = p.naam
-    LEFT JOIN product_variants pv ON pv.product_id = p.id AND pv.prijs = boi.unit_price
+    LEFT JOIN product_variants pv ON boi.variant_id = pv.id
+    LEFT JOIN products p ON COALESCE(boi.product_id, pv.product_id) = p.id
     LEFT JOIN baker_recipes br ON pv.recipe_id = br.id
     LEFT JOIN dough_types dt ON br.dough_type_id = dt.id
     WHERE bo.delivery_date = ? AND bo.is_cancelled = 0

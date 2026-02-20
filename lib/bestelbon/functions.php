@@ -742,7 +742,7 @@ function sendCancellationEmail($pdo, $orderId) {
     $adminHtmlBody = buildAdminOrderNotificationEmail($order, $items, false, $bedrijf);
     $adminHtmlBody = str_replace('Bestelling gewijzigd', 'Bestelling geannuleerd', $adminHtmlBody);
     
-    sendHtmlEmail('laurens@bakkerij-civetta.nl', "Bestelling geannuleerd: #{$orderId} - {$order['bedrijfsnaam']}", $adminHtmlBody, [], $order['email']);
+    sendHtmlEmail('info@bakkerij-civetta.nl', "Bestelling geannuleerd: #{$orderId} - {$order['bedrijfsnaam']}", $adminHtmlBody, [], $order['email']);
     
     return $customerSent;
 }
@@ -767,7 +767,7 @@ function sendRecurringPauseEmail($pdo, $accountInfo, $affectedOrders, $unaffecte
         ? "Terugkerende bestelling gepauzeerd: {$accountInfo['bedrijfsnaam']}"
         : "Terugkerende bestelling hervat: {$accountInfo['bedrijfsnaam']}";
     
-    sendHtmlEmail('laurens@bakkerij-civetta.nl', $adminSubject, $htmlBody, [], $accountInfo['email']);
+    sendHtmlEmail('info@bakkerij-civetta.nl', $adminSubject, $htmlBody, [], $accountInfo['email']);
     
     return $customerSent;
 }
@@ -823,7 +823,7 @@ function sendRecurringUpdateEmail($pdo, $recurringGroupId, $oldItems, $newItems)
     
     $customerSent = sendHtmlEmail($to, $subject, $htmlBody, $attachments);
     
-    sendHtmlEmail('laurens@bakkerij-civetta.nl', "Terugkerende bestelling gewijzigd: {$order['bedrijfsnaam']}", $htmlBody, [], $order['email']);
+    sendHtmlEmail('info@bakkerij-civetta.nl', "Terugkerende bestelling gewijzigd: {$order['bedrijfsnaam']}", $htmlBody, [], $order['email']);
     
     return $customerSent;
 }

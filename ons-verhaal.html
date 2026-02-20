@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Ons Verhaal | Bakkerij Civetta</title>
     <link rel="stylesheet" href="css/style.css">
+    <style>[v-cloak] { display: none; }</style>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link href="https://fonts.googleapis.com/css2?family=Libre+Baskerville:ital,wght@0,400;0,700;1,400&family=Source+Sans+Pro:wght@400;600&display=swap" rel="stylesheet">
 </head>
@@ -47,32 +48,86 @@
 
         <section class="story">
             <div class="container">
-                <div class="story-text page-content">
-                    <p>
-                        Mijn passie voor brood bakken is begonnen als een bijbaantje in de bakkerij van De Veldkeuken. 
-                        Daar leerde ik in eerste instantie taarten bakken en daarna heb ik een tijd lang geholpen bij het broodbakken. 
-                        Terwijl ik daar werkte heb ik een eigen zuurdesem gestart en het thuisbakken opgepakt.
-                        De afgelopen jaren ben ik dat blijven doen en beetje bij beetje ook materialen aangeschaft om steeds professionelere resultaten neer te zetten.
-                    </p>
+                <div id="verhaal-app" v-cloak>
+                    <div class="admin-bar" v-if="isAuthenticated">
+                        <button @click="openEditor" class="btn-small">Bewerken</button>
+                    </div>
 
-                    <p>
-                        Toen ik verhuisde naar Leersum kwam ik erachter dat het eigenlijk erg moeilijk is om in de gemeente Utrechtse Heuvelrug aan echt goed, 
-                        ambachtelijk zuurdesembrood te komen. Dat hier vraag naar is, komt erg vaak naar voren: mensen nemen een omweg om goed brood te kopen, staan in lange rijen op de markt 
-                        en wanneer ik mensen vertelde van het bakkerij-idee werd iedereen razend enthousiast.
-                        Daarnaast zijn er ook nog heel veel restaurants in de buurt waar plaatselijke producten altijd goed op het menu staan.
-                        Met andere woorden: ik kreeg het idee dat er in Leersum en omstreken zeker ruimte is voor een ambachtelijke bakkerij.
-                    </p>
+                    <!-- Password change modal -->
+                    <div v-if="showPasswordChange" class="modal-overlay" @click.self="showPasswordChange = false">
+                        <div class="modal">
+                            <h3>Wachtwoord wijzigen</h3>
+                            <div v-if="passwordError" class="error-msg">{{ passwordError }}</div>
+                            <div v-if="passwordSuccess" class="success-msg">{{ passwordSuccess }}</div>
+                            <form @submit.prevent="changePassword">
+                                <div class="form-group">
+                                    <label>Huidig wachtwoord</label>
+                                    <input v-model="passwordForm.current" type="password" required>
+                                </div>
+                                <div class="form-group">
+                                    <label>Nieuw wachtwoord</label>
+                                    <input v-model="passwordForm.new_password" type="password" required minlength="8">
+                                </div>
+                                <div class="form-group">
+                                    <label>Bevestig nieuw wachtwoord</label>
+                                    <input v-model="passwordForm.confirm" type="password" required minlength="8">
+                                </div>
+                                <div class="modal-buttons">
+                                    <button type="submit" class="btn">Wijzigen</button>
+                                    <button type="button" @click="showPasswordChange = false" class="btn btn-outline">Annuleren</button>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
 
-                    <p>
-                        Vervolgens kristalliseerde in een jaar tijd het idee uit tot een daadwerkelijk plan, en daar zijn we nu aangekomen.
-                        Ik vond een plek bij een gestopte boer aan de rand van het dorp. Hij vond het een erg leuk idee om een bakkerij op zijn terrein te hebben.
-                    </p>
+                    <!-- Content editor modal -->
+                    <div v-if="showEditor" class="modal-overlay" @click.self="showEditor = false">
+                        <div class="modal modal-large">
+                            <h3>Pagina bewerken</h3>
+                            <form @submit.prevent="saveContent">
+                                <div class="form-group">
+                                    <label>Inhoud</label>
+                                    <textarea v-model="editContent" rows="20" required></textarea>
+                                    <small style="color: #666;">Gebruik een lege regel voor een nieuwe paragraaf. Begin een regel met ### voor een tussenkop.</small>
+                                </div>
+                                <div class="modal-buttons">
+                                    <button type="submit" class="btn">Opslaan</button>
+                                    <button type="button" @click="showEditor = false" class="btn btn-outline">Annuleren</button>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
 
-                    <h3>Toekomst</h3>
-                    <p>
-                        Ik wil beginnen met productie en bezorging. Ik wil het brood leveren aan een aantal winkels en restaurants. Als alles goed en wel op gang is, wil ik kijken naar 
-                        uitbreiding: het openen van een bakkerswinkel (met koffie en broodjes) in Leersum, Amerongen of Doorn.
-                    </p>
+                    <!-- Dynamic content (from database) -->
+                    <div v-if="content" class="story-text page-content" v-html="formatContent(content)"></div>
+
+                    <!-- Static fallback (shown until admin saves content to database) -->
+                    <div v-if="!content && !loading" class="story-text page-content">
+                        <p>
+                            Mijn passie voor brood bakken is begonnen als een bijbaantje in de bakkerij van De Veldkeuken.
+                            Daar leerde ik in eerste instantie taarten bakken en daarna heb ik een tijd lang geholpen bij het broodbakken.
+                            Terwijl ik daar werkte heb ik een eigen zuurdesem gestart en het thuisbakken opgepakt.
+                            De afgelopen jaren ben ik dat blijven doen en beetje bij beetje ook materialen aangeschaft om steeds professionelere resultaten neer te zetten.
+                        </p>
+                        <p>
+                            Toen ik verhuisde naar Leersum kwam ik erachter dat het eigenlijk erg moeilijk is om in de gemeente Utrechtse Heuvelrug aan echt goed,
+                            ambachtelijk zuurdesembrood te komen. Dat hier vraag naar is, komt erg vaak naar voren: mensen nemen een omweg om goed brood te kopen, staan in lange rijen op de markt
+                            en wanneer ik mensen vertelde van het bakkerij-idee werd iedereen razend enthousiast.
+                            Daarnaast zijn er ook nog heel veel restaurants in de buurt waar plaatselijke producten altijd goed op het menu staan.
+                            Met andere woorden: ik kreeg het idee dat er in Leersum en omstreken zeker ruimte is voor een ambachtelijke bakkerij.
+                        </p>
+                        <p>
+                            Vervolgens kristalliseerde in een jaar tijd het idee uit tot een daadwerkelijk plan, en daar zijn we nu aangekomen.
+                            Ik vond een plek bij een gestopte boer aan de rand van het dorp. Hij vond het een erg leuk idee om een bakkerij op zijn terrein te hebben.
+                        </p>
+                        <h3>Toekomst</h3>
+                        <p>
+                            Ik wil beginnen met productie en bezorging. Ik wil het brood leveren aan een aantal winkels en restaurants. Als alles goed en wel op gang is, wil ik kijken naar
+                            uitbreiding: het openen van een bakkerswinkel (met koffie en broodjes) in Leersum, Amerongen of Doorn.
+                        </p>
+                    </div>
+
+                    <div v-if="loading" class="placeholder-text">Pagina wordt geladen...</div>
                 </div>
             </div>
         </section>
@@ -87,12 +142,15 @@
                 </div>
                 <img src="img/logo.jpeg" alt="Civetta" class="footer-logo">
                 <div class="footer-contact">
-                    <p><a href="mailto:laurens@bakkerij-civetta.nl">laurens@bakkerij-civetta.nl</a></p>
+                    <p><a href="mailto:info@bakkerij-civetta.nl">info@bakkerij-civetta.nl</a></p>
                 </div>
             </div>
         </div>
     </footer>
 
+    <script src="https://unpkg.com/vue@3/dist/vue.global.prod.js"></script>
     <script src="js/main.js"></script>
+    <script src="js/admin-auth.js?v=1"></script>
+    <script src="js/ons-verhaal-app.js?v=1"></script>
 </body>
 </html>

@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Leveranciers | Bakkerij Civetta</title>
     <link rel="stylesheet" href="css/style.css">
+    <style>[v-cloak] { display: none; }</style>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link href="https://fonts.googleapis.com/css2?family=Libre+Baskerville:ital,wght@0,400;0,700;1,400&family=Source+Sans+Pro:wght@400;600&display=swap" rel="stylesheet">
 </head>
@@ -47,24 +48,69 @@
 
         <section class="suppliers">
             <div class="container">
-                <div class="page-content">
-                    <p class="intro-text">
-                        Goed brood begint bij goede ingrediënten. Hier vind je de leveranciers 
-                        waar we mee samenwerken.
-                    </p>
-                </div>
-                
-                <div class="suppliers-list">
-                    <!-- Leveranciers hier toevoegen met dit format:
-                    <article class="supplier-card">
-                        <h3>Naam Leverancier</h3>
-                        <p class="supplier-type">Type (bijv. Meel, Granen, etc.)</p>
-                        <p>Korte beschrijving van de leverancier en waarom jullie samenwerken.</p>
-                        <p class="supplier-location">Locatie</p>
-                    </article>
-                    -->
-                    
-                    <p class="placeholder-text">Informatie over onze leveranciers volgt binnenkort.</p>
+                <div id="leveranciers-app" v-cloak>
+                    <div class="admin-bar" v-if="isAuthenticated">
+                        <button @click="openEditor" class="btn-small">Bewerken</button>
+                    </div>
+
+                    <!-- Password change modal -->
+                    <div v-if="showPasswordChange" class="modal-overlay" @click.self="showPasswordChange = false">
+                        <div class="modal">
+                            <h3>Wachtwoord wijzigen</h3>
+                            <div v-if="passwordError" class="error-msg">{{ passwordError }}</div>
+                            <div v-if="passwordSuccess" class="success-msg">{{ passwordSuccess }}</div>
+                            <form @submit.prevent="changePassword">
+                                <div class="form-group">
+                                    <label>Huidig wachtwoord</label>
+                                    <input v-model="passwordForm.current" type="password" required>
+                                </div>
+                                <div class="form-group">
+                                    <label>Nieuw wachtwoord</label>
+                                    <input v-model="passwordForm.new_password" type="password" required minlength="8">
+                                </div>
+                                <div class="form-group">
+                                    <label>Bevestig nieuw wachtwoord</label>
+                                    <input v-model="passwordForm.confirm" type="password" required minlength="8">
+                                </div>
+                                <div class="modal-buttons">
+                                    <button type="submit" class="btn">Wijzigen</button>
+                                    <button type="button" @click="showPasswordChange = false" class="btn btn-outline">Annuleren</button>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
+
+                    <!-- Content editor modal -->
+                    <div v-if="showEditor" class="modal-overlay" @click.self="showEditor = false">
+                        <div class="modal modal-large">
+                            <h3>Pagina bewerken</h3>
+                            <form @submit.prevent="saveContent">
+                                <div class="form-group">
+                                    <label>Inhoud</label>
+                                    <textarea v-model="editContent" rows="20" required></textarea>
+                                    <small style="color: #666;">Gebruik een lege regel voor een nieuwe paragraaf. Begin een regel met ### voor een tussenkop.</small>
+                                </div>
+                                <div class="modal-buttons">
+                                    <button type="submit" class="btn">Opslaan</button>
+                                    <button type="button" @click="showEditor = false" class="btn btn-outline">Annuleren</button>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
+
+                    <!-- Dynamic content (from database) -->
+                    <div v-if="content" class="page-content" v-html="formatContent(content)"></div>
+
+                    <!-- Static fallback -->
+                    <div v-if="!content && !loading" class="page-content">
+                        <p class="intro-text">
+                            Goed brood begint bij goede ingrediënten. Hier vind je de leveranciers
+                            waar we mee samenwerken.
+                        </p>
+                        <p class="placeholder-text">Informatie over onze leveranciers volgt binnenkort.</p>
+                    </div>
+
+                    <div v-if="loading" class="placeholder-text">Pagina wordt geladen...</div>
                 </div>
             </div>
         </section>
@@ -79,12 +125,15 @@
                 </div>
                 <img src="img/logo.jpeg" alt="Civetta" class="footer-logo">
                 <div class="footer-contact">
-                    <p><a href="mailto:laurens@bakkerij-civetta.nl">laurens@bakkerij-civetta.nl</a></p>
+                    <p><a href="mailto:info@bakkerij-civetta.nl">info@bakkerij-civetta.nl</a></p>
                 </div>
             </div>
         </div>
     </footer>
 
+    <script src="https://unpkg.com/vue@3/dist/vue.global.prod.js"></script>
     <script src="js/main.js"></script>
+    <script src="js/admin-auth.js?v=1"></script>
+    <script src="js/leveranciers-app.js?v=1"></script>
 </body>
 </html>

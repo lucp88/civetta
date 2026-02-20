@@ -80,16 +80,14 @@ foreach ($allOrders as &$order) {
             boi.product_name,
             boi.quantity,
             boi.unit_price,
-            pv.recipe_id,
-            pv.gewicht as variant_weight,
             COALESCE(br.name, 'Geen recept') as recipe_name,
             br.recipe_data,
             br.dough_type_id,
             dt.recipe_data as dough_type_recipe_data,
             COALESCE(dt.name, 'Geen deegsoort') as dough_type_name
         FROM business_order_items boi
-        LEFT JOIN products p ON LOWER(TRIM(boi.product_name)) = LOWER(TRIM(p.naam))
-        LEFT JOIN product_variants pv ON pv.product_id = p.id AND ROUND(pv.prijs, 2) = ROUND(boi.unit_price, 2)
+        LEFT JOIN product_variants pv ON boi.variant_id = pv.id
+        LEFT JOIN products p ON COALESCE(boi.product_id, pv.product_id) = p.id
         LEFT JOIN baker_recipes br ON pv.recipe_id = br.id
         LEFT JOIN dough_types dt ON br.dough_type_id = dt.id
         WHERE boi.order_id = ?
@@ -137,32 +135,33 @@ foreach ($allOrders as $order) {
     $ordersByBereidingDate[$date][] = $order;
 }
 
-// Build per-recipe bars data for week view
+// Build per-dough-type bars data for week view
 $recipeBarsByBakdag = [];
 foreach ($bakdagen as $bakdag) {
     $orders = $ordersByBereidingDate[$bakdag] ?? [];
-    $recipeMap = [];
+    $doughMap = [];
     foreach ($orders as $order) {
         foreach ($order['items'] as $item) {
-            $recipeName = $item['recipe_name'] ?? 'Geen recept';
-            if (!isset($recipeMap[$recipeName])) {
-                $recipeMap[$recipeName] = [
+            $doughName = $item['dough_type_name'] ?? 'Geen deegsoort';
+            if (!isset($doughMap[$doughName])) {
+                $doughMap[$doughName] = [
                     'method_days_count' => $item['method_days_count'],
                     'total_qty' => 0,
                     'order_ids' => [],
                 ];
             }
-            $recipeMap[$recipeName]['total_qty'] += (int)$item['quantity'];
-            $recipeMap[$recipeName]['order_ids'][$order['id']] = true;
+            $doughMap[$doughName]['total_qty'] += (int)$item['quantity'];
+            $doughMap[$doughName]['method_days_count'] = max($doughMap[$doughName]['method_days_count'], $item['method_days_count']);
+            $doughMap[$doughName]['order_ids'][$order['id']] = true;
         }
     }
-    foreach ($recipeMap as &$rdata) {
+    foreach ($doughMap as &$rdata) {
         $rdata['order_count'] = count($rdata['order_ids']);
         unset($rdata['order_ids']);
     }
     unset($rdata);
-    if (!empty($recipeMap)) {
-        $recipeBarsByBakdag[$bakdag] = $recipeMap;
+    if (!empty($doughMap)) {
+        $recipeBarsByBakdag[$bakdag] = $doughMap;
     }
 }
 
@@ -291,13 +290,13 @@ function formatDutchDate($date) {
             grid-column: 1 / -1;
             background: white;
             padding: 0.5rem 0.25rem;
-            display: flex;
-            flex-direction: column;
-            gap: 0.35rem;
+            display: grid;
+            grid-template-columns: repeat(7, 1fr);
+            gap: 0.25rem;
             min-height: 56px;
         }
         .prep-bar {
-            display: grid;
+            display: flex;
             align-items: center;
             background: linear-gradient(135deg, #fff0e8, #fff0e8dd);
             border-radius: 8px;
@@ -319,9 +318,13 @@ function formatDutchDate($date) {
             color: #5c3d1e;
             font-weight: 600;
             font-size: 0.85rem;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
         }
         .prep-bar-inner i {
             color: #ff6b35;
+            flex-shrink: 0;
         }
         .prep-bar-count {
             margin-left: auto;
@@ -687,39 +690,39 @@ function formatDutchDate($date) {
                         <div class="calendar-header-cell"><?= $day ?></div>
                     <?php endforeach; ?>
 
-                    <!-- Preparation bars row (per recipe) -->
+                    <!-- Preparation bars row (per dough type) -->
                     <div class="week-bars-container">
                         <?php
                         $barColors = ['#ff6b35', '#c8913a', '#4caf50', '#2196f3', '#9c27b0', '#e91e63', '#00bcd4', '#795548'];
                         $barBgColors = ['#fff0e8', '#faf3e8', '#e8f5e9', '#e3f2fd', '#f3e5f5', '#fce4ec', '#e0f7fa', '#efebe9'];
                         $colorIndex = 0;
-                        $recipeColorMap = [];
+                        $doughColorMap = [];
 
                         foreach ($bakdagen as $bakdag):
                             if (!isset($recipeBarsByBakdag[$bakdag])) continue;
                             $bakdagDt = new DateTime($bakdag);
                             $colEnd = (int)$bakdagDt->format('N'); // 1=Mon..7=Sun
 
-                            foreach ($recipeBarsByBakdag[$bakdag] as $recipeName => $rdata):
+                            foreach ($recipeBarsByBakdag[$bakdag] as $doughName => $rdata):
                                 $dayCount = $rdata['method_days_count'];
                                 $colStart = max(1, $colEnd - $dayCount + 1);
                                 $totalQty = $rdata['total_qty'];
 
-                                // Assign consistent color per recipe
-                                if (!isset($recipeColorMap[$recipeName])) {
+                                // Assign consistent color per dough type
+                                if (!isset($doughColorMap[$doughName])) {
                                     $ci = $colorIndex % count($barColors);
-                                    $recipeColorMap[$recipeName] = ['color' => $barColors[$ci], 'bg' => $barBgColors[$ci]];
+                                    $doughColorMap[$doughName] = ['color' => $barColors[$ci], 'bg' => $barBgColors[$ci]];
                                     $colorIndex++;
                                 }
-                                $barColor = $recipeColorMap[$recipeName]['color'];
-                                $barBg = $recipeColorMap[$recipeName]['bg'];
+                                $barColor = $doughColorMap[$doughName]['color'];
+                                $barBg = $doughColorMap[$doughName]['bg'];
                         ?>
                         <div class="prep-bar"
-                             style="display: grid; grid-template-columns: repeat(7, 1fr); border-left-color: <?= $barColor ?>; background: linear-gradient(135deg, <?= $barBg ?>, <?= $barBg ?>dd);"
-                             onclick="openDayModal('<?= $bakdag ?>', '<?= formatDutchDate($bakdagDt) ?>')">
-                            <div class="prep-bar-inner" style="grid-column: <?= $colStart ?> / <?= $colEnd + 1 ?>;">
-                                <i class="bi bi-journal-bookmark" style="color: <?= $barColor ?>;"></i>
-                                <span><?= htmlspecialchars($recipeName) ?></span>
+                             style="grid-column: <?= $colStart ?> / <?= $colEnd + 1 ?>; border-left-color: <?= $barColor ?>; background: linear-gradient(135deg, <?= $barBg ?>, <?= $barBg ?>dd);"
+                             onclick="openDayModal('<?= $bakdag ?>', '<?= formatDutchDate($bakdagDt) ?>', '<?= htmlspecialchars(addslashes($doughName), ENT_QUOTES) ?>')">
+                            <div class="prep-bar-inner">
+                                <i class="bi bi-layers" style="color: <?= $barColor ?>;"></i>
+                                <span><?= htmlspecialchars($doughName) ?></span>
                                 <span class="prep-bar-days">(<?= $dayCount ?> dag<?= $dayCount !== 1 ? 'en' : '' ?>)</span>
                                 <span class="prep-bar-count" style="background: <?= $barColor ?>;"><?= $totalQty ?>x</span>
                             </div>
@@ -982,30 +985,37 @@ function formatDutchDate($date) {
         openBakdagenModal();
     }
 
-    function openDayModal(date, dateLabel) {
+    function openDayModal(date, dateLabel, filterDoughType) {
         const isBakdagDay = bakdagen.includes(date);
         const badgeHtml = isBakdagDay ? ' <span class="bakdag-badge"><i class="bi bi-fire"></i> Bakdag</span>' : '';
-        document.getElementById('dayModalDate').innerHTML = escapeHtml(dateLabel) + badgeHtml;
+        const filterHtml = filterDoughType ? ` <span style="font-size:0.85rem;color:#c8913a;font-weight:600"><i class="bi bi-layers"></i> ${escapeHtml(filterDoughType)}</span>` : '';
+        document.getElementById('dayModalDate').innerHTML = escapeHtml(dateLabel) + badgeHtml + filterHtml;
 
         const orders = ordersByDate[date] || [];
         let html = '';
 
-        if (orders.length === 0) {
+        // Filter items by dough type if specified
+        const filteredOrders = filterDoughType ? orders.map(order => ({
+            ...order,
+            items: order.items.filter(item => (item.dough_type_name || 'Geen deegsoort') === filterDoughType)
+        })).filter(order => order.items.length > 0) : orders;
+
+        if (filteredOrders.length === 0) {
             html = '<div class="empty-state"><i class="bi bi-emoji-smile"></i><p>Geen bestellingen om te bereiden</p></div>';
         } else {
             const productTotals = {};
-            orders.forEach(order => {
+            filteredOrders.forEach(order => {
                 order.items.forEach(item => {
                     if (!productTotals[item.product_name]) productTotals[item.product_name] = { qty: 0, amount: 0 };
                     productTotals[item.product_name].qty += parseInt(item.quantity);
                     productTotals[item.product_name].amount += parseInt(item.quantity) * parseFloat(item.unit_price);
                 });
             });
-            
+
             const sortedProducts = Object.entries(productTotals).sort((a, b) => b[1].qty - a[1].qty);
-            
+
             const doughTypeTotals = {};
-            orders.forEach(order => {
+            filteredOrders.forEach(order => {
                 order.items.forEach(item => {
                     const doughTypeName = item.dough_type_name || 'Geen deegsoort';
                     const recipeName = item.recipe_name || 'Geen recept';
@@ -1056,11 +1066,12 @@ function formatDutchDate($date) {
                 }
             }
             html += '</div>';
-            html += `<a href="dagproductie.php?date=${date}" class="btn-dagproductie"><i class="bi bi-calculator"></i> Bekijk ingrediënten</a>`;
+            const doughParam = filterDoughType ? `&dough_type=${encodeURIComponent(filterDoughType)}` : '';
+            html += `<a href="dagproductie.php?date=${date}${doughParam}" class="btn-dagproductie"><i class="bi bi-calculator"></i> Bekijk ingrediënten</a>`;
             html += '</div></div>';
-            
-            html += `<div class="orders-section"><h4><i class="bi bi-people"></i> Klanten (${orders.length})</h4>`;
-            orders.forEach(order => {
+
+            html += `<div class="orders-section"><h4><i class="bi bi-people"></i> Klanten (${filteredOrders.length})</h4>`;
+            filteredOrders.forEach(order => {
                 const statusClass = order.payment_status === 'paid' ? 'paid' : 'pending';
                 const statusText = order.payment_status === 'paid' ? 'Betaald' : 'Open';
                 

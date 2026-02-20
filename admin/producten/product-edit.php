@@ -643,6 +643,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                             <div id="variants-container">
                                 <?php foreach ($variants as $variant): ?>
                                 <div class="variant-row">
+                                    <span style="font-size:0.75rem;color:#999;min-width:50px">ID: <?= $variant['id'] ?? 'Null' ?></span>
                                     <input type="text" name="variant_naam[]" placeholder="Naam" value="<?= htmlspecialchars($variant['naam'] ?? '') ?>" class="variant-naam">
                                     <input type="number" name="variant_gewicht[]" placeholder="Gewicht (g)" value="<?= $variant['gewicht'] ?>" min="1">
                                     <div class="price-input variant-price">

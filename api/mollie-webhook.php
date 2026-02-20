@@ -149,7 +149,7 @@ try {
             $bestelbonNummer = $order['bestelbon_number'] ?? 'B' . date('Y') . '-' . str_pad($orderId, 4, '0', STR_PAD_LEFT);
             $subject = "Betalingsbevestiging $bestelbonNummer - Bakkerij Civetta";
 
-            sendHtmlEmail($order['email'], $subject, $htmlBody, [], 'laurens@bakkerij-civetta.nl');
+            sendHtmlEmail($order['email'], $subject, $htmlBody, [], 'info@bakkerij-civetta.nl');
             
             $eboekhoudenSettings = getEBoekhoudenSettings($pdo);
             
@@ -223,7 +223,7 @@ try {
             $adminBody .= "Leverdatum: " . date('d-m-Y', strtotime($order['delivery_date'])) . "\n\n";
             $adminBody .= "De klant is per e-mail op de hoogte gesteld.";
             
-            @mail("laurens@bakkerij-civetta.nl", $adminSubject, $adminBody, $headers);
+            @mail("info@bakkerij-civetta.nl", $adminSubject, $adminBody, $headers);
         }
     } elseif (in_array($status, ['failed', 'canceled', 'expired'])) {
         $stmt = $pdo->prepare("UPDATE business_orders SET is_cancelled = 1 WHERE id = ? AND mollie_payment_id = ?");

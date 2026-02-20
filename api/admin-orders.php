@@ -376,15 +376,17 @@ switch ($method) {
             $orderId = $pdo->lastInsertId();
 
             $stmt = $pdo->prepare("
-                INSERT INTO business_order_items (order_id, product_name, quantity, unit_price)
-                VALUES (?, ?, ?, ?)
+                INSERT INTO business_order_items (order_id, product_name, quantity, unit_price, variant_id, product_id)
+                VALUES (?, ?, ?, ?, ?, ?)
             ");
             foreach ($items as $item) {
                 $stmt->execute([
                     $orderId,
                     $item['product_name'],
                     intval($item['quantity']),
-                    floatval($item['unit_price'])
+                    floatval($item['unit_price']),
+                    !empty($item['variant_id']) ? intval($item['variant_id']) : null,
+                    !empty($item['product_id']) ? intval($item['product_id']) : null
                 ]);
             }
 
@@ -413,7 +415,7 @@ switch ($method) {
                     $itemsList .= "- {$item['quantity']}x {$item['product_name']} (€" . number_format($item['unit_price'], 2, ',', '.') . " p/st)\n";
                 }
 
-                $to = "laurens@bakkerij-civetta.nl";
+                $to = "info@bakkerij-civetta.nl";
                 $subject = "Nieuwe bestelling (admin) van {$accountInfo['bedrijfsnaam']} (#$orderId)";
                 $body = "Er is een nieuwe bestelling geplaatst via het admin panel!\n\n";
                 $body .= "Bestelling #$orderId\n";
@@ -502,15 +504,17 @@ switch ($method) {
             $stmt->execute([$orderId]);
 
             $stmt = $pdo->prepare("
-                INSERT INTO business_order_items (order_id, product_name, quantity, unit_price)
-                VALUES (?, ?, ?, ?)
+                INSERT INTO business_order_items (order_id, product_name, quantity, unit_price, variant_id, product_id)
+                VALUES (?, ?, ?, ?, ?, ?)
             ");
             foreach ($items as $item) {
                 $stmt->execute([
                     $orderId,
                     $item['product_name'],
                     intval($item['quantity']),
-                    floatval($item['unit_price'])
+                    floatval($item['unit_price']),
+                    !empty($item['variant_id']) ? intval($item['variant_id']) : null,
+                    !empty($item['product_id']) ? intval($item['product_id']) : null
                 ]);
             }
 

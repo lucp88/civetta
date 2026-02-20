@@ -10,7 +10,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
         exit;
     }
     
-    $to = "laurens@bakkerij-civetta.nl";
+    $to = "info@bakkerij-civetta.nl";
     $subject = "Nieuw bericht via website van $name";
     
     $body = "Je hebt een nieuw bericht ontvangen via de website.\n\n";

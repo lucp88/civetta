@@ -191,10 +191,10 @@ function sendRenewalReminder($account, $group) {
     $body .= "Heeft u vragen? Neem gerust contact met ons op.\n\n";
     $body .= "Met vriendelijke groet,\n";
     $body .= "Bakkerij Civetta\n";
-    $body .= "laurens@bakkerij-civetta.nl";
+    $body .= "info@bakkerij-civetta.nl";
     
     $headers = "From: noreply@bakkerij-civetta.nl\r\n";
-    $headers .= "Reply-To: laurens@bakkerij-civetta.nl\r\n";
+    $headers .= "Reply-To: info@bakkerij-civetta.nl\r\n";
     $headers .= "Content-Type: text/plain; charset=UTF-8\r\n";
     
     return @mail($account['email'], $subject, $body, $headers);

@@ -57,7 +57,7 @@ function generateFactuur($pdo, $orderId, $outputPath = null) {
     $bedrijfPlaats = ($bedrijf['bedrijf_postcode'] || $bedrijf['bedrijf_plaats']) 
         ? trim($bedrijf['bedrijf_postcode'] . ' ' . $bedrijf['bedrijf_plaats']) 
         : 'Leersum, Utrecht';
-    $bedrijfEmail = $bedrijf['bedrijf_email'] ?: 'laurens@bakkerij-civetta.nl';
+    $bedrijfEmail = $bedrijf['bedrijf_email'] ?: 'info@bakkerij-civetta.nl';
     $bedrijfKvk = $bedrijf['bedrijf_kvk'] ?: '';
     $bedrijfBtw = $bedrijf['bedrijf_btw_id'] ?: '';
     
@@ -223,7 +223,7 @@ function sendFactuurEmail($pdo, $orderId) {
     $boundary = md5(time());
     
     $headers = "From: noreply@bakkerij-civetta.nl\r\n";
-    $headers .= "Reply-To: laurens@bakkerij-civetta.nl\r\n";
+    $headers .= "Reply-To: info@bakkerij-civetta.nl\r\n";
     $headers .= "MIME-Version: 1.0\r\n";
     $headers .= "Content-Type: multipart/mixed; boundary=\"$boundary\"\r\n";
     
@@ -237,7 +237,7 @@ function sendFactuurEmail($pdo, $orderId) {
     $message .= "Totaalbedrag: EUR " . number_format($order['total_amount'], 2, ',', '.') . "\n\n";
     $message .= "Met vriendelijke groet,\n";
     $message .= "Bakkerij Civetta\n";
-    $message .= "laurens@bakkerij-civetta.nl\r\n";
+    $message .= "info@bakkerij-civetta.nl\r\n";
     
     $message .= "--$boundary\r\n";
     $message .= "Content-Type: application/pdf; name=\"factuur-$orderId.pdf\"\r\n";

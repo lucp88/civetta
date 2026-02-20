@@ -151,12 +151,12 @@ try {
                 // Load future orders with recipe data
                 $stmt = $pdo->prepare("
                     SELECT boi.product_name, boi.quantity,
-                           p.recipe_id, COALESCE(p.standard_weight, 300) as standard_weight,
+                           pv.recipe_id, COALESCE(pv.gewicht, 300) as standard_weight,
                            br.recipe_data
                     FROM business_orders bo
                     JOIN business_order_items boi ON bo.id = boi.order_id
-                    LEFT JOIN products p ON LOWER(boi.product_name) = LOWER(p.naam)
-                    LEFT JOIN baker_recipes br ON p.recipe_id = br.id
+                    LEFT JOIN product_variants pv ON boi.variant_id = pv.id
+                    LEFT JOIN baker_recipes br ON pv.recipe_id = br.id
                     WHERE bo.delivery_date BETWEEN ? AND ?
                     AND bo.is_cancelled = 0
                 ");

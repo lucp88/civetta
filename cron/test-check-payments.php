@@ -87,7 +87,7 @@ function executePaymentCheck($pdo, $dryRun, &$results) {
                 $to = $order['email'];
                 $subject = "Betaling ontvangen - Factuur $invoiceNumber";
                 $body = "Beste,\n\nWij hebben uw betaling van €" . number_format($expectedAmount, 2, ',', '.') . " ontvangen voor factuur $invoiceNumber.\n\nBedankt voor uw betaling!\n\nMet vriendelijke groet,\nBakkerij Civetta";
-                $headers = "From: noreply@bakkerij-civetta.nl\r\nReply-To: laurens@bakkerij-civetta.nl\r\n";
+                $headers = "From: noreply@bakkerij-civetta.nl\r\nReply-To: info@bakkerij-civetta.nl\r\n";
                 @mail($to, $subject, $body, $headers);
                 
                 $results[] = ['type' => 'ok', 'message' => "Order #{$order['id']} ({$order['bedrijfsnaam']}): MATCH op {$match['date']} - status bijgewerkt + mail verzonden"];
