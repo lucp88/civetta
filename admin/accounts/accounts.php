@@ -170,6 +170,13 @@ $adminBasePath = '../';
                         <p>Beheer particuliere klantaccounts voor consumenten.</p>
                         <span class="badge coming-soon">Komt binnenkort</span>
                     </div>
+
+                    <a href="accounts-admin.php" class="account-card">
+                        <div class="icon"><i class="bi bi-shield-lock"></i></div>
+                        <h3>Admin</h3>
+                        <p>Beheer admin accounts voor toegang tot het admin panel en frontend bewerking.</p>
+                        <span class="badge active">Actief</span>
+                    </a>
                 </div>
             </div>
         </div>
