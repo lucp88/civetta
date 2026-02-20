@@ -29,26 +29,50 @@ switch ($method) {
         }
 
         if ($action === 'products') {
+            // Get global fallback for recipe days
+            $stmtFallback = $pdo->query("SELECT setting_value FROM settings WHERE setting_key = 'bakdagen_voorbereiding_dagen'");
+            $defaultRecipeDays = intval($stmtFallback->fetchColumn() ?: 3);
+
             $stmt = $pdo->query("SELECT id, naam, prijs FROM products ORDER BY naam ASC");
             $products = $stmt->fetchAll();
 
-            $variantStmt = $pdo->query("SELECT id, product_id, naam, gewicht, prijs FROM product_variants ORDER BY gewicht ASC");
+            $variantStmt = $pdo->query("
+                SELECT pv.id, pv.product_id, pv.naam, pv.gewicht, pv.prijs, pv.recipe_id,
+                       br.recipe_data
+                FROM product_variants pv
+                LEFT JOIN baker_recipes br ON pv.recipe_id = br.id
+                ORDER BY pv.gewicht ASC
+            ");
             $allVariants = $variantStmt->fetchAll();
             $variantsByProduct = [];
             foreach ($allVariants as $v) {
+                $recipeDays = $defaultRecipeDays;
+                if (!empty($v['recipe_data'])) {
+                    $recipeData = json_decode($v['recipe_data'], true);
+                    if (!empty($recipeData['methodDays']) && is_array($recipeData['methodDays'])) {
+                        $recipeDays = count($recipeData['methodDays']);
+                    }
+                }
                 $variantsByProduct[$v['product_id']][] = [
                     'id' => (int)$v['id'],
                     'naam' => $v['naam'],
                     'gewicht' => (int)$v['gewicht'],
-                    'prijs' => (float)$v['prijs']
+                    'prijs' => (float)$v['prijs'],
+                    'recipe_days' => $recipeDays
                 ];
             }
             foreach ($products as &$p) {
                 $p['variants'] = $variantsByProduct[$p['id']] ?? [];
+                // Product-level recipe_days = minimum of its variants, or fallback
+                if (!empty($p['variants'])) {
+                    $p['recipe_days'] = min(array_column($p['variants'], 'recipe_days'));
+                } else {
+                    $p['recipe_days'] = $defaultRecipeDays;
+                }
             }
             unset($p);
 
-            echo json_encode(['success' => true, 'products' => $products]);
+            echo json_encode(['success' => true, 'products' => $products, 'default_recipe_days' => $defaultRecipeDays]);
             exit;
         }
 

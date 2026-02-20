@@ -1273,11 +1273,15 @@ $adminBasePath = '../';
         }
     }
 
+    function toLocalDateStr(d) {
+        return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+    }
+
     async function loadBakdagen() {
         try {
             const today = new Date();
-            const start = today.toISOString().split('T')[0];
-            const end = new Date(today.getFullYear(), today.getMonth() + 3, today.getDate()).toISOString().split('T')[0];
+            const start = toLocalDateStr(today);
+            const end = toLocalDateStr(new Date(today.getFullYear(), today.getMonth() + 3, today.getDate()));
             const response = await fetch(`../../api/bakdagen.php?start=${start}&end=${end}`);
             const data = await response.json();
             if (data.success) {
@@ -1286,6 +1290,21 @@ $adminBasePath = '../';
         } catch (e) {
             console.error('Error loading bakdagen:', e);
         }
+    }
+
+    function getAvailableBakdagen() {
+        const dateStr = document.getElementById('newOrderDate').value;
+        if (!dateStr) return 999;
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        const target = new Date(dateStr + 'T00:00');
+        let count = 0;
+        const d = new Date(today);
+        while (d <= target) {
+            if (allBakdagen.includes(toLocalDateStr(d))) count++;
+            d.setDate(d.getDate() + 1);
+        }
+        return count;
     }
 
     function checkBakdag() {
@@ -1310,6 +1329,9 @@ $adminBasePath = '../';
                 ? new Date(next + 'T00:00').toLocaleDateString('nl-NL', {weekday: 'long', day: 'numeric', month: 'long'})
                 : 'onbekend';
         }
+
+        // Refresh product rows to filter by available baking days
+        refreshProductOptions();
     }
 
     function selectNextBakdag() {
@@ -1351,7 +1373,7 @@ $adminBasePath = '../';
             custSelect.innerHTML += '<option value="' + c.id + '">' + escHtml(c.bedrijfsnaam) + ' (' + escHtml(c.contactpersoon) + ')</option>';
         });
 
-        document.getElementById('newOrderDate').value = prefillDate || new Date().toISOString().split('T')[0];
+        document.getElementById('newOrderDate').value = prefillDate || toLocalDateStr(new Date());
         document.getElementById('newOrderNotes').value = '';
         document.getElementById('newOrderProducts').innerHTML = '';
         newOrderProductIndex = 0;
@@ -1411,18 +1433,75 @@ $adminBasePath = '../';
         card.classList.add('show');
     }
 
+    function getEarliestDeliveryDate(recipeDays) {
+        if (!recipeDays || recipeDays <= 0) recipeDays = 1;
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        let count = 0;
+        const d = new Date(today);
+        while (count < recipeDays) {
+            if (allBakdagen.includes(toLocalDateStr(d))) count++;
+            if (count < recipeDays) d.setDate(d.getDate() + 1);
+        }
+        return toLocalDateStr(d);
+    }
+
+    function formatDateNL(dateStr) {
+        return new Date(dateStr + 'T00:00').toLocaleDateString('nl-NL', {weekday: 'short', day: 'numeric', month: 'short'});
+    }
+
+    function isProductAvailable(recipeDays) {
+        return getAvailableBakdagen() >= (recipeDays || 1);
+    }
+
+    function buildProductOptions() {
+        const available = getAvailableBakdagen();
+        let html = '<option value="">Kies product...</option>';
+        allProducts.forEach(p => {
+            const days = p.recipe_days || 1;
+            const canMake = days <= available;
+            if (canMake) {
+                html += '<option value="' + p.id + '">' + escHtml(p.naam) + '</option>';
+            } else {
+                const earliest = getEarliestDeliveryDate(days);
+                html += '<option value="' + p.id + '" disabled style="color: #999;">' + escHtml(p.naam) + ' \u2014 pas vanaf ' + formatDateNL(earliest) + ' (Bakproces: ' + days + ' dagen)</option>';
+            }
+        });
+        return html;
+    }
+
+    function refreshProductOptions() {
+        const options = buildProductOptions();
+        document.querySelectorAll('#newOrderProducts .product-select-row').forEach(row => {
+            const productSelect = row.querySelector('.product-select');
+            if (!productSelect) return;
+            const currentVal = productSelect.value;
+            productSelect.innerHTML = options;
+            if (currentVal) {
+                const product = allProducts.find(p => p.id == currentVal);
+                if (product && isProductAvailable(product.recipe_days)) {
+                    productSelect.value = currentVal;
+                    onProductSelect(productSelect);
+                } else {
+                    productSelect.value = '';
+                    const variantSelect = row.querySelector('.variant-select');
+                    if (variantSelect) { variantSelect.style.display = 'none'; variantSelect.innerHTML = ''; }
+                    const priceEl = row.querySelector('.product-price');
+                    if (priceEl) priceEl.textContent = '\u20AC0,00';
+                }
+            }
+        });
+        updateNewOrderTotal();
+    }
+
     function addProductRow() {
         const container = document.getElementById('newOrderProducts');
         const idx = newOrderProductIndex++;
-        let productOptions = '<option value="">Kies product...</option>';
-        allProducts.forEach(p => {
-            productOptions += '<option value="' + p.id + '">' + escHtml(p.naam) + '</option>';
-        });
 
         const row = document.createElement('div');
         row.className = 'product-select-row';
         row.innerHTML =
-            '<select class="form-control product-select" data-idx="' + idx + '" onchange="onProductSelect(this)">' + productOptions + '</select>' +
+            '<select class="form-control product-select" data-idx="' + idx + '" onchange="onProductSelect(this)">' + buildProductOptions() + '</select>' +
             '<select class="form-control variant-select" data-idx="' + idx + '" onchange="onVariantSelect(this)" style="display:none;"></select>' +
             '<input type="number" class="form-control product-qty" data-idx="' + idx + '" min="1" value="1" onchange="updateNewOrderTotal()" oninput="updateNewOrderTotal()">' +
             '<span class="product-price" data-idx="' + idx + '">\u20AC0,00</span>' +
@@ -1469,10 +1548,18 @@ $adminBasePath = '../';
         if (!product) return;
 
         if (product.variants && product.variants.length > 0) {
+            const available = getAvailableBakdagen();
             let variantOptions = '<option value="">Kies variant...</option>';
             product.variants.forEach(v => {
                 const label = v.gewicht + 'g' + (v.naam ? ' - ' + v.naam : '');
-                variantOptions += '<option value="' + v.id + '" data-price="' + v.prijs + '" data-weight="' + v.gewicht + '" data-naam="' + escAttr(v.naam || '') + '">' + escHtml(label) + ' (\u20AC' + parseFloat(v.prijs).toFixed(2).replace('.', ',') + ')</option>';
+                const days = v.recipe_days || 1;
+                const canMake = days <= available;
+                if (canMake) {
+                    variantOptions += '<option value="' + v.id + '" data-price="' + v.prijs + '" data-weight="' + v.gewicht + '" data-naam="' + escAttr(v.naam || '') + '">' + escHtml(label) + ' (\u20AC' + parseFloat(v.prijs).toFixed(2).replace('.', ',') + ')</option>';
+                } else {
+                    const earliest = getEarliestDeliveryDate(days);
+                    variantOptions += '<option value="' + v.id + '" disabled style="color: #999;">' + escHtml(label) + ' \u2014 pas vanaf ' + formatDateNL(earliest) + ' (Bakproces: ' + days + ' dagen)</option>';
+                }
             });
             variantSelect.innerHTML = variantOptions;
             variantSelect.style.display = '';
