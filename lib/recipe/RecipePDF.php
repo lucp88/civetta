@@ -244,7 +244,25 @@ function generateRecipePDF($data) {
         $pdf->Cell(30, 6, number_format($yeastPct, 1, ',', '') . '%', 0, 1, 'R');
     }
     
-    if (!empty($recipe['method'])) {
+    if (!empty($recipe['methodDays'])) {
+        $pdf->AddPage();
+        $pdf->SectionTitle('Bereidingswijze');
+        foreach ($recipe['methodDays'] as $di => $day) {
+            $pdf->SetFont('Helvetica', 'B', 11);
+            $pdf->SetTextColor(92, 61, 30);
+            $pdf->Cell(0, 8, utf8_decode($day['label'] ?? ('Dag ' . ($di + 1))), 0, 1, 'L');
+            $pdf->SetFont('Helvetica', '', 10);
+            $pdf->SetTextColor(60);
+            if (!empty($day['steps'])) {
+                foreach ($day['steps'] as $si => $step) {
+                    if (trim($step) === '') continue;
+                    $pdf->Cell(8, 6, ($si + 1) . '.', 0, 0, 'R');
+                    $pdf->MultiCell(0, 6, utf8_decode($step));
+                }
+            }
+            $pdf->Ln(3);
+        }
+    } elseif (!empty($recipe['method'])) {
         $pdf->AddPage();
         $pdf->SectionTitle('Bereidingswijze');
         $pdf->SetFont('Helvetica', '', 10);

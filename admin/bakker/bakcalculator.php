@@ -191,8 +191,19 @@ $monthlyBreadCount = (int)$stmt->fetch()['total_breads'];
         .radio-pill:hover:not(.active) { border-color: #c8913a; }
         .empty-state { text-align: center; padding: 2rem; color: #ccc; }
         .empty-state i { font-size: 2.5rem; display: block; margin-bottom: 0.5rem; }
-        .method-textarea { width: 100%; min-height: 300px; padding: 1rem; border: 2px solid #e8e0d5; border-radius: 8px; font-family: inherit; font-size: 0.95rem; resize: vertical; color: #333; }
-        .method-textarea:focus { outline: none; border-color: #c8913a; }
+        .method-day { background: #faf7f2; border: 2px solid #e8e0d5; border-radius: 10px; padding: 1rem; margin-bottom: 1rem; }
+        .method-day-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 0.75rem; }
+        .method-day-header h4 { margin: 0; font-size: 1rem; color: #5c3d1e; display: flex; align-items: center; gap: 0.4rem; }
+        .method-step { display: flex; align-items: flex-start; gap: 0.5rem; margin-bottom: 0.5rem; }
+        .method-step-num { min-width: 1.6rem; height: 1.6rem; background: #c8913a; color: white; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 0.75rem; font-weight: 700; margin-top: 0.4rem; flex-shrink: 0; }
+        .method-step textarea { flex: 1; padding: 0.5rem 0.75rem; border: 2px solid #e8e0d5; border-radius: 6px; font-family: inherit; font-size: 0.9rem; resize: vertical; min-height: 2.4rem; color: #333; }
+        .method-step textarea:focus { outline: none; border-color: #c8913a; }
+        .method-add-step { display: inline-flex; align-items: center; gap: 0.3rem; padding: 0.3rem 0.7rem; font-size: 0.8rem; color: #8b5a2b; background: none; border: 1px dashed #cbb89d; border-radius: 6px; cursor: pointer; margin-top: 0.25rem; }
+        .method-add-step:hover { background: #f0e8da; border-color: #8b5a2b; }
+        .method-add-day { display: inline-flex; align-items: center; gap: 0.4rem; padding: 0.5rem 1rem; font-size: 0.85rem; color: #5c3d1e; background: none; border: 2px dashed #cbb89d; border-radius: 8px; cursor: pointer; }
+        .method-add-day:hover { background: #f5f0e8; border-color: #8b5a2b; }
+        .method-apply-btn { display: inline-flex; align-items: center; gap: 0.3rem; padding: 0.35rem 0.75rem; font-size: 0.8rem; color: #1a56c4; background: #e8f0fe; border: 1px solid #90b4f5; border-radius: 6px; cursor: pointer; }
+        .method-apply-btn:hover { background: #d0e2fc; }
         .category-label { font-size: 0.7rem; padding: 0.15rem 0.4rem; border-radius: 4px; font-weight: 600; text-transform: uppercase; }
         .cat-integrated { background: #e8f5e9; color: #2e7d32; }
         .cat-non-integrated { background: #fff3e0; color: #e65100; }
@@ -712,9 +723,30 @@ $monthlyBreadCount = (int)$stmt->fetch()['total_breads'];
                 </div>
 
                 <div v-show="calculatorActive && activeTab==='methode'">
+                    <div v-if="isInherited && inheritedMethodDays" class="inherited-banner" style="margin-bottom:1rem">
+                        <i class="bi bi-link-45deg"></i>
+                        <span>Aantal dagen ({{ inheritedMethodDays.length }}) vastgelegd door deegsoort. Stappen zijn vrij bewerkbaar.</span>
+                        <button class="method-apply-btn" @click="applyDoughTypeMethod()" style="margin-left:auto">
+                            <i class="bi bi-download"></i> Methode overnemen
+                        </button>
+                    </div>
                     <div class="panel">
                         <div class="panel-title"><i class="bi bi-journal-text"></i> Bereidingswijze</div>
-                        <textarea v-model="method" class="method-textarea" placeholder="Beschrijf hier je bereidingswijze, tijden, temperaturen..."></textarea>
+                        <div v-for="(day, di) in methodDays" :key="di" class="method-day">
+                            <div class="method-day-header">
+                                <h4><i class="bi bi-calendar-day"></i> Dag {{ di + 1 }}</h4>
+                                <button class="btn-remove" @click="removeDay(di)" v-if="!isInherited && methodDays.length > 1" title="Dag verwijderen"><i class="bi bi-x-lg"></i></button>
+                            </div>
+                            <div v-for="(step, si) in day.steps" :key="si" class="method-step">
+                                <span class="method-step-num">{{ si + 1 }}</span>
+                                <textarea v-model="day.steps[si]" placeholder="Beschrijf deze stap..." rows="1" @input="autoResizeStep($event)"></textarea>
+                                <button class="btn-remove" @click="removeStep(di, si)" v-if="day.steps.length > 1" title="Stap verwijderen"><i class="bi bi-x"></i></button>
+                            </div>
+                            <button class="method-add-step" @click="addStep(di)"><i class="bi bi-plus"></i> Stap toevoegen</button>
+                        </div>
+                        <button class="method-add-day" @click="addDay()" v-if="!isInherited">
+                            <i class="bi bi-plus-lg"></i> Dag toevoegen
+                        </button>
                     </div>
                 </div>
 
@@ -1057,6 +1089,24 @@ $monthlyBreadCount = (int)$stmt->fetch()['total_breads'];
                             <i class="bi bi-exclamation-triangle"></i> Totaal is {{ editingDoughType.mainDoughGrains.reduce((s,g)=>s+(g.pct||0),0) }}% — moet 100% zijn
                         </div>
 
+                        <hr class="divider">
+                        <div class="panel-title" style="margin-bottom:0.75rem"><i class="bi bi-journal-text"></i> Methode</div>
+                        <div v-for="(day, di) in editingDoughType.methodDays" :key="'dtday'+di" class="method-day">
+                            <div class="method-day-header">
+                                <h4><i class="bi bi-calendar-day"></i> Dag {{ di + 1 }}</h4>
+                                <button class="btn-remove" @click="editingDoughType.methodDays.splice(di, 1)" v-if="editingDoughType.methodDays.length > 1" title="Dag verwijderen"><i class="bi bi-x-lg"></i></button>
+                            </div>
+                            <div v-for="(step, si) in day.steps" :key="'dtstep'+di+'-'+si" class="method-step">
+                                <span class="method-step-num">{{ si + 1 }}</span>
+                                <textarea v-model="day.steps[si]" placeholder="Beschrijf deze stap..." rows="1" @input="autoResizeStep($event)"></textarea>
+                                <button class="btn-remove" @click="day.steps.splice(si, 1)" v-if="day.steps.length > 1"><i class="bi bi-x"></i></button>
+                            </div>
+                            <button class="method-add-step" @click="day.steps.push('')"><i class="bi bi-plus"></i> Stap toevoegen</button>
+                        </div>
+                        <button class="method-add-day" @click="editingDoughType.methodDays.push({ label: 'Dag ' + (editingDoughType.methodDays.length + 1), steps: [''] })">
+                            <i class="bi bi-plus-lg"></i> Dag toevoegen
+                        </button>
+
                         <div style="display:flex;gap:0.5rem;margin-top:1.5rem">
                             <button class="btn btn-ghost" @click="doughTypeModalView = 'list'">← Terug</button>
                             <button class="btn btn-primary" style="flex:1" @click="saveDoughType()" :disabled="!editingDoughType.name.trim()">
@@ -1106,7 +1156,7 @@ $monthlyBreadCount = (int)$stmt->fetch()['total_breads'];
                 mixinMode: 'flour',
                 mixins: [],
                 toppings: [],
-                method: '',
+                methodDays: [{ label: 'Dag 1', steps: [''] }],
                 savedRecipes: [],
                 collapsedGroups: {},
                 saving: false,
@@ -1390,6 +1440,12 @@ $monthlyBreadCount = (int)$stmt->fetch()['total_breads'];
                 return !!(dt && dt.recipe_data);
             },
 
+            inheritedMethodDays() {
+                if (!this.isInherited) return null;
+                const dt = this.doughTypes.find(d => d.id == this.doughTypeId);
+                return dt?.recipe_data?.methodDays || null;
+            },
+
             groupedRecipes() {
                 const groups = {};
                 const uncategorized = [];
@@ -1451,6 +1507,44 @@ $monthlyBreadCount = (int)$stmt->fetch()['total_breads'];
                 return { total };
             },
 
+            addDay() {
+                if (this.isInherited) return;
+                this.methodDays.push({ label: 'Dag ' + (this.methodDays.length + 1), steps: [''] });
+            },
+            removeDay(di) {
+                if (this.isInherited || this.methodDays.length <= 1) return;
+                const hasContent = this.methodDays[di].steps.some(s => s.trim());
+                if (hasContent && !confirm('Dag ' + (di + 1) + ' bevat stappen. Weet je zeker dat je deze wilt verwijderen?')) return;
+                this.methodDays.splice(di, 1);
+            },
+            addStep(di) {
+                this.methodDays[di].steps.push('');
+            },
+            removeStep(di, si) {
+                if (this.methodDays[di].steps.length <= 1) return;
+                this.methodDays[di].steps.splice(si, 1);
+            },
+            autoResizeStep(e) {
+                const el = e.target;
+                el.style.height = 'auto';
+                el.style.height = el.scrollHeight + 'px';
+            },
+            applyDoughTypeMethod() {
+                if (!this.inheritedMethodDays) return;
+                if (!confirm('Methode stappen overnemen van deegsoort? Bestaande stappen worden overschreven.')) return;
+                this.methodDays = JSON.parse(JSON.stringify(this.inheritedMethodDays));
+            },
+            syncMethodDaysToInheritedDayCount() {
+                if (!this.inheritedMethodDays) return;
+                const target = this.inheritedMethodDays.length;
+                while (this.methodDays.length < target) {
+                    this.methodDays.push({ label: 'Dag ' + (this.methodDays.length + 1), steps: [''] });
+                }
+                while (this.methodDays.length > target) {
+                    this.methodDays.pop();
+                }
+            },
+
             grainName(id) { return (this.grainTypes.find(g => g.id === id) || {}).name || id; },
             categoryLabel(cat) { return cat === 'integrated' ? 'Int.' : cat === 'liquid' ? 'Vloei.' : 'Vast'; },
             autoCategory(m) {
@@ -1492,7 +1586,7 @@ $monthlyBreadCount = (int)$stmt->fetch()['total_breads'];
                     mixinMode: this.mixinMode,
                     mixins: this.mixins,
                     toppings: this.toppings,
-                    method: this.method,
+                    methodDays: this.methodDays,
                 };
             },
 
@@ -1501,8 +1595,13 @@ $monthlyBreadCount = (int)$stmt->fetch()['total_breads'];
                     'useSourdough','sourdoughPct','sourdoughHydration','sourdoughGrains',
                     'useYeast','yeastType','yeastPct',
                     'usePreFerment','preFermentPct','preFermentHydration',
-                    'preFermentGrains','mainDoughGrains','mixinMode','mixins','toppings','method'];
+                    'preFermentGrains','mainDoughGrains','mixinMode','mixins','toppings','methodDays'];
                 fields.forEach(f => { if (d[f] !== undefined) this[f] = d[f]; });
+                // Backward compat: convert old string method to methodDays
+                if (d.method && !d.methodDays) {
+                    const lines = d.method.split('\n').filter(l => l.trim());
+                    this.methodDays = [{ label: 'Dag 1', steps: lines.length ? lines : [''] }];
+                }
                 if (d.weightPerBall !== undefined && d.doughWeight === undefined) {
                     this.doughWeight = d.weightPerBall;
                 }
@@ -1518,6 +1617,7 @@ $monthlyBreadCount = (int)$stmt->fetch()['total_breads'];
                         this.useSourdough = false;
                     }
                 }
+                this.syncMethodDaysToInheritedDayCount();
             },
 
             async saveRecipe() {
@@ -1644,7 +1744,7 @@ $monthlyBreadCount = (int)$stmt->fetch()['total_breads'];
                     this.mainDoughGrains = [];
                     this.mixins = [];
                     this.toppings = [];
-                    this.method = '';
+                    this.methodDays = [{ label: 'Dag 1', steps: [''] }];
                     this.calculatorActive = true;
                     this.activeTab = 'recept';
                 }
@@ -1844,6 +1944,7 @@ $monthlyBreadCount = (int)$stmt->fetch()['total_breads'];
                     if (rd.yeastType !== undefined) this.yeastType = rd.yeastType;
                     if (rd.yeastPct !== undefined) this.yeastPct = rd.yeastPct;
                 }
+                this.syncMethodDaysToInheritedDayCount();
             },
 
             newDoughType() {
@@ -1864,6 +1965,7 @@ $monthlyBreadCount = (int)$stmt->fetch()['total_breads'];
                     useYeast: false,
                     yeastType: this.yeastTypes[0]?.id ?? 'instant_yeast',
                     yeastPct: 1.3,
+                    methodDays: [{ label: 'Dag 1', steps: [''] }],
                 };
                 this.doughTypeModalView = 'edit';
             },
@@ -1887,6 +1989,7 @@ $monthlyBreadCount = (int)$stmt->fetch()['total_breads'];
                     useYeast: rd.useYeast ?? false,
                     yeastType: rd.yeastType ?? (this.yeastTypes[0]?.id ?? 'instant_yeast'),
                     yeastPct: rd.yeastPct ?? 1.3,
+                    methodDays: rd.methodDays ? JSON.parse(JSON.stringify(rd.methodDays)) : [{ label: 'Dag 1', steps: [''] }],
                 };
                 this.doughTypeModalView = 'edit';
             },
@@ -1902,6 +2005,7 @@ $monthlyBreadCount = (int)$stmt->fetch()['total_breads'];
                     preFermentHydration: dt.preFermentHydration, preFermentGrains: dt.preFermentGrains,
                     mainDoughGrains: dt.mainDoughGrains,
                     useYeast: dt.useYeast, yeastType: dt.yeastType, yeastPct: dt.yeastPct,
+                    methodDays: dt.methodDays,
                 };
                 try {
                     if (dt.id) {
