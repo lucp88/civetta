@@ -60,13 +60,14 @@ try {
                 exit;
             }
             
-            $stmt = $pdo->prepare("INSERT INTO ingredients (name, category, unit, is_whole_grain, grain_type_id) VALUES (?, ?, ?, ?, ?)");
+            $stmt = $pdo->prepare("INSERT INTO ingredients (name, category, unit, is_whole_grain, grain_type_id, is_biologisch) VALUES (?, ?, ?, ?, ?, ?)");
             $stmt->execute([
                 trim($data['name']),
                 $data['category'] ?? 'overig',
                 $data['unit'] ?? 'g',
                 isset($data['is_whole_grain']) ? ($data['is_whole_grain'] ? 1 : 0) : 0,
-                !empty($data['grain_type_id']) ? intval($data['grain_type_id']) : null
+                !empty($data['grain_type_id']) ? intval($data['grain_type_id']) : null,
+                isset($data['is_biologisch']) ? ($data['is_biologisch'] ? 1 : 0) : 0
             ]);
             
             $id = $pdo->lastInsertId();
@@ -108,6 +109,10 @@ try {
             if (array_key_exists('grain_type_id', $data)) {
                 $fields[] = "grain_type_id = ?";
                 $params[] = !empty($data['grain_type_id']) ? intval($data['grain_type_id']) : null;
+            }
+            if (isset($data['is_biologisch'])) {
+                $fields[] = "is_biologisch = ?";
+                $params[] = $data['is_biologisch'] ? 1 : 0;
             }
             
             if (empty($fields)) {

@@ -35,7 +35,7 @@ if ($id) {
         exit;
     }
     
-    $stmt = $pdo->prepare("SELECT pv.*, br.name as recipe_name FROM product_variants pv LEFT JOIN baker_recipes br ON pv.recipe_id = br.id WHERE pv.product_id = ? ORDER BY pv.gewicht ASC");
+    $stmt = $pdo->prepare("SELECT pv.*, br.name as recipe_name FROM product_variants pv LEFT JOIN baker_recipes br ON pv.recipe_id = br.id WHERE pv.product_id = ? ORDER BY pv.naam ASC, pv.gewicht ASC");
     $stmt->execute([$id]);
     $variants = $stmt->fetchAll();
 }
@@ -63,14 +63,20 @@ if ($firstRecipeId) {
         if (!empty($grainIds)) {
             $gIds = array_values(array_unique($grainIds));
             $gp = implode(',', array_fill(0, count($gIds), '?'));
-            $gStmt = $pdo->prepare("SELECT id, name, is_whole_grain FROM ingredients WHERE id IN ($gp)");
+            $gStmt = $pdo->prepare("SELECT id, name, is_whole_grain, is_biologisch FROM ingredients WHERE id IN ($gp)");
             $gStmt->execute($gIds);
             foreach ($gStmt->fetchAll() as $ing) {
-                $lookup[(int)$ing['id']] = ['name' => $ing['name'], 'is_whole_grain' => (bool)$ing['is_whole_grain']];
+                $lookup[(int)$ing['id']] = ['name' => $ing['name'], 'is_whole_grain' => (bool)$ing['is_whole_grain'], 'is_biologisch' => (bool)$ing['is_biologisch']];
             }
         }
 
-        $computedIngredientList = computeIngredientList($rd, $lookup);
+        $biologischNames = [];
+        $bioStmt = $pdo->query("SELECT LOWER(name) as name FROM ingredients WHERE is_biologisch = 1 AND is_active = 1");
+        foreach ($bioStmt->fetchAll() as $row) {
+            $biologischNames[$row['name']] = true;
+        }
+
+        $computedIngredientList = computeIngredientList($rd, $lookup, $biologischNames);
         $computedRecipeDetails  = computeRecipeDetails($rd, $lookup);
     } catch (Exception $e) {
         // Ingredient computation is non-critical — page still loads without it
@@ -83,12 +89,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $doughTypeId = !empty($_POST['dough_type_id']) ? intval($_POST['dough_type_id']) : null;
     $foto = $product['foto'] ?? '';
     
+    $variantNamen = $_POST['variant_naam'] ?? [];
     $variantGewichten = $_POST['variant_gewicht'] ?? [];
     $variantPrijzen = $_POST['variant_prijs'] ?? [];
     $variantRecipes = $_POST['variant_recipe'] ?? [];
+    $variantFotoExisting = $_POST['variant_foto_existing'] ?? [];
     
+    $allowedTypes = ['image/jpeg', 'image/png', 'image/webp'];
+
     if (isset($_FILES['foto_upload']) && $_FILES['foto_upload']['error'] === UPLOAD_ERR_OK) {
-        $allowedTypes = ['image/jpeg', 'image/png', 'image/webp'];
         $fileType = $_FILES['foto_upload']['type'];
         
         if (in_array($fileType, $allowedTypes)) {
@@ -118,15 +127,30 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             }
             
             $pdo->prepare("DELETE FROM product_variants WHERE product_id = ?")->execute([$id]);
-            
+
             for ($i = 0; $i < count($variantGewichten); $i++) {
+                $variantNaam = trim($variantNamen[$i] ?? '');
                 $gewicht = intval($variantGewichten[$i] ?? 0);
                 $variantPrijs = floatval($variantPrijzen[$i] ?? 0);
                 $variantRecipe = $variantRecipes[$i] !== '' ? intval($variantRecipes[$i]) : null;
-                
-                if ($gewicht > 0) {
-                    $stmt = $pdo->prepare("INSERT INTO product_variants (product_id, gewicht, prijs, recipe_id) VALUES (?, ?, ?, ?)");
-                    $stmt->execute([$id, $gewicht, $variantPrijs, $variantRecipe]);
+
+                // Handle variant foto upload
+                $variantFoto = $variantFotoExisting[$i] ?? '';
+                if (isset($_FILES['variant_foto']['error'][$i]) && $_FILES['variant_foto']['error'][$i] === UPLOAD_ERR_OK) {
+                    $vFileType = $_FILES['variant_foto']['type'][$i];
+                    if (in_array($vFileType, $allowedTypes)) {
+                        $vExt = pathinfo($_FILES['variant_foto']['name'][$i], PATHINFO_EXTENSION);
+                        $vFilename = uniqid('variant_') . '.' . $vExt;
+                        $vTarget = $uploadDir . $vFilename;
+                        if (move_uploaded_file($_FILES['variant_foto']['tmp_name'][$i], $vTarget)) {
+                            $variantFoto = 'img/producten/' . $vFilename;
+                        }
+                    }
+                }
+
+                if ($gewicht > 0 || $variantNaam !== '') {
+                    $stmt = $pdo->prepare("INSERT INTO product_variants (product_id, naam, gewicht, prijs, foto, recipe_id) VALUES (?, ?, ?, ?, ?, ?)");
+                    $stmt->execute([$id, $variantNaam ?: null, $gewicht, $variantPrijs, $variantFoto ?: null, $variantRecipe]);
                 }
             }
             
@@ -406,9 +430,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         .variant-row {
             display: flex;
             gap: 0.5rem;
-            margin-bottom: 0.75rem;
-            align-items: center;
+            margin-bottom: 1rem;
+            align-items: flex-start;
             flex-wrap: wrap;
+            padding: 0.75rem;
+            background: #faf7f3;
+            border: 1px solid #e8dfd2;
+            border-radius: 8px;
+        }
+        .variant-row .variant-naam {
+            width: 160px;
         }
         .variant-row input[type="number"] {
             width: 100px;
@@ -429,6 +460,21 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
         .variant-row .variant-dough {
             width: 110px;
+        }
+        .variant-foto-field {
+            width: 100%;
+            margin-top: 0.25rem;
+        }
+        .variant-foto-field .variant-foto-input {
+            font-size: 0.8rem;
+            padding: 0.3rem;
+        }
+        .variant-foto-preview {
+            width: 60px;
+            height: 45px;
+            object-fit: cover;
+            border-radius: 4px;
+            margin-bottom: 0.25rem;
         }
         .btn-remove-variant {
             width: 32px;
@@ -555,6 +601,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                             <label>Ingrediënten</label>
                             <?php if ($computedIngredientList): ?>
                                 <div class="computed-ingredients-box"><?= htmlspecialchars($computedIngredientList) ?></div>
+                                <?php if (strpos($computedIngredientList, '*') !== false): ?>
+                                    <p class="help" style="margin-top:0.35rem;color:#2e7d32">* Biologisch product</p>
+                                <?php endif; ?>
                                 <?php if ($computedRecipeDetails && !empty($computedRecipeDetails['grains'])): ?>
                                 <div class="recipe-details-box">
                                     <?php if ($computedRecipeDetails['volkoren_pct'] > 0): ?>
@@ -589,11 +638,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         </div>
                         
                         <div class="form-group">
-                            <label>Gewichtsvarianten</label>
-                            <p class="help">Voeg varianten toe met gewicht, prijs en receptkoppeling</p>
+                            <label>Varianten</label>
+                            <p class="help">Voeg varianten toe met naam, gewicht, prijs, foto en receptkoppeling</p>
                             <div id="variants-container">
                                 <?php foreach ($variants as $variant): ?>
                                 <div class="variant-row">
+                                    <input type="text" name="variant_naam[]" placeholder="Naam" value="<?= htmlspecialchars($variant['naam'] ?? '') ?>" class="variant-naam">
                                     <input type="number" name="variant_gewicht[]" placeholder="Gewicht (g)" value="<?= $variant['gewicht'] ?>" min="1">
                                     <div class="price-input variant-price">
                                         <input type="number" name="variant_prijs[]" step="0.01" min="0" placeholder="Prijs" value="<?= $variant['prijs'] ?>">
@@ -604,11 +654,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                                             <option value="<?= $r['id'] ?>" <?= ($variant['recipe_id'] ?? '') == $r['id'] ? 'selected' : '' ?>><?= htmlspecialchars($r['name']) ?></option>
                                         <?php endforeach; ?>
                                     </select>
+                                    <div class="variant-foto-field">
+                                        <?php if (!empty($variant['foto'])): ?>
+                                            <img src="../../<?= htmlspecialchars($variant['foto']) ?>" alt="Variant foto" class="variant-foto-preview">
+                                        <?php endif; ?>
+                                        <input type="file" name="variant_foto[]" accept="image/jpeg,image/png,image/webp" class="file-input variant-foto-input">
+                                        <input type="hidden" name="variant_foto_existing[]" value="<?= htmlspecialchars($variant['foto'] ?? '') ?>">
+                                    </div>
                                     <button type="button" class="btn-remove-variant" onclick="this.parentElement.remove(); updatePreviewVariants();">x</button>
                                 </div>
                                 <?php endforeach; ?>
                             </div>
-                            <button type="button" class="btn btn-small btn-add-variant" onclick="addVariant()">+ Gewichtsoptie toevoegen</button>
+                            <button type="button" class="btn btn-small btn-add-variant" onclick="addVariant()">+ Variant toevoegen</button>
                         </div>
                         
                         <div class="form-group">
@@ -646,6 +703,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                                     <?php if ($computedIngredientList): ?>
                                     <div class="preview-ingredienten">
                                         <strong>Ingrediënten:</strong> <?= htmlspecialchars($computedIngredientList) ?>
+                                        <?php if (strpos($computedIngredientList, '*') !== false): ?>
+                                        <div style="font-size:0.75rem;margin-top:0.25rem;color:#2e7d32">* Biologisch product</div>
+                                        <?php endif; ?>
                                     </div>
                                     <?php endif; ?>
                                     <div class="preview-footer">
@@ -710,27 +770,36 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             const row = document.createElement('div');
             row.className = 'variant-row';
             row.innerHTML = `
+                <input type="text" name="variant_naam[]" placeholder="Naam" class="variant-naam" oninput="updatePreviewVariants()">
                 <input type="number" name="variant_gewicht[]" placeholder="Gewicht (g)" min="1" oninput="updatePreviewVariants()">
                 <div class="price-input variant-price">
                     <input type="number" name="variant_prijs[]" step="0.01" min="0" placeholder="Prijs" oninput="updatePreviewVariants()">
                 </div>
                 <select name="variant_recipe[]" class="variant-recipe">${getFilteredRecipeOptions()}</select>
+                <div class="variant-foto-field">
+                    <input type="file" name="variant_foto[]" accept="image/jpeg,image/png,image/webp" class="file-input variant-foto-input">
+                    <input type="hidden" name="variant_foto_existing[]" value="">
+                </div>
                 <button type="button" class="btn-remove-variant" onclick="this.parentElement.remove(); updatePreviewVariants();">x</button>
             `;
             container.appendChild(row);
         }
         
         function updatePreviewVariants() {
+            const namen = document.querySelectorAll('input[name="variant_naam[]"]');
             const gewichten = document.querySelectorAll('input[name="variant_gewicht[]"]');
             const prijzen = document.querySelectorAll('input[name="variant_prijs[]"]');
             const container = document.getElementById('preview-variants');
-            
+
             let html = '';
             for (let i = 0; i < gewichten.length; i++) {
+                const n = namen[i] ? namen[i].value : '';
                 const g = gewichten[i].value;
                 const p = parseFloat(prijzen[i].value);
-                if (g && p) {
-                    html += `<div class="preview-variant"><span class="gewicht">${g}g</span><span class="prijs">EUR ${p.toFixed(2).replace('.', ',')}</span></div>`;
+                if (g || n) {
+                    const label = n ? (g ? `${n} ${g}g` : n) : `${g}g`;
+                    const price = p ? `EUR ${p.toFixed(2).replace('.', ',')}` : '';
+                    html += `<div class="preview-variant"><span class="gewicht">${label}</span>${price ? `<span class="prijs">${price}</span>` : ''}</div>`;
                 }
             }
             container.innerHTML = html;

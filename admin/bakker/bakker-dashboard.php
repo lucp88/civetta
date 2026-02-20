@@ -3,25 +3,52 @@ require_once '../config.php';
 requireLogin();
 
 $today = date('Y-m-d');
-$tomorrow = date('Y-m-d', strtotime('+1 day'));
+
+// Load bakdagen configuration
+$bakdagenPatroonStr = '';
+$stmtBp = $pdo->prepare("SELECT setting_value FROM settings WHERE setting_key = 'bakdagen_patroon'");
+$stmtBp->execute();
+$bakdagenPatroonStr = $stmtBp->fetchColumn() ?: '';
+$bakdagenPatroon = $bakdagenPatroonStr ? array_map('intval', explode(',', $bakdagenPatroonStr)) : [];
+
+$stmtExtra = $pdo->prepare("SELECT datum FROM bakdagen_extra WHERE datum BETWEEN ? AND ? ORDER BY datum");
+$stmtExtra->execute([$today, date('Y-m-d', strtotime('+14 days'))]);
+$extraDatums = array_column($stmtExtra->fetchAll(), 'datum');
+
+// Check if today is a baking day
+$todayWeekday = (int)(new DateTime($today))->format('N');
+$todayIsBakdag = in_array($todayWeekday, $bakdagenPatroon) || in_array($today, $extraDatums);
+
+// Find next baking day
+$nextBakdag = null;
+$nextBakdagDt = null;
+for ($d = 1; $d <= 14; $d++) {
+    $checkDate = date('Y-m-d', strtotime("+{$d} days"));
+    $checkWeekday = (int)(new DateTime($checkDate))->format('N');
+    if (in_array($checkWeekday, $bakdagenPatroon) || in_array($checkDate, $extraDatums)) {
+        $nextBakdag = $checkDate;
+        $nextBakdagDt = new DateTime($checkDate);
+        break;
+    }
+}
+
+// Baking day = delivery day. Show today's orders for baking if today is a bakdag
+$bakdagDate = $todayIsBakdag ? $today : ($nextBakdag ?: $today);
 
 $stmt = $pdo->prepare("
     SELECT COUNT(*) as count, SUM(total_amount) as total
-    FROM business_orders 
+    FROM business_orders
     WHERE delivery_date = ? AND is_cancelled = 0
 ");
 $stmt->execute([$today]);
 $todayDeliveries = $stmt->fetch();
 
-$stmt->execute([$tomorrow]);
-$tomorrowDeliveries = $stmt->fetch();
-
 $stmt = $pdo->prepare("
     SELECT COUNT(*) as count
-    FROM business_orders 
+    FROM business_orders
     WHERE delivery_date = ? AND is_cancelled = 0
 ");
-$stmt->execute([$tomorrow]);
+$stmt->execute([$bakdagDate]);
 $todayBereiding = $stmt->fetch();
 
 $stmt = $pdo->prepare("
@@ -36,7 +63,7 @@ $stmt->execute([$today]);
 $upcomingDeliveries = $stmt->fetchAll();
 
 $stmt = $pdo->prepare("
-    SELECT 
+    SELECT
         COALESCE(dt.name, 'Geen deegsoort') as dough_type_name,
         SUM(boi.quantity * COALESCE(pv.dough_weight, 0)) as total_dough
     FROM business_order_items boi
@@ -50,8 +77,10 @@ $stmt = $pdo->prepare("
     HAVING total_dough > 0
     ORDER BY total_dough DESC
 ");
-$stmt->execute([$tomorrow]);
+$stmt->execute([$bakdagDate]);
 $doughToBake = $stmt->fetchAll();
+
+$dutchDayNames = ['zondag', 'maandag', 'dinsdag', 'woensdag', 'donderdag', 'vrijdag', 'zaterdag'];
 
 $stmt = $pdo->query("SELECT COUNT(*) as count FROM business_accounts WHERE status = 'pending'");
 $sidebarPendingAccounts = $stmt->fetch()['count'];
@@ -446,7 +475,15 @@ function getGreeting() {
                             <i class="bi bi-fire"></i>
                         </div>
                         <div class="action-card-title">Bereiden</div>
-                        <div class="action-card-desc">Bekijk wat je vandaag moet bakken voor de leveringen van morgen.</div>
+                        <div class="action-card-desc">
+                            <?php if ($todayIsBakdag): ?>
+                                Vandaag is een bakdag! Bekijk wat er gebakken en geleverd moet worden.
+                            <?php elseif ($nextBakdagDt): ?>
+                                Volgende bakdag: <?= $dutchDayNames[(int)$nextBakdagDt->format('w')] ?> <?= $nextBakdagDt->format('j-m') ?>.
+                            <?php else: ?>
+                                Bekijk je bakplanning en stel bakdagen in.
+                            <?php endif; ?>
+                        </div>
                         <div class="action-card-stats">
                             <div class="action-stat">
                                 <div class="action-stat-value"><?= $todayBereiding['count'] ?? 0 ?></div>
@@ -487,7 +524,15 @@ function getGreeting() {
                 <div class="summary-grid">
                     <div class="summary-card">
                         <div class="summary-header">
-                            <h3><i class="bi bi-fire" style="color: #e55a2b;"></i> Vandaag bereiden</h3>
+                            <h3><i class="bi bi-fire" style="color: #e55a2b;"></i>
+                                <?php if ($todayIsBakdag): ?>
+                                    Vandaag bakken
+                                <?php elseif ($nextBakdagDt): ?>
+                                    Bakken op <?= $dutchDayNames[(int)$nextBakdagDt->format('w')] ?>
+                                <?php else: ?>
+                                    Bereiden
+                                <?php endif; ?>
+                            </h3>
                             <a href="bereiden.php?mode=day" class="summary-header-link">Bekijk alles</a>
                         </div>
                         <div class="summary-body">

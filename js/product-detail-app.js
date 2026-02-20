@@ -6,20 +6,48 @@ const productDetailApp = createApp({
             product: null,
             loading: true,
             error: null,
-            showDetails: false
+            showDetails: false,
+            selectedVariantId: null
         };
     },
 
     computed: {
-        ingredientList() {
+        selectableVariants() {
+            if (!this.product || !this.product.variants) return [];
+            return [...this.product.variants].sort((a, b) => {
+                const nameA = (a.naam || '').toLowerCase();
+                const nameB = (b.naam || '').toLowerCase();
+                if (nameA !== nameB) return nameA.localeCompare(nameB);
+                return (a.gewicht || 0) - (b.gewicht || 0);
+            });
+        },
+
+        selectedVariant() {
+            if (!this.selectedVariantId || !this.product) return null;
+            return this.product.variants.find(v => v.id === this.selectedVariantId) || null;
+        },
+
+        displayFoto() {
+            const variant = this.selectedVariant;
+            if (variant && variant.foto) return variant.foto;
+            return this.product ? this.product.foto : null;
+        },
+
+        displayIngredients() {
+            const variant = this.selectedVariant;
+            if (variant && variant.ingredienten_recipe) return variant.ingredienten_recipe;
             if (!this.product) return null;
             return this.product.ingredienten_recipe || this.product.ingredienten || null;
         },
-        pricedVariants() {
-            if (!this.product || !this.product.variants) return [];
-            return this.product.variants
-                .filter(v => parseFloat(v.prijs) > 0)
-                .sort((a, b) => parseFloat(a.prijs) - parseFloat(b.prijs));
+
+        displayRecipeDetails() {
+            const variant = this.selectedVariant;
+            if (variant && variant.recipe_details) return variant.recipe_details;
+            return this.product ? this.product.recipe_details : null;
+        },
+
+        hasBiologisch() {
+            return this.displayIngredients && this.displayIngredients.includes('*');
         }
     },
 
@@ -57,11 +85,25 @@ const productDetailApp = createApp({
 
                 this.product = product;
                 document.title = product.naam + ' | Bakkerij Civetta';
+
+                // Auto-select first variant
+                if (product.variants && product.variants.length > 0) {
+                    this.selectedVariantId = this.selectableVariants[0].id;
+                }
             } catch (e) {
                 this.error = 'Er ging iets mis bij het laden van het product.';
             } finally {
                 this.loading = false;
             }
+        },
+
+        variantLabel(v) {
+            let label = '';
+            if (v.naam && v.gewicht) label = v.naam + ' ' + v.gewicht + 'g';
+            else if (v.naam) label = v.naam;
+            else label = v.gewicht + 'g';
+            if (parseFloat(v.prijs) > 0) label += ' — ' + this.formatPrice(v.prijs);
+            return label;
         },
 
         formatPrice(price) {

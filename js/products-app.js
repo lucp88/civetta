@@ -46,7 +46,10 @@ const productsApp = createApp({
             if (!product.variants || product.variants.length <= 1) return '';
             const sorted = [...product.variants].sort((a, b) => parseFloat(a.prijs) - parseFloat(b.prijs));
             const others = sorted.slice(1).filter(v => parseFloat(v.prijs) > 0);
-            return others.map(v => `${v.gewicht}g ${this.formatPrice(v.prijs)}`).join(' · ');
+            return others.map(v => {
+                const label = v.naam ? (v.gewicht ? `${v.naam} ${v.gewicht}g` : v.naam) : `${v.gewicht}g`;
+                return `${label} ${this.formatPrice(v.prijs)}`;
+            }).join(' · ');
         }
     }
 });

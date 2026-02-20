@@ -41,6 +41,7 @@ document.addEventListener('keydown', function(e) {
         closeDayModal();
         if (typeof closeOrderModal === 'function') closeOrderModal();
         if (typeof closeNewOrderModal === 'function') closeNewOrderModal();
+        if (typeof closeBakdagenModal === 'function') closeBakdagenModal();
     }
 });
 
@@ -49,6 +50,12 @@ document.addEventListener('DOMContentLoaded', function() {
     if (dayModal) {
         dayModal.addEventListener('click', function(e) {
             if (e.target === this) closeDayModal();
+        });
+    }
+    const bakdagenModal = document.getElementById('bakdagenModal');
+    if (bakdagenModal) {
+        bakdagenModal.addEventListener('click', function(e) {
+            if (e.target === this && typeof closeBakdagenModal === 'function') closeBakdagenModal();
         });
     }
 });

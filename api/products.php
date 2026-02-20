@@ -22,20 +22,23 @@ try {
             $stmt = $pdo->query("SELECT id, naam, ingredienten, beschrijving, prijs, foto FROM products ORDER BY naam ASC");
             $products = $stmt->fetchAll();
 
-            $variantStmt = $pdo->query("SELECT id, product_id, gewicht, prijs, recipe_id FROM product_variants ORDER BY gewicht ASC");
+            $variantStmt = $pdo->query("SELECT * FROM product_variants ORDER BY naam ASC, gewicht ASC");
             $allVariants = $variantStmt->fetchAll();
 
             $variantsByProduct = [];
-            $recipeIdByProduct = [];
+            $allRecipeIds = [];
             foreach ($allVariants as $v) {
                 $pid = $v['product_id'];
                 $variantsByProduct[$pid][] = [
                     'id' => (int)$v['id'],
+                    'naam' => $v['naam'] ?? null,
                     'gewicht' => (int)$v['gewicht'],
-                    'prijs' => (float)$v['prijs']
+                    'prijs' => (float)$v['prijs'],
+                    'foto' => $v['foto'] ?? null,
+                    'recipe_id' => !empty($v['recipe_id']) ? (int)$v['recipe_id'] : null
                 ];
-                if (!isset($recipeIdByProduct[$pid]) && !empty($v['recipe_id'])) {
-                    $recipeIdByProduct[$pid] = (int)$v['recipe_id'];
+                if (!empty($v['recipe_id'])) {
+                    $allRecipeIds[] = (int)$v['recipe_id'];
                 }
             }
 
@@ -45,15 +48,15 @@ try {
             }
             unset($product);
 
-            // Derive ingredient list from recipes — wrapped so any DB error here
+            // Derive ingredient list per variant recipe — wrapped so any DB error here
             // never prevents the basic product list from being returned
             try {
                 $recipesById = [];
-                if (!empty($recipeIdByProduct)) {
-                    $uniqueIds = array_unique(array_values($recipeIdByProduct));
-                    $placeholders = implode(',', array_fill(0, count($uniqueIds), '?'));
+                $allRecipeIds = array_unique($allRecipeIds);
+                if (!empty($allRecipeIds)) {
+                    $placeholders = implode(',', array_fill(0, count($allRecipeIds), '?'));
                     $recipeStmt = $pdo->prepare("SELECT id, recipe_data FROM baker_recipes WHERE id IN ($placeholders)");
-                    $recipeStmt->execute($uniqueIds);
+                    $recipeStmt->execute(array_values($allRecipeIds));
                     foreach ($recipeStmt->fetchAll() as $r) {
                         $recipesById[$r['id']] = json_decode($r['recipe_data'], true);
                     }
@@ -73,21 +76,40 @@ try {
                 if (!empty($allGrainIds)) {
                     $uniqueGrainIds = array_values(array_unique($allGrainIds));
                     $grainPlaceholders = implode(',', array_fill(0, count($uniqueGrainIds), '?'));
-                    $ingStmt = $pdo->prepare("SELECT id, name, is_whole_grain FROM ingredients WHERE id IN ($grainPlaceholders)");
+                    $ingStmt = $pdo->prepare("SELECT id, name, is_whole_grain, is_biologisch FROM ingredients WHERE id IN ($grainPlaceholders)");
                     $ingStmt->execute($uniqueGrainIds);
                     foreach ($ingStmt->fetchAll() as $ing) {
-                        $ingredientLookup[(int)$ing['id']] = ['name' => $ing['name'], 'is_whole_grain' => (bool)$ing['is_whole_grain']];
+                        $ingredientLookup[(int)$ing['id']] = ['name' => $ing['name'], 'is_whole_grain' => (bool)$ing['is_whole_grain'], 'is_biologisch' => (bool)$ing['is_biologisch']];
                     }
                 }
 
+                // Build biologisch names lookup (for mixins/toppings matched by name)
+                $biologischNames = [];
+                $bioStmt = $pdo->query("SELECT LOWER(name) as name FROM ingredients WHERE is_biologisch = 1 AND is_active = 1");
+                foreach ($bioStmt->fetchAll() as $row) {
+                    $biologischNames[$row['name']] = true;
+                }
+
+                // Compute per-variant ingredient and recipe details
                 foreach ($products as &$product) {
-                    $pid = $product['id'];
-                    if (isset($recipeIdByProduct[$pid]) && isset($recipesById[$recipeIdByProduct[$pid]])) {
-                        $rd = $recipesById[$recipeIdByProduct[$pid]];
-                        $list = computeIngredientList($rd, $ingredientLookup);
-                        if ($list !== null) {
-                            $product['ingredienten_recipe'] = $list;
-                            $product['recipe_details'] = computeRecipeDetails($rd, $ingredientLookup);
+                    foreach ($product['variants'] as &$variant) {
+                        if (!empty($variant['recipe_id']) && isset($recipesById[$variant['recipe_id']])) {
+                            $rd = $recipesById[$variant['recipe_id']];
+                            $list = computeIngredientList($rd, $ingredientLookup, $biologischNames);
+                            if ($list !== null) {
+                                $variant['ingredienten_recipe'] = $list;
+                                $variant['recipe_details'] = computeRecipeDetails($rd, $ingredientLookup);
+                            }
+                        }
+                    }
+                    unset($variant);
+
+                    // Set product-level ingredient data from first variant with recipe
+                    foreach ($product['variants'] as $v) {
+                        if (!empty($v['ingredienten_recipe'])) {
+                            $product['ingredienten_recipe'] = $v['ingredienten_recipe'];
+                            $product['recipe_details'] = $v['recipe_details'] ?? null;
+                            break;
                         }
                     }
                 }

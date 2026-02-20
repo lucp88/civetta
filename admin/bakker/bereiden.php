@@ -22,17 +22,41 @@ if ($viewMode === 'day') {
     $endDate->modify('last day of this month');
 }
 
-$deliveryStart = clone $startDate;
-$deliveryStart->modify('+1 day');
-$deliveryEnd = clone $endDate;
-$deliveryEnd->modify('+1 day');
+// Load bakdagen configuration
+$bakdagenPatroonStr = '';
+$stmtBp = $pdo->prepare("SELECT setting_value FROM settings WHERE setting_key = 'bakdagen_patroon'");
+$stmtBp->execute();
+$bakdagenPatroonStr = $stmtBp->fetchColumn() ?: '';
+$bakdagenPatroon = $bakdagenPatroonStr ? array_map('intval', explode(',', $bakdagenPatroonStr)) : [];
 
+$stmtVd = $pdo->prepare("SELECT setting_value FROM settings WHERE setting_key = 'bakdagen_voorbereiding_dagen'");
+$stmtVd->execute();
+$voorbereidingDagen = (int)($stmtVd->fetchColumn() ?: 3);
+
+$stmtExtra = $pdo->prepare("SELECT datum, notitie FROM bakdagen_extra WHERE datum BETWEEN ? AND ? ORDER BY datum");
+$stmtExtra->execute([$startDate->format('Y-m-d'), $endDate->format('Y-m-d')]);
+$extraDagen = $stmtExtra->fetchAll();
+$extraDatums = array_column($extraDagen, 'datum');
+
+// Compute which dates in view range are baking days
+$bakdagen = [];
+$iterDt = clone $startDate;
+while ($iterDt <= $endDate) {
+    $weekday = (int)$iterDt->format('N');
+    $dateStr = $iterDt->format('Y-m-d');
+    if (in_array($weekday, $bakdagenPatroon) || in_array($dateStr, $extraDatums)) {
+        $bakdagen[] = $dateStr;
+    }
+    $iterDt->modify('+1 day');
+}
+
+// Fetch orders - baking day = delivery day (no offset)
 $stmt = $pdo->prepare("
-    SELECT 
-        bo.*, 
-        ba.bedrijfsnaam, 
-        ba.contactpersoon, 
-        ba.email, 
+    SELECT
+        bo.*,
+        ba.bedrijfsnaam,
+        ba.contactpersoon,
+        ba.email,
         ba.telefoon,
         ba.adres,
         ba.postcode,
@@ -47,22 +71,23 @@ $stmt = $pdo->prepare("
     AND bo.is_cancelled = 0
     ORDER BY bo.delivery_date ASC
 ");
-$stmt->execute([$deliveryStart->format('Y-m-d'), $deliveryEnd->format('Y-m-d')]);
+$stmt->execute([$startDate->format('Y-m-d'), $endDate->format('Y-m-d')]);
 $allOrders = $stmt->fetchAll();
 
 foreach ($allOrders as &$order) {
     $stmt = $pdo->prepare("
-        SELECT 
-            boi.product_name, 
-            boi.quantity, 
-            boi.unit_price, 
+        SELECT
+            boi.product_name,
+            boi.quantity,
+            boi.unit_price,
             pv.recipe_id,
             pv.gewicht as variant_weight,
             COALESCE(br.name, 'Geen recept') as recipe_name,
             br.recipe_data,
             br.dough_type_id,
+            dt.recipe_data as dough_type_recipe_data,
             COALESCE(dt.name, 'Geen deegsoort') as dough_type_name
-        FROM business_order_items boi 
+        FROM business_order_items boi
         LEFT JOIN products p ON LOWER(TRIM(boi.product_name)) = LOWER(TRIM(p.naam))
         LEFT JOIN product_variants pv ON pv.product_id = p.id AND ROUND(pv.prijs, 2) = ROUND(boi.unit_price, 2)
         LEFT JOIN baker_recipes br ON pv.recipe_id = br.id
@@ -73,18 +98,27 @@ foreach ($allOrders as &$order) {
     $items = $stmt->fetchAll();
     foreach ($items as &$item) {
         $item['dough_weight'] = 0;
+        $item['method_days_count'] = $voorbereidingDagen; // fallback
         if (!empty($item['recipe_data'])) {
             $recipeData = json_decode($item['recipe_data'], true);
             $item['dough_weight'] = $recipeData['doughWeight'] ?? 0;
+            if (!empty($recipeData['methodDays'])) {
+                $item['method_days_count'] = count($recipeData['methodDays']);
+            } elseif (!empty($item['dough_type_recipe_data'])) {
+                $dtData = json_decode($item['dough_type_recipe_data'], true);
+                if (!empty($dtData['methodDays'])) {
+                    $item['method_days_count'] = count($dtData['methodDays']);
+                }
+            }
         }
         unset($item['recipe_data']);
+        unset($item['dough_type_recipe_data']);
     }
     unset($item);
     $order['items'] = $items;
     
-    $deliveryDate = new DateTime($order['delivery_date']);
-    $deliveryDate->modify('-1 day');
-    $order['bereiding_date'] = $deliveryDate->format('Y-m-d');
+    // Baking day = delivery day (no offset)
+    $order['bereiding_date'] = $order['delivery_date'];
     
     if ($order['delivery_same_as_business'] || empty($order['delivery_adres'])) {
         $order['full_delivery_address'] = $order['adres'] . ', ' . $order['postcode'] . ' ' . $order['plaats'];
@@ -101,6 +135,35 @@ foreach ($allOrders as $order) {
         $ordersByBereidingDate[$date] = [];
     }
     $ordersByBereidingDate[$date][] = $order;
+}
+
+// Build per-recipe bars data for week view
+$recipeBarsByBakdag = [];
+foreach ($bakdagen as $bakdag) {
+    $orders = $ordersByBereidingDate[$bakdag] ?? [];
+    $recipeMap = [];
+    foreach ($orders as $order) {
+        foreach ($order['items'] as $item) {
+            $recipeName = $item['recipe_name'] ?? 'Geen recept';
+            if (!isset($recipeMap[$recipeName])) {
+                $recipeMap[$recipeName] = [
+                    'method_days_count' => $item['method_days_count'],
+                    'total_qty' => 0,
+                    'order_ids' => [],
+                ];
+            }
+            $recipeMap[$recipeName]['total_qty'] += (int)$item['quantity'];
+            $recipeMap[$recipeName]['order_ids'][$order['id']] = true;
+        }
+    }
+    foreach ($recipeMap as &$rdata) {
+        $rdata['order_count'] = count($rdata['order_ids']);
+        unset($rdata['order_ids']);
+    }
+    unset($rdata);
+    if (!empty($recipeMap)) {
+        $recipeBarsByBakdag[$bakdag] = $recipeMap;
+    }
 }
 
 function getDutchDayName($date) {
@@ -196,6 +259,228 @@ function formatDutchDate($date) {
             background: linear-gradient(135deg, #a0722e, #8b5a2b);
             transform: translateY(-1px);
         }
+
+        /* Bakdagen styles */
+        .bakdag-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.25rem;
+            background: linear-gradient(135deg, #ff6b35, #e55a2b);
+            color: white;
+            font-size: 0.7rem;
+            font-weight: 600;
+            padding: 0.2rem 0.5rem;
+            border-radius: 4px;
+        }
+        .calendar-cell.non-bakdag {
+            opacity: 0.5;
+            background: #f5f2ed;
+        }
+        .calendar-cell.non-bakdag:hover {
+            opacity: 0.8;
+            background: #ede8e0;
+        }
+        .calendar-cell.bakdag {
+            border-top: 3px solid #ff6b35;
+        }
+        .calendar-cell.bakdag.today {
+            border: 2px solid var(--accent);
+            border-top: 3px solid #ff6b35;
+        }
+        .week-bars-container {
+            grid-column: 1 / -1;
+            background: white;
+            padding: 0.5rem 0.25rem;
+            display: flex;
+            flex-direction: column;
+            gap: 0.35rem;
+            min-height: 56px;
+        }
+        .prep-bar {
+            display: grid;
+            align-items: center;
+            background: linear-gradient(135deg, #fff0e8, #fff0e8dd);
+            border-radius: 8px;
+            padding: 0.5rem 0.75rem;
+            cursor: pointer;
+            transition: all 0.2s;
+            border-left: 4px solid #ff6b35;
+            min-height: 44px;
+        }
+        .prep-bar:hover {
+            filter: brightness(0.95);
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+        }
+        .prep-bar-inner {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            color: #5c3d1e;
+            font-weight: 600;
+            font-size: 0.85rem;
+        }
+        .prep-bar-inner i {
+            color: #ff6b35;
+        }
+        .prep-bar-count {
+            margin-left: auto;
+            background: #ff6b35;
+            color: white;
+            padding: 0.15rem 0.5rem;
+            border-radius: 10px;
+            font-size: 0.75rem;
+            font-weight: 700;
+        }
+        .prep-bar-days {
+            font-size: 0.7rem;
+            color: #8b7355;
+            font-weight: 400;
+        }
+
+        /* Settings gear button */
+        .btn-settings {
+            width: 36px;
+            height: 36px;
+            border: none;
+            background: white;
+            border-radius: 50%;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+            color: var(--accent-dark);
+            font-size: 1.1rem;
+            transition: all 0.2s;
+        }
+        .btn-settings:hover {
+            background: var(--accent-hover);
+            transform: rotate(30deg);
+        }
+
+        /* Bakdagen settings modal */
+        .bakdagen-checkboxes {
+            display: flex;
+            gap: 0.5rem;
+            flex-wrap: wrap;
+            margin-bottom: 1rem;
+        }
+        .bakdagen-checkboxes label {
+            display: flex;
+            align-items: center;
+            gap: 0.35rem;
+            padding: 0.5rem 0.75rem;
+            background: #f5f2ed;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: 600;
+            font-size: 0.9rem;
+            color: #5c3d1e;
+            border: 2px solid transparent;
+            transition: all 0.2s;
+        }
+        .bakdagen-checkboxes label:has(input:checked) {
+            background: #fff5f0;
+            border-color: #ff6b35;
+            color: #e55a2b;
+        }
+        .bakdagen-checkboxes input[type="checkbox"] {
+            accent-color: #ff6b35;
+        }
+        .extra-bakdagen-list {
+            margin-bottom: 0.75rem;
+        }
+        .extra-bakdag-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 0.4rem 0;
+            border-bottom: 1px solid #f0f0f0;
+            font-size: 0.85rem;
+        }
+        .extra-bakdag-item:last-child { border-bottom: none; }
+        .extra-bakdag-remove {
+            background: none;
+            border: none;
+            color: #dc3545;
+            cursor: pointer;
+            font-size: 1rem;
+            padding: 0.25rem;
+        }
+        .add-extra-bakdag {
+            display: flex;
+            gap: 0.5rem;
+            align-items: center;
+        }
+        .add-extra-bakdag input {
+            padding: 0.4rem 0.6rem;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            font-size: 0.85rem;
+        }
+        .add-extra-bakdag button {
+            padding: 0.4rem 0.75rem;
+            background: #ff6b35;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: 600;
+            font-size: 0.85rem;
+        }
+        .add-extra-bakdag button:hover { background: #e55a2b; }
+        .bakdagen-modal-section h4 {
+            color: #5c3d1e;
+            font-size: 0.9rem;
+            margin-bottom: 0.5rem;
+            display: flex;
+            align-items: center;
+            gap: 0.4rem;
+        }
+        .bakdagen-modal-section {
+            margin-bottom: 1.25rem;
+        }
+        .btn-save-bakdagen {
+            width: 100%;
+            padding: 0.75rem;
+            background: linear-gradient(135deg, #ff6b35, #e55a2b);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-weight: 600;
+            font-size: 0.9rem;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .btn-save-bakdagen:hover {
+            background: linear-gradient(135deg, #e55a2b, #cc4a1a);
+            transform: translateY(-1px);
+        }
+
+        /* Click-to-add overlay */
+        .add-bakdag-hint {
+            position: absolute;
+            bottom: 4px;
+            right: 4px;
+            font-size: 0.65rem;
+            color: #bbb;
+            display: none;
+        }
+        .calendar-cell.non-bakdag:hover .add-bakdag-hint {
+            display: block;
+        }
+
+        @media (max-width: 768px) {
+            .week-bars-container { padding: 0.35rem 0.15rem; min-height: 40px; }
+            .prep-bar { padding: 0.35rem 0.5rem; min-height: 36px; }
+            .prep-bar-inner { font-size: 0.75rem; gap: 0.3rem; }
+            .prep-bar-count { font-size: 0.65rem; padding: 0.1rem 0.35rem; }
+            .prep-bar-days { display: none; }
+            .bakdagen-checkboxes { gap: 0.35rem; }
+            .bakdagen-checkboxes label { padding: 0.35rem 0.5rem; font-size: 0.8rem; }
+            .add-extra-bakdag { flex-wrap: wrap; }
+        }
     </style>
 </head>
 <body>
@@ -246,6 +531,9 @@ function formatDutchDate($date) {
                     <i class="bi bi-calendar-month"></i> Maand
                 </button>
             </div>
+            <button class="btn-settings" onclick="openBakdagenModal()" title="Bakdagen instellen">
+                <i class="bi bi-gear"></i>
+            </button>
         </div>
         
         <div class="calendar-container">
@@ -254,11 +542,17 @@ function formatDutchDate($date) {
                 $dateKey = $currentDate->format('Y-m-d');
                 $orders = $ordersByBereidingDate[$dateKey] ?? [];
                 $isToday = $dateKey === date('Y-m-d');
+                $isBakdag = in_array($dateKey, $bakdagen);
                 ?>
                 <div class="calendar-grid day-view">
-                    <div class="calendar-cell day-view-cell <?= $isToday ? 'today' : '' ?>">
+                    <div class="calendar-cell day-view-cell <?= $isToday ? 'today' : '' ?> <?= $isBakdag ? 'bakdag' : 'non-bakdag' ?>">
                         <div class="calendar-date">
-                            <span><?= formatDutchDate($currentDate) ?></span>
+                            <span>
+                                <?= formatDutchDate($currentDate) ?>
+                                <?php if ($isBakdag): ?>
+                                    <span class="bakdag-badge"><i class="bi bi-fire"></i> Bakdag</span>
+                                <?php endif; ?>
+                            </span>
                             <span class="calendar-count <?= count($orders) === 0 ? 'empty' : '' ?>">
                                 <?= count($orders) ?> bestelling<?= count($orders) !== 1 ? 'en' : '' ?>
                             </span>
@@ -392,18 +686,70 @@ function formatDutchDate($date) {
                     foreach ($dayNames as $day): ?>
                         <div class="calendar-header-cell"><?= $day ?></div>
                     <?php endforeach; ?>
-                    
+
+                    <!-- Preparation bars row (per recipe) -->
+                    <div class="week-bars-container">
+                        <?php
+                        $barColors = ['#ff6b35', '#c8913a', '#4caf50', '#2196f3', '#9c27b0', '#e91e63', '#00bcd4', '#795548'];
+                        $barBgColors = ['#fff0e8', '#faf3e8', '#e8f5e9', '#e3f2fd', '#f3e5f5', '#fce4ec', '#e0f7fa', '#efebe9'];
+                        $colorIndex = 0;
+                        $recipeColorMap = [];
+
+                        foreach ($bakdagen as $bakdag):
+                            if (!isset($recipeBarsByBakdag[$bakdag])) continue;
+                            $bakdagDt = new DateTime($bakdag);
+                            $colEnd = (int)$bakdagDt->format('N'); // 1=Mon..7=Sun
+
+                            foreach ($recipeBarsByBakdag[$bakdag] as $recipeName => $rdata):
+                                $dayCount = $rdata['method_days_count'];
+                                $colStart = max(1, $colEnd - $dayCount + 1);
+                                $totalQty = $rdata['total_qty'];
+
+                                // Assign consistent color per recipe
+                                if (!isset($recipeColorMap[$recipeName])) {
+                                    $ci = $colorIndex % count($barColors);
+                                    $recipeColorMap[$recipeName] = ['color' => $barColors[$ci], 'bg' => $barBgColors[$ci]];
+                                    $colorIndex++;
+                                }
+                                $barColor = $recipeColorMap[$recipeName]['color'];
+                                $barBg = $recipeColorMap[$recipeName]['bg'];
+                        ?>
+                        <div class="prep-bar"
+                             style="display: grid; grid-template-columns: repeat(7, 1fr); border-left-color: <?= $barColor ?>; background: linear-gradient(135deg, <?= $barBg ?>, <?= $barBg ?>dd);"
+                             onclick="openDayModal('<?= $bakdag ?>', '<?= formatDutchDate($bakdagDt) ?>')">
+                            <div class="prep-bar-inner" style="grid-column: <?= $colStart ?> / <?= $colEnd + 1 ?>;">
+                                <i class="bi bi-journal-bookmark" style="color: <?= $barColor ?>;"></i>
+                                <span><?= htmlspecialchars($recipeName) ?></span>
+                                <span class="prep-bar-days">(<?= $dayCount ?> dag<?= $dayCount !== 1 ? 'en' : '' ?>)</span>
+                                <span class="prep-bar-count" style="background: <?= $barColor ?>;"><?= $totalQty ?>x</span>
+                            </div>
+                        </div>
+                        <?php endforeach; ?>
+                        <?php endforeach; ?>
+                        <?php if (empty($bakdagen)): ?>
+                            <div style="text-align:center;color:#bbb;font-size:0.8rem;padding:0.5rem;">
+                                Geen bakdagen deze week — <a href="#" onclick="openBakdagenModal();return false" style="color:#ff6b35">instellen</a>
+                            </div>
+                        <?php endif; ?>
+                    </div>
+
                     <?php
                     $current = clone $startDate;
                     for ($i = 0; $i < 7; $i++):
                         $dateKey = $current->format('Y-m-d');
                         $orders = $ordersByBereidingDate[$dateKey] ?? [];
                         $isToday = $dateKey === date('Y-m-d');
+                        $isBakdag = in_array($dateKey, $bakdagen);
                     ?>
-                        <div class="calendar-cell <?= $isToday ? 'today' : '' ?>" 
-                             onclick="openDayModal('<?= $dateKey ?>', '<?= formatDutchDate($current) ?>')">
+                        <div class="calendar-cell <?= $isToday ? 'today' : '' ?> <?= $isBakdag ? 'bakdag' : 'non-bakdag' ?>"
+                             onclick="<?= $isBakdag ? "openDayModal('{$dateKey}', '" . formatDutchDate($current) . "')" : "addImpromptuBakdag('{$dateKey}', '" . formatDutchDate($current) . "')" ?>">
                             <div class="calendar-date">
-                                <span><?= $current->format('j') ?></span>
+                                <span>
+                                    <?= $current->format('j') ?>
+                                    <?php if ($isBakdag): ?>
+                                        <span class="bakdag-badge" style="font-size:0.6rem;padding:0.1rem 0.3rem;"><i class="bi bi-fire"></i></span>
+                                    <?php endif; ?>
+                                </span>
                                 <span class="calendar-count <?= count($orders) === 0 ? 'empty' : '' ?>"><?= count($orders) ?></span>
                             </div>
                             <div class="calendar-preview">
@@ -414,6 +760,9 @@ function formatDutchDate($date) {
                                     <div class="calendar-preview-item" style="color: #ff6b35;">+<?= count($orders) - 3 ?> meer</div>
                                 <?php endif; ?>
                             </div>
+                            <?php if (!$isBakdag): ?>
+                                <span class="add-bakdag-hint"><i class="bi bi-plus-circle"></i> bakdag</span>
+                            <?php endif; ?>
                         </div>
                     <?php
                         $current->modify('+1 day');
@@ -452,11 +801,17 @@ function formatDutchDate($date) {
                             $orders = $ordersByBereidingDate[$dateKey] ?? [];
                             $isToday = $dateKey === date('Y-m-d');
                             $isOtherMonth = $date->format('m') !== $currentMonth;
+                            $isBakdag = in_array($dateKey, $bakdagen);
                     ?>
-                        <div class="calendar-cell <?= $isToday ? 'today' : '' ?> <?= $isOtherMonth ? 'other-month' : '' ?>" 
-                             onclick="openDayModal('<?= $dateKey ?>', '<?= formatDutchDate($date) ?>')">
+                        <div class="calendar-cell <?= $isToday ? 'today' : '' ?> <?= $isOtherMonth ? 'other-month' : '' ?> <?= !$isOtherMonth ? ($isBakdag ? 'bakdag' : 'non-bakdag') : '' ?>"
+                             onclick="<?= $isBakdag ? "openDayModal('{$dateKey}', '" . formatDutchDate($date) . "')" : (!$isOtherMonth ? "addImpromptuBakdag('{$dateKey}', '" . formatDutchDate($date) . "')" : "openDayModal('{$dateKey}', '" . formatDutchDate($date) . "')") ?>">
                             <div class="calendar-date">
-                                <span><?= $date->format('j') ?></span>
+                                <span>
+                                    <?= $date->format('j') ?>
+                                    <?php if ($isBakdag && !$isOtherMonth): ?>
+                                        <span class="bakdag-badge" style="font-size:0.55rem;padding:0.1rem 0.25rem;"><i class="bi bi-fire"></i></span>
+                                    <?php endif; ?>
+                                </span>
                                 <?php if (count($orders) > 0): ?>
                                     <span class="calendar-count"><?= count($orders) ?></span>
                                 <?php endif; ?>
@@ -489,21 +844,152 @@ function formatDutchDate($date) {
         </div>
     </div>
     
+    <!-- Bakdagen settings modal -->
+    <div class="modal-overlay" id="bakdagenModal">
+        <div class="modal" style="max-width:500px;">
+            <div class="modal-header">
+                <h3><i class="bi bi-gear"></i> Bakdagen instellen</h3>
+                <button class="modal-close" onclick="closeBakdagenModal()">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="bakdagen-modal-section">
+                    <h4><i class="bi bi-calendar-check"></i> Vaste bakdagen</h4>
+                    <div class="bakdagen-checkboxes">
+                        <?php
+                        $dagNamen = ['Ma', 'Di', 'Wo', 'Do', 'Vr', 'Za', 'Zo'];
+                        for ($d = 1; $d <= 7; $d++):
+                        ?>
+                        <label>
+                            <input type="checkbox" value="<?= $d ?>" <?= in_array($d, $bakdagenPatroon) ? 'checked' : '' ?>>
+                            <?= $dagNamen[$d - 1] ?>
+                        </label>
+                        <?php endfor; ?>
+                    </div>
+                </div>
+                <div class="bakdagen-modal-section">
+                    <h4><i class="bi bi-calendar-plus"></i> Extra bakdagen</h4>
+                    <div class="extra-bakdagen-list" id="extraBakdagenList">
+                        <?php if (empty($extraDagen)): ?>
+                            <div style="color:#bbb;font-size:0.85rem;">Geen extra bakdagen</div>
+                        <?php endif; ?>
+                        <?php foreach ($extraDagen as $extra): ?>
+                            <div class="extra-bakdag-item">
+                                <span><?= (new DateTime($extra['datum']))->format('d-m-Y') ?><?= $extra['notitie'] ? ' — ' . htmlspecialchars($extra['notitie']) : '' ?></span>
+                                <button class="extra-bakdag-remove" onclick="removeExtraBakdag('<?= $extra['datum'] ?>')" title="Verwijderen"><i class="bi bi-trash"></i></button>
+                            </div>
+                        <?php endforeach; ?>
+                    </div>
+                    <div class="add-extra-bakdag">
+                        <input type="date" id="extraBakdagDate">
+                        <input type="text" id="extraBakdagNotitie" placeholder="Notitie (optioneel)" style="flex:1;">
+                        <button onclick="addExtraBakdagFromModal()"><i class="bi bi-plus"></i> Toevoegen</button>
+                    </div>
+                </div>
+                <button class="btn-save-bakdagen" onclick="saveBakdagenPatroon()"><i class="bi bi-check-lg"></i> Opslaan</button>
+            </div>
+        </div>
+    </div>
+
     <?php $detailAccentColor = '#8b5a2b'; $detailAccentColorDark = '#5c3d1e'; include 'order-detail-modal.php'; ?>
 
     <script>
     const currentDate = '<?= $viewDate ?>';
     const currentMode = '<?= $viewMode ?>';
     const ordersByDate = <?= json_encode($ordersByBereidingDate) ?>;
+    const bakdagen = <?= json_encode($bakdagen) ?>;
+    const voorbereidingDagen = <?= $voorbereidingDagen ?>;
     </script>
     <script src="../../js/bakker-calendar.js?v=1"></script>
     <script>
+    // Bakdagen settings functions
+    function openBakdagenModal() {
+        document.getElementById('bakdagenModal').classList.add('active');
+    }
+    function closeBakdagenModal() {
+        document.getElementById('bakdagenModal').classList.remove('active');
+    }
+    function saveBakdagenPatroon() {
+        const checkboxes = document.querySelectorAll('.bakdagen-checkboxes input[type="checkbox"]:checked');
+        const dagen = Array.from(checkboxes).map(cb => parseInt(cb.value));
+        fetch('/api/bakdagen.php', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ action: 'save_patroon', dagen: dagen })
+        })
+        .then(r => r.json())
+        .then(data => {
+            if (data.success) {
+                window.location.reload();
+            } else {
+                alert('Fout bij opslaan: ' + (data.error || 'Onbekende fout'));
+            }
+        });
+    }
+    function addExtraBakdagFromModal() {
+        const datum = document.getElementById('extraBakdagDate').value;
+        const notitie = document.getElementById('extraBakdagNotitie').value;
+        if (!datum) { alert('Kies een datum'); return; }
+        fetch('/api/bakdagen.php', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ action: 'add_extra', datum: datum, notitie: notitie })
+        })
+        .then(r => r.json())
+        .then(data => {
+            if (data.success) {
+                window.location.reload();
+            } else {
+                alert(data.error || 'Fout bij toevoegen');
+            }
+        });
+    }
+    function removeExtraBakdag(datum) {
+        if (!confirm('Extra bakdag verwijderen?')) return;
+        fetch('/api/bakdagen.php', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ action: 'remove_extra', datum: datum })
+        })
+        .then(r => r.json())
+        .then(data => {
+            if (data.success) {
+                window.location.reload();
+            } else {
+                alert(data.error || 'Fout bij verwijderen');
+            }
+        });
+    }
+    function addImpromptuBakdag(date, dateLabel) {
+        if (confirm('Bakdag toevoegen op ' + dateLabel + '?')) {
+            fetch('/api/bakdagen.php', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ action: 'add_extra', datum: date, notitie: 'Impromptu bakdag' })
+            })
+            .then(r => r.json())
+            .then(data => {
+                if (data.success) {
+                    window.location.reload();
+                } else {
+                    alert(data.error || 'Fout bij toevoegen');
+                }
+            });
+        }
+    }
+
+    // Auto-open settings if requested via URL
+    if (new URLSearchParams(window.location.search).get('settings') === 'bakdagen') {
+        openBakdagenModal();
+    }
+
     function openDayModal(date, dateLabel) {
-        document.getElementById('dayModalDate').textContent = dateLabel;
-        
+        const isBakdagDay = bakdagen.includes(date);
+        const badgeHtml = isBakdagDay ? ' <span class="bakdag-badge"><i class="bi bi-fire"></i> Bakdag</span>' : '';
+        document.getElementById('dayModalDate').innerHTML = escapeHtml(dateLabel) + badgeHtml;
+
         const orders = ordersByDate[date] || [];
         let html = '';
-        
+
         if (orders.length === 0) {
             html = '<div class="empty-state"><i class="bi bi-emoji-smile"></i><p>Geen bestellingen om te bereiden</p></div>';
         } else {
