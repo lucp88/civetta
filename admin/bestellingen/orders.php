@@ -1273,11 +1273,15 @@ $adminBasePath = '../';
         }
     }
 
+    function toLocalDateStr(d) {
+        return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+    }
+
     async function loadBakdagen() {
         try {
             const today = new Date();
-            const start = today.toISOString().split('T')[0];
-            const end = new Date(today.getFullYear(), today.getMonth() + 3, today.getDate()).toISOString().split('T')[0];
+            const start = toLocalDateStr(today);
+            const end = toLocalDateStr(new Date(today.getFullYear(), today.getMonth() + 3, today.getDate()));
             const response = await fetch(`../../api/bakdagen.php?start=${start}&end=${end}`);
             const data = await response.json();
             if (data.success) {
@@ -1294,12 +1298,10 @@ $adminBasePath = '../';
         const today = new Date();
         today.setHours(0, 0, 0, 0);
         const target = new Date(dateStr + 'T00:00');
-        // Count baking days between today (inclusive) and the target date (inclusive)
         let count = 0;
         const d = new Date(today);
         while (d <= target) {
-            const iso = d.toISOString().split('T')[0];
-            if (allBakdagen.includes(iso)) count++;
+            if (allBakdagen.includes(toLocalDateStr(d))) count++;
             d.setDate(d.getDate() + 1);
         }
         return count;
@@ -1371,7 +1373,7 @@ $adminBasePath = '../';
             custSelect.innerHTML += '<option value="' + c.id + '">' + escHtml(c.bedrijfsnaam) + ' (' + escHtml(c.contactpersoon) + ')</option>';
         });
 
-        document.getElementById('newOrderDate').value = prefillDate || new Date().toISOString().split('T')[0];
+        document.getElementById('newOrderDate').value = prefillDate || toLocalDateStr(new Date());
         document.getElementById('newOrderNotes').value = '';
         document.getElementById('newOrderProducts').innerHTML = '';
         newOrderProductIndex = 0;
@@ -1438,11 +1440,10 @@ $adminBasePath = '../';
         let count = 0;
         const d = new Date(today);
         while (count < recipeDays) {
-            const iso = d.toISOString().split('T')[0];
-            if (allBakdagen.includes(iso)) count++;
+            if (allBakdagen.includes(toLocalDateStr(d))) count++;
             if (count < recipeDays) d.setDate(d.getDate() + 1);
         }
-        return d.toISOString().split('T')[0];
+        return toLocalDateStr(d);
     }
 
     function formatDateNL(dateStr) {
@@ -1460,10 +1461,10 @@ $adminBasePath = '../';
             const days = p.recipe_days || 1;
             const canMake = days <= available;
             if (canMake) {
-                html += '<option value="' + p.id + '">' + escHtml(p.naam) + ' (' + days + 'd)</option>';
+                html += '<option value="' + p.id + '">' + escHtml(p.naam) + '</option>';
             } else {
                 const earliest = getEarliestDeliveryDate(days);
-                html += '<option value="' + p.id + '" disabled style="color: #999;">' + escHtml(p.naam) + ' \u2014 pas vanaf ' + formatDateNL(earliest) + ' (' + days + 'd nodig)</option>';
+                html += '<option value="' + p.id + '" disabled style="color: #999;">' + escHtml(p.naam) + ' \u2014 pas vanaf ' + formatDateNL(earliest) + ' (Bakproces: ' + days + ' dagen)</option>';
             }
         });
         return html;
@@ -1554,10 +1555,10 @@ $adminBasePath = '../';
                 const days = v.recipe_days || 1;
                 const canMake = days <= available;
                 if (canMake) {
-                    variantOptions += '<option value="' + v.id + '" data-price="' + v.prijs + '" data-weight="' + v.gewicht + '" data-naam="' + escAttr(v.naam || '') + '">' + escHtml(label) + ' (' + days + 'd, \u20AC' + parseFloat(v.prijs).toFixed(2).replace('.', ',') + ')</option>';
+                    variantOptions += '<option value="' + v.id + '" data-price="' + v.prijs + '" data-weight="' + v.gewicht + '" data-naam="' + escAttr(v.naam || '') + '">' + escHtml(label) + ' (\u20AC' + parseFloat(v.prijs).toFixed(2).replace('.', ',') + ')</option>';
                 } else {
                     const earliest = getEarliestDeliveryDate(days);
-                    variantOptions += '<option value="' + v.id + '" disabled style="color: #999;">' + escHtml(label) + ' \u2014 pas vanaf ' + formatDateNL(earliest) + ' (' + days + 'd nodig)</option>';
+                    variantOptions += '<option value="' + v.id + '" disabled style="color: #999;">' + escHtml(label) + ' \u2014 pas vanaf ' + formatDateNL(earliest) + ' (Bakproces: ' + days + ' dagen)</option>';
                 }
             });
             variantSelect.innerHTML = variantOptions;
