@@ -719,7 +719,7 @@ function formatDutchDate($date) {
                         ?>
                         <div class="prep-bar"
                              style="grid-column: <?= $colStart ?> / <?= $colEnd + 1 ?>; border-left-color: <?= $barColor ?>; background: linear-gradient(135deg, <?= $barBg ?>, <?= $barBg ?>dd);"
-                             onclick="openDayModal('<?= $bakdag ?>', '<?= formatDutchDate($bakdagDt) ?>')">
+                             onclick="openDayModal('<?= $bakdag ?>', '<?= formatDutchDate($bakdagDt) ?>', '<?= htmlspecialchars(addslashes($doughName), ENT_QUOTES) ?>')">
                             <div class="prep-bar-inner">
                                 <i class="bi bi-layers" style="color: <?= $barColor ?>;"></i>
                                 <span><?= htmlspecialchars($doughName) ?></span>
@@ -985,30 +985,37 @@ function formatDutchDate($date) {
         openBakdagenModal();
     }
 
-    function openDayModal(date, dateLabel) {
+    function openDayModal(date, dateLabel, filterDoughType) {
         const isBakdagDay = bakdagen.includes(date);
         const badgeHtml = isBakdagDay ? ' <span class="bakdag-badge"><i class="bi bi-fire"></i> Bakdag</span>' : '';
-        document.getElementById('dayModalDate').innerHTML = escapeHtml(dateLabel) + badgeHtml;
+        const filterHtml = filterDoughType ? ` <span style="font-size:0.85rem;color:#c8913a;font-weight:600"><i class="bi bi-layers"></i> ${escapeHtml(filterDoughType)}</span>` : '';
+        document.getElementById('dayModalDate').innerHTML = escapeHtml(dateLabel) + badgeHtml + filterHtml;
 
         const orders = ordersByDate[date] || [];
         let html = '';
 
-        if (orders.length === 0) {
+        // Filter items by dough type if specified
+        const filteredOrders = filterDoughType ? orders.map(order => ({
+            ...order,
+            items: order.items.filter(item => (item.dough_type_name || 'Geen deegsoort') === filterDoughType)
+        })).filter(order => order.items.length > 0) : orders;
+
+        if (filteredOrders.length === 0) {
             html = '<div class="empty-state"><i class="bi bi-emoji-smile"></i><p>Geen bestellingen om te bereiden</p></div>';
         } else {
             const productTotals = {};
-            orders.forEach(order => {
+            filteredOrders.forEach(order => {
                 order.items.forEach(item => {
                     if (!productTotals[item.product_name]) productTotals[item.product_name] = { qty: 0, amount: 0 };
                     productTotals[item.product_name].qty += parseInt(item.quantity);
                     productTotals[item.product_name].amount += parseInt(item.quantity) * parseFloat(item.unit_price);
                 });
             });
-            
+
             const sortedProducts = Object.entries(productTotals).sort((a, b) => b[1].qty - a[1].qty);
-            
+
             const doughTypeTotals = {};
-            orders.forEach(order => {
+            filteredOrders.forEach(order => {
                 order.items.forEach(item => {
                     const doughTypeName = item.dough_type_name || 'Geen deegsoort';
                     const recipeName = item.recipe_name || 'Geen recept';
@@ -1059,11 +1066,12 @@ function formatDutchDate($date) {
                 }
             }
             html += '</div>';
-            html += `<a href="dagproductie.php?date=${date}" class="btn-dagproductie"><i class="bi bi-calculator"></i> Bekijk ingrediënten</a>`;
+            const doughParam = filterDoughType ? `&dough_type=${encodeURIComponent(filterDoughType)}` : '';
+            html += `<a href="dagproductie.php?date=${date}${doughParam}" class="btn-dagproductie"><i class="bi bi-calculator"></i> Bekijk ingrediënten</a>`;
             html += '</div></div>';
-            
-            html += `<div class="orders-section"><h4><i class="bi bi-people"></i> Klanten (${orders.length})</h4>`;
-            orders.forEach(order => {
+
+            html += `<div class="orders-section"><h4><i class="bi bi-people"></i> Klanten (${filteredOrders.length})</h4>`;
+            filteredOrders.forEach(order => {
                 const statusClass = order.payment_status === 'paid' ? 'paid' : 'pending';
                 const statusText = order.payment_status === 'paid' ? 'Betaald' : 'Open';
                 
