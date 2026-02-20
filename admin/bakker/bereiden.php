@@ -80,6 +80,8 @@ foreach ($allOrders as &$order) {
             boi.product_name,
             boi.quantity,
             boi.unit_price,
+            boi.variant_id as debug_variant_id,
+            pv.recipe_id as debug_recipe_id,
             COALESCE(br.name, 'Geen recept') as recipe_name,
             br.recipe_data,
             br.dough_type_id,
@@ -183,6 +185,19 @@ function formatDutchDate($date) {
     return getDutchDayNameFull($date) . ' ' . $date->format('j') . ' ' . getDutchMonthName($date);
 }
 ?>
+<!-- DEBUG: variant_id chain -->
+<pre style="background:#fff3cd;padding:1rem;margin:0;font-size:0.8rem;max-height:300px;overflow:auto">
+<?php
+foreach ($allOrders as $order) {
+    echo "Order #{$order['id']} ({$order['delivery_date']}):\n";
+    foreach ($order['items'] as $item) {
+        echo "  - {$item['product_name']}: variant_id=" . ($item['debug_variant_id'] ?? 'NULL')
+             . ", recipe_id=" . ($item['debug_recipe_id'] ?? 'NULL')
+             . ", recipe=" . ($item['recipe_name'] ?? '?') . "\n";
+    }
+}
+?>
+</pre>
 <!DOCTYPE html>
 <html lang="nl">
 <head>
