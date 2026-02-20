@@ -76,11 +76,18 @@ try {
                 if (!empty($allGrainIds)) {
                     $uniqueGrainIds = array_values(array_unique($allGrainIds));
                     $grainPlaceholders = implode(',', array_fill(0, count($uniqueGrainIds), '?'));
-                    $ingStmt = $pdo->prepare("SELECT id, name, is_whole_grain FROM ingredients WHERE id IN ($grainPlaceholders)");
+                    $ingStmt = $pdo->prepare("SELECT id, name, is_whole_grain, is_biologisch FROM ingredients WHERE id IN ($grainPlaceholders)");
                     $ingStmt->execute($uniqueGrainIds);
                     foreach ($ingStmt->fetchAll() as $ing) {
-                        $ingredientLookup[(int)$ing['id']] = ['name' => $ing['name'], 'is_whole_grain' => (bool)$ing['is_whole_grain']];
+                        $ingredientLookup[(int)$ing['id']] = ['name' => $ing['name'], 'is_whole_grain' => (bool)$ing['is_whole_grain'], 'is_biologisch' => (bool)$ing['is_biologisch']];
                     }
+                }
+
+                // Build biologisch names lookup (for mixins/toppings matched by name)
+                $biologischNames = [];
+                $bioStmt = $pdo->query("SELECT LOWER(name) as name FROM ingredients WHERE is_biologisch = 1 AND is_active = 1");
+                foreach ($bioStmt->fetchAll() as $row) {
+                    $biologischNames[$row['name']] = true;
                 }
 
                 // Compute per-variant ingredient and recipe details
@@ -88,7 +95,7 @@ try {
                     foreach ($product['variants'] as &$variant) {
                         if (!empty($variant['recipe_id']) && isset($recipesById[$variant['recipe_id']])) {
                             $rd = $recipesById[$variant['recipe_id']];
-                            $list = computeIngredientList($rd, $ingredientLookup);
+                            $list = computeIngredientList($rd, $ingredientLookup, $biologischNames);
                             if ($list !== null) {
                                 $variant['ingredienten_recipe'] = $list;
                                 $variant['recipe_details'] = computeRecipeDetails($rd, $ingredientLookup);

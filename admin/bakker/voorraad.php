@@ -664,6 +664,12 @@ $adminBasePath = '../';
                                     </div>
                                 </div>
                             </template>
+                            <div class="form-group">
+                                <label class="toggle-label">
+                                    <input type="checkbox" v-model="ingredientForm.is_biologisch" :true-value="1" :false-value="0">
+                                    Biologisch product
+                                </label>
+                            </div>
                         </div>
                         <div class="modal-footer">
                             <button class="btn btn-ghost" @click="showIngredientModal=false">Annuleren</button>
@@ -830,7 +836,7 @@ $adminBasePath = '../';
 
                 showIngredientModal: false,
                 editingIngredient: null,
-                ingredientForm: { name: '', category: 'meel', unit: 'g', grain_type_id: '', is_whole_grain: 0 },
+                ingredientForm: { name: '', category: 'meel', unit: 'g', grain_type_id: '', is_whole_grain: 0, is_biologisch: 0 },
 
                 showGrainTypeModal: false,
                 newGrainTypeName: '',
@@ -1005,7 +1011,8 @@ $adminBasePath = '../';
                         category: ing.category,
                         unit: ing.unit,
                         grain_type_id: ing.grain_type_id || '',
-                        is_whole_grain: ing.is_whole_grain || 0
+                        is_whole_grain: ing.is_whole_grain || 0,
+                        is_biologisch: parseInt(ing.is_biologisch) || 0
                     };
                 } else {
                     this.ingredientForm = {
@@ -1013,7 +1020,8 @@ $adminBasePath = '../';
                         category: defaultCategory || 'meel',
                         unit: 'g',
                         grain_type_id: '',
-                        is_whole_grain: 0
+                        is_whole_grain: 0,
+                        is_biologisch: 0
                     };
                 }
                 this.showIngredientModal = true;

@@ -98,6 +98,12 @@
             color: var(--color-stone);
             line-height: 1.6;
         }
+        .product-detail-biologisch {
+            font-size: 0.8rem;
+            color: var(--color-sage);
+            margin-top: 0.3rem;
+            font-style: italic;
+        }
         .product-detail-variants {
             display: flex;
             flex-wrap: wrap;
@@ -295,6 +301,7 @@
                             <div v-if="displayIngredients">
                                 <div class="product-detail-section-label">Ingrediënten</div>
                                 <div class="product-detail-ingredients">{{ displayIngredients }}</div>
+                                <div v-if="hasBiologisch" class="product-detail-biologisch">* Biologisch product</div>
                             </div>
 
                             <!-- Samenstelling (collapsible) -->
@@ -341,6 +348,6 @@
     </footer>
 
     <script src="js/main.js"></script>
-    <script src="js/product-detail-app.js?v=3"></script>
+    <script src="js/product-detail-app.js?v=4"></script>
 </body>
 </html>

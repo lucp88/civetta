@@ -4,8 +4,8 @@ requireLogin();
 
 $date = isset($_GET['date']) ? $_GET['date'] : date('Y-m-d');
 $bereidingDate = new DateTime($date);
+// Baking day = delivery day (no offset)
 $deliveryDate = clone $bereidingDate;
-$deliveryDate->modify('+1 day');
 
 $stmt = $pdo->prepare("
     SELECT 

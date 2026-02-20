@@ -63,14 +63,20 @@ if ($firstRecipeId) {
         if (!empty($grainIds)) {
             $gIds = array_values(array_unique($grainIds));
             $gp = implode(',', array_fill(0, count($gIds), '?'));
-            $gStmt = $pdo->prepare("SELECT id, name, is_whole_grain FROM ingredients WHERE id IN ($gp)");
+            $gStmt = $pdo->prepare("SELECT id, name, is_whole_grain, is_biologisch FROM ingredients WHERE id IN ($gp)");
             $gStmt->execute($gIds);
             foreach ($gStmt->fetchAll() as $ing) {
-                $lookup[(int)$ing['id']] = ['name' => $ing['name'], 'is_whole_grain' => (bool)$ing['is_whole_grain']];
+                $lookup[(int)$ing['id']] = ['name' => $ing['name'], 'is_whole_grain' => (bool)$ing['is_whole_grain'], 'is_biologisch' => (bool)$ing['is_biologisch']];
             }
         }
 
-        $computedIngredientList = computeIngredientList($rd, $lookup);
+        $biologischNames = [];
+        $bioStmt = $pdo->query("SELECT LOWER(name) as name FROM ingredients WHERE is_biologisch = 1 AND is_active = 1");
+        foreach ($bioStmt->fetchAll() as $row) {
+            $biologischNames[$row['name']] = true;
+        }
+
+        $computedIngredientList = computeIngredientList($rd, $lookup, $biologischNames);
         $computedRecipeDetails  = computeRecipeDetails($rd, $lookup);
     } catch (Exception $e) {
         // Ingredient computation is non-critical — page still loads without it
@@ -595,6 +601,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                             <label>Ingrediënten</label>
                             <?php if ($computedIngredientList): ?>
                                 <div class="computed-ingredients-box"><?= htmlspecialchars($computedIngredientList) ?></div>
+                                <?php if (strpos($computedIngredientList, '*') !== false): ?>
+                                    <p class="help" style="margin-top:0.35rem;color:#2e7d32">* Biologisch product</p>
+                                <?php endif; ?>
                                 <?php if ($computedRecipeDetails && !empty($computedRecipeDetails['grains'])): ?>
                                 <div class="recipe-details-box">
                                     <?php if ($computedRecipeDetails['volkoren_pct'] > 0): ?>
@@ -694,6 +703,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                                     <?php if ($computedIngredientList): ?>
                                     <div class="preview-ingredienten">
                                         <strong>Ingrediënten:</strong> <?= htmlspecialchars($computedIngredientList) ?>
+                                        <?php if (strpos($computedIngredientList, '*') !== false): ?>
+                                        <div style="font-size:0.75rem;margin-top:0.25rem;color:#2e7d32">* Biologisch product</div>
+                                        <?php endif; ?>
                                     </div>
                                     <?php endif; ?>
                                     <div class="preview-footer">

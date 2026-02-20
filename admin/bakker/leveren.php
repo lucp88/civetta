@@ -75,6 +75,28 @@ foreach ($allOrders as $order) {
     $ordersByDate[$date][] = $order;
 }
 
+// Load bakdagen configuration
+$bakdagenPatroonStr = '';
+$stmtBp = $pdo->prepare("SELECT setting_value FROM settings WHERE setting_key = 'bakdagen_patroon'");
+$stmtBp->execute();
+$bakdagenPatroonStr = $stmtBp->fetchColumn() ?: '';
+$bakdagenPatroon = $bakdagenPatroonStr ? array_map('intval', explode(',', $bakdagenPatroonStr)) : [];
+
+$stmtExtra = $pdo->prepare("SELECT datum FROM bakdagen_extra WHERE datum BETWEEN ? AND ? ORDER BY datum");
+$stmtExtra->execute([$startDate->format('Y-m-d'), $endDate->format('Y-m-d')]);
+$extraDatums = array_column($stmtExtra->fetchAll(), 'datum');
+
+$bakdagen = [];
+$iterDt = clone $startDate;
+while ($iterDt <= $endDate) {
+    $weekday = (int)$iterDt->format('N');
+    $dateStr = $iterDt->format('Y-m-d');
+    if (in_array($weekday, $bakdagenPatroon) || in_array($dateStr, $extraDatums)) {
+        $bakdagen[] = $dateStr;
+    }
+    $iterDt->modify('+1 day');
+}
+
 function getDutchDayName($date) {
     $dagen = ['zo', 'ma', 'di', 'wo', 'do', 'vr', 'za'];
     return $dagen[$date->format('w')];
@@ -397,6 +419,27 @@ function formatDutchDate($date) {
         .customer-info-item .ci-value a:hover { text-decoration: underline; }
         .customer-info-item.full-width { grid-column: 1 / -1; }
 
+        /* Bakdag indicators */
+        .bakdag-badge-leveren {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.2rem;
+            background: linear-gradient(135deg, #ff6b35, #e55a2b);
+            color: white;
+            font-size: 0.65rem;
+            font-weight: 600;
+            padding: 0.15rem 0.4rem;
+            border-radius: 4px;
+            margin-left: 0.3rem;
+        }
+        .calendar-cell.bakdag-cell {
+            border-top: 3px solid #ff6b35;
+        }
+        .calendar-cell.bakdag-cell.today {
+            border: 2px solid var(--accent);
+            border-top: 3px solid #ff6b35;
+        }
+
         @media (max-width: 768px) {
             .route-summary { gap: 1rem; padding: 0.75rem 1rem; flex-wrap: wrap; }
             .route-stat-value { font-size: 1.2rem; }
@@ -500,11 +543,17 @@ function formatDutchDate($date) {
                 $dateKey = $currentDate->format('Y-m-d');
                 $orders = $ordersByDate[$dateKey] ?? [];
                 $isToday = $dateKey === date('Y-m-d');
+                $isBakdag = in_array($dateKey, $bakdagen);
                 ?>
                 <div class="calendar-grid day-view">
-                    <div class="calendar-cell day-view-cell <?= $isToday ? 'today' : '' ?>" style="cursor: default;">
+                    <div class="calendar-cell day-view-cell <?= $isToday ? 'today' : '' ?> <?= $isBakdag ? 'bakdag-cell' : '' ?>" style="cursor: default;">
                         <div class="calendar-date">
-                            <span><?= formatDutchDate($currentDate) ?></span>
+                            <span>
+                                <?= formatDutchDate($currentDate) ?>
+                                <?php if ($isBakdag): ?>
+                                    <span class="bakdag-badge-leveren"><i class="bi bi-fire"></i> Bakdag</span>
+                                <?php endif; ?>
+                            </span>
                             <span class="calendar-count <?= count($orders) === 0 ? 'empty' : '' ?>">
                                 <?= count($orders) ?> stop<?= count($orders) !== 1 ? 's' : '' ?>
                             </span>
@@ -535,11 +584,17 @@ function formatDutchDate($date) {
                         $dateKey = $current->format('Y-m-d');
                         $orders = $ordersByDate[$dateKey] ?? [];
                         $isToday = $dateKey === date('Y-m-d');
+                        $isBakdag = in_array($dateKey, $bakdagen);
                     ?>
-                        <div class="calendar-cell <?= $isToday ? 'today' : '' ?>" 
+                        <div class="calendar-cell <?= $isToday ? 'today' : '' ?> <?= $isBakdag ? 'bakdag-cell' : '' ?>"
                              onclick="openDayModal('<?= $dateKey ?>', '<?= formatDutchDate($current) ?>')">
                             <div class="calendar-date">
-                                <span><?= $current->format('j') ?></span>
+                                <span>
+                                    <?= $current->format('j') ?>
+                                    <?php if ($isBakdag): ?>
+                                        <span class="bakdag-badge-leveren" style="font-size:0.55rem;padding:0.1rem 0.25rem;"><i class="bi bi-fire"></i></span>
+                                    <?php endif; ?>
+                                </span>
                                 <span class="calendar-count <?= count($orders) === 0 ? 'empty' : '' ?>"><?= count($orders) ?></span>
                             </div>
                             <div class="calendar-preview">
@@ -591,11 +646,17 @@ function formatDutchDate($date) {
                             $orders = $ordersByDate[$dateKey] ?? [];
                             $isToday = $dateKey === date('Y-m-d');
                             $isOtherMonth = $date->format('m') !== $currentMonth;
+                            $isBakdag = in_array($dateKey, $bakdagen);
                     ?>
-                        <div class="calendar-cell <?= $isToday ? 'today' : '' ?> <?= $isOtherMonth ? 'other-month' : '' ?>" 
+                        <div class="calendar-cell <?= $isToday ? 'today' : '' ?> <?= $isOtherMonth ? 'other-month' : '' ?> <?= $isBakdag && !$isOtherMonth ? 'bakdag-cell' : '' ?>"
                              onclick="openDayModal('<?= $dateKey ?>', '<?= formatDutchDate($date) ?>')">
                             <div class="calendar-date">
-                                <span><?= $date->format('j') ?></span>
+                                <span>
+                                    <?= $date->format('j') ?>
+                                    <?php if ($isBakdag && !$isOtherMonth): ?>
+                                        <span class="bakdag-badge-leveren" style="font-size:0.5rem;padding:0.08rem 0.2rem;"><i class="bi bi-fire"></i></span>
+                                    <?php endif; ?>
+                                </span>
                                 <?php if (count($orders) > 0): ?>
                                     <span class="calendar-count"><?= count($orders) ?></span>
                                 <?php endif; ?>

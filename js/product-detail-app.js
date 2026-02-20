@@ -44,6 +44,10 @@ const productDetailApp = createApp({
             const variant = this.selectedVariant;
             if (variant && variant.recipe_details) return variant.recipe_details;
             return this.product ? this.product.recipe_details : null;
+        },
+
+        hasBiologisch() {
+            return this.displayIngredients && this.displayIngredients.includes('*');
         }
     },
 
