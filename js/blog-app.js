@@ -166,27 +166,3 @@ createApp({
     }
 }).mount('#blog-app');
 
-document.addEventListener('DOMContentLoaded', function() {
-    const adminLink = document.getElementById('admin-dashboard-link');
-    if (adminLink) {
-        adminLink.addEventListener('click', async function(e) {
-            e.preventDefault();
-            try {
-                const response = await fetch('api/auth.php?action=check');
-                const data = await response.json();
-                if (data.authenticated) {
-                    window.location.href = 'admin/index.php';
-                } else {
-                    const blogApp = document.querySelector('#blog-app');
-                    if (blogApp && blogApp.__vue_app__) {
-                        blogApp.__vue_app__._instance.proxy.showLogin = true;
-                    } else {
-                        window.location.href = 'admin/login.php';
-                    }
-                }
-            } catch (error) {
-                window.location.href = 'admin/login.php';
-            }
-        });
-    }
-});

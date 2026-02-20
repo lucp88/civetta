@@ -1263,6 +1263,11 @@ footer::before {
     gap: var(--spacing-md);
 }
 
+.footer-info,
+.footer-contact {
+    flex: 1;
+}
+
 .footer-logo {
     height: 50px;
     width: auto;
@@ -1290,25 +1295,6 @@ footer::before {
     color: var(--color-wheat);
 }
 
-.footer-admin {
-    width: 100%;
-    text-align: center;
-    margin-top: var(--spacing-sm);
-    padding-top: var(--spacing-sm);
-    border-top: 1px solid rgba(255, 255, 255, 0.1);
-}
-
-.admin-link {
-    color: rgba(255, 255, 255, 0.4);
-    font-size: 0.75rem;
-    text-decoration: none;
-    transition: all var(--transition);
-}
-
-.admin-link:hover {
-    color: var(--color-wheat-light);
-    text-decoration: underline;
-}
 
 @media (max-width: 768px) {
     html {

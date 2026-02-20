@@ -415,7 +415,7 @@ switch ($method) {
                     $itemsList .= "- {$item['quantity']}x {$item['product_name']} (€" . number_format($item['unit_price'], 2, ',', '.') . " p/st)\n";
                 }
 
-                $to = "laurens@bakkerij-civetta.nl";
+                $to = "info@bakkerij-civetta.nl";
                 $subject = "Nieuwe bestelling (admin) van {$accountInfo['bedrijfsnaam']} (#$orderId)";
                 $body = "Er is een nieuwe bestelling geplaatst via het admin panel!\n\n";
                 $body .= "Bestelling #$orderId\n";

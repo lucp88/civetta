@@ -118,7 +118,7 @@ foreach ($openOrders as $order) {
             $body .= "Met vriendelijke groet,\nBakkerij Civetta";
             
             $headers = "From: noreply@bakkerij-civetta.nl\r\n";
-            $headers .= "Reply-To: laurens@bakkerij-civetta.nl\r\n";
+            $headers .= "Reply-To: info@bakkerij-civetta.nl\r\n";
             
             @mail($to, $subject, $body, $headers);
             logMessage("  -> Bevestigingsmail verzonden naar {$order['email']}", $verbose);

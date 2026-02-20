@@ -138,7 +138,7 @@ switch ($method) {
                         </p>
                     </div>';
                 $adminHtml .= getEmailFooter($bedrijf);
-                sendHtmlEmail('laurens@bakkerij-civetta.nl', "Nieuwe accountaanvraag: $bedrijfsnaam", $adminHtml, [], $email);
+                sendHtmlEmail('info@bakkerij-civetta.nl', "Nieuwe accountaanvraag: $bedrijfsnaam", $adminHtml, [], $email);
                 
                 echo json_encode(['success' => true, 'id' => $id, 'message' => 'Aanvraag succesvol ingediend']);
             }

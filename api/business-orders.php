@@ -305,7 +305,7 @@ switch ($method) {
                 $itemsList .= "- {$item['quantity']}x {$item['product_name']} (€" . number_format($item['unit_price'], 2, ',', '.') . " p/st)\n";
             }
             
-            $to = "laurens@bakkerij-civetta.nl";
+            $to = "info@bakkerij-civetta.nl";
             
             if ($isRecurring) {
                 $frequencyLabels = ['weekly' => 'Wekelijks', 'biweekly' => 'Tweewekelijks', 'monthly' => 'Maandelijks'];
