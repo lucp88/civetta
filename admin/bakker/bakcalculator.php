@@ -793,6 +793,7 @@ $monthlyBreadCount = (int)$stmt->fetch()['total_breads'];
                                             <h4>
                                                 <i class="bi bi-journal-text" style="color: #c8913a;"></i>
                                                 {{ r.name }}
+                                                <span style="font-size:0.75rem;color:#999;font-weight:normal;margin-left:0.5rem">ID: {{ r.id ?? 'Null' }}</span>
                                             </h4>
                                             <small>{{ formatDate(r.updated_at) }}</small>
                                             <div style="margin-top:0.2rem">

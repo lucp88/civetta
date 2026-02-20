@@ -2,7 +2,9 @@
   "permissions": {
     "allow": [
       "WebFetch(domain:www.bakkerij-civetta.nl)",
-      "Bash(git add:*)"
+      "Bash(git add:*)",
+      "Bash(php -l:*)",
+      "Bash(where.exe:*)"
     ]
   }
 }

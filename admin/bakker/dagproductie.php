@@ -4,67 +4,114 @@ requireLogin();
 
 $date = isset($_GET['date']) ? $_GET['date'] : date('Y-m-d');
 $bereidingDate = new DateTime($date);
-// Baking day = delivery day (no offset)
-$deliveryDate = clone $bereidingDate;
+
+// Load voorbereidingDagen for fallback method days
+$stmtVd = $pdo->prepare("SELECT setting_value FROM settings WHERE setting_key = 'bakdagen_voorbereiding_dagen'");
+$stmtVd->execute();
+$voorbereidingDagen = (int)($stmtVd->fetchColumn() ?: 3);
+
+// Fetch orders in a window: from today up to 7 days ahead (covers all possible prep windows)
+$maxPrepDays = 7;
+$windowEnd = clone $bereidingDate;
+$windowEnd->modify("+{$maxPrepDays} days");
 
 $stmt = $pdo->prepare("
     SELECT
+        bo.delivery_date,
         boi.product_name,
         boi.quantity,
         boi.unit_price,
         pv.recipe_id,
         pv.gewicht as variant_weight,
         br.name as recipe_name,
-        br.recipe_data
+        br.recipe_data,
+        dt.recipe_data as dough_type_recipe_data
     FROM business_orders bo
     JOIN business_order_items boi ON bo.id = boi.order_id
     LEFT JOIN product_variants pv ON boi.variant_id = pv.id
     LEFT JOIN products p ON COALESCE(boi.product_id, pv.product_id) = p.id
     LEFT JOIN baker_recipes br ON pv.recipe_id = br.id
-    WHERE bo.delivery_date = ?
+    LEFT JOIN dough_types dt ON br.dough_type_id = dt.id
+    WHERE bo.delivery_date BETWEEN ? AND ?
     AND bo.is_cancelled = 0
+    ORDER BY bo.delivery_date ASC
 ");
-$stmt->execute([$deliveryDate->format('Y-m-d')]);
-$items = $stmt->fetchAll();
+$stmt->execute([$bereidingDate->format('Y-m-d'), $windowEnd->format('Y-m-d')]);
+$allItems = $stmt->fetchAll();
 
-$recipes = [];
-$noRecipe = ['products' => [], 'total_qty' => 0, 'total_weight' => 0];
+// Filter items: only include if requested date is within the prep window
+// Group by delivery date
+$deliveryGroups = [];
 
-foreach ($items as $item) {
-    $qty = intval($item['quantity']);
-    $variantWeight = intval($item['variant_weight'] ?? 0);
-    
-    $doughWeight = 0;
-    if (!empty($item['recipe_data'])) {
-        $recipeData = json_decode($item['recipe_data'], true);
-        $doughWeight = intval($recipeData['doughWeight'] ?? 0);
-    }
-    $weight = $doughWeight > 0 ? $doughWeight : ($variantWeight > 0 ? $variantWeight : 300);
-    
+foreach ($allItems as $item) {
+    $deliveryDt = new DateTime($item['delivery_date']);
+
+    // Determine method days count
     if ($item['recipe_id'] && $item['recipe_data']) {
-        $recipeId = $item['recipe_id'];
-        if (!isset($recipes[$recipeId])) {
-            $recipes[$recipeId] = [
-                'name' => $item['recipe_name'],
-                'data' => json_decode($item['recipe_data'], true),
-                'products' => [],
-                'total_qty' => 0,
-                'total_weight' => 0
+        $methodDaysCount = $voorbereidingDagen;
+        $recipeData = json_decode($item['recipe_data'], true);
+        if (!empty($recipeData['methodDays'])) {
+            $methodDaysCount = count($recipeData['methodDays']);
+        } elseif (!empty($item['dough_type_recipe_data'])) {
+            $dtData = json_decode($item['dough_type_recipe_data'], true);
+            if (!empty($dtData['methodDays'])) {
+                $methodDaysCount = count($dtData['methodDays']);
+            }
+        }
+    } else {
+        // Items without recipe: only show on delivery day
+        $methodDaysCount = 1;
+    }
+
+    // Prep starts (methodDaysCount - 1) days before delivery
+    $prepStart = clone $deliveryDt;
+    $prepStart->modify('-' . ($methodDaysCount - 1) . ' days');
+
+    // Include if requested date is within prep window
+    if ($bereidingDate >= $prepStart && $bereidingDate <= $deliveryDt) {
+        $dKey = $item['delivery_date'];
+        if (!isset($deliveryGroups[$dKey])) {
+            $deliveryGroups[$dKey] = [
+                'recipes' => [],
+                'noRecipe' => ['products' => [], 'total_qty' => 0, 'total_weight' => 0]
             ];
         }
-        if (!isset($recipes[$recipeId]['products'][$item['product_name']])) {
-            $recipes[$recipeId]['products'][$item['product_name']] = ['qty' => 0, 'weight' => $weight];
+
+        $qty = intval($item['quantity']);
+        $variantWeight = intval($item['variant_weight'] ?? 0);
+
+        $doughWeight = 0;
+        if (!empty($item['recipe_data'])) {
+            $recipeData = json_decode($item['recipe_data'], true);
+            $doughWeight = intval($recipeData['doughWeight'] ?? 0);
         }
-        $recipes[$recipeId]['products'][$item['product_name']]['qty'] += $qty;
-        $recipes[$recipeId]['total_qty'] += $qty;
-        $recipes[$recipeId]['total_weight'] += $qty * $weight;
-    } else {
-        if (!isset($noRecipe['products'][$item['product_name']])) {
-            $noRecipe['products'][$item['product_name']] = ['qty' => 0, 'weight' => $weight];
+        $weight = $doughWeight > 0 ? $doughWeight : ($variantWeight > 0 ? $variantWeight : 300);
+
+        if ($item['recipe_id'] && $item['recipe_data']) {
+            $recipeId = $item['recipe_id'];
+            if (!isset($deliveryGroups[$dKey]['recipes'][$recipeId])) {
+                $deliveryGroups[$dKey]['recipes'][$recipeId] = [
+                    'name' => $item['recipe_name'],
+                    'data' => json_decode($item['recipe_data'], true),
+                    'products' => [],
+                    'total_qty' => 0,
+                    'total_weight' => 0
+                ];
+            }
+            if (!isset($deliveryGroups[$dKey]['recipes'][$recipeId]['products'][$item['product_name']])) {
+                $deliveryGroups[$dKey]['recipes'][$recipeId]['products'][$item['product_name']] = ['qty' => 0, 'weight' => $weight];
+            }
+            $deliveryGroups[$dKey]['recipes'][$recipeId]['products'][$item['product_name']]['qty'] += $qty;
+            $deliveryGroups[$dKey]['recipes'][$recipeId]['total_qty'] += $qty;
+            $deliveryGroups[$dKey]['recipes'][$recipeId]['total_weight'] += $qty * $weight;
+        } else {
+            if (!isset($deliveryGroups[$dKey]['noRecipe']['products'][$item['product_name']])) {
+                $deliveryGroups[$dKey]['noRecipe']['products'][$item['product_name']] = ['qty' => 0, 'weight' => $weight];
+            }
+            $deliveryGroups[$dKey]['noRecipe']['products'][$item['product_name']]['qty'] += $qty;
+            $deliveryGroups[$dKey]['noRecipe']['total_qty'] += $qty;
+            $deliveryGroups[$dKey]['noRecipe']['total_weight'] += $qty * $weight;
         }
-        $noRecipe['products'][$item['product_name']]['qty'] += $qty;
-        $noRecipe['total_qty'] += $qty;
-        $noRecipe['total_weight'] += $qty * $weight;
     }
 }
 
@@ -210,12 +257,16 @@ function formatDutchDate($date) {
 
 $totalProducts = 0;
 $totalWeight = 0;
-foreach ($recipes as $r) {
-    $totalProducts += $r['total_qty'];
-    $totalWeight += $r['total_weight'];
+$totalRecipeCount = 0;
+foreach ($deliveryGroups as $group) {
+    foreach ($group['recipes'] as $r) {
+        $totalProducts += $r['total_qty'];
+        $totalWeight += $r['total_weight'];
+    }
+    $totalRecipeCount += count($group['recipes']);
+    $totalProducts += $group['noRecipe']['total_qty'];
+    $totalWeight += $group['noRecipe']['total_weight'];
 }
-$totalProducts += $noRecipe['total_qty'];
-$totalWeight += $noRecipe['total_weight'];
 ?>
 <!DOCTYPE html>
 <html lang="nl">
@@ -479,6 +530,27 @@ $totalWeight += $noRecipe['total_weight'];
             color: #888;
             font-size: 1.1rem;
         }
+        .delivery-date-header {
+            margin: 2rem 0 1rem;
+            padding: 0.75rem 1.25rem;
+            background: linear-gradient(135deg, #e8f4fd, #d4ecf9);
+            border-radius: 12px;
+            border-left: 4px solid #2196f3;
+        }
+        .delivery-date-label {
+            font-weight: 700;
+            font-size: 1.1rem;
+            color: #1565c0;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+        .delivery-date-days {
+            font-weight: 400;
+            font-size: 0.85rem;
+            color: #5c8db8;
+            margin-left: 0.5rem;
+        }
         @media print {
             body { background: white; }
             .header, .date-nav, .print-section { display: none !important; }
@@ -524,7 +596,7 @@ $totalWeight += $noRecipe['total_weight'];
             <?php endif; ?>
         </div>
 
-        <?php if (empty($recipes) && empty($noRecipe['products'])): ?>
+        <?php if (empty($deliveryGroups)): ?>
             <div class="empty-state">
                 <i class="bi bi-emoji-smile"></i>
                 <p>Geen bestellingen om te bereiden op deze dag</p>
@@ -548,153 +620,168 @@ $totalWeight += $noRecipe['total_weight'];
                 </div>
                 <div class="summary-stat">
                     <div class="label">Recepten</div>
-                    <div class="value"><?= count($recipes) ?></div>
+                    <div class="value"><?= $totalRecipeCount ?></div>
                 </div>
             </div>
 
-            <?php if (!empty($noRecipe['products'])): ?>
-                <div class="no-recipe">
-                    <h3><i class="bi bi-exclamation-triangle"></i> Producten zonder recept</h3>
-                    <div class="no-recipe-list">
-                        <?php foreach ($noRecipe['products'] as $name => $data): ?>
-                            <span class="product-tag"><strong><?= $data['qty'] ?>x</strong> <?= htmlspecialchars($name) ?></span>
-                        <?php endforeach; ?>
-                    </div>
-                </div>
-            <?php endif; ?>
-
-            <?php foreach ($recipes as $recipeId => $recipe): 
-                $calc = calculateIngredients($recipe['data'], $recipe['total_qty'], $recipe['total_weight']);
+            <?php foreach ($deliveryGroups as $deliveryDateStr => $group):
+                $deliveryDt = new DateTime($deliveryDateStr);
+                $isToday = $deliveryDateStr === $date;
+                $daysUntil = (int)$bereidingDate->diff($deliveryDt)->format('%a');
             ?>
-                <div class="recipe-card">
-                    <div class="recipe-header">
-                        <h2><i class="bi bi-journal-bookmark"></i> <?= htmlspecialchars($recipe['name']) ?></h2>
-                        <div class="stats">
-                            <span><i class="bi bi-box"></i> <?= $recipe['total_qty'] ?> stuks</span>
-                            <span><i class="bi bi-speedometer"></i> <?= number_format($recipe['total_weight']/1000, 1, ',', '.') ?> kg</span>
-                            <span><i class="bi bi-droplet"></i> <?= $calc['hydration'] ?>%</span>
+                <?php if (!$isToday): ?>
+                    <div class="delivery-date-header">
+                        <div class="delivery-date-label">
+                            <i class="bi bi-truck"></i> Levering <?= formatDutchDate($deliveryDt) ?>
+                            <span class="delivery-date-days">nog <?= $daysUntil ?> dag<?= $daysUntil !== 1 ? 'en' : '' ?></span>
                         </div>
                     </div>
-                    <div class="recipe-body">
-                        <div class="products-used">
-                            <?php foreach ($recipe['products'] as $name => $data): ?>
-                                <span class="product-tag"><strong><?= $data['qty'] ?>x</strong> <?= htmlspecialchars($name) ?> (<?= $data['weight'] ?>g)</span>
+                <?php endif; ?>
+
+                <?php if (!empty($group['noRecipe']['products'])): ?>
+                    <div class="no-recipe">
+                        <h3><i class="bi bi-exclamation-triangle"></i> Producten zonder recept<?= !$isToday ? ' (' . $deliveryDt->format('d-m') . ')' : '' ?></h3>
+                        <div class="no-recipe-list">
+                            <?php foreach ($group['noRecipe']['products'] as $name => $data): ?>
+                                <span class="product-tag"><strong><?= $data['qty'] ?>x</strong> <?= htmlspecialchars($name) ?></span>
                             <?php endforeach; ?>
                         </div>
+                    </div>
+                <?php endif; ?>
 
-                        <div class="ingredients-grid">
-                            <div class="ingredient-section">
-                                <h3><i class="bi bi-moisture"></i> Meel</h3>
-                                <?php foreach ($calc['grains'] as $grain): ?>
-                                    <div class="ingredient-row">
-                                        <span class="ingredient-name"><?= htmlspecialchars($grain['name']) ?></span>
-                                        <span>
-                                            <span class="ingredient-weight"><?= $grain['weight'] ?>g</span>
-                                            <span class="ingredient-pct">(<?= $grain['pct'] ?>%)</span>
-                                        </span>
-                                    </div>
-                                <?php endforeach; ?>
-                                <div class="total-row">
-                                    <span class="label">Totaal meel</span>
-                                    <span class="value"><?= $calc['totalFlour'] ?>g</span>
-                                </div>
+                <?php foreach ($group['recipes'] as $recipeId => $recipe):
+                    $calc = calculateIngredients($recipe['data'], $recipe['total_qty'], $recipe['total_weight']);
+                ?>
+                    <div class="recipe-card">
+                        <div class="recipe-header">
+                            <h2><i class="bi bi-journal-bookmark"></i> <?= htmlspecialchars($recipe['name']) ?></h2>
+                            <div class="stats">
+                                <span><i class="bi bi-box"></i> <?= $recipe['total_qty'] ?> stuks</span>
+                                <span><i class="bi bi-speedometer"></i> <?= number_format($recipe['total_weight']/1000, 1, ',', '.') ?> kg</span>
+                                <span><i class="bi bi-droplet"></i> <?= $calc['hydration'] ?>%</span>
                             </div>
-
-                            <div class="ingredient-section">
-                                <h3><i class="bi bi-droplet"></i> Water & Zout</h3>
-                                <div class="ingredient-row">
-                                    <span class="ingredient-name">Water</span>
-                                    <span>
-                                        <span class="ingredient-weight"><?= $calc['totalWater'] ?>g</span>
-                                        <span class="ingredient-pct">(<?= $calc['hydration'] ?>%)</span>
-                                    </span>
-                                </div>
-                                <div class="ingredient-row">
-                                    <span class="ingredient-name">Zout</span>
-                                    <span>
-                                        <span class="ingredient-weight"><?= $calc['saltWeight'] ?>g</span>
-                                        <span class="ingredient-pct">(<?= number_format($calc['saltPct'], 1, ',', '.') ?>%)</span>
-                                    </span>
-                                </div>
-                                <?php foreach ($calc['leveners'] as $lev): ?>
-                                    <div class="ingredient-row">
-                                        <span class="ingredient-name"><?= htmlspecialchars($lev['name']) ?></span>
-                                        <span>
-                                            <span class="ingredient-weight"><?= $lev['weight'] ?>g</span>
-                                            <span class="ingredient-pct">(<?= $lev['pct'] ?>%)</span>
-                                        </span>
-                                    </div>
+                        </div>
+                        <div class="recipe-body">
+                            <div class="products-used">
+                                <?php foreach ($recipe['products'] as $name => $data): ?>
+                                    <span class="product-tag"><strong><?= $data['qty'] ?>x</strong> <?= htmlspecialchars($name) ?> (<?= $data['weight'] ?>g)</span>
                                 <?php endforeach; ?>
                             </div>
 
-                            <?php if ($calc['sourdough']): ?>
+                            <div class="ingredients-grid">
                                 <div class="ingredient-section">
-                                    <h3><i class="bi bi-fire"></i> Zuurdesem</h3>
-                                    <div class="ingredient-row">
-                                        <span class="ingredient-name">Meel (in zuurdesem)</span>
-                                        <span class="ingredient-weight"><?= $calc['sourdough']['flour'] ?>g</span>
-                                    </div>
-                                    <div class="ingredient-row">
-                                        <span class="ingredient-name">Water (in zuurdesem)</span>
-                                        <span class="ingredient-weight"><?= $calc['sourdough']['water'] ?>g</span>
-                                    </div>
-                                    <div class="total-row">
-                                        <span class="label">Zuurdesem totaal (<?= $calc['sourdough']['hydration'] ?>%)</span>
-                                        <span class="value"><?= $calc['sourdough']['weight'] ?>g</span>
-                                    </div>
-                                </div>
-                            <?php endif; ?>
-
-                            <?php if ($calc['preFerment']): ?>
-                                <div class="ingredient-section">
-                                    <h3><i class="bi bi-layers"></i> Voordeeg</h3>
-                                    <div class="ingredient-row">
-                                        <span class="ingredient-name">Meel (in voordeeg)</span>
-                                        <span class="ingredient-weight"><?= $calc['preFerment']['flour'] ?>g</span>
-                                    </div>
-                                    <div class="ingredient-row">
-                                        <span class="ingredient-name">Water (in voordeeg)</span>
-                                        <span class="ingredient-weight"><?= $calc['preFerment']['water'] ?>g</span>
-                                    </div>
-                                    <div class="total-row">
-                                        <span class="label">Voordeeg totaal (<?= $calc['preFerment']['hydration'] ?>%)</span>
-                                        <span class="value"><?= $calc['preFerment']['weight'] ?>g</span>
-                                    </div>
-                                </div>
-                            <?php endif; ?>
-
-                            <?php if (!empty($calc['mixins'])): ?>
-                                <div class="ingredient-section">
-                                    <h3><i class="bi bi-plus-circle"></i> Mix-ins</h3>
-                                    <?php foreach ($calc['mixins'] as $mixin): ?>
+                                    <h3><i class="bi bi-moisture"></i> Meel</h3>
+                                    <?php foreach ($calc['grains'] as $grain): ?>
                                         <div class="ingredient-row">
-                                            <span class="ingredient-name"><?= htmlspecialchars($mixin['name']) ?></span>
+                                            <span class="ingredient-name"><?= htmlspecialchars($grain['name']) ?></span>
                                             <span>
-                                                <span class="ingredient-weight"><?= $mixin['weight'] ?>g</span>
-                                                <span class="ingredient-pct">(<?= $mixin['pct'] ?>%)</span>
+                                                <span class="ingredient-weight"><?= $grain['weight'] ?>g</span>
+                                                <span class="ingredient-pct">(<?= $grain['pct'] ?>%)</span>
+                                            </span>
+                                        </div>
+                                    <?php endforeach; ?>
+                                    <div class="total-row">
+                                        <span class="label">Totaal meel</span>
+                                        <span class="value"><?= $calc['totalFlour'] ?>g</span>
+                                    </div>
+                                </div>
+
+                                <div class="ingredient-section">
+                                    <h3><i class="bi bi-droplet"></i> Water & Zout</h3>
+                                    <div class="ingredient-row">
+                                        <span class="ingredient-name">Water</span>
+                                        <span>
+                                            <span class="ingredient-weight"><?= $calc['totalWater'] ?>g</span>
+                                            <span class="ingredient-pct">(<?= $calc['hydration'] ?>%)</span>
+                                        </span>
+                                    </div>
+                                    <div class="ingredient-row">
+                                        <span class="ingredient-name">Zout</span>
+                                        <span>
+                                            <span class="ingredient-weight"><?= $calc['saltWeight'] ?>g</span>
+                                            <span class="ingredient-pct">(<?= number_format($calc['saltPct'], 1, ',', '.') ?>%)</span>
+                                        </span>
+                                    </div>
+                                    <?php foreach ($calc['leveners'] as $lev): ?>
+                                        <div class="ingredient-row">
+                                            <span class="ingredient-name"><?= htmlspecialchars($lev['name']) ?></span>
+                                            <span>
+                                                <span class="ingredient-weight"><?= $lev['weight'] ?>g</span>
+                                                <span class="ingredient-pct">(<?= $lev['pct'] ?>%)</span>
                                             </span>
                                         </div>
                                     <?php endforeach; ?>
                                 </div>
-                            <?php endif; ?>
 
-                            <?php if (!empty($calc['toppings'])): ?>
-                                <div class="ingredient-section">
-                                    <h3><i class="bi bi-stars"></i> Toppings</h3>
-                                    <?php foreach ($calc['toppings'] as $topping): ?>
+                                <?php if ($calc['sourdough']): ?>
+                                    <div class="ingredient-section">
+                                        <h3><i class="bi bi-fire"></i> Zuurdesem</h3>
                                         <div class="ingredient-row">
-                                            <span class="ingredient-name"><?= htmlspecialchars($topping['name']) ?></span>
-                                            <span>
-                                                <span class="ingredient-weight"><?= $topping['weight'] ?>g</span>
-                                                <span class="ingredient-pct">(<?= $topping['pct'] ?>%)</span>
-                                            </span>
+                                            <span class="ingredient-name">Meel (in zuurdesem)</span>
+                                            <span class="ingredient-weight"><?= $calc['sourdough']['flour'] ?>g</span>
                                         </div>
-                                    <?php endforeach; ?>
-                                </div>
-                            <?php endif; ?>
+                                        <div class="ingredient-row">
+                                            <span class="ingredient-name">Water (in zuurdesem)</span>
+                                            <span class="ingredient-weight"><?= $calc['sourdough']['water'] ?>g</span>
+                                        </div>
+                                        <div class="total-row">
+                                            <span class="label">Zuurdesem totaal (<?= $calc['sourdough']['hydration'] ?>%)</span>
+                                            <span class="value"><?= $calc['sourdough']['weight'] ?>g</span>
+                                        </div>
+                                    </div>
+                                <?php endif; ?>
+
+                                <?php if ($calc['preFerment']): ?>
+                                    <div class="ingredient-section">
+                                        <h3><i class="bi bi-layers"></i> Voordeeg</h3>
+                                        <div class="ingredient-row">
+                                            <span class="ingredient-name">Meel (in voordeeg)</span>
+                                            <span class="ingredient-weight"><?= $calc['preFerment']['flour'] ?>g</span>
+                                        </div>
+                                        <div class="ingredient-row">
+                                            <span class="ingredient-name">Water (in voordeeg)</span>
+                                            <span class="ingredient-weight"><?= $calc['preFerment']['water'] ?>g</span>
+                                        </div>
+                                        <div class="total-row">
+                                            <span class="label">Voordeeg totaal (<?= $calc['preFerment']['hydration'] ?>%)</span>
+                                            <span class="value"><?= $calc['preFerment']['weight'] ?>g</span>
+                                        </div>
+                                    </div>
+                                <?php endif; ?>
+
+                                <?php if (!empty($calc['mixins'])): ?>
+                                    <div class="ingredient-section">
+                                        <h3><i class="bi bi-plus-circle"></i> Mix-ins</h3>
+                                        <?php foreach ($calc['mixins'] as $mixin): ?>
+                                            <div class="ingredient-row">
+                                                <span class="ingredient-name"><?= htmlspecialchars($mixin['name']) ?></span>
+                                                <span>
+                                                    <span class="ingredient-weight"><?= $mixin['weight'] ?>g</span>
+                                                    <span class="ingredient-pct">(<?= $mixin['pct'] ?>%)</span>
+                                                </span>
+                                            </div>
+                                        <?php endforeach; ?>
+                                    </div>
+                                <?php endif; ?>
+
+                                <?php if (!empty($calc['toppings'])): ?>
+                                    <div class="ingredient-section">
+                                        <h3><i class="bi bi-stars"></i> Toppings</h3>
+                                        <?php foreach ($calc['toppings'] as $topping): ?>
+                                            <div class="ingredient-row">
+                                                <span class="ingredient-name"><?= htmlspecialchars($topping['name']) ?></span>
+                                                <span>
+                                                    <span class="ingredient-weight"><?= $topping['weight'] ?>g</span>
+                                                    <span class="ingredient-pct">(<?= $topping['pct'] ?>%)</span>
+                                                </span>
+                                            </div>
+                                        <?php endforeach; ?>
+                                    </div>
+                                <?php endif; ?>
+                            </div>
                         </div>
                     </div>
-                </div>
+                <?php endforeach; ?>
             <?php endforeach; ?>
 
         <?php endif; ?>
