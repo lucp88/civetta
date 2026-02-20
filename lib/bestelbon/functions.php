@@ -83,13 +83,22 @@ function generateBestelbon($pdo, $orderId, $outputPath = null) {
     $pdf = new BestelbonPDF();
     $pdf->AddPage();
     $pdf->SetAutoPageBreak(true, 20);
-    
+
     $bedrijfNaam = $bedrijf['bedrijf_naam'] ?: 'Bakkerij Civetta';
-    $bedrijfPlaats = ($bedrijf['bedrijf_postcode'] || $bedrijf['bedrijf_plaats']) 
-        ? trim($bedrijf['bedrijf_postcode'] . ' ' . $bedrijf['bedrijf_plaats']) 
+    $bedrijfPlaats = ($bedrijf['bedrijf_postcode'] || $bedrijf['bedrijf_plaats'])
+        ? trim($bedrijf['bedrijf_postcode'] . ' ' . $bedrijf['bedrijf_plaats'])
         : 'Leersum, Utrecht';
     $bedrijfEmail = $bedrijf['bedrijf_email'] ?: 'info@bakkerij-civetta.nl';
-    
+
+    if (!empty($order['is_internal'])) {
+        $pdf->SetFillColor(139, 90, 43);
+        $pdf->SetTextColor(255);
+        $pdf->SetFont('Helvetica', 'B', 14);
+        $pdf->Cell(0, 10, 'INTERNE BESTELLING', 0, 1, 'C', true);
+        $pdf->Ln(5);
+        $pdf->SetTextColor(0);
+    }
+
     $pdf->SetFont('Helvetica', 'B', 10);
     $pdf->Cell(95, 5, $bedrijfNaam, 0, 0);
     $pdf->Cell(95, 5, 'Klant:', 0, 1);
@@ -172,25 +181,37 @@ function generateBestelbon($pdo, $orderId, $outputPath = null) {
     
     $pdf->Ln(10);
     
-    $pdf->SetFillColor(255, 243, 205);
-    $pdf->SetTextColor(133, 100, 4);
-    $pdf->SetFont('Helvetica', 'B', 10);
-    $pdf->Cell(0, 8, 'BESTELBON - FACTUUR VOLGT NA LEVERING', 0, 1, 'C', true);
-    
-    $pdf->SetTextColor(0);
-    $pdf->SetFont('Helvetica', '', 9);
-    $pdf->Ln(5);
-    
-    if ($canEdit) {
-        $pdf->MultiCell(0, 5, 'Deze bestelling kan nog gewijzigd worden tot ' . $editDeadline->format('d-m-Y H:i') . '.', 0, 'L');
-        $pdf->MultiCell(0, 5, 'Wijzigingen kunt u doorvoeren via uw dashboard op onze website.', 0, 'L');
+    if (!empty($order['is_internal'])) {
+        $pdf->SetFillColor(139, 90, 43);
+        $pdf->SetTextColor(255);
+        $pdf->SetFont('Helvetica', 'B', 10);
+        $pdf->Cell(0, 8, 'INTERNE BESTELBON - GEEN FACTUUR', 0, 1, 'C', true);
+
+        $pdf->SetTextColor(0);
+        $pdf->SetFont('Helvetica', '', 9);
+        $pdf->Ln(5);
+        $pdf->MultiCell(0, 5, 'Dit is een interne bestelling. Er wordt geen factuur aangemaakt.', 0, 'L');
     } else {
-        $pdf->MultiCell(0, 5, 'De deadline voor wijzigingen is verstreken. Deze bestelling kan niet meer worden aangepast.', 0, 'L');
+        $pdf->SetFillColor(255, 243, 205);
+        $pdf->SetTextColor(133, 100, 4);
+        $pdf->SetFont('Helvetica', 'B', 10);
+        $pdf->Cell(0, 8, 'BESTELBON - FACTUUR VOLGT NA LEVERING', 0, 1, 'C', true);
+
+        $pdf->SetTextColor(0);
+        $pdf->SetFont('Helvetica', '', 9);
+        $pdf->Ln(5);
+
+        if ($canEdit) {
+            $pdf->MultiCell(0, 5, 'Deze bestelling kan nog gewijzigd worden tot ' . $editDeadline->format('d-m-Y H:i') . '.', 0, 'L');
+            $pdf->MultiCell(0, 5, 'Wijzigingen kunt u doorvoeren via uw dashboard op onze website.', 0, 'L');
+        } else {
+            $pdf->MultiCell(0, 5, 'De deadline voor wijzigingen is verstreken. Deze bestelling kan niet meer worden aangepast.', 0, 'L');
+        }
+
+        $pdf->Ln(5);
+        $pdf->MultiCell(0, 5, 'Wilt u direct betalen? Dat kan via het dashboard in uw account.', 0, 'L');
+        $pdf->MultiCell(0, 5, 'Na levering ontvangt u de officiële factuur.', 0, 'L');
     }
-    
-    $pdf->Ln(5);
-    $pdf->MultiCell(0, 5, 'Wilt u direct betalen? Dat kan via het dashboard in uw account.', 0, 'L');
-    $pdf->MultiCell(0, 5, 'Na levering ontvangt u de officiële factuur.', 0, 'L');
     
     $pdf->SetTextColor(0);
     $pdf->Ln(10);

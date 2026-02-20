@@ -419,6 +419,48 @@ function formatDutchDate($date) {
         .customer-info-item .ci-value a:hover { text-decoration: underline; }
         .customer-info-item.full-width { grid-column: 1 / -1; }
 
+        /* Internal order toggle */
+        .internal-toggle {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            cursor: pointer;
+            font-weight: 500;
+            padding: 0.6rem 0.8rem;
+            background: #f8f9fa;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            transition: all 0.2s;
+        }
+        .internal-toggle:has(input:checked) {
+            background: #fff3e0;
+            border-color: #ff9800;
+        }
+        .internal-toggle input[type="checkbox"] {
+            width: 18px;
+            height: 18px;
+            accent-color: #8b5a2b;
+        }
+
+        /* Variant dropdown in product row */
+        .product-select-row .variant-select { flex: 2; }
+
+        /* Bakdag indicator for date picker */
+        .bakdag-indicator { margin-top: 0.4rem; font-size: 0.85rem; }
+        .bakdag-ok { color: #2e7d32; display: flex; align-items: center; gap: 0.3rem; }
+        .bakdag-warning {
+            margin-top: 0.4rem;
+            font-size: 0.85rem;
+            color: #e65100;
+            background: #fff3e0;
+            padding: 0.5rem 0.75rem;
+            border-radius: 6px;
+            display: flex;
+            align-items: center;
+            gap: 0.3rem;
+        }
+        .bakdag-warning strong { cursor: pointer; text-decoration: underline; }
+
         /* Bakdag indicators */
         .bakdag-badge-leveren {
             display: inline-flex;
@@ -736,6 +778,12 @@ function formatDutchDate($date) {
             </div>
             <div class="modal-body">
                 <div class="form-group">
+                    <label class="internal-toggle">
+                        <input type="checkbox" id="newOrderInternal" onchange="onInternalToggle()">
+                        <span>Interne bestelling (Civetta)</span>
+                    </label>
+                </div>
+                <div class="form-group" id="customerGroup">
                     <label>Klant</label>
                     <select class="form-control" id="newOrderCustomer" onchange="onCustomerChange()">
                         <option value="">Selecteer een klant...</option>
@@ -762,8 +810,14 @@ function formatDutchDate($date) {
                     </div>
                 </div>
                 <div class="form-group">
-                    <label>Leverdatum</label>
-                    <input type="date" class="form-control" id="newOrderDate">
+                    <label>Bakdag / Leverdatum</label>
+                    <input type="date" class="form-control" id="newOrderDate" onchange="checkBakdag()">
+                    <div class="bakdag-indicator" id="bakdagIndicator" style="display:none;">
+                        <span class="bakdag-ok"><i class="bi bi-check-circle-fill"></i> Dit is een bakdag</span>
+                    </div>
+                    <div class="bakdag-warning" id="bakdagWarning" style="display:none;">
+                        <i class="bi bi-exclamation-triangle-fill"></i> Dit is geen bakdag. Eerstvolgende bakdag: <strong id="nextBakdag" onclick="selectNextBakdag()"></strong>
+                    </div>
                 </div>
                 <div class="form-group">
                     <label>Producten</label>
@@ -791,6 +845,7 @@ function formatDutchDate($date) {
     <script>
     let allCustomers = [];
     let allProducts = [];
+    let allBakdagen = [];
     let newOrderProductIndex = 0;
     
     const currentDate = '<?= $viewDate ?>';
@@ -1020,27 +1075,99 @@ function formatDutchDate($date) {
             const prodData = await prodRes.json();
             if (custData.success) allCustomers = custData.customers;
             if (prodData.success) allProducts = prodData.products;
+            await loadBakdagen();
         } catch (e) {
             console.error('Error loading data:', e);
         }
     }
+
+    async function loadBakdagen() {
+        try {
+            const today = new Date();
+            const start = today.toISOString().split('T')[0];
+            const end = new Date(today.getFullYear(), today.getMonth() + 3, today.getDate()).toISOString().split('T')[0];
+            const response = await fetch(`../../api/bakdagen.php?start=${start}&end=${end}`);
+            const data = await response.json();
+            if (data.success) {
+                allBakdagen = data.bakdagen || [];
+            }
+        } catch (e) {
+            console.error('Error loading bakdagen:', e);
+        }
+    }
+
+    function checkBakdag() {
+        const date = document.getElementById('newOrderDate').value;
+        const indicator = document.getElementById('bakdagIndicator');
+        const warning = document.getElementById('bakdagWarning');
+
+        if (!date) {
+            indicator.style.display = 'none';
+            warning.style.display = 'none';
+            return;
+        }
+
+        if (allBakdagen.includes(date)) {
+            indicator.style.display = '';
+            warning.style.display = 'none';
+        } else {
+            indicator.style.display = 'none';
+            warning.style.display = '';
+            const next = allBakdagen.find(d => d > date);
+            document.getElementById('nextBakdag').textContent = next
+                ? new Date(next + 'T00:00').toLocaleDateString('nl-NL', {weekday: 'long', day: 'numeric', month: 'long'})
+                : 'onbekend';
+        }
+    }
+
+    function selectNextBakdag() {
+        const date = document.getElementById('newOrderDate').value;
+        const next = allBakdagen.find(d => d > date);
+        if (next) {
+            document.getElementById('newOrderDate').value = next;
+            checkBakdag();
+        }
+    }
+
+    function onInternalToggle() {
+        const isInternal = document.getElementById('newOrderInternal').checked;
+        const customerGroup = document.getElementById('customerGroup');
+        const customerCard = document.getElementById('customerInfoCard');
+
+        if (isInternal) {
+            customerGroup.style.display = 'none';
+            customerCard.classList.remove('show');
+        } else {
+            customerGroup.style.display = '';
+        }
+    }
+
+    function getInternalAccountId() {
+        const internal = allCustomers.find(c => c.is_internal == 1);
+        return internal ? internal.id : null;
+    }
     
     async function openNewOrderModal(prefillDate) {
         await loadNewOrderData();
-        
+
+        // Reset internal toggle
+        document.getElementById('newOrderInternal').checked = false;
+        onInternalToggle();
+
         const custSelect = document.getElementById('newOrderCustomer');
         custSelect.innerHTML = '<option value="">Selecteer een klant...</option>';
-        allCustomers.forEach(c => {
+        allCustomers.filter(c => !c.is_internal).forEach(c => {
             custSelect.innerHTML += `<option value="${c.id}">${escapeHtml(c.bedrijfsnaam)} (${escapeHtml(c.contactpersoon)})</option>`;
         });
-        
+
         document.getElementById('newOrderDate').value = prefillDate || new Date().toISOString().split('T')[0];
         document.getElementById('newOrderNotes').value = '';
         document.getElementById('newOrderProducts').innerHTML = '';
         newOrderProductIndex = 0;
         addProductRow();
         updateNewOrderTotal();
-        
+        checkBakdag();
+
         document.getElementById('newOrderModal').classList.add('active');
     }
     
@@ -1095,87 +1222,165 @@ function formatDutchDate($date) {
     function addProductRow() {
         const container = document.getElementById('newOrderProducts');
         const idx = newOrderProductIndex++;
-        let options = '<option value="">Kies product...</option>';
+        let productOptions = '<option value="">Kies product...</option>';
         allProducts.forEach(p => {
-            options += `<option value="${escapeHtml(p.naam)}" data-price="${p.prijs}">${escapeHtml(p.naam)} (€${parseFloat(p.prijs).toFixed(2).replace('.', ',')})</option>`;
+            productOptions += `<option value="${p.id}">${escapeHtml(p.naam)}</option>`;
         });
-        
+
         const row = document.createElement('div');
         row.className = 'product-select-row';
         row.innerHTML = `
-            <select class="form-control product-select" data-idx="${idx}" onchange="onProductChange(this)">${options}</select>
+            <select class="form-control product-select" data-idx="${idx}" onchange="onProductSelect(this)">${productOptions}</select>
+            <select class="form-control variant-select" data-idx="${idx}" onchange="onVariantSelect(this)" style="display:none;"></select>
             <input type="number" class="form-control product-qty" data-idx="${idx}" min="1" value="1" onchange="updateNewOrderTotal()" oninput="updateNewOrderTotal()">
-            <span class="product-price" data-idx="${idx}">€0,00</span>
+            <span class="product-price" data-idx="${idx}">&euro;0,00</span>
             <button type="button" class="btn-remove" onclick="removeProductRow(this)"><i class="bi bi-x"></i></button>
         `;
         container.appendChild(row);
     }
-    
+
     function removeProductRow(btn) {
         btn.closest('.product-select-row').remove();
         updateNewOrderTotal();
     }
-    
-    function onProductChange(select) {
+
+    function onProductSelect(select) {
         const idx = select.dataset.idx;
-        const option = select.options[select.selectedIndex];
-        const price = parseFloat(option.dataset.price || 0);
+        const productId = parseInt(select.value);
+        const variantSelect = document.querySelector(`.variant-select[data-idx="${idx}"]`);
         const priceEl = document.querySelector(`.product-price[data-idx="${idx}"]`);
-        priceEl.textContent = '€' + price.toFixed(2).replace('.', ',');
+
+        if (!productId) {
+            variantSelect.style.display = 'none';
+            variantSelect.innerHTML = '';
+            priceEl.textContent = '\u20AC0,00';
+            updateNewOrderTotal();
+            return;
+        }
+
+        const product = allProducts.find(p => p.id == productId);
+        if (!product) return;
+
+        if (product.variants && product.variants.length > 0) {
+            let variantOptions = '<option value="">Kies variant...</option>';
+            product.variants.forEach(v => {
+                const label = v.gewicht + 'g' + (v.naam ? ' - ' + v.naam : '');
+                variantOptions += `<option value="${v.id}" data-price="${v.prijs}" data-weight="${v.gewicht}" data-naam="${escapeHtml(v.naam || '')}">${escapeHtml(label)} (\u20AC${parseFloat(v.prijs).toFixed(2).replace('.', ',')})</option>`;
+            });
+            variantSelect.innerHTML = variantOptions;
+            variantSelect.style.display = '';
+            priceEl.textContent = '\u20AC0,00';
+        } else {
+            variantSelect.style.display = 'none';
+            variantSelect.innerHTML = '';
+            priceEl.textContent = '\u20AC' + parseFloat(product.prijs).toFixed(2).replace('.', ',');
+        }
+
         updateNewOrderTotal();
     }
-    
+
+    function onVariantSelect(select) {
+        const idx = select.dataset.idx;
+        const option = select.options[select.selectedIndex];
+        const price = parseFloat(option?.dataset?.price || 0);
+        const priceEl = document.querySelector(`.product-price[data-idx="${idx}"]`);
+        priceEl.textContent = '\u20AC' + price.toFixed(2).replace('.', ',');
+        updateNewOrderTotal();
+    }
+
     function updateNewOrderTotal() {
         let total = 0;
         document.querySelectorAll('.product-select-row').forEach(row => {
-            const select = row.querySelector('.product-select');
+            const productSelect = row.querySelector('.product-select');
+            const variantSelect = row.querySelector('.variant-select');
             const qty = parseInt(row.querySelector('.product-qty').value) || 0;
-            const option = select.options[select.selectedIndex];
-            const price = parseFloat(option?.dataset?.price || 0);
+
+            let price = 0;
+            const productId = parseInt(productSelect.value);
+            if (productId) {
+                const product = allProducts.find(p => p.id == productId);
+                if (product && product.variants && product.variants.length > 0 && variantSelect.value) {
+                    const option = variantSelect.options[variantSelect.selectedIndex];
+                    price = parseFloat(option?.dataset?.price || 0);
+                } else if (product && (!product.variants || product.variants.length === 0)) {
+                    price = parseFloat(product.prijs || 0);
+                }
+            }
+
             total += qty * price;
         });
-        document.getElementById('newOrderTotal').textContent = '€' + total.toFixed(2).replace('.', ',');
+        document.getElementById('newOrderTotal').textContent = '\u20AC' + total.toFixed(2).replace('.', ',');
     }
-    
+
     async function submitNewOrder() {
-        const accountId = document.getElementById('newOrderCustomer').value;
+        const isInternal = document.getElementById('newOrderInternal').checked;
+        const accountId = isInternal
+            ? getInternalAccountId()
+            : document.getElementById('newOrderCustomer').value;
         const deliveryDate = document.getElementById('newOrderDate').value;
         const notes = document.getElementById('newOrderNotes').value.trim();
-        
-        if (!accountId) { alert('Selecteer een klant'); return; }
+
+        if (!isInternal && !accountId) { alert('Selecteer een klant'); return; }
+        if (isInternal && !accountId) { alert('Intern account niet gevonden. Voer eerst migration 028 uit.'); return; }
         if (!deliveryDate) { alert('Selecteer een leverdatum'); return; }
-        
+
         const items = [];
-        let valid = true;
         document.querySelectorAll('.product-select-row').forEach(row => {
-            const select = row.querySelector('.product-select');
+            const productSelect = row.querySelector('.product-select');
+            const variantSelect = row.querySelector('.variant-select');
             const qty = parseInt(row.querySelector('.product-qty').value) || 0;
-            const option = select.options[select.selectedIndex];
-            const name = select.value;
-            const price = parseFloat(option?.dataset?.price || 0);
-            
-            if (name && qty > 0) {
-                items.push({ product_name: name, quantity: qty, unit_price: price });
+            const productId = parseInt(productSelect.value);
+
+            if (!productId || qty <= 0) return;
+
+            const product = allProducts.find(p => p.id == productId);
+            if (!product) return;
+
+            let productName = product.naam;
+            let price = parseFloat(product.prijs || 0);
+
+            if (product.variants && product.variants.length > 0 && variantSelect.value) {
+                const variantOption = variantSelect.options[variantSelect.selectedIndex];
+                const weight = variantOption.dataset.weight;
+                price = parseFloat(variantOption.dataset.price || 0);
+                const variantNaam = variantOption.dataset.naam;
+                if (variantNaam) {
+                    productName = `${product.naam} - ${variantNaam} (${weight}g)`;
+                } else {
+                    productName = `${product.naam} (${weight}g)`;
+                }
             }
+
+            items.push({ product_name: productName, quantity: qty, unit_price: price });
         });
-        
-        if (items.length === 0) { alert('Voeg minimaal één product toe'); return; }
-        
+
+        if (items.length === 0) { alert('Voeg minimaal \u00e9\u00e9n product toe'); return; }
+
+        const payload = {
+            account_id: parseInt(accountId),
+            delivery_date: deliveryDate,
+            items,
+            notes
+        };
+        if (isInternal) {
+            payload.is_internal = true;
+        }
+
         const btn = document.getElementById('btnSubmitOrder');
         btn.disabled = true;
         btn.innerHTML = '<i class="bi bi-hourglass-split"></i> Bezig...';
-        
+
         try {
             const response = await fetch('../../api/admin-orders.php', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ account_id: parseInt(accountId), delivery_date: deliveryDate, items, notes })
+                body: JSON.stringify(payload)
             });
             const data = await response.json();
-            
+
             if (data.success) {
                 closeNewOrderModal();
-                alert('Bestelling #' + data.order_id + ' geplaatst! Bevestigingsmail verzonden.');
+                alert(data.message);
                 window.location.reload();
             } else {
                 alert('Fout: ' + (data.error || 'Onbekende fout'));

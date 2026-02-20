@@ -55,14 +55,14 @@ $completedOrders = $pdo->query("
 ")->fetchAll();
 
 foreach ($upcomingOrders as &$order) {
-    $stmt = $pdo->prepare("SELECT product_name, quantity, unit_price FROM business_order_items WHERE order_id = ?");
+    $stmt = $pdo->prepare("SELECT id, product_name, quantity, unit_price, quantity_sold FROM business_order_items WHERE order_id = ?");
     $stmt->execute([$order['id']]);
     $order['items'] = $stmt->fetchAll();
 }
 unset($order);
 
 foreach ($completedOrders as &$order) {
-    $stmt = $pdo->prepare("SELECT product_name, quantity, unit_price FROM business_order_items WHERE order_id = ?");
+    $stmt = $pdo->prepare("SELECT id, product_name, quantity, unit_price, quantity_sold FROM business_order_items WHERE order_id = ?");
     $stmt->execute([$order['id']]);
     $order['items'] = $stmt->fetchAll();
 }
@@ -513,6 +513,266 @@ $adminBasePath = '../';
         .btn-save { background: #8b5a2b; color: white; border: none; padding: 0.5rem 1.25rem; border-radius: 6px; cursor: pointer; font-size: 0.9rem; font-weight: 600; }
         .btn-save:hover { background: #5c3d1e; }
         .btn-save:disabled { opacity: 0.6; cursor: not-allowed; }
+
+        /* FAB button */
+        .fab {
+            position: fixed;
+            bottom: 2rem;
+            right: 2rem;
+            width: 56px;
+            height: 56px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #8b5a2b, #5c3d1e);
+            color: white;
+            border: none;
+            cursor: pointer;
+            box-shadow: 0 4px 15px rgba(139,90,43,0.4);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.5rem;
+            z-index: 900;
+            transition: all 0.2s;
+        }
+        .fab:hover { transform: scale(1.1); box-shadow: 0 6px 20px rgba(139,90,43,0.5); }
+
+        /* New order modal */
+        .new-order-modal { max-width: 700px; }
+        .new-order-modal .modal-body { padding: 1.25rem; }
+        .new-order-modal .form-group { margin-bottom: 1rem; }
+        .new-order-modal .form-group > label { display: block; font-size: 0.85rem; font-weight: 600; color: #333; margin-bottom: 0.4rem; text-transform: none; }
+        .new-order-modal .form-control {
+            width: 100%;
+            padding: 0.6rem 0.8rem;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            font-size: 0.95rem;
+            transition: border-color 0.2s;
+            box-sizing: border-box;
+        }
+        .new-order-modal .form-control:focus { border-color: #8b5a2b; outline: none; }
+
+        .product-select-row {
+            display: flex;
+            gap: 0.5rem;
+            align-items: center;
+            margin-bottom: 0.5rem;
+        }
+        .product-select-row select.product-select { flex: 3; }
+        .product-select-row select.variant-select { flex: 2; }
+        .product-select-row input[type="number"] { flex: 1; min-width: 60px; }
+        .product-select-row .product-price { flex: 1; min-width: 80px; text-align: right; color: #666; font-size: 0.9rem; white-space: nowrap; }
+        .product-select-row .btn-remove {
+            width: 32px;
+            height: 32px;
+            border: none;
+            background: #f8d7da;
+            color: #dc3545;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 1rem;
+            flex-shrink: 0;
+        }
+        .product-select-row .btn-remove:hover { background: #dc3545; color: white; }
+
+        .btn-add-product {
+            padding: 0.4rem 1rem;
+            border: 2px dashed #8b5a2b;
+            background: transparent;
+            color: #8b5a2b;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 0.9rem;
+            font-weight: 500;
+        }
+        .btn-add-product:hover { background: #f5f2ed; }
+
+        .order-total-bar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 1rem 1.25rem;
+            background: #f8f9fa;
+            border-top: 1px solid #eee;
+            font-size: 1.1rem;
+            font-weight: 600;
+        }
+        .order-total-bar .total-amount { color: #5c3d1e; font-size: 1.3rem; }
+
+        .btn-submit-order {
+            padding: 0.75rem 2rem;
+            background: linear-gradient(135deg, #8b5a2b, #5c3d1e);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 1rem;
+            font-weight: 600;
+        }
+        .btn-submit-order:hover { background: linear-gradient(135deg, #5c3d1e, #3e2a14); }
+        .btn-submit-order:disabled { opacity: 0.6; cursor: not-allowed; }
+
+        /* Internal toggle */
+        .internal-toggle {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            cursor: pointer;
+            font-weight: 500;
+            padding: 0.6rem 0.8rem;
+            background: #f8f9fa;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            transition: all 0.2s;
+        }
+        .internal-toggle:has(input:checked) {
+            background: #fff3e0;
+            border-color: #ff9800;
+        }
+        .internal-toggle input[type="checkbox"] {
+            width: 18px;
+            height: 18px;
+            accent-color: #8b5a2b;
+        }
+
+        /* Customer info card */
+        .customer-info-card {
+            display: none;
+            background: #f8f9fa;
+            border: 1px solid #e0e0e0;
+            border-radius: 8px;
+            padding: 0.75rem 1rem;
+            margin-top: 0.5rem;
+        }
+        .customer-info-card.show { display: block; }
+        .customer-info-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0.5rem; }
+        .ci-label { font-size: 0.7rem; text-transform: uppercase; color: #888; font-weight: 600; }
+        .ci-value { color: #333; font-size: 0.85rem; }
+        .ci-value a { color: #8b5a2b; text-decoration: none; }
+        .ci-value a:hover { text-decoration: underline; }
+
+        /* Bakdag indicator */
+        .bakdag-indicator { margin-top: 0.4rem; font-size: 0.85rem; }
+        .bakdag-ok { color: #2e7d32; display: flex; align-items: center; gap: 0.3rem; }
+        .bakdag-warning {
+            margin-top: 0.4rem;
+            font-size: 0.85rem;
+            color: #e65100;
+            background: #fff3e0;
+            padding: 0.5rem 0.75rem;
+            border-radius: 6px;
+            display: flex;
+            align-items: center;
+            gap: 0.3rem;
+        }
+        .bakdag-warning strong { cursor: pointer; text-decoration: underline; }
+
+        /* Intern badge */
+        .intern-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            padding: 0.2rem 0.5rem;
+            border-radius: 4px;
+            font-size: 0.7rem;
+            font-weight: 600;
+            background: #fff3e0;
+            color: #e65100;
+        }
+        .settled-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            padding: 0.2rem 0.5rem;
+            border-radius: 4px;
+            font-size: 0.7rem;
+            font-weight: 600;
+            background: #e8f5e9;
+            color: #2e7d32;
+        }
+        .btn-settle {
+            background: #ff9800;
+            color: white;
+            border: none;
+            padding: 0.4rem 0.9rem;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 0.85rem;
+            font-weight: 500;
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+        }
+        .btn-settle:hover { background: #f57c00; }
+
+        /* Settle modal */
+        .settle-item-row {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            padding: 0.6rem 0;
+            border-bottom: 1px solid #f0f0f0;
+        }
+        .settle-item-name { flex: 2; font-size: 0.9rem; }
+        .settle-item-qty { flex: 0.7; text-align: center; color: #888; font-size: 0.85rem; }
+        .settle-item-sold { flex: 0.8; }
+        .settle-item-sold input {
+            width: 100%;
+            padding: 0.4rem;
+            border: 2px solid #e0e0e0;
+            border-radius: 6px;
+            text-align: center;
+            font-size: 0.9rem;
+        }
+        .settle-item-sold input:focus { border-color: #ff9800; outline: none; }
+        .settle-item-rest { flex: 0.7; text-align: center; font-weight: 600; font-size: 0.85rem; }
+        .settle-item-rest.has-remainder { color: #dc3545; }
+        .settle-summary {
+            padding: 0.75rem 0;
+            margin-top: 0.5rem;
+            border-top: 2px solid #e8e8e8;
+            display: flex;
+            justify-content: space-between;
+            font-weight: 700;
+            color: #5c3d1e;
+        }
+        .settle-remainder-actions {
+            padding: 1rem 0;
+            display: flex;
+            gap: 0.5rem;
+            flex-wrap: wrap;
+        }
+        .btn-writeoff {
+            background: #6c757d;
+            color: white;
+            border: none;
+            padding: 0.5rem 1.25rem;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 0.9rem;
+        }
+        .btn-writeoff:hover { background: #5a6268; }
+        .btn-transfer {
+            background: #8b5a2b;
+            color: white;
+            border: none;
+            padding: 0.5rem 1.25rem;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 0.9rem;
+            font-weight: 600;
+        }
+        .btn-transfer:hover { background: #5c3d1e; }
+
+        .sold-info { font-size: 0.8rem; color: #2e7d32; }
+        .remainder-info { font-size: 0.8rem; color: #dc3545; }
+
+        @media (max-width: 768px) {
+            .fab { bottom: 1.5rem; right: 1.5rem; width: 48px; height: 48px; font-size: 1.25rem; }
+            .product-select-row { flex-wrap: wrap; }
+            .product-select-row select { flex: 1 1 100%; }
+            .settle-item-row { flex-wrap: wrap; gap: 0.4rem; }
+        }
     </style>
 </head>
 <body>
@@ -604,6 +864,12 @@ $adminBasePath = '../';
                                 </div>
                                 <div class="order-header-badges">
                                     <span class="order-header-amount">&euro;<?= number_format($order['total_amount'], 2, ',', '.') ?></span>
+                                    <?php if (!empty($order['is_internal'])): ?>
+                                        <span class="intern-badge"><i class="bi bi-shop"></i> Intern</span>
+                                    <?php endif; ?>
+                                    <?php if (!empty($order['settled_at'])): ?>
+                                        <span class="settled-badge"><i class="bi bi-check-circle"></i> Afgehandeld</span>
+                                    <?php endif; ?>
                                     <?php if ($order['is_cancelled']): ?>
                                         <span class="status-badge cancelled">Geannuleerd</span>
                                     <?php else: ?>
@@ -652,27 +918,49 @@ $adminBasePath = '../';
                                     <h4>Producten</h4>
                                     <?php foreach ($order['items'] as $item): ?>
                                         <div class="order-item">
-                                            <span><?= $item['quantity'] ?>x <?= htmlspecialchars($item['product_name']) ?></span>
-                                            <span>€<?= number_format($item['quantity'] * $item['unit_price'], 2, ',', '.') ?></span>
+                                            <span>
+                                                <?= $item['quantity'] ?>x <?= htmlspecialchars($item['product_name']) ?>
+                                                <?php if ($item['quantity_sold'] !== null): ?>
+                                                    <span class="sold-info">(<?= $item['quantity_sold'] ?>/<?= $item['quantity'] ?> verkocht)</span>
+                                                    <?php $rest = $item['quantity'] - $item['quantity_sold']; if ($rest > 0): ?>
+                                                        <span class="remainder-info"><?= $rest ?> afgeschreven</span>
+                                                    <?php endif; ?>
+                                                <?php endif; ?>
+                                            </span>
+                                            <span>&euro;<?= number_format($item['quantity'] * $item['unit_price'], 2, ',', '.') ?></span>
                                         </div>
                                     <?php endforeach; ?>
-                                    <?php 
-                                        $btwBedrag = berekenBtw($order['total_amount'], $btwTarief);
-                                        $exclBtw = $order['total_amount'] - $btwBedrag;
+                                    <?php
+                                        $displayAmount = $order['settled_amount'] !== null ? $order['settled_amount'] : $order['total_amount'];
+                                        $btwBedrag = berekenBtw($displayAmount, $btwTarief);
+                                        $exclBtw = $displayAmount - $btwBedrag;
                                     ?>
                                     <div class="order-subtotal">
                                         <span>Excl. BTW</span>
-                                        <span>€<?= number_format($exclBtw, 2, ',', '.') ?></span>
+                                        <span>&euro;<?= number_format($exclBtw, 2, ',', '.') ?></span>
                                     </div>
                                     <div class="order-subtotal">
                                         <span>BTW (<?= $btwTarief ?>%)</span>
-                                        <span>€<?= number_format($btwBedrag, 2, ',', '.') ?></span>
+                                        <span>&euro;<?= number_format($btwBedrag, 2, ',', '.') ?></span>
                                     </div>
                                     <div class="order-total">
                                         <span>Totaal incl. BTW</span>
-                                        <span>€<?= number_format($order['total_amount'], 2, ',', '.') ?></span>
+                                        <span>&euro;<?= number_format($displayAmount, 2, ',', '.') ?></span>
                                     </div>
-                                    <a href="<?= '../../api/factuur.php?order_id=' . $order['id'] ?>" target="_blank" class="btn-factuur">Factuur</a>
+                                    <?php if ($order['settled_amount'] !== null && $order['settled_amount'] != $order['total_amount']): ?>
+                                        <div style="font-size: 0.8rem; color: #888; margin-top: 0.3rem;">Productiewaarde: &euro;<?= number_format($order['total_amount'], 2, ',', '.') ?></div>
+                                    <?php endif; ?>
+                                    <?php if (empty($order['is_internal'])): ?>
+                                        <a href="<?= '../../api/factuur.php?order_id=' . $order['id'] ?>" target="_blank" class="btn-factuur">Factuur</a>
+                                    <?php elseif (!empty($order['settled_at'])): ?>
+                                        <?php if (!empty($order['eboekhouden_invoice_id']) || !empty($order['invoice_number'])): ?>
+                                            <a href="<?= '../../api/factuur.php?order_id=' . $order['id'] ?>" target="_blank" class="btn-factuur">Factuur <?= htmlspecialchars($order['eboekhouden_factuurnummer'] ?? $order['invoice_number'] ?? '') ?></a>
+                                        <?php else: ?>
+                                            <button type="button" class="btn-factuur" onclick="createInternalInvoice(<?= $order['id'] ?>)" style="cursor: pointer; border: none;">
+                                                <i class="bi bi-receipt"></i> Factuur aanmaken
+                                            </button>
+                                        <?php endif; ?>
+                                    <?php endif; ?>
                                 </div>
                             </div>
                             <div class="order-actions">
@@ -693,6 +981,11 @@ $adminBasePath = '../';
                                 <button class="btn-edit-order" onclick="openEditModal(<?= $order['id'] ?>, <?= htmlspecialchars(json_encode($order['items']), ENT_QUOTES) ?>, <?= htmlspecialchars(json_encode($order['notes'] ?? ''), ENT_QUOTES) ?>)">
                                     <i class="bi bi-pencil"></i> Aanpassen
                                 </button>
+                                <?php if (!empty($order['is_internal']) && empty($order['settled_at'])): ?>
+                                    <button class="btn-settle" onclick="openSettleModal(<?= $order['id'] ?>, <?= htmlspecialchars(json_encode($order['items']), ENT_QUOTES) ?>)">
+                                        <i class="bi bi-clipboard-check"></i> Afhandelen
+                                    </button>
+                                <?php endif; ?>
                             </div>
                         </div>
                     <?php endforeach; ?>
@@ -721,6 +1014,12 @@ $adminBasePath = '../';
                                 </div>
                                 <div class="order-header-badges">
                                     <span class="order-header-amount">&euro;<?= number_format($order['total_amount'], 2, ',', '.') ?></span>
+                                    <?php if (!empty($order['is_internal'])): ?>
+                                        <span class="intern-badge"><i class="bi bi-shop"></i> Intern</span>
+                                    <?php endif; ?>
+                                    <?php if (!empty($order['settled_at'])): ?>
+                                        <span class="settled-badge"><i class="bi bi-check-circle"></i> Afgehandeld</span>
+                                    <?php endif; ?>
                                     <?php if ($order['is_cancelled']): ?>
                                         <span class="status-badge cancelled">Geannuleerd</span>
                                     <?php else: ?>
@@ -747,33 +1046,163 @@ $adminBasePath = '../';
                                     <h4>Producten</h4>
                                     <?php foreach ($order['items'] as $item): ?>
                                         <div class="order-item">
-                                            <span><?= $item['quantity'] ?>x <?= htmlspecialchars($item['product_name']) ?></span>
-                                            <span>€<?= number_format($item['quantity'] * $item['unit_price'], 2, ',', '.') ?></span>
+                                            <span>
+                                                <?= $item['quantity'] ?>x <?= htmlspecialchars($item['product_name']) ?>
+                                                <?php if ($item['quantity_sold'] !== null): ?>
+                                                    <span class="sold-info">(<?= $item['quantity_sold'] ?>/<?= $item['quantity'] ?> verkocht)</span>
+                                                    <?php $rest = $item['quantity'] - $item['quantity_sold']; if ($rest > 0): ?>
+                                                        <span class="remainder-info"><?= $rest ?> afgeschreven</span>
+                                                    <?php endif; ?>
+                                                <?php endif; ?>
+                                            </span>
+                                            <span>&euro;<?= number_format($item['quantity'] * $item['unit_price'], 2, ',', '.') ?></span>
                                         </div>
                                     <?php endforeach; ?>
-                                    <?php 
-                                        $btwBedrag = berekenBtw($order['total_amount'], $btwTarief);
-                                        $exclBtw = $order['total_amount'] - $btwBedrag;
+                                    <?php
+                                        $displayAmount = $order['settled_amount'] !== null ? $order['settled_amount'] : $order['total_amount'];
+                                        $btwBedrag = berekenBtw($displayAmount, $btwTarief);
+                                        $exclBtw = $displayAmount - $btwBedrag;
                                     ?>
                                     <div class="order-subtotal">
                                         <span>Excl. BTW</span>
-                                        <span>€<?= number_format($exclBtw, 2, ',', '.') ?></span>
+                                        <span>&euro;<?= number_format($exclBtw, 2, ',', '.') ?></span>
                                     </div>
                                     <div class="order-subtotal">
                                         <span>BTW (<?= $btwTarief ?>%)</span>
-                                        <span>€<?= number_format($btwBedrag, 2, ',', '.') ?></span>
+                                        <span>&euro;<?= number_format($btwBedrag, 2, ',', '.') ?></span>
                                     </div>
                                     <div class="order-total">
                                         <span>Totaal incl. BTW</span>
-                                        <span>€<?= number_format($order['total_amount'], 2, ',', '.') ?></span>
+                                        <span>&euro;<?= number_format($displayAmount, 2, ',', '.') ?></span>
                                     </div>
-                                    <a href="<?= '../../api/factuur.php?order_id=' . $order['id'] ?>" target="_blank" class="btn-factuur">Factuur</a>
+                                    <?php if ($order['settled_amount'] !== null && $order['settled_amount'] != $order['total_amount']): ?>
+                                        <div style="font-size: 0.8rem; color: #888; margin-top: 0.3rem;">Productiewaarde: &euro;<?= number_format($order['total_amount'], 2, ',', '.') ?></div>
+                                    <?php endif; ?>
+                                    <?php if (empty($order['is_internal'])): ?>
+                                        <a href="<?= '../../api/factuur.php?order_id=' . $order['id'] ?>" target="_blank" class="btn-factuur">Factuur</a>
+                                    <?php elseif (!empty($order['settled_at'])): ?>
+                                        <?php if (!empty($order['eboekhouden_invoice_id']) || !empty($order['invoice_number'])): ?>
+                                            <a href="<?= '../../api/factuur.php?order_id=' . $order['id'] ?>" target="_blank" class="btn-factuur">Factuur <?= htmlspecialchars($order['eboekhouden_factuurnummer'] ?? $order['invoice_number'] ?? '') ?></a>
+                                        <?php else: ?>
+                                            <button type="button" class="btn-factuur" onclick="createInternalInvoice(<?= $order['id'] ?>)" style="cursor: pointer; border: none;">
+                                                <i class="bi bi-receipt"></i> Factuur aanmaken
+                                            </button>
+                                        <?php endif; ?>
+                                    <?php endif; ?>
                                 </div>
                             </div>
                         </div>
                     <?php endforeach; ?>
                 </div>
             <?php endif; ?>
+            </div>
+        <button class="fab" onclick="openNewOrderModal()" title="Nieuwe bestelling">
+            <i class="bi bi-plus-lg"></i>
+        </button>
+        </div>
+    </div>
+
+    <!-- New order modal -->
+    <div class="modal-overlay" id="newOrderModal">
+        <div class="modal new-order-modal">
+            <div class="modal-header">
+                <h3><i class="bi bi-plus-circle"></i> Nieuwe Bestelling</h3>
+                <button class="modal-close" onclick="closeNewOrderModal()">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label class="internal-toggle">
+                        <input type="checkbox" id="newOrderInternal" onchange="onInternalToggle()">
+                        <span>Interne bestelling (Civetta)</span>
+                    </label>
+                </div>
+                <div class="form-group" id="customerGroup">
+                    <label>Klant</label>
+                    <select class="form-control" id="newOrderCustomer" onchange="onCustomerChange()">
+                        <option value="">Selecteer een klant...</option>
+                    </select>
+                    <div class="customer-info-card" id="customerInfoCard">
+                        <div class="customer-info-grid">
+                            <div class="customer-info-item">
+                                <div class="ci-label">Contactpersoon</div>
+                                <div class="ci-value" id="ciContact">-</div>
+                            </div>
+                            <div class="customer-info-item">
+                                <div class="ci-label">Telefoon</div>
+                                <div class="ci-value" id="ciPhone">-</div>
+                            </div>
+                            <div class="customer-info-item">
+                                <div class="ci-label">E-mail</div>
+                                <div class="ci-value" id="ciEmail">-</div>
+                            </div>
+                            <div class="customer-info-item">
+                                <div class="ci-label">Leveradres</div>
+                                <div class="ci-value" id="ciAddress">-</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label>Bakdag / Leverdatum</label>
+                    <input type="date" class="form-control" id="newOrderDate" onchange="checkBakdag()">
+                    <div class="bakdag-indicator" id="bakdagIndicator" style="display:none;">
+                        <span class="bakdag-ok"><i class="bi bi-check-circle-fill"></i> Dit is een bakdag</span>
+                    </div>
+                    <div class="bakdag-warning" id="bakdagWarning" style="display:none;">
+                        <i class="bi bi-exclamation-triangle-fill"></i> Dit is geen bakdag. Eerstvolgende bakdag: <strong id="nextBakdag" onclick="selectNextBakdag()"></strong>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label>Producten</label>
+                    <div id="newOrderProducts"></div>
+                    <button type="button" class="btn-add-product" onclick="addProductRow()">
+                        <i class="bi bi-plus"></i> Product toevoegen
+                    </button>
+                </div>
+                <div class="form-group">
+                    <label>Opmerkingen</label>
+                    <textarea class="form-control" id="newOrderNotes" rows="2" placeholder="Optionele opmerkingen..."></textarea>
+                </div>
+            </div>
+            <div class="order-total-bar">
+                <span>Totaal: <span class="total-amount" id="newOrderTotal">&euro;0,00</span></span>
+                <button class="btn-submit-order" id="btnSubmitOrder" onclick="submitNewOrder()">
+                    <i class="bi bi-check-lg"></i> Bestelling plaatsen
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Settle modal -->
+    <div class="modal-overlay" id="settleModal">
+        <div class="modal">
+            <div class="modal-header">
+                <h3 id="settleModalTitle">Interne bestelling afhandelen</h3>
+                <button class="modal-close" onclick="closeSettleModal()">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div style="margin-bottom: 0.5rem;">
+                    <div class="settle-item-row" style="font-weight: 600; border-bottom: 2px solid #e8e8e8;">
+                        <span class="settle-item-name">Product</span>
+                        <span class="settle-item-qty">Besteld</span>
+                        <span class="settle-item-sold">Verkocht</span>
+                        <span class="settle-item-rest">Restant</span>
+                    </div>
+                    <div id="settleItemsList"></div>
+                </div>
+                <div class="settle-summary">
+                    <span>Werkelijke omzet</span>
+                    <span id="settleTotal">&euro;0,00</span>
+                </div>
+                <div id="settleRemainderActions" class="settle-remainder-actions" style="display: none;">
+                    <p style="width: 100%; margin: 0 0 0.5rem; font-size: 0.9rem; color: #666;">Er zijn onverkochte items. Wat wil je doen?</p>
+                    <button class="btn-writeoff" onclick="settleWriteOff()"><i class="bi bi-x-circle"></i> Afschrijven</button>
+                    <button class="btn-transfer" onclick="settleTransfer()"><i class="bi bi-arrow-right-circle"></i> Nieuwe bestelling van restant</button>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn-cancel" onclick="closeSettleModal()">Annuleren</button>
+                <button class="btn-save" id="settleSaveBtn" onclick="saveSettle()">Opslaan</button>
             </div>
         </div>
     </div>
@@ -805,8 +1234,14 @@ $adminBasePath = '../';
 
     <script>
     let allProducts = [];
+    let allCustomers = [];
+    let allBakdagen = [];
+    let newOrderProductIndex = 0;
     let editOrderId = null;
     let editItems = {};
+    let settleOrderId = null;
+    let settleItems = [];
+    let settleRemainderItems = [];
 
     async function loadProducts() {
         try {
@@ -818,6 +1253,564 @@ $adminBasePath = '../';
         }
     }
     loadProducts();
+
+    // ===== New Order Functions =====
+
+    async function loadNewOrderData() {
+        if (allCustomers.length && allProducts.length) return;
+        try {
+            const [custRes, prodRes] = await Promise.all([
+                fetch('../../api/admin-orders.php?action=customers'),
+                fetch('../../api/admin-orders.php?action=products')
+            ]);
+            const custData = await custRes.json();
+            const prodData = await prodRes.json();
+            if (custData.success) allCustomers = custData.customers;
+            if (prodData.success) allProducts = prodData.products;
+            await loadBakdagen();
+        } catch (e) {
+            console.error('Error loading data:', e);
+        }
+    }
+
+    async function loadBakdagen() {
+        try {
+            const today = new Date();
+            const start = today.toISOString().split('T')[0];
+            const end = new Date(today.getFullYear(), today.getMonth() + 3, today.getDate()).toISOString().split('T')[0];
+            const response = await fetch(`../../api/bakdagen.php?start=${start}&end=${end}`);
+            const data = await response.json();
+            if (data.success) {
+                allBakdagen = data.bakdagen || [];
+            }
+        } catch (e) {
+            console.error('Error loading bakdagen:', e);
+        }
+    }
+
+    function checkBakdag() {
+        const date = document.getElementById('newOrderDate').value;
+        const indicator = document.getElementById('bakdagIndicator');
+        const warning = document.getElementById('bakdagWarning');
+
+        if (!date) {
+            indicator.style.display = 'none';
+            warning.style.display = 'none';
+            return;
+        }
+
+        if (allBakdagen.includes(date)) {
+            indicator.style.display = '';
+            warning.style.display = 'none';
+        } else {
+            indicator.style.display = 'none';
+            warning.style.display = '';
+            const next = allBakdagen.find(d => d > date);
+            document.getElementById('nextBakdag').textContent = next
+                ? new Date(next + 'T00:00').toLocaleDateString('nl-NL', {weekday: 'long', day: 'numeric', month: 'long'})
+                : 'onbekend';
+        }
+    }
+
+    function selectNextBakdag() {
+        const date = document.getElementById('newOrderDate').value;
+        const next = allBakdagen.find(d => d > date);
+        if (next) {
+            document.getElementById('newOrderDate').value = next;
+            checkBakdag();
+        }
+    }
+
+    function onInternalToggle() {
+        const isInternal = document.getElementById('newOrderInternal').checked;
+        const customerGroup = document.getElementById('customerGroup');
+        const customerCard = document.getElementById('customerInfoCard');
+
+        if (isInternal) {
+            customerGroup.style.display = 'none';
+            customerCard.classList.remove('show');
+        } else {
+            customerGroup.style.display = '';
+        }
+    }
+
+    function getInternalAccountId() {
+        const internal = allCustomers.find(c => c.is_internal == 1);
+        return internal ? internal.id : null;
+    }
+
+    async function openNewOrderModal(prefillDate, prefillItems) {
+        await loadNewOrderData();
+
+        document.getElementById('newOrderInternal').checked = false;
+        onInternalToggle();
+
+        const custSelect = document.getElementById('newOrderCustomer');
+        custSelect.innerHTML = '<option value="">Selecteer een klant...</option>';
+        allCustomers.filter(c => !c.is_internal).forEach(c => {
+            custSelect.innerHTML += '<option value="' + c.id + '">' + escHtml(c.bedrijfsnaam) + ' (' + escHtml(c.contactpersoon) + ')</option>';
+        });
+
+        document.getElementById('newOrderDate').value = prefillDate || new Date().toISOString().split('T')[0];
+        document.getElementById('newOrderNotes').value = '';
+        document.getElementById('newOrderProducts').innerHTML = '';
+        newOrderProductIndex = 0;
+
+        if (prefillItems && prefillItems.length > 0) {
+            prefillItems.forEach(item => {
+                addProductRowPrefilled(item.product_name, item.quantity, item.unit_price);
+            });
+        } else {
+            addProductRow();
+        }
+
+        updateNewOrderTotal();
+        checkBakdag();
+        document.getElementById('newOrderModal').classList.add('active');
+    }
+
+    function closeNewOrderModal() {
+        document.getElementById('newOrderModal').classList.remove('active');
+        document.getElementById('customerInfoCard').classList.remove('show');
+    }
+
+    function onCustomerChange() {
+        const select = document.getElementById('newOrderCustomer');
+        const card = document.getElementById('customerInfoCard');
+        const customerId = parseInt(select.value);
+
+        if (!customerId) { card.classList.remove('show'); return; }
+
+        const customer = allCustomers.find(c => c.id == customerId);
+        if (!customer) { card.classList.remove('show'); return; }
+
+        document.getElementById('ciContact').textContent = customer.contactpersoon || '-';
+
+        const phoneEl = document.getElementById('ciPhone');
+        if (customer.telefoon) {
+            phoneEl.innerHTML = '<a href="tel:' + escHtml(customer.telefoon) + '">' + escHtml(customer.telefoon) + '</a>';
+        } else {
+            phoneEl.textContent = '-';
+        }
+
+        const emailEl = document.getElementById('ciEmail');
+        if (customer.email) {
+            emailEl.innerHTML = '<a href="mailto:' + escHtml(customer.email) + '">' + escHtml(customer.email) + '</a>';
+        } else {
+            emailEl.textContent = '-';
+        }
+
+        let address;
+        if (customer.delivery_same_as_business || !customer.delivery_adres) {
+            address = [customer.adres, customer.postcode, customer.plaats].filter(Boolean).join(', ');
+        } else {
+            address = [customer.delivery_adres, customer.delivery_postcode, customer.delivery_plaats].filter(Boolean).join(', ');
+        }
+        document.getElementById('ciAddress').textContent = address || '-';
+
+        card.classList.add('show');
+    }
+
+    function addProductRow() {
+        const container = document.getElementById('newOrderProducts');
+        const idx = newOrderProductIndex++;
+        let productOptions = '<option value="">Kies product...</option>';
+        allProducts.forEach(p => {
+            productOptions += '<option value="' + p.id + '">' + escHtml(p.naam) + '</option>';
+        });
+
+        const row = document.createElement('div');
+        row.className = 'product-select-row';
+        row.innerHTML =
+            '<select class="form-control product-select" data-idx="' + idx + '" onchange="onProductSelect(this)">' + productOptions + '</select>' +
+            '<select class="form-control variant-select" data-idx="' + idx + '" onchange="onVariantSelect(this)" style="display:none;"></select>' +
+            '<input type="number" class="form-control product-qty" data-idx="' + idx + '" min="1" value="1" onchange="updateNewOrderTotal()" oninput="updateNewOrderTotal()">' +
+            '<span class="product-price" data-idx="' + idx + '">\u20AC0,00</span>' +
+            '<button type="button" class="btn-remove" onclick="removeProductRow(this)"><i class="bi bi-x"></i></button>';
+        container.appendChild(row);
+    }
+
+    function addProductRowPrefilled(productName, quantity, unitPrice) {
+        const container = document.getElementById('newOrderProducts');
+        const idx = newOrderProductIndex++;
+
+        const row = document.createElement('div');
+        row.className = 'product-select-row';
+        row.innerHTML =
+            '<input type="text" class="form-control" data-idx="' + idx + '" value="' + escAttr(productName) + '" readonly style="flex: 3; background: #f5f5f5;">' +
+            '<input type="hidden" class="prefill-name" value="' + escAttr(productName) + '">' +
+            '<input type="hidden" class="prefill-price" value="' + unitPrice + '">' +
+            '<input type="number" class="form-control product-qty" data-idx="' + idx + '" min="1" value="' + quantity + '" onchange="updateNewOrderTotal()" oninput="updateNewOrderTotal()">' +
+            '<span class="product-price" data-idx="' + idx + '">\u20AC' + parseFloat(unitPrice).toFixed(2).replace('.', ',') + '</span>' +
+            '<button type="button" class="btn-remove" onclick="removeProductRow(this)"><i class="bi bi-x"></i></button>';
+        container.appendChild(row);
+    }
+
+    function removeProductRow(btn) {
+        btn.closest('.product-select-row').remove();
+        updateNewOrderTotal();
+    }
+
+    function onProductSelect(select) {
+        const idx = select.dataset.idx;
+        const productId = parseInt(select.value);
+        const variantSelect = document.querySelector('.variant-select[data-idx="' + idx + '"]');
+        const priceEl = document.querySelector('.product-price[data-idx="' + idx + '"]');
+
+        if (!productId) {
+            variantSelect.style.display = 'none';
+            variantSelect.innerHTML = '';
+            priceEl.textContent = '\u20AC0,00';
+            updateNewOrderTotal();
+            return;
+        }
+
+        const product = allProducts.find(p => p.id == productId);
+        if (!product) return;
+
+        if (product.variants && product.variants.length > 0) {
+            let variantOptions = '<option value="">Kies variant...</option>';
+            product.variants.forEach(v => {
+                const label = v.gewicht + 'g' + (v.naam ? ' - ' + v.naam : '');
+                variantOptions += '<option value="' + v.id + '" data-price="' + v.prijs + '" data-weight="' + v.gewicht + '" data-naam="' + escAttr(v.naam || '') + '">' + escHtml(label) + ' (\u20AC' + parseFloat(v.prijs).toFixed(2).replace('.', ',') + ')</option>';
+            });
+            variantSelect.innerHTML = variantOptions;
+            variantSelect.style.display = '';
+            priceEl.textContent = '\u20AC0,00';
+        } else {
+            variantSelect.style.display = 'none';
+            variantSelect.innerHTML = '';
+            priceEl.textContent = '\u20AC' + parseFloat(product.prijs).toFixed(2).replace('.', ',');
+        }
+
+        updateNewOrderTotal();
+    }
+
+    function onVariantSelect(select) {
+        const idx = select.dataset.idx;
+        const option = select.options[select.selectedIndex];
+        const price = parseFloat(option?.dataset?.price || 0);
+        const priceEl = document.querySelector('.product-price[data-idx="' + idx + '"]');
+        priceEl.textContent = '\u20AC' + price.toFixed(2).replace('.', ',');
+        updateNewOrderTotal();
+    }
+
+    function updateNewOrderTotal() {
+        let total = 0;
+        document.querySelectorAll('#newOrderProducts .product-select-row').forEach(row => {
+            const productSelect = row.querySelector('.product-select');
+            const variantSelect = row.querySelector('.variant-select');
+            const prefillPrice = row.querySelector('.prefill-price');
+            const qty = parseInt(row.querySelector('.product-qty').value) || 0;
+
+            let price = 0;
+            if (prefillPrice) {
+                price = parseFloat(prefillPrice.value || 0);
+            } else if (productSelect) {
+                const productId = parseInt(productSelect.value);
+                if (productId) {
+                    const product = allProducts.find(p => p.id == productId);
+                    if (product && product.variants && product.variants.length > 0 && variantSelect && variantSelect.value) {
+                        const option = variantSelect.options[variantSelect.selectedIndex];
+                        price = parseFloat(option?.dataset?.price || 0);
+                    } else if (product && (!product.variants || product.variants.length === 0)) {
+                        price = parseFloat(product.prijs || 0);
+                    }
+                }
+            }
+
+            total += qty * price;
+        });
+        document.getElementById('newOrderTotal').textContent = '\u20AC' + total.toFixed(2).replace('.', ',');
+    }
+
+    async function submitNewOrder() {
+        const isInternal = document.getElementById('newOrderInternal').checked;
+        const accountId = isInternal
+            ? getInternalAccountId()
+            : document.getElementById('newOrderCustomer').value;
+        const deliveryDate = document.getElementById('newOrderDate').value;
+        const notes = document.getElementById('newOrderNotes').value.trim();
+
+        if (!isInternal && !accountId) { alert('Selecteer een klant'); return; }
+        if (isInternal && !accountId) { alert('Intern account niet gevonden. Voer eerst migration 028 uit.'); return; }
+        if (!deliveryDate) { alert('Selecteer een leverdatum'); return; }
+
+        const items = [];
+        document.querySelectorAll('#newOrderProducts .product-select-row').forEach(row => {
+            const productSelect = row.querySelector('.product-select');
+            const variantSelect = row.querySelector('.variant-select');
+            const prefillName = row.querySelector('.prefill-name');
+            const prefillPrice = row.querySelector('.prefill-price');
+            const qty = parseInt(row.querySelector('.product-qty').value) || 0;
+
+            if (qty <= 0) return;
+
+            if (prefillName) {
+                items.push({ product_name: prefillName.value, quantity: qty, unit_price: parseFloat(prefillPrice.value) });
+                return;
+            }
+
+            const productId = parseInt(productSelect?.value);
+            if (!productId) return;
+
+            const product = allProducts.find(p => p.id == productId);
+            if (!product) return;
+
+            let productName = product.naam;
+            let price = parseFloat(product.prijs || 0);
+
+            if (product.variants && product.variants.length > 0 && variantSelect && variantSelect.value) {
+                const variantOption = variantSelect.options[variantSelect.selectedIndex];
+                const weight = variantOption.dataset.weight;
+                price = parseFloat(variantOption.dataset.price || 0);
+                const variantNaam = variantOption.dataset.naam;
+                if (variantNaam) {
+                    productName = product.naam + ' - ' + variantNaam + ' (' + weight + 'g)';
+                } else {
+                    productName = product.naam + ' (' + weight + 'g)';
+                }
+            }
+
+            items.push({ product_name: productName, quantity: qty, unit_price: price });
+        });
+
+        if (items.length === 0) { alert('Voeg minimaal \u00e9\u00e9n product toe'); return; }
+
+        const payload = {
+            account_id: parseInt(accountId),
+            delivery_date: deliveryDate,
+            items: items,
+            notes: notes
+        };
+        if (isInternal) payload.is_internal = true;
+
+        const btn = document.getElementById('btnSubmitOrder');
+        btn.disabled = true;
+        btn.innerHTML = '<i class="bi bi-hourglass-split"></i> Bezig...';
+
+        try {
+            const response = await fetch('../../api/admin-orders.php', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            });
+            const data = await response.json();
+
+            if (data.success) {
+                closeNewOrderModal();
+                alert(data.message);
+                location.reload();
+            } else {
+                alert('Fout: ' + (data.error || 'Onbekende fout'));
+            }
+        } catch (e) {
+            console.error('Error:', e);
+            alert('Er ging iets mis bij het plaatsen van de bestelling');
+        } finally {
+            btn.disabled = false;
+            btn.innerHTML = '<i class="bi bi-check-lg"></i> Bestelling plaatsen';
+        }
+    }
+
+    document.getElementById('newOrderModal').addEventListener('click', function(e) {
+        if (e.target === this) closeNewOrderModal();
+    });
+
+    // ===== Settle Functions =====
+
+    function openSettleModal(orderId, items) {
+        settleOrderId = orderId;
+        settleItems = items;
+        settleRemainderItems = [];
+
+        document.getElementById('settleModalTitle').textContent = 'Interne bestelling #' + orderId + ' afhandelen';
+        document.getElementById('settleRemainderActions').style.display = 'none';
+
+        let html = '';
+        items.forEach(item => {
+            html += '<div class="settle-item-row">' +
+                '<span class="settle-item-name">' + escHtml(item.product_name) + '</span>' +
+                '<span class="settle-item-qty">' + item.quantity + '</span>' +
+                '<span class="settle-item-sold"><input type="number" min="0" max="' + item.quantity + '" value="' + item.quantity + '" data-item-id="' + item.id + '" data-price="' + item.unit_price + '" data-qty="' + item.quantity + '" oninput="updateSettleTotals()"></span>' +
+                '<span class="settle-item-rest" data-rest-for="' + item.id + '">0</span>' +
+                '</div>';
+        });
+        document.getElementById('settleItemsList').innerHTML = html;
+
+        updateSettleTotals();
+        document.getElementById('settleModal').classList.add('active');
+    }
+
+    function closeSettleModal() {
+        document.getElementById('settleModal').classList.remove('active');
+        settleOrderId = null;
+    }
+
+    document.getElementById('settleModal').addEventListener('click', function(e) {
+        if (e.target === this) closeSettleModal();
+    });
+
+    function updateSettleTotals() {
+        let total = 0;
+        let hasRemainder = false;
+        settleRemainderItems = [];
+
+        document.querySelectorAll('#settleItemsList input[type="number"]').forEach(input => {
+            const sold = parseInt(input.value) || 0;
+            const qty = parseInt(input.dataset.qty);
+            const price = parseFloat(input.dataset.price);
+            const itemId = input.dataset.itemId;
+            const rest = qty - sold;
+
+            const restEl = document.querySelector('[data-rest-for="' + itemId + '"]');
+            restEl.textContent = rest;
+            restEl.classList.toggle('has-remainder', rest > 0);
+
+            total += sold * price;
+
+            if (rest > 0) {
+                hasRemainder = true;
+                const itemData = settleItems.find(i => i.id == itemId);
+                settleRemainderItems.push({
+                    product_name: itemData ? itemData.product_name : '',
+                    quantity: rest,
+                    unit_price: price
+                });
+            }
+        });
+
+        document.getElementById('settleTotal').textContent = '\u20AC' + total.toFixed(2).replace('.', ',');
+        document.getElementById('settleRemainderActions').style.display = hasRemainder ? '' : 'none';
+    }
+
+    async function saveSettle() {
+        const items = [];
+        document.querySelectorAll('#settleItemsList input[type="number"]').forEach(input => {
+            items.push({
+                item_id: parseInt(input.dataset.itemId),
+                quantity_sold: parseInt(input.value) || 0
+            });
+        });
+
+        const btn = document.getElementById('settleSaveBtn');
+        btn.disabled = true;
+        btn.textContent = 'Opslaan...';
+
+        try {
+            const response = await fetch('../../api/admin-orders.php', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    action: 'settle_internal',
+                    order_id: settleOrderId,
+                    items: items
+                })
+            });
+            const data = await response.json();
+
+            if (data.success) {
+                alert(data.message);
+                closeSettleModal();
+                location.reload();
+            } else {
+                alert(data.error || 'Er ging iets mis');
+            }
+        } catch (e) {
+            console.error('Error:', e);
+            alert('Er ging iets mis bij het opslaan');
+        } finally {
+            btn.disabled = false;
+            btn.textContent = 'Opslaan';
+        }
+    }
+
+    function settleWriteOff() {
+        if (confirm('Weet je zeker dat je de resterende items wilt afschrijven?')) {
+            saveSettle();
+        }
+    }
+
+    async function settleTransfer() {
+        if (settleRemainderItems.length === 0) return;
+
+        // First save the settlement
+        const items = [];
+        document.querySelectorAll('#settleItemsList input[type="number"]').forEach(input => {
+            items.push({
+                item_id: parseInt(input.dataset.itemId),
+                quantity_sold: parseInt(input.value) || 0
+            });
+        });
+
+        const btn = document.getElementById('settleSaveBtn');
+        btn.disabled = true;
+
+        try {
+            const response = await fetch('../../api/admin-orders.php', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    action: 'settle_internal',
+                    order_id: settleOrderId,
+                    items: items
+                })
+            });
+            const data = await response.json();
+
+            if (data.success) {
+                closeSettleModal();
+                // Open new order modal with remainder items prefilled
+                openNewOrderModal(null, settleRemainderItems);
+            } else {
+                alert(data.error || 'Er ging iets mis');
+            }
+        } catch (e) {
+            console.error('Error:', e);
+            alert('Er ging iets mis bij het opslaan');
+        } finally {
+            btn.disabled = false;
+        }
+    }
+
+    // ===== Internal Invoice Function =====
+
+    async function createInternalInvoice(orderId) {
+        if (!confirm('Factuur aanmaken voor interne bestelling #' + orderId + '?\n\nDe factuur wordt gebaseerd op de verkochte aantallen.')) return;
+
+        const btn = event.target.closest('button');
+        if (btn) {
+            btn.disabled = true;
+            btn.innerHTML = '<i class="bi bi-hourglass-split"></i> Bezig...';
+        }
+
+        try {
+            const response = await fetch('../../api/admin-orders.php', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    action: 'create_invoice_internal',
+                    order_id: orderId
+                })
+            });
+            const data = await response.json();
+
+            if (data.success) {
+                alert(data.message);
+                location.reload();
+            } else {
+                alert(data.error || 'Er ging iets mis bij het aanmaken van de factuur');
+            }
+        } catch (e) {
+            console.error('Error:', e);
+            alert('Er ging iets mis bij het aanmaken van de factuur');
+        } finally {
+            if (btn) {
+                btn.disabled = false;
+                btn.innerHTML = '<i class="bi bi-receipt"></i> Factuur aanmaken';
+            }
+        }
+    }
 
     function openEditModal(orderId, currentItems, notes) {
         editOrderId = orderId;

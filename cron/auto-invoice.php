@@ -92,6 +92,7 @@ function getOrdersToInvoice($pdo, $settings) {
           AND (bo.invoice_number IS NULL OR bo.invoice_number = '')
           AND (bo.is_cancelled IS NULL OR bo.is_cancelled = 0)
           AND (bo.is_paused IS NULL OR bo.is_paused = 0)
+          AND (bo.is_internal IS NULL OR bo.is_internal = 0)
           AND bo.payment_status != 'paid'
     ");
     $stmt->execute([$targetDateStr]);
