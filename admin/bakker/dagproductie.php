@@ -8,8 +8,8 @@ $bereidingDate = new DateTime($date);
 $deliveryDate = clone $bereidingDate;
 
 $stmt = $pdo->prepare("
-    SELECT 
-        boi.product_name, 
+    SELECT
+        boi.product_name,
         boi.quantity,
         boi.unit_price,
         pv.recipe_id,
@@ -18,17 +18,8 @@ $stmt = $pdo->prepare("
         br.recipe_data
     FROM business_orders bo
     JOIN business_order_items boi ON bo.id = boi.order_id
-    LEFT JOIN product_variants pv ON pv.id = (
-        SELECT pv2.id FROM product_variants pv2
-        LEFT JOIN products p2 ON pv2.product_id = p2.id
-        WHERE LOWER(TRIM(pv2.naam)) = LOWER(TRIM(boi.product_name))
-           OR LOWER(TRIM(p2.naam)) = LOWER(TRIM(boi.product_name))
-           OR LOWER(TRIM(boi.product_name)) LIKE CONCAT(LOWER(TRIM(p2.naam)), ' (%')
-        ORDER BY (LOWER(TRIM(pv2.naam)) = LOWER(TRIM(boi.product_name))) DESC,
-                 (pv2.recipe_id IS NOT NULL) DESC
-        LIMIT 1
-    )
-    LEFT JOIN products p ON pv.product_id = p.id
+    LEFT JOIN product_variants pv ON boi.variant_id = pv.id
+    LEFT JOIN products p ON COALESCE(boi.product_id, pv.product_id) = p.id
     LEFT JOIN baker_recipes br ON pv.recipe_id = br.id
     WHERE bo.delivery_date = ?
     AND bo.is_cancelled = 0

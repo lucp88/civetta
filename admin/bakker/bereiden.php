@@ -86,17 +86,8 @@ foreach ($allOrders as &$order) {
             dt.recipe_data as dough_type_recipe_data,
             COALESCE(dt.name, 'Geen deegsoort') as dough_type_name
         FROM business_order_items boi
-        LEFT JOIN product_variants pv ON pv.id = (
-            SELECT pv2.id FROM product_variants pv2
-            LEFT JOIN products p2 ON pv2.product_id = p2.id
-            WHERE LOWER(TRIM(pv2.naam)) = LOWER(TRIM(boi.product_name))
-               OR LOWER(TRIM(p2.naam)) = LOWER(TRIM(boi.product_name))
-               OR LOWER(TRIM(boi.product_name)) LIKE CONCAT(LOWER(TRIM(p2.naam)), ' (%')
-            ORDER BY (LOWER(TRIM(pv2.naam)) = LOWER(TRIM(boi.product_name))) DESC,
-                     (pv2.recipe_id IS NOT NULL) DESC
-            LIMIT 1
-        )
-        LEFT JOIN products p ON pv.product_id = p.id
+        LEFT JOIN product_variants pv ON boi.variant_id = pv.id
+        LEFT JOIN products p ON COALESCE(boi.product_id, pv.product_id) = p.id
         LEFT JOIN baker_recipes br ON pv.recipe_id = br.id
         LEFT JOIN dough_types dt ON br.dough_type_id = dt.id
         WHERE boi.order_id = ?

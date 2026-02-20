@@ -48,11 +48,12 @@ switch ($method) {
                     $order['delivery_address'] = $accountAddress;
                 }
                 $stmt = $pdo->prepare("
-                    SELECT boi.product_name, boi.quantity, boi.unit_price, 
+                    SELECT boi.product_name, boi.quantity, boi.unit_price,
                            (boi.quantity * boi.unit_price) as subtotal,
-                           p.foto as product_image
+                           COALESCE(pv.foto, p.foto) as product_image
                     FROM business_order_items boi
-                    LEFT JOIN products p ON LOWER(p.naam) = LOWER(boi.product_name)
+                    LEFT JOIN product_variants pv ON boi.variant_id = pv.id
+                    LEFT JOIN products p ON COALESCE(boi.product_id, pv.product_id) = p.id
                     WHERE boi.order_id = ?
                 ");
                 $stmt->execute([$order['id']]);
@@ -199,10 +200,10 @@ switch ($method) {
                 ");
                 
                 $itemStmt = $pdo->prepare("
-                    INSERT INTO business_order_items (order_id, product_name, quantity, unit_price)
-                    VALUES (?, ?, ?, ?)
+                    INSERT INTO business_order_items (order_id, product_name, quantity, unit_price, variant_id, product_id)
+                    VALUES (?, ?, ?, ?, ?, ?)
                 ");
-                
+
                 foreach ($allDeliveryDates as $index => $date) {
                     $stmt->execute([
                         $accountId,
@@ -219,18 +220,20 @@ switch ($method) {
                     ]);
                     $newOrderId = $pdo->lastInsertId();
                     $orderIds[] = $newOrderId;
-                    
+
                     if ($index === 0) {
                         $parentOrderId = $newOrderId;
                         $pdo->prepare("UPDATE business_orders SET recurring_parent_id = ? WHERE id = ?")->execute([$parentOrderId, $parentOrderId]);
                     }
-                    
+
                     foreach ($items as $item) {
                         $itemStmt->execute([
                             $newOrderId,
                             $item['product_name'],
                             $item['quantity'],
-                            $item['unit_price']
+                            $item['unit_price'],
+                            !empty($item['variant_id']) ? intval($item['variant_id']) : null,
+                            !empty($item['product_id']) ? intval($item['product_id']) : null
                         ]);
                     }
                 }
@@ -254,16 +257,18 @@ switch ($method) {
                 $orderId = $pdo->lastInsertId();
                 
                 $stmt = $pdo->prepare("
-                    INSERT INTO business_order_items (order_id, product_name, quantity, unit_price)
-                    VALUES (?, ?, ?, ?)
+                    INSERT INTO business_order_items (order_id, product_name, quantity, unit_price, variant_id, product_id)
+                    VALUES (?, ?, ?, ?, ?, ?)
                 ");
-                
+
                 foreach ($items as $item) {
                     $stmt->execute([
                         $orderId,
                         $item['product_name'],
                         $item['quantity'],
-                        $item['unit_price']
+                        $item['unit_price'],
+                        !empty($item['variant_id']) ? intval($item['variant_id']) : null,
+                        !empty($item['product_id']) ? intval($item['product_id']) : null
                     ]);
                 }
             }
@@ -558,10 +563,10 @@ switch ($method) {
                 ");
                 
                 $itemStmt = $pdo->prepare("
-                    INSERT INTO business_order_items (order_id, product_name, quantity, unit_price)
-                    VALUES (?, ?, ?, ?)
+                    INSERT INTO business_order_items (order_id, product_name, quantity, unit_price, variant_id, product_id)
+                    VALUES (?, ?, ?, ?, ?, ?)
                 ");
-                
+
                 $newOrderIds = [];
                 foreach ($newDeliveryDates as $date) {
                     $orderStmt->execute([
@@ -579,13 +584,15 @@ switch ($method) {
                     ]);
                     $newOrderId = $pdo->lastInsertId();
                     $newOrderIds[] = $newOrderId;
-                    
+
                     foreach ($items as $item) {
                         $itemStmt->execute([
                             $newOrderId,
                             $item['product_name'],
                             $item['quantity'],
-                            $item['unit_price']
+                            $item['unit_price'],
+                            $item['variant_id'] ?? null,
+                            $item['product_id'] ?? null
                         ]);
                     }
                 }
@@ -725,16 +732,18 @@ switch ($method) {
                 $stmt->execute([$orderId]);
                 
                 $stmt = $pdo->prepare("
-                    INSERT INTO business_order_items (order_id, product_name, quantity, unit_price)
-                    VALUES (?, ?, ?, ?)
+                    INSERT INTO business_order_items (order_id, product_name, quantity, unit_price, variant_id, product_id)
+                    VALUES (?, ?, ?, ?, ?, ?)
                 ");
-                
+
                 foreach ($items as $item) {
                     $stmt->execute([
                         $orderId,
                         $item['product_name'],
                         intval($item['quantity']),
-                        floatval($item['unit_price'])
+                        floatval($item['unit_price']),
+                        !empty($item['variant_id']) ? intval($item['variant_id']) : null,
+                        !empty($item['product_id']) ? intval($item['product_id']) : null
                     ]);
                 }
                 
