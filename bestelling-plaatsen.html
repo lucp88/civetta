@@ -93,7 +93,10 @@
                             
                             <product-detail-modal
                                 :product="selectedProduct"
-                                @close="selectedProduct = null">
+                                :show-add-to-cart="true"
+                                @close="selectedProduct = null"
+                                @add-to-cart="addVariantToCart"
+                                @add-simple="addSimpleFromModal">
                             </product-detail-modal>
                         </div>
                         
@@ -538,7 +541,14 @@
                 this.variantCart = [...this.variantCart];
                 this.$nextTick(() => this.saveCartToSession());
             },
-            
+
+            addSimpleFromModal(product) {
+                const current = this.cart[product.id] || 0;
+                this.cart[product.id] = current + 1;
+                this.cart = { ...this.cart };
+                this.$nextTick(() => this.saveCartToSession());
+            },
+
             removeCartItem(item) {
                 if (item.variantId) {
                     const index = this.variantCart.findIndex(

@@ -170,20 +170,28 @@ const ProductDetailModal = {
         product: {
             type: Object,
             default: null
+        },
+        showAddToCart: {
+            type: Boolean,
+            default: false
         }
     },
 
-    emits: ['close'],
+    emits: ['close', 'add-to-cart', 'add-simple'],
 
     data() {
         return {
-            showDetails: false
+            showDetails: false,
+            addedVariantId: null
         };
     },
 
     watch: {
         product(newVal) {
-            if (newVal) this.showDetails = false;
+            if (newVal) {
+                this.showDetails = false;
+                this.addedVariantId = null;
+            }
         }
     },
 
@@ -247,13 +255,26 @@ const ProductDetailModal = {
 
                     <div v-if="hasVariants" class="product-modal-variants">
                         <div v-for="v in product.variants" :key="v.id" class="product-modal-variant">
-                            <span class="variant-gewicht">{{ v.naam ? v.naam + ' - ' : '' }}{{ v.gewicht }}g</span>
-                            <span class="variant-prijs">{{ formatPrice(v.prijs) }}</span>
+                            <div class="variant-info">
+                                <span class="variant-gewicht">{{ v.naam ? v.naam + ' - ' : '' }}{{ v.gewicht }}g</span>
+                                <span class="variant-prijs">{{ formatPrice(v.prijs) }}</span>
+                            </div>
+                            <button v-if="showAddToCart" class="variant-add-btn" :class="{ added: addedVariantId === v.id }" @click="addVariant(v)">
+                                <template v-if="addedVariantId === v.id">
+                                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><path d="M20 6L9 17l-5-5"/></svg>
+                                </template>
+                                <template v-else>+</template>
+                            </button>
                         </div>
                     </div>
-                    <div v-else-if="product.prijs" class="product-modal-price">
-                        {{ formatPrice(product.prijs) }}
-                    </div>
+                    <template v-else>
+                        <div v-if="product.prijs" class="product-modal-price">
+                            {{ formatPrice(product.prijs) }}
+                        </div>
+                        <button v-if="showAddToCart && product.prijs" class="modal-add-simple-btn" @click="addSimple">
+                            Toevoegen
+                        </button>
+                    </template>
                 </div>
             </div>
         </div>
@@ -262,6 +283,14 @@ const ProductDetailModal = {
     methods: {
         formatPrice(amount) {
             return new Intl.NumberFormat('nl-NL', { style: 'currency', currency: 'EUR' }).format(amount);
+        },
+        addVariant(variant) {
+            this.$emit('add-to-cart', { product: this.product, variant, quantity: 1 });
+            this.addedVariantId = variant.id;
+            setTimeout(() => { this.addedVariantId = null; }, 800);
+        },
+        addSimple() {
+            this.$emit('add-simple', this.product);
         }
     }
 };
@@ -661,11 +690,18 @@ const productCardStyles = `
     }
     .product-modal-variant {
         display: flex;
-        justify-content: space-between;
+        align-items: center;
+        gap: 0.5rem;
         padding: 0.5rem 0.75rem;
         background: var(--color-parchment);
         border-radius: 6px;
         margin-bottom: 0.5rem;
+    }
+    .product-modal-variant .variant-info {
+        flex: 1;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
     }
     .product-modal-variant .variant-gewicht {
         color: var(--color-stone);
@@ -673,6 +709,47 @@ const productCardStyles = `
     .product-modal-variant .variant-prijs {
         font-weight: 600;
         color: var(--color-crust);
+    }
+    .variant-add-btn {
+        width: 30px;
+        height: 30px;
+        border: none;
+        border-radius: 50%;
+        background: var(--color-crust);
+        color: white;
+        font-size: 1.2rem;
+        font-weight: 600;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        flex-shrink: 0;
+        transition: all 0.2s ease;
+        line-height: 1;
+    }
+    .variant-add-btn:hover {
+        background: var(--color-crust-dark);
+        transform: scale(1.1);
+    }
+    .variant-add-btn.added {
+        background: #2d5a27;
+    }
+    .modal-add-simple-btn {
+        width: 100%;
+        margin-top: 1rem;
+        padding: 0.75rem;
+        border: none;
+        border-radius: 8px;
+        background: var(--color-crust);
+        color: white;
+        font-family: var(--font-body);
+        font-size: 1rem;
+        font-weight: 600;
+        cursor: pointer;
+        transition: background 0.2s ease;
+    }
+    .modal-add-simple-btn:hover {
+        background: var(--color-crust-dark);
     }
 `;
 
