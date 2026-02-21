@@ -136,7 +136,7 @@
                                          @error="handleImageError">
                                     <div class="cart-item-info">
                                         <div class="cart-item-name">{{ item.product.naam }}</div>
-                                        <div v-if="item.variantNaam && item.gewicht" class="cart-item-variant">{{ item.variantNaam }} {{ item.gewicht }}g</div>
+                                        <div v-if="item.variantNaam && item.gewicht" class="cart-item-variant">{{ item.variantNaam }} - {{ item.gewicht }}g</div>
                                         <div v-else-if="item.variantNaam" class="cart-item-variant">{{ item.variantNaam }}</div>
                                         <div v-else-if="item.gewicht" class="cart-item-variant">{{ item.gewicht }}g</div>
                                         <div class="cart-item-price">{{ formatPrice(item.prijs) }} p/st</div>

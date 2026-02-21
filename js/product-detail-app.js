@@ -99,7 +99,7 @@ const productDetailApp = createApp({
 
         variantLabel(v) {
             let label = '';
-            if (v.naam && v.gewicht) label = v.naam + ' ' + v.gewicht + 'g';
+            if (v.naam && v.gewicht) label = v.naam + ' - ' + v.gewicht + 'g';
             else if (v.naam) label = v.naam;
             else label = v.gewicht + 'g';
             if (parseFloat(v.prijs) > 0) label += ' — ' + this.formatPrice(v.prijs);
