@@ -859,17 +859,33 @@ $totalWeight += $noRecipeGroup['total_weight'];
                             ?>
                             <div style="margin-top:1.5rem;padding-top:1.5rem;border-top:2px solid #f0e6d8">
                                 <h3 style="font-size:0.95rem;color:#5c3d1e;margin-bottom:1rem"><i class="bi bi-calendar-week"></i> Bakproces <span style="font-weight:400;color:#888;font-size:0.85rem">(<?= count($methodDays) ?> dagen, levering <?= formatDutchDate($deliveryDt) ?>)</span></h3>
-                                <?php foreach ($methodDays as $di => $day):
+                                <?php
+                                $today = new DateTime(date('Y-m-d'));
+                                foreach ($methodDays as $di => $day):
                                     $dayDt = clone $prepStartDt;
                                     $dayDt->modify('+' . $di . ' days');
-                                    $isCurrentDay = ($dayDt->format('Y-m-d') === $bereidingDate->format('Y-m-d'));
+                                    $isToday = ($dayDt->format('Y-m-d') === $today->format('Y-m-d'));
+                                    $daysDiff = (int)$today->diff($dayDt)->format('%r%a');
+                                    $isPast = ($daysDiff < 0);
                                     $dayLabel = $day['label'] ?? ('Dag ' . ($di + 1));
+
+                                    // Determine status badge
+                                    $statusBadge = '';
+                                    if ($isToday) {
+                                        $statusBadge = '<span style="font-size:0.8rem;background:#ff6b35;color:white;padding:0.15rem 0.5rem;border-radius:4px;font-weight:600">Vandaag</span>';
+                                    } elseif ($isPast) {
+                                        $statusBadge = '<span style="font-size:0.8rem;color:#999"><i class="bi bi-check-circle-fill" style="color:#4caf50"></i></span>';
+                                    } elseif ($daysDiff === 1) {
+                                        $statusBadge = '<span style="font-size:0.8rem;background:#fff3cd;color:#856404;padding:0.15rem 0.5rem;border-radius:4px;font-weight:600">Morgen</span>';
+                                    } else {
+                                        $statusBadge = '<span style="font-size:0.8rem;background:#e3f2fd;color:#1565c0;padding:0.15rem 0.5rem;border-radius:4px;font-weight:600">Nog ' . $daysDiff . ' dagen</span>';
+                                    }
                                 ?>
-                                    <div style="margin-bottom:0.75rem;padding:0.75rem;border-radius:8px;<?= $isCurrentDay ? 'background:#fff5f0;border:2px solid #ff6b35;' : 'background:#faf8f4;border:1px solid #e8e0d5;' ?>">
-                                        <div style="font-weight:700;color:<?= $isCurrentDay ? '#ff6b35' : '#5c3d1e' ?>;margin-bottom:0.3rem;display:flex;align-items:center;gap:0.5rem">
-                                            <?php if ($isCurrentDay): ?><i class="bi bi-arrow-right-circle-fill" style="color:#ff6b35"></i><?php endif; ?>
+                                    <div style="margin-bottom:0.75rem;padding:0.75rem;border-radius:8px;<?= $isToday ? 'background:#fff5f0;border:2px solid #ff6b35;' : ($isPast ? 'background:#f5f5f5;border:1px solid #e0e0e0;opacity:0.7;' : 'background:#faf8f4;border:1px solid #e8e0d5;') ?>">
+                                        <div style="font-weight:700;color:<?= $isToday ? '#ff6b35' : ($isPast ? '#999' : '#5c3d1e') ?>;margin-bottom:0.3rem;display:flex;align-items:center;gap:0.5rem">
+                                            <?php if ($isToday): ?><i class="bi bi-arrow-right-circle-fill" style="color:#ff6b35"></i><?php endif; ?>
                                             <?= htmlspecialchars($dayLabel) ?> — <?= getDutchDayName($dayDt) ?> <?= $dayDt->format('j') ?> <?= getDutchMonthName($dayDt) ?>
-                                            <?php if ($isCurrentDay): ?><span style="font-size:0.8rem;background:#ff6b35;color:white;padding:0.15rem 0.5rem;border-radius:4px;font-weight:600">Vandaag</span><?php endif; ?>
+                                            <?= $statusBadge ?>
                                         </div>
                                         <?php if (!empty($day['steps'])): ?>
                                             <?php foreach ($day['steps'] as $si => $step): ?>

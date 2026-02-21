@@ -269,7 +269,7 @@ const ProductDetailModal = {
                             <div v-if="showAddToCart" class="variant-actions">
                                 <div class="variant-qty-group">
                                     <button class="variant-qty-btn" @click="changeQty(v.id, -1)">-</button>
-                                    <span class="variant-qty-display">{{ variantQty[v.id] || 1 }}</span>
+                                    <input type="number" class="variant-qty-input" :value="variantQty[v.id] || 1" @change="setQty(v.id, $event.target.value)" min="1">
                                     <button class="variant-qty-btn" @click="changeQty(v.id, 1)">+</button>
                                 </div>
                                 <button class="variant-add-btn" :class="{ added: addedVariantId === v.id }" @click="addVariant(v)">
@@ -292,7 +292,7 @@ const ProductDetailModal = {
                         <div v-if="showAddToCart && product.prijs" class="modal-simple-actions">
                             <div class="variant-qty-group">
                                 <button class="variant-qty-btn" @click="simpleQty = Math.max(1, simpleQty - 1)">-</button>
-                                <span class="variant-qty-display">{{ simpleQty }}</span>
+                                <input type="number" class="variant-qty-input" v-model.number="simpleQty" min="1">
                                 <button class="variant-qty-btn" @click="simpleQty++">+</button>
                             </div>
                             <button class="modal-add-simple-btn" @click="addSimple">
@@ -312,6 +312,10 @@ const ProductDetailModal = {
         changeQty(variantId, delta) {
             const current = this.variantQty[variantId] || 1;
             this.variantQty[variantId] = Math.max(1, current + delta);
+            this.variantQty = { ...this.variantQty };
+        },
+        setQty(variantId, value) {
+            this.variantQty[variantId] = Math.max(1, parseInt(value) || 1);
             this.variantQty = { ...this.variantQty };
         },
         addVariant(variant) {
@@ -774,12 +778,26 @@ const productCardStyles = `
         color: white;
         border-color: var(--color-crust);
     }
-    .variant-qty-display {
-        min-width: 28px;
+    .variant-qty-input {
+        width: 40px;
         text-align: center;
         font-weight: 600;
-        font-size: 0.95rem;
+        font-size: 0.9rem;
         color: var(--color-crust-dark);
+        border: 1px solid #ddd;
+        border-radius: 6px;
+        padding: 0.2rem;
+        background: white;
+        -moz-appearance: textfield;
+    }
+    .variant-qty-input::-webkit-outer-spin-button,
+    .variant-qty-input::-webkit-inner-spin-button {
+        -webkit-appearance: none;
+        margin: 0;
+    }
+    .variant-qty-input:focus {
+        outline: none;
+        border-color: var(--color-wheat);
     }
     .variant-add-btn {
         flex: 1;
