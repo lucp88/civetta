@@ -285,8 +285,8 @@ const productCardStyles = `
         background: var(--color-wheat-light);
     }
     .product-card-image {
-        width: 100px;
-        min-height: 100px;
+        width: 85px;
+        min-height: 85px;
         flex-shrink: 0;
         cursor: pointer;
         overflow: hidden;
@@ -349,19 +349,23 @@ const productCardStyles = `
     }
     .product-card-content {
         flex: 1;
-        padding: 0.75rem 1rem;
+        min-width: 0;
+        padding: 0.6rem 0.75rem;
         display: flex;
         flex-direction: column;
         justify-content: center;
-        gap: 0.25rem;
+        gap: 0.2rem;
     }
     .product-card-title {
         margin: 0;
-        font-size: 1rem;
+        font-size: 0.95rem;
         font-weight: 600;
         color: var(--color-crust-dark);
         cursor: pointer;
         transition: color 0.2s ease;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
     }
     .product-card-title:hover {
         color: var(--color-terracotta);
@@ -425,20 +429,20 @@ const productCardStyles = `
     .product-card-variant-row {
         display: flex;
         align-items: center;
-        gap: 0.5rem;
+        gap: 0.4rem;
         margin-top: 0.5rem;
-        flex-wrap: wrap;
     }
     .product-card-variant-row .variant-select {
         flex: 1;
-        min-width: 120px;
-        padding: 0.4rem 0.5rem;
+        min-width: 0;
+        padding: 0.35rem 0.4rem;
         border: 1px solid #ddd;
         border-radius: 6px;
-        font-size: 0.85rem;
+        font-size: 0.8rem;
         color: var(--color-crust-dark);
         background: white;
         cursor: pointer;
+        text-overflow: ellipsis;
     }
     .product-card-variant-row .variant-select:focus {
         outline: none;
@@ -447,16 +451,17 @@ const productCardStyles = `
     .add-qty-group {
         display: flex;
         align-items: center;
-        gap: 0.25rem;
+        gap: 0.2rem;
+        flex-shrink: 0;
     }
     .qty-btn-small {
-        width: 26px;
-        height: 26px;
+        width: 24px;
+        height: 24px;
         border: 1px solid #ddd;
         border-radius: 4px;
         background: white;
         color: #333;
-        font-size: 1rem;
+        font-size: 0.9rem;
         cursor: pointer;
         display: flex;
         align-items: center;
@@ -467,12 +472,12 @@ const productCardStyles = `
         border-color: var(--color-crust);
     }
     .qty-input-small {
-        width: 40px;
+        width: 32px;
         text-align: center;
         border: 1px solid #ddd;
         border-radius: 4px;
-        padding: 0.25rem;
-        font-size: 0.9rem;
+        padding: 0.2rem;
+        font-size: 0.85rem;
         font-weight: 600;
         color: var(--color-crust-dark);
         -moz-appearance: textfield;
