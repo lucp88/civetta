@@ -136,7 +136,9 @@
                                          @error="handleImageError">
                                     <div class="cart-item-info">
                                         <div class="cart-item-name">{{ item.product.naam }}</div>
-                                        <div v-if="item.gewicht" class="cart-item-variant">{{ item.gewicht }}g</div>
+                                        <div v-if="item.variantNaam && item.gewicht" class="cart-item-variant">{{ item.variantNaam }} {{ item.gewicht }}g</div>
+                                        <div v-else-if="item.variantNaam" class="cart-item-variant">{{ item.variantNaam }}</div>
+                                        <div v-else-if="item.gewicht" class="cart-item-variant">{{ item.gewicht }}g</div>
                                         <div class="cart-item-price">{{ formatPrice(item.prijs) }} p/st</div>
                                     </div>
                                     <div class="cart-item-controls">
@@ -242,7 +244,7 @@
 
     <script src="https://unpkg.com/vue@3/dist/vue.global.prod.js"></script>
     <script src="js/main.js"></script>
-    <script src="js/product-card.js?v=5"></script>
+    <script src="js/product-card.js?v=6"></script>
     <script>
     const { createApp } = Vue;
 
@@ -316,6 +318,7 @@
                                 quantity: item.quantity,
                                 variantId: item.variantId,
                                 gewicht: variant.gewicht,
+                                variantNaam: variant.naam || null,
                                 prijs: variant.prijs,
                                 subtotal: variant.prijs * item.quantity
                             });
@@ -600,7 +603,11 @@
             buildCheckoutItems() {
                 return this.cartItems.map(item => {
                     let productName = item.product.naam;
-                    if (item.gewicht) {
+                    if (item.variantNaam && item.gewicht) {
+                        productName = `${item.product.naam} ${item.variantNaam} (${item.gewicht}g)`;
+                    } else if (item.variantNaam) {
+                        productName = `${item.product.naam} ${item.variantNaam}`;
+                    } else if (item.gewicht) {
                         productName = `${item.product.naam} (${item.gewicht}g)`;
                     }
                     return {

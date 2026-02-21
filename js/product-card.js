@@ -72,7 +72,7 @@ const ProductCard = {
                     <div class="product-card-variant-row">
                         <select v-model="selectedVariantId" class="variant-select">
                             <option v-for="v in product.variants" :key="v.id" :value="v.id">
-                                {{ v.gewicht }}g - {{ formatPrice(v.prijs) }}
+                                {{ variantLabel(v) }}
                             </option>
                         </select>
                         <div class="add-qty-group">
@@ -114,6 +114,15 @@ const ProductCard = {
             return new Intl.NumberFormat('nl-NL', { style: 'currency', currency: 'EUR' }).format(amount);
         },
         
+        variantLabel(v) {
+            let label = '';
+            if (v.naam && v.gewicht) label = v.naam + ' ' + v.gewicht + 'g';
+            else if (v.naam) label = v.naam;
+            else label = v.gewicht + 'g';
+            if (parseFloat(v.prijs) > 0) label += ' — ' + this.formatPrice(v.prijs);
+            return label;
+        },
+
         formatPriceRange() {
             if (!this.hasVariants) return '';
             const prices = this.product.variants.map(v => v.prijs);
@@ -238,7 +247,7 @@ const ProductDetailModal = {
 
                     <div v-if="hasVariants" class="product-modal-variants">
                         <div v-for="v in product.variants" :key="v.id" class="product-modal-variant">
-                            <span class="variant-gewicht">{{ v.gewicht }}g</span>
+                            <span class="variant-gewicht">{{ v.naam ? v.naam + ' ' : '' }}{{ v.gewicht }}g</span>
                             <span class="variant-prijs">{{ formatPrice(v.prijs) }}</span>
                         </div>
                     </div>
