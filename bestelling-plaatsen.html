@@ -542,9 +542,9 @@
                 this.$nextTick(() => this.saveCartToSession());
             },
 
-            addSimpleFromModal(product) {
+            addSimpleFromModal({ product, quantity }) {
                 const current = this.cart[product.id] || 0;
-                this.cart[product.id] = current + 1;
+                this.cart[product.id] = current + quantity;
                 this.cart = { ...this.cart };
                 this.$nextTick(() => this.saveCartToSession());
             },

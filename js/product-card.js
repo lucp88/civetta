@@ -182,7 +182,9 @@ const ProductDetailModal = {
     data() {
         return {
             showDetails: false,
-            addedVariantId: null
+            variantQty: {},
+            addedVariantId: null,
+            simpleQty: 1
         };
     },
 
@@ -191,6 +193,11 @@ const ProductDetailModal = {
             if (newVal) {
                 this.showDetails = false;
                 this.addedVariantId = null;
+                this.simpleQty = 1;
+                this.variantQty = {};
+                if (newVal.variants) {
+                    newVal.variants.forEach(v => { this.variantQty[v.id] = 1; });
+                }
             }
         }
     },
@@ -254,26 +261,44 @@ const ProductDetailModal = {
                     </div>
 
                     <div v-if="hasVariants" class="product-modal-variants">
-                        <div v-for="v in product.variants" :key="v.id" class="product-modal-variant">
+                        <div v-for="v in product.variants" :key="v.id" class="product-modal-variant" :class="{ 'variant-added': addedVariantId === v.id }">
                             <div class="variant-info">
                                 <span class="variant-gewicht">{{ v.naam ? v.naam + ' - ' : '' }}{{ v.gewicht }}g</span>
                                 <span class="variant-prijs">{{ formatPrice(v.prijs) }}</span>
                             </div>
-                            <button v-if="showAddToCart" class="variant-add-btn" :class="{ added: addedVariantId === v.id }" @click="addVariant(v)">
-                                <template v-if="addedVariantId === v.id">
-                                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><path d="M20 6L9 17l-5-5"/></svg>
-                                </template>
-                                <template v-else>+</template>
-                            </button>
+                            <div v-if="showAddToCart" class="variant-actions">
+                                <div class="variant-qty-group">
+                                    <button class="variant-qty-btn" @click="changeQty(v.id, -1)">-</button>
+                                    <span class="variant-qty-display">{{ variantQty[v.id] || 1 }}</span>
+                                    <button class="variant-qty-btn" @click="changeQty(v.id, 1)">+</button>
+                                </div>
+                                <button class="variant-add-btn" :class="{ added: addedVariantId === v.id }" @click="addVariant(v)">
+                                    <span v-if="addedVariantId === v.id" class="added-label">
+                                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><path d="M20 6L9 17l-5-5"/></svg>
+                                        Toegevoegd
+                                    </span>
+                                    <span v-else class="add-label">
+                                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 7h14l-1.5 9h-11L5 7z"/><path d="M5 7l-.5-3H2"/></svg>
+                                        Toevoegen
+                                    </span>
+                                </button>
+                            </div>
                         </div>
                     </div>
                     <template v-else>
                         <div v-if="product.prijs" class="product-modal-price">
                             {{ formatPrice(product.prijs) }}
                         </div>
-                        <button v-if="showAddToCart && product.prijs" class="modal-add-simple-btn" @click="addSimple">
-                            Toevoegen
-                        </button>
+                        <div v-if="showAddToCart && product.prijs" class="modal-simple-actions">
+                            <div class="variant-qty-group">
+                                <button class="variant-qty-btn" @click="simpleQty = Math.max(1, simpleQty - 1)">-</button>
+                                <span class="variant-qty-display">{{ simpleQty }}</span>
+                                <button class="variant-qty-btn" @click="simpleQty++">+</button>
+                            </div>
+                            <button class="modal-add-simple-btn" @click="addSimple">
+                                Toevoegen
+                            </button>
+                        </div>
                     </template>
                 </div>
             </div>
@@ -284,13 +309,19 @@ const ProductDetailModal = {
         formatPrice(amount) {
             return new Intl.NumberFormat('nl-NL', { style: 'currency', currency: 'EUR' }).format(amount);
         },
+        changeQty(variantId, delta) {
+            const current = this.variantQty[variantId] || 1;
+            this.variantQty[variantId] = Math.max(1, current + delta);
+            this.variantQty = { ...this.variantQty };
+        },
         addVariant(variant) {
-            this.$emit('add-to-cart', { product: this.product, variant, quantity: 1 });
+            const qty = this.variantQty[variant.id] || 1;
+            this.$emit('add-to-cart', { product: this.product, variant, quantity: qty });
             this.addedVariantId = variant.id;
-            setTimeout(() => { this.addedVariantId = null; }, 800);
+            setTimeout(() => { this.addedVariantId = null; }, 1200);
         },
         addSimple() {
-            this.$emit('add-simple', this.product);
+            this.$emit('add-simple', { product: this.product, quantity: this.simpleQty });
         }
     }
 };
@@ -686,64 +717,113 @@ const productCardStyles = `
         color: var(--color-crust);
     }
     .product-modal-variants {
-        margin-top: 1rem;
+        margin-top: 1.25rem;
+        padding-top: 1rem;
+        border-top: 1px solid var(--color-parchment);
     }
     .product-modal-variant {
-        display: flex;
-        align-items: center;
-        gap: 0.5rem;
-        padding: 0.5rem 0.75rem;
+        padding: 0.6rem 0.75rem;
         background: var(--color-parchment);
-        border-radius: 6px;
+        border-radius: 8px;
         margin-bottom: 0.5rem;
+        transition: background 0.3s ease;
+    }
+    .product-modal-variant.variant-added {
+        background: #e8f5e9;
     }
     .product-modal-variant .variant-info {
-        flex: 1;
         display: flex;
         justify-content: space-between;
         align-items: center;
+        margin-bottom: 0.4rem;
     }
     .product-modal-variant .variant-gewicht {
         color: var(--color-stone);
+        font-size: 0.95rem;
     }
     .product-modal-variant .variant-prijs {
         font-weight: 600;
         color: var(--color-crust);
     }
-    .variant-add-btn {
-        width: 30px;
-        height: 30px;
-        border: none;
-        border-radius: 50%;
+    .variant-actions {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+    .variant-qty-group {
+        display: flex;
+        align-items: center;
+        gap: 0.2rem;
+    }
+    .variant-qty-btn {
+        width: 28px;
+        height: 28px;
+        border: 1px solid #ddd;
+        border-radius: 6px;
+        background: white;
+        color: var(--color-crust);
+        font-size: 1rem;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        transition: all 0.15s ease;
+    }
+    .variant-qty-btn:hover {
         background: var(--color-crust);
         color: white;
-        font-size: 1.2rem;
+        border-color: var(--color-crust);
+    }
+    .variant-qty-display {
+        min-width: 28px;
+        text-align: center;
+        font-weight: 600;
+        font-size: 0.95rem;
+        color: var(--color-crust-dark);
+    }
+    .variant-add-btn {
+        flex: 1;
+        border: none;
+        border-radius: 8px;
+        background: var(--color-crust);
+        color: white;
+        font-size: 0.85rem;
         font-weight: 600;
         cursor: pointer;
         display: flex;
         align-items: center;
         justify-content: center;
-        flex-shrink: 0;
+        padding: 0.45rem 0.75rem;
         transition: all 0.2s ease;
-        line-height: 1;
+        font-family: var(--font-body);
     }
     .variant-add-btn:hover {
         background: var(--color-crust-dark);
-        transform: scale(1.1);
     }
     .variant-add-btn.added {
         background: #2d5a27;
     }
-    .modal-add-simple-btn {
-        width: 100%;
+    .variant-add-btn .add-label,
+    .variant-add-btn .added-label {
+        display: flex;
+        align-items: center;
+        gap: 0.35rem;
+    }
+    .modal-simple-actions {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
         margin-top: 1rem;
-        padding: 0.75rem;
+    }
+    .modal-add-simple-btn {
+        flex: 1;
+        padding: 0.6rem 0.75rem;
         border: none;
         border-radius: 8px;
         background: var(--color-crust);
         color: white;
         font-family: var(--font-body);
-        font-size: 1rem;
+        font-size: 0.95rem;
         font-weight: 600;
         cursor: pointer;
         transition: background 0.2s ease;
