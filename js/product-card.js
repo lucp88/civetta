@@ -19,7 +19,8 @@ const ProductCard = {
     data() {
         return {
             selectedVariantId: null,
-            addQuantity: 1
+            addQuantity: 1,
+            addedToCart: false
         };
     },
     
@@ -41,15 +42,25 @@ const ProductCard = {
     
     template: `
         <div class="product-card-modern" :class="{ selected: quantity > 0 }">
-            <button v-if="hasVariants && showQuantity" class="btn-add-cart" @click.stop="addToCart" title="Toevoegen aan bestelling">
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                    <path d="M5 7h14l-1.5 9h-11L5 7z"/>
-                    <path d="M5 7l-.5-3H2"/>
-                    <path d="M8 20a1 1 0 1 0 0-2 1 1 0 0 0 0 2z"/>
-                    <path d="M16 20a1 1 0 1 0 0-2 1 1 0 0 0 0 2z"/>
+            <button v-if="hasVariants && showQuantity" class="btn-add-cart" :class="{ 'btn-added': addedToCart }" @click.stop="addToCart" :title="addedToCart ? 'Toegevoegd!' : 'Toevoegen aan bestelling'">
+                <svg v-if="addedToCart" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3">
+                    <path d="M20 6L9 17l-5-5"/>
                 </svg>
-                <span class="plus">+</span>
+                <template v-else>
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M5 7h14l-1.5 9h-11L5 7z"/>
+                        <path d="M5 7l-.5-3H2"/>
+                        <path d="M8 20a1 1 0 1 0 0-2 1 1 0 0 0 0 2z"/>
+                        <path d="M16 20a1 1 0 1 0 0-2 1 1 0 0 0 0 2z"/>
+                    </svg>
+                    <span class="plus">+</span>
+                </template>
             </button>
+            <transition name="card-toast">
+                <div v-if="addedToCart" class="card-added-toast" @click.stop>
+                    Toegevoegd aan wagen
+                </div>
+            </transition>
             <div class="product-card-image" @click="$emit('show-detail', product)">
                 <img v-if="product.foto" :src="product.foto" :alt="product.naam" @error="onImgError">
                 <div v-else class="product-card-placeholder">
@@ -159,7 +170,9 @@ const ProductCard = {
                     variant: this.currentVariant,
                     quantity: this.addQuantity
                 });
+                this.addedToCart = true;
                 this.addQuantity = 1;
+                setTimeout(() => { this.addedToCart = false; }, 1500);
             }
         }
     }
@@ -435,6 +448,39 @@ const productCardStyles = `
     .btn-add-cart:hover {
         background: #3d7a37;
         transform: scale(1.1);
+    }
+    .btn-add-cart.btn-added {
+        background: #2e7d32;
+        transform: scale(1.15);
+        box-shadow: 0 2px 8px rgba(46,125,50,0.4);
+    }
+    .card-added-toast {
+        position: absolute;
+        top: 6px;
+        right: 40px;
+        background: #2e7d32;
+        color: white;
+        font-size: 0.7rem;
+        font-weight: 600;
+        padding: 4px 8px;
+        border-radius: 4px;
+        white-space: nowrap;
+        z-index: 5;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+    }
+    .card-toast-enter-active {
+        animation: toastIn 0.25s ease;
+    }
+    .card-toast-leave-active {
+        animation: toastOut 0.2s ease;
+    }
+    @keyframes toastIn {
+        from { opacity: 0; transform: translateX(8px); }
+        to { opacity: 1; transform: translateX(0); }
+    }
+    @keyframes toastOut {
+        from { opacity: 1; transform: translateX(0); }
+        to { opacity: 0; transform: translateX(8px); }
     }
     .btn-add-cart svg {
         width: 14px;

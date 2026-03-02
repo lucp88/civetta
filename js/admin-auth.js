@@ -110,11 +110,13 @@ window.AdminAuthMixin = {
                     this.logout();
                 });
                 dropdown.appendChild(logoutLink);
-            } else {
+            } else if (!sessionStorage.getItem('businessAccount')) {
                 navLogin.querySelector('.login-trigger').textContent = 'Inloggen';
                 const dropdown = navLogin.querySelector('.login-dropdown');
-                dropdown.innerHTML = '<a href="login-bedrijven.html">Bedrijven</a>' +
-                    '<a href="#" class="disabled">Particulieren (binnenkort)</a>';
+                if (dropdown) {
+                    dropdown.innerHTML = '<a href="login-bedrijven.html">Bedrijven</a>' +
+                        '<a href="#" class="disabled">Particulieren (binnenkort)</a>';
+                }
             }
         }
     }
