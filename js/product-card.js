@@ -209,6 +209,10 @@ const ProductDetailModal = {
         ingredientList() {
             if (!this.product) return null;
             return this.product.ingredienten_recipe || this.product.ingredienten || null;
+        },
+        ingredientItems() {
+            if (!this.product) return null;
+            return this.product.ingredienten_items || null;
         }
     },
 
@@ -238,7 +242,11 @@ const ProductDetailModal = {
                     </p>
 
                     <div v-if="ingredientList" class="product-modal-ingredients">
-                        <strong>Ingrediënten:</strong> {{ ingredientList }}
+                        <strong>Ingrediënten:</strong>
+                        <template v-if="ingredientItems">
+                            <template v-for="(item, idx) in ingredientItems"><template v-if="item.allergeen && item.allergeen_naam">{{ item.name }} (<strong>{{ item.allergeen_naam }}</strong>)</template><strong v-else-if="item.allergeen">{{ item.name }}</strong><template v-else>{{ item.name }}</template><template v-if="idx < ingredientItems.length - 1">, </template></template>
+                        </template>
+                        <template v-else>{{ ingredientList }}</template>
                     </div>
 
                     <div v-if="product.recipe_details" class="product-modal-recipe-details">

@@ -6,7 +6,8 @@
       "Bash(php -l:*)",
       "Bash(where.exe:*)",
       "Bash(xargs sed:*)",
-      "Bash(ls:*)"
+      "Bash(ls:*)",
+      "Bash(xargs grep -l \"ingredients\\\\|voorraad\")"
     ]
   }
 }

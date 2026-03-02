@@ -76,10 +76,10 @@ try {
                 if (!empty($allGrainIds)) {
                     $uniqueGrainIds = array_values(array_unique($allGrainIds));
                     $grainPlaceholders = implode(',', array_fill(0, count($uniqueGrainIds), '?'));
-                    $ingStmt = $pdo->prepare("SELECT id, name, is_whole_grain, is_biologisch FROM ingredients WHERE id IN ($grainPlaceholders)");
+                    $ingStmt = $pdo->prepare("SELECT id, name, is_whole_grain, is_biologisch, is_allergeen, allergeen_naam FROM ingredients WHERE id IN ($grainPlaceholders)");
                     $ingStmt->execute($uniqueGrainIds);
                     foreach ($ingStmt->fetchAll() as $ing) {
-                        $ingredientLookup[(int)$ing['id']] = ['name' => $ing['name'], 'is_whole_grain' => (bool)$ing['is_whole_grain'], 'is_biologisch' => (bool)$ing['is_biologisch']];
+                        $ingredientLookup[(int)$ing['id']] = ['name' => $ing['name'], 'is_whole_grain' => (bool)$ing['is_whole_grain'], 'is_biologisch' => (bool)$ing['is_biologisch'], 'is_allergeen' => (bool)$ing['is_allergeen'], 'allergeen_naam' => $ing['allergeen_naam']];
                     }
                 }
 
@@ -90,14 +90,23 @@ try {
                     $biologischNames[$row['name']] = true;
                 }
 
+                // Build allergeen names lookup (for mixins/toppings matched by name)
+                // Value is allergeen_naam (may be null) instead of true, so shared.php can pass it to frontend
+                $allergeenNames = [];
+                $allergeenStmt = $pdo->query("SELECT LOWER(name) as name, allergeen_naam FROM ingredients WHERE is_allergeen = 1 AND is_active = 1");
+                foreach ($allergeenStmt->fetchAll() as $row) {
+                    $allergeenNames[$row['name']] = $row['allergeen_naam'];
+                }
+
                 // Compute per-variant ingredient and recipe details
                 foreach ($products as &$product) {
                     foreach ($product['variants'] as &$variant) {
                         if (!empty($variant['recipe_id']) && isset($recipesById[$variant['recipe_id']])) {
                             $rd = $recipesById[$variant['recipe_id']];
-                            $list = computeIngredientList($rd, $ingredientLookup, $biologischNames);
-                            if ($list !== null) {
-                                $variant['ingredienten_recipe'] = $list;
+                            $result = computeIngredientList($rd, $ingredientLookup, $biologischNames, $allergeenNames);
+                            if ($result !== null) {
+                                $variant['ingredienten_recipe'] = $result['text'];
+                                $variant['ingredienten_items'] = $result['items'];
                                 $variant['recipe_details'] = computeRecipeDetails($rd, $ingredientLookup);
                             }
                         }
@@ -108,6 +117,7 @@ try {
                     foreach ($product['variants'] as $v) {
                         if (!empty($v['ingredienten_recipe'])) {
                             $product['ingredienten_recipe'] = $v['ingredienten_recipe'];
+                            $product['ingredienten_items'] = $v['ingredienten_items'] ?? null;
                             $product['recipe_details'] = $v['recipe_details'] ?? null;
                             break;
                         }

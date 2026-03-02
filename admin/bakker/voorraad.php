@@ -670,6 +670,16 @@ $adminBasePath = '../';
                                     Biologisch product
                                 </label>
                             </div>
+                            <div class="form-group">
+                                <label class="toggle-label">
+                                    <input type="checkbox" v-model="ingredientForm.is_allergeen" :true-value="1" :false-value="0">
+                                    Allergeen
+                                </label>
+                            </div>
+                            <div class="form-group" v-if="ingredientForm.is_allergeen">
+                                <label class="form-label">Allergeen naam (optioneel)</label>
+                                <input type="text" class="form-input" v-model="ingredientForm.allergeen_naam" placeholder="bijv. melk, gluten, noten">
+                            </div>
                         </div>
                         <div class="modal-footer">
                             <button class="btn btn-ghost" @click="showIngredientModal=false">Annuleren</button>
@@ -836,7 +846,7 @@ $adminBasePath = '../';
 
                 showIngredientModal: false,
                 editingIngredient: null,
-                ingredientForm: { name: '', category: 'meel', unit: 'g', grain_type_id: '', is_whole_grain: 0, is_biologisch: 0 },
+                ingredientForm: { name: '', category: 'meel', unit: 'g', grain_type_id: '', is_whole_grain: 0, is_biologisch: 0, is_allergeen: 0, allergeen_naam: '' },
 
                 showGrainTypeModal: false,
                 newGrainTypeName: '',
@@ -1012,7 +1022,9 @@ $adminBasePath = '../';
                         unit: ing.unit,
                         grain_type_id: ing.grain_type_id || '',
                         is_whole_grain: ing.is_whole_grain || 0,
-                        is_biologisch: parseInt(ing.is_biologisch) || 0
+                        is_biologisch: parseInt(ing.is_biologisch) || 0,
+                        is_allergeen: parseInt(ing.is_allergeen) || 0,
+                        allergeen_naam: ing.allergeen_naam || ''
                     };
                 } else {
                     this.ingredientForm = {
@@ -1021,7 +1033,9 @@ $adminBasePath = '../';
                         unit: 'g',
                         grain_type_id: '',
                         is_whole_grain: 0,
-                        is_biologisch: 0
+                        is_biologisch: 0,
+                        is_allergeen: 0,
+                        allergeen_naam: ''
                     };
                 }
                 this.showIngredientModal = true;

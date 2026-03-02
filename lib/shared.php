@@ -63,7 +63,7 @@ function buildFlourTypeMap($recipe, $lookup = []) {
     return $typeMap;
 }
 
-function computeIngredientList($recipe, $lookup = [], $biologischNames = []) {
+function computeIngredientList($recipe, $lookup = [], $biologischNames = [], $allergeenNames = []) {
     $yeastNames = ['fresh_yeast' => 'verse gist', 'instant_yeast' => 'gist', 'sourdough_culture' => 'desemcultuur'];
 
     $typeMap = buildFlourTypeMap($recipe, $lookup);
@@ -72,13 +72,21 @@ function computeIngredientList($recipe, $lookup = [], $biologischNames = []) {
         if ($e['totalPct'] > 0) {
             $name = grainDisplayName($e['type'], $lookup);
             $bio = false;
-            if (is_numeric($e['type']) && isset($lookup[(int)$e['type']]['is_biologisch'])) {
-                $bio = (bool)$lookup[(int)$e['type']]['is_biologisch'];
-            } elseif (isset($biologischNames[strtolower($name)])) {
-                $bio = true;
+            $allergeen = false;
+            $allergeenNaam = null;
+            if (is_numeric($e['type']) && isset($lookup[(int)$e['type']])) {
+                $bio = (bool)($lookup[(int)$e['type']]['is_biologisch'] ?? false);
+                $allergeen = (bool)($lookup[(int)$e['type']]['is_allergeen'] ?? false);
+                $allergeenNaam = $lookup[(int)$e['type']]['allergeen_naam'] ?? null;
+            } else {
+                if (isset($biologischNames[strtolower($name)])) $bio = true;
+                if (array_key_exists(strtolower($name), $allergeenNames)) {
+                    $allergeen = true;
+                    $allergeenNaam = $allergeenNames[strtolower($name)];
+                }
             }
             if ($bio) $name .= '*';
-            $grains[] = ['name' => $name, 'amount' => $e['totalPct']];
+            $grains[] = ['name' => $name, 'amount' => $e['totalPct'], 'allergeen' => $allergeen, 'allergeen_naam' => $allergeenNaam];
         }
     }
     usort($grains, fn($a, $b) => $b['amount'] <=> $a['amount']);
@@ -88,31 +96,44 @@ function computeIngredientList($recipe, $lookup = [], $biologischNames = []) {
         'zout'  => (float)($recipe['saltPct']   ?? 2.6),
     ];
     $bioOthers = [];
+    $allergeenOthers = [];
     if (isset($biologischNames['water'])) $bioOthers['water'] = true;
     if (isset($biologischNames['zout'])) $bioOthers['zout'] = true;
+    if (array_key_exists('water', $allergeenNames)) $allergeenOthers['water'] = $allergeenNames['water'];
+    if (array_key_exists('zout', $allergeenNames)) $allergeenOthers['zout'] = $allergeenNames['zout'];
 
     if (!empty($recipe['useYeast'])) {
         $yn = $yeastNames[$recipe['yeastType'] ?? 'instant_yeast'] ?? 'gist';
         $othersMap[$yn] = ($othersMap[$yn] ?? 0) + (float)($recipe['yeastPct'] ?? 1);
         if (isset($biologischNames[strtolower($yn)])) $bioOthers[$yn] = true;
+        if (array_key_exists(strtolower($yn), $allergeenNames)) $allergeenOthers[$yn] = $allergeenNames[strtolower($yn)];
     }
     foreach (array_merge($recipe['mixins'] ?? [], $recipe['toppings'] ?? []) as $item) {
         if (!empty($item['ingredient']) && ($item['pct'] ?? 0) > 0) {
             $key = strtolower($item['ingredient']);
             $othersMap[$key] = ($othersMap[$key] ?? 0) + (float)$item['pct'];
             if (isset($biologischNames[$key])) $bioOthers[$key] = true;
+            if (array_key_exists($key, $allergeenNames)) $allergeenOthers[$key] = $allergeenNames[$key];
         }
     }
     $others = [];
     foreach ($othersMap as $name => $amount) {
         $displayName = $name;
         if (isset($bioOthers[$name])) $displayName .= '*';
-        $others[] = ['name' => $displayName, 'amount' => $amount];
+        $allergeen = array_key_exists($name, $allergeenOthers);
+        $allergeenNaam = $allergeenOthers[$name] ?? null;
+        $others[] = ['name' => $displayName, 'amount' => $amount, 'allergeen' => $allergeen, 'allergeen_naam' => $allergeenNaam];
     }
     usort($others, fn($a, $b) => $b['amount'] <=> $a['amount']);
 
-    $names = array_column(array_merge($grains, $others), 'name');
-    return !empty($names) ? implode(', ', $names) : null;
+    $items = array_merge($grains, $others);
+    $names = array_column($items, 'name');
+    if (empty($names)) return null;
+
+    return [
+        'text'  => implode(', ', $names),
+        'items' => array_map(fn($i) => ['name' => $i['name'], 'allergeen' => $i['allergeen'], 'allergeen_naam' => $i['allergeen_naam']], $items),
+    ];
 }
 
 function computeRecipeDetails($recipe, $lookup = []) {

@@ -310,7 +310,12 @@
                             <!-- Ingredients -->
                             <div v-if="displayIngredients">
                                 <div class="product-detail-section-label">Ingrediënten</div>
-                                <div class="product-detail-ingredients">{{ displayIngredients }}</div>
+                                <div class="product-detail-ingredients">
+                                    <template v-if="displayIngredientItems">
+                                        <template v-for="(item, idx) in displayIngredientItems"><template v-if="item.allergeen && item.allergeen_naam">{{ item.name }} (<strong>{{ item.allergeen_naam }}</strong>)</template><strong v-else-if="item.allergeen">{{ item.name }}</strong><template v-else>{{ item.name }}</template><template v-if="idx < displayIngredientItems.length - 1">, </template></template>
+                                    </template>
+                                    <template v-else>{{ displayIngredients }}</template>
+                                </div>
                                 <div v-if="hasBiologisch" class="product-detail-biologisch">* Biologisch product</div>
                             </div>
 

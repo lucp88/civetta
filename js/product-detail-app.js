@@ -40,6 +40,13 @@ const productDetailApp = createApp({
             return this.product.ingredienten_recipe || this.product.ingredienten || null;
         },
 
+        displayIngredientItems() {
+            const variant = this.selectedVariant;
+            if (variant && variant.ingredienten_items) return variant.ingredienten_items;
+            if (!this.product) return null;
+            return this.product.ingredienten_items || null;
+        },
+
         displayRecipeDetails() {
             const variant = this.selectedVariant;
             if (variant && variant.recipe_details) return variant.recipe_details;
