@@ -53,6 +53,12 @@ const productDetailApp = createApp({
             return this.product ? this.product.recipe_details : null;
         },
 
+        allergenList() {
+            const items = this.displayIngredientItems;
+            if (!items) return [];
+            return items.filter(i => i.allergeen);
+        },
+
         hasBiologisch() {
             return this.displayIngredients && this.displayIngredients.includes('*');
         }
