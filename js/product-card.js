@@ -58,7 +58,7 @@ const ProductCard = {
             </button>
             <transition name="card-toast">
                 <div v-if="addedToCart" class="card-added-toast" @click.stop>
-                    Toegevoegd aan wagen
+                    Toegevoegd aan winkelwagen!
                 </div>
             </transition>
             <div class="product-card-image" @click="$emit('show-detail', product)">
