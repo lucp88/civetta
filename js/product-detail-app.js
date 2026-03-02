@@ -7,6 +7,7 @@ const productDetailApp = createApp({
             loading: true,
             error: null,
             showDetails: false,
+            showAllergens: true,
             selectedVariantId: null
         };
     },
@@ -56,7 +57,15 @@ const productDetailApp = createApp({
         allergenList() {
             const items = this.displayIngredientItems;
             if (!items) return [];
-            return items.filter(i => i.allergeen);
+            const seen = new Set();
+            return items.filter(i => i.allergeen).reduce((list, i) => {
+                const label = (i.allergeen_naam || i.name.replace(/\*$/, '')).toLowerCase();
+                if (!seen.has(label)) {
+                    seen.add(label);
+                    list.push(i.allergeen_naam || i.name.replace(/\*$/, ''));
+                }
+                return list;
+            }, []);
         },
 
         hasBiologisch() {

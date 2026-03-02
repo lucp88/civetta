@@ -312,36 +312,42 @@
                                 <div class="product-detail-section-label">Ingrediënten</div>
                                 <div class="product-detail-ingredients">
                                     <template v-if="displayIngredientItems">
-                                        <template v-for="(item, idx) in displayIngredientItems"><template v-if="item.allergeen && item.allergeen_naam">{{ item.name }} (<strong>{{ item.allergeen_naam }}</strong>)</template><strong v-else-if="item.allergeen">{{ item.name }}</strong><template v-else>{{ item.name }}</template><template v-if="idx < displayIngredientItems.length - 1">, </template></template>
+                                        <template v-for="(item, idx) in displayIngredientItems"><strong v-if="item.allergeen">{{ item.name }}</strong><template v-else>{{ item.name }}</template><template v-if="idx < displayIngredientItems.length - 1">, </template></template>
                                     </template>
                                     <template v-else>{{ displayIngredients }}</template>
                                 </div>
                                 <div v-if="hasBiologisch" class="product-detail-biologisch">* Biologisch product</div>
+                                <div v-if="allergenList.length > 0" class="product-detail-biologisch">Vetgedrukt = allergeen</div>
                             </div>
 
-                            <!-- Specificaties en allergenen (collapsible) -->
-                            <div v-if="displayRecipeDetails || allergenList.length > 0">
+                            <!-- Allergenen (collapsible, default open) -->
+                            <div v-if="allergenList.length > 0">
+                                <button class="samenstelling-toggle" @click="showAllergens = !showAllergens">
+                                    <span>Allergenen</span>
+                                    <span class="samenstelling-arrow" :class="{ open: showAllergens }">▼</span>
+                                </button>
+                                <div v-if="showAllergens" class="samenstelling-content">
+                                    <div v-for="name in allergenList" :key="name" class="samenstelling-row">
+                                        <span><strong>{{ name }}</strong></span>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Specificaties (collapsible, default closed) -->
+                            <div v-if="displayRecipeDetails">
                                 <button class="samenstelling-toggle" @click="showDetails = !showDetails">
-                                    <span>Specificaties en allergenen</span>
+                                    <span>Specificaties</span>
                                     <span class="samenstelling-arrow" :class="{ open: showDetails }">▼</span>
                                 </button>
                                 <div v-if="showDetails" class="samenstelling-content">
-                                    <template v-if="displayRecipeDetails">
-                                        <div v-if="displayRecipeDetails.volkoren_pct > 0" class="samenstelling-volkoren">
-                                            {{ displayRecipeDetails.volkoren_pct }}% volkoren
-                                        </div>
-                                        <div v-if="displayRecipeDetails.grains && displayRecipeDetails.grains.length > 0">
-                                            <div class="samenstelling-subtitle">Meelsoorten</div>
-                                            <div v-for="grain in displayRecipeDetails.grains" :key="grain.name" class="samenstelling-row">
-                                                <span>{{ grain.name }}</span>
-                                                <strong>{{ grain.pct }}%</strong>
-                                            </div>
-                                        </div>
-                                    </template>
-                                    <div v-if="allergenList.length > 0">
-                                        <div class="samenstelling-subtitle">Allergenen</div>
-                                        <div v-for="item in allergenList" :key="item.name" class="samenstelling-row">
-                                            <span><strong>{{ item.allergeen_naam || item.name }}</strong></span>
+                                    <div v-if="displayRecipeDetails.volkoren_pct > 0" class="samenstelling-volkoren">
+                                        {{ displayRecipeDetails.volkoren_pct }}% volkoren
+                                    </div>
+                                    <div v-if="displayRecipeDetails.grains && displayRecipeDetails.grains.length > 0">
+                                        <div class="samenstelling-subtitle">Meelsoorten</div>
+                                        <div v-for="grain in displayRecipeDetails.grains" :key="grain.name" class="samenstelling-row">
+                                            <span>{{ grain.name }}</span>
+                                            <strong>{{ grain.pct }}%</strong>
                                         </div>
                                     </div>
                                 </div>

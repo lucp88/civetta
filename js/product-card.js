@@ -182,6 +182,7 @@ const ProductDetailModal = {
     data() {
         return {
             showDetails: false,
+            showAllergens: true,
             variantQty: {},
             addedVariantId: null,
             simpleQty: 1
@@ -192,6 +193,7 @@ const ProductDetailModal = {
         product(newVal) {
             if (newVal) {
                 this.showDetails = false;
+                this.showAllergens = true;
                 this.addedVariantId = null;
                 this.simpleQty = 1;
                 this.variantQty = {};
@@ -217,7 +219,15 @@ const ProductDetailModal = {
         allergenList() {
             const items = this.ingredientItems;
             if (!items) return [];
-            return items.filter(i => i.allergeen);
+            const seen = new Set();
+            return items.filter(i => i.allergeen).reduce((list, i) => {
+                const label = (i.allergeen_naam || i.name.replace(/\*$/, '')).toLowerCase();
+                if (!seen.has(label)) {
+                    seen.add(label);
+                    list.push(i.allergeen_naam || i.name.replace(/\*$/, ''));
+                }
+                return list;
+            }, []);
         }
     },
 
@@ -249,33 +259,38 @@ const ProductDetailModal = {
                     <div v-if="ingredientList" class="product-modal-ingredients">
                         <strong>Ingrediënten:</strong>
                         <template v-if="ingredientItems">
-                            <template v-for="(item, idx) in ingredientItems"><template v-if="item.allergeen && item.allergeen_naam">{{ item.name }} (<strong>{{ item.allergeen_naam }}</strong>)</template><strong v-else-if="item.allergeen">{{ item.name }}</strong><template v-else>{{ item.name }}</template><template v-if="idx < ingredientItems.length - 1">, </template></template>
+                            <template v-for="(item, idx) in ingredientItems"><strong v-if="item.allergeen">{{ item.name }}</strong><template v-else>{{ item.name }}</template><template v-if="idx < ingredientItems.length - 1">, </template></template>
                         </template>
                         <template v-else>{{ ingredientList }}</template>
+                        <div v-if="ingredientList && ingredientList.includes('*')" class="product-modal-bio-note">* Biologisch product</div>
+                        <div v-if="allergenList.length > 0" class="product-modal-bio-note">Vetgedrukt = allergeen</div>
                     </div>
 
-                    <div v-if="product.recipe_details || allergenList.length > 0" class="product-modal-recipe-details">
+                    <div v-if="allergenList.length > 0" class="product-modal-recipe-details">
+                        <button class="recipe-details-toggle" @click="showAllergens = !showAllergens">
+                            Allergenen <span class="toggle-arrow">{{ showAllergens ? '▲' : '▼' }}</span>
+                        </button>
+                        <div v-if="showAllergens" class="recipe-details-content">
+                            <div v-for="name in allergenList" :key="name" class="recipe-detail-row">
+                                <span><strong>{{ name }}</strong></span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div v-if="product.recipe_details" class="product-modal-recipe-details">
                         <button class="recipe-details-toggle" @click="showDetails = !showDetails">
-                            Specificaties en allergenen <span class="toggle-arrow">{{ showDetails ? '▲' : '▼' }}</span>
+                            Specificaties <span class="toggle-arrow">{{ showDetails ? '▲' : '▼' }}</span>
                         </button>
                         <div v-if="showDetails" class="recipe-details-content">
-                            <template v-if="product.recipe_details">
-                                <div v-if="product.recipe_details.volkoren_pct > 0" class="recipe-detail-row recipe-detail-volkoren">
-                                    <span>Volkoren</span>
-                                    <span>{{ product.recipe_details.volkoren_pct }}%</span>
-                                </div>
-                                <template v-if="product.recipe_details.grains && product.recipe_details.grains.length > 0">
-                                    <div class="recipe-detail-subtitle">Meelsoorten</div>
-                                    <div v-for="grain in product.recipe_details.grains" :key="grain.name" class="recipe-detail-row">
-                                        <span>{{ grain.name }}</span>
-                                        <span>{{ grain.pct }}%</span>
-                                    </div>
-                                </template>
-                            </template>
-                            <template v-if="allergenList.length > 0">
-                                <div class="recipe-detail-subtitle">Allergenen</div>
-                                <div v-for="item in allergenList" :key="item.name" class="recipe-detail-row">
-                                    <span><strong>{{ item.allergeen_naam || item.name }}</strong></span>
+                            <div v-if="product.recipe_details.volkoren_pct > 0" class="recipe-detail-row recipe-detail-volkoren">
+                                <span>Volkoren</span>
+                                <span>{{ product.recipe_details.volkoren_pct }}%</span>
+                            </div>
+                            <template v-if="product.recipe_details.grains && product.recipe_details.grains.length > 0">
+                                <div class="recipe-detail-subtitle">Meelsoorten</div>
+                                <div v-for="grain in product.recipe_details.grains" :key="grain.name" class="recipe-detail-row">
+                                    <span>{{ grain.name }}</span>
+                                    <span>{{ grain.pct }}%</span>
                                 </div>
                             </template>
                         </div>
@@ -681,6 +696,11 @@ const productCardStyles = `
     }
     .product-modal-ingredients strong {
         color: var(--color-crust);
+    }
+    .product-modal-bio-note {
+        font-size: 0.8rem;
+        color: var(--color-sage);
+        margin-top: 0.3rem;
     }
     .product-modal-recipe-details {
         margin-bottom: 1rem;
