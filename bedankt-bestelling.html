@@ -277,6 +277,35 @@
                         </div>
                     </template>
                     
+                    <template v-else-if="status === 'saldo_paid'">
+                        <div class="thank-you-icon">
+                            <span>&#10003;</span>
+                        </div>
+                        <h1>Komt voor de bakker!</h1>
+                        <p>Bedankt voor uw bestelling! Het bedrag is van uw saldo afgeschreven. We hebben een bevestiging naar uw e-mailadres gestuurd.</p>
+
+                        <div v-if="order" class="order-details">
+                            <h3>Bestellingsgegevens</h3>
+                            <div class="order-detail-row">
+                                <span class="label">Bestelnummer</span>
+                                <span class="value">#{{ order.id }}</span>
+                            </div>
+                            <div class="order-detail-row">
+                                <span class="label">Leverdatum</span>
+                                <span class="value">{{ formatDate(order.delivery_date) }}</span>
+                            </div>
+                            <div class="order-detail-row">
+                                <span class="label">Totaalbedrag</span>
+                                <span class="value">{{ formatPrice(order.total_amount) }}</span>
+                            </div>
+                        </div>
+
+                        <div class="thank-you-actions">
+                            <a href="zakelijk-dashboard.html" class="btn">Naar Dashboard</a>
+                            <a href="mijn-bestellingen.html" class="btn btn-outline">Mijn Bestellingen</a>
+                        </div>
+                    </template>
+
                     <template v-else>
                         <div class="thank-you-icon">
                             <span>&#10003;</span>
@@ -346,7 +375,7 @@
                 this.status = params.get('status') || 'pending';
                 this.orderId = params.get('order_id');
                 
-                if ((this.status === 'invoice_sent' || this.status === 'recurring') && this.orderId) {
+                if ((this.status === 'invoice_sent' || this.status === 'recurring' || this.status === 'saldo_paid') && this.orderId) {
                     await this.loadOrder(this.orderId);
                     this.loading = false;
                 } else if (this.orderId) {

@@ -2081,6 +2081,16 @@
     color: white;
 }
 
+.payment-flow-method.method-saldo {
+    background: linear-gradient(135deg, #2e7d32, #43a047);
+    color: white;
+    border: none;
+}
+
+.payment-flow-method.method-saldo i {
+    color: white;
+}
+
 .payment-flow-steps {
     display: flex;
     align-items: center;

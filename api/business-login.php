@@ -58,15 +58,19 @@ try {
     $_SESSION['business_account_id'] = $account['id'];
     $_SESSION['business_name'] = $account['bedrijfsnaam'];
     $_SESSION['business_email'] = $account['email'];
-    
+    $_SESSION['account_type'] = $account['account_type'] ?? 'zakelijk';
+
     echo json_encode([
-        'success' => true, 
+        'success' => true,
         'message' => 'Succesvol ingelogd',
         'account' => [
             'id' => $account['id'],
             'bedrijfsnaam' => $account['bedrijfsnaam'],
             'contactpersoon' => $account['contactpersoon'],
-            'email' => $account['email']
+            'email' => $account['email'],
+            'account_type' => $account['account_type'] ?? 'zakelijk',
+            'has_balance' => (int)($account['has_balance'] ?? 0),
+            'balance' => floatval($account['balance'] ?? 0)
         ]
     ]);
 } catch (PDOException $e) {

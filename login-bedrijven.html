@@ -131,11 +131,7 @@
                 <li><a href="financiering.html">Crowdfunding</a></li>
                 <li><a href="contact.html">Contact</a></li>
                 <li class="nav-login">
-                    <a href="javascript:void(0)" class="login-trigger">Inloggen</a>
-                    <div class="login-dropdown">
-                        <a href="login-bedrijven.html">Bedrijven</a>
-                        <a href="#" class="disabled">Particulieren (binnenkort)</a>
-                    </div>
+                    <a href="login-bedrijven.html" class="login-trigger">Inloggen</a>
                 </li>
             </ul>
             <button class="mobile-menu-btn" aria-label="Menu">
@@ -152,8 +148,8 @@
                 <div id="login-app" v-cloak class="login-container">
                     <div class="login-card">
                         <img src="img/logo.jpeg" alt="Civetta" class="login-logo">
-                        <h1>Zakelijk Inloggen</h1>
-                        <p class="subtitle">Voor bedrijven en horecaklanten</p>
+                        <h1>Inloggen</h1>
+                        <p class="subtitle">Voor klanten van Bakkerij Civetta</p>
                         
                         <form @submit.prevent="login" class="login-form">
                             <div v-if="error" class="login-error">{{ error }}</div>

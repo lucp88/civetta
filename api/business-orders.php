@@ -241,7 +241,7 @@ switch ($method) {
                 $orderId = $parentOrderId;
                 
             } else {
-                $dbPaymentType = ($paymentType === 'later') ? 'factuur' : 'ideal';
+                $dbPaymentType = ($paymentType === 'saldo') ? 'saldo' : (($paymentType === 'later') ? 'factuur' : 'ideal');
                 
                 $stmt = $pdo->prepare("
                     INSERT INTO business_orders (account_id, delivery_date, payment_status, total_amount, notes, payment_type, is_recurring, invoice_status, delivery_status, created_at)
@@ -272,9 +272,32 @@ switch ($method) {
                     ]);
                 }
             }
-            
+
+            // Handle saldo payment within the transaction
+            if ($paymentType === 'saldo' && !$isRecurring) {
+                $stmt = $pdo->prepare("SELECT has_balance, balance FROM business_accounts WHERE id = ? FOR UPDATE");
+                $stmt->execute([$accountId]);
+                $balanceAccount = $stmt->fetch();
+
+                if (!$balanceAccount['has_balance'] || floatval($balanceAccount['balance']) < floatval($totalAmount)) {
+                    $pdo->rollBack();
+                    http_response_code(400);
+                    echo json_encode(['success' => false, 'error' => 'Onvoldoende saldo']);
+                    exit;
+                }
+
+                $stmt = $pdo->prepare("UPDATE business_accounts SET balance = balance - ? WHERE id = ?");
+                $stmt->execute([$totalAmount, $accountId]);
+
+                $stmt = $pdo->prepare("INSERT INTO balance_transactions (account_id, amount, type, description, order_id, created_by) VALUES (?, ?, 'order', ?, ?, 'system')");
+                $stmt->execute([$accountId, -$totalAmount, "Bestelling #$orderId", $orderId]);
+
+                $stmt = $pdo->prepare("UPDATE business_orders SET payment_status = 'paid', payment_type = 'saldo' WHERE id = ?");
+                $stmt->execute([$orderId]);
+            }
+
             $pdo->commit();
-            
+
             if ($saveAsFavorite && $favoriteName) {
                 try {
                     $stmt = $pdo->prepare("INSERT INTO business_favorites (account_id, naam, created_at) VALUES (?, ?, NOW())");
@@ -388,6 +411,30 @@ switch ($method) {
                 exit;
             }
             
+            if ($paymentType === 'saldo') {
+                $bestelbonNumber = generateBestelbonNumber($pdo, $orderId);
+
+                $stmt = $pdo->prepare("
+                    UPDATE business_orders
+                    SET bestelbon_number = ?,
+                        invoice_status = 'bestelbon',
+                        delivery_status = 'geplaatst'
+                    WHERE id = ?
+                ");
+                $stmt->execute([$bestelbonNumber, $orderId]);
+
+                sendBestelbonEmail($pdo, $orderId);
+
+                echo json_encode([
+                    'success' => true,
+                    'order_id' => $orderId,
+                    'payment_type' => 'saldo',
+                    'bestelbon_number' => $bestelbonNumber,
+                    'message' => 'Bestelling geplaatst en betaald met saldo.'
+                ]);
+                exit;
+            }
+
             if ($paymentType === 'later') {
                 $bestelbonNumber = generateBestelbonNumber($pdo, $orderId);
                 $deadlineHours = getWijzigDeadlineUren($pdo);
@@ -653,9 +700,35 @@ switch ($method) {
         
         try {
             if ($action === 'cancel') {
+                // Auto-refund saldo payments
+                if ($order['payment_type'] === 'saldo' && $order['payment_status'] === 'paid') {
+                    $pdo->beginTransaction();
+
+                    $stmt = $pdo->prepare("UPDATE business_orders SET is_cancelled = 1 WHERE id = ?");
+                    $stmt->execute([$orderId]);
+
+                    $refundAmount = floatval($order['total_amount']);
+                    $stmt = $pdo->prepare("UPDATE business_accounts SET balance = balance + ? WHERE id = ?");
+                    $stmt->execute([$refundAmount, $accountId]);
+
+                    $stmt = $pdo->prepare("INSERT INTO balance_transactions (account_id, amount, type, description, order_id, created_by) VALUES (?, ?, 'refund', ?, ?, 'system')");
+                    $stmt->execute([$accountId, $refundAmount, "Terugboeking bestelling #$orderId", $orderId]);
+
+                    $pdo->commit();
+
+                    sendCancellationEmail($pdo, $orderId);
+
+                    echo json_encode([
+                        'success' => true,
+                        'message' => 'Bestelling geannuleerd. Het bedrag van €' . number_format($refundAmount, 2, ',', '.') . ' is teruggestort op uw saldo.',
+                        'refunded' => true
+                    ]);
+                    exit;
+                }
+
                 $refundResult = null;
                 $refundCheck = canRefundOrder($pdo, $orderId);
-                
+
                 if ($refundCheck['can_refund']) {
                     $refundResult = createMollieRefund(
                         $refundCheck['mollie_payment_id'],

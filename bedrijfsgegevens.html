@@ -322,7 +322,7 @@
                         <div class="profile-grid">
                             <div class="profile-card">
                                 <h3>
-                                    Bedrijfsinformatie
+                                    {{ account.account_type === 'particulier' ? 'Persoonlijke gegevens' : 'Bedrijfsinformatie' }}
                                     <button @click="openModal('business')" class="btn-edit" title="Bewerken">
                                         <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                                             <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
@@ -330,23 +330,25 @@
                                         </svg>
                                     </button>
                                 </h3>
-                                <p class="card-note">Wordt gebruikt voor facturatie</p>
+                                <p class="card-note">{{ account.account_type === 'particulier' ? 'Uw persoonlijke gegevens' : 'Wordt gebruikt voor facturatie' }}</p>
                                 <div class="profile-details">
                                     <dl>
-                                        <dt>Bedrijfsnaam</dt>
+                                        <dt>{{ account.account_type === 'particulier' ? 'Naam' : 'Bedrijfsnaam' }}</dt>
                                         <dd>{{ account.bedrijfsnaam }}</dd>
-                                        
+
                                         <dt>Adres</dt>
                                         <dd>{{ account.adres }}<br>{{ account.postcode }} {{ account.plaats }}</dd>
-                                        
-                                        <dt>KVK-nummer</dt>
-                                        <dd>{{ account.kvk_nummer || '-' }}</dd>
-                                        
-                                        <dt>BTW-ID</dt>
-                                        <dd>{{ account.btw_id || '-' }}</dd>
-                                        
-                                        <dt v-if="account.website">Website</dt>
-                                        <dd v-if="account.website"><a :href="account.website" target="_blank">{{ account.website }}</a></dd>
+
+                                        <template v-if="account.account_type !== 'particulier'">
+                                            <dt>KVK-nummer</dt>
+                                            <dd>{{ account.kvk_nummer || '-' }}</dd>
+
+                                            <dt>BTW-ID</dt>
+                                            <dd>{{ account.btw_id || '-' }}</dd>
+
+                                            <dt v-if="account.website">Website</dt>
+                                            <dd v-if="account.website"><a :href="account.website" target="_blank">{{ account.website }}</a></dd>
+                                        </template>
                                     </dl>
                                 </div>
                             </div>
@@ -392,7 +394,7 @@
                                 
                                 <label class="checkbox-label">
                                     <input type="checkbox" v-model="account.delivery_same_as_business" @change="toggleDeliveryAddress">
-                                    <span>Zelfde als bedrijfsadres</span>
+                                    <span>{{ account.account_type === 'particulier' ? 'Zelfde als thuisadres' : 'Zelfde als bedrijfsadres' }}</span>
                                 </label>
                                 
                                 <div v-if="account.delivery_same_as_business" class="same-address-note">
@@ -423,12 +425,12 @@
 
                     <div class="modal-overlay" :class="{ active: activeModal === 'business' }" @click.self="closeModal">
                         <div class="modal">
-                            <h3>Bedrijfsinformatie bewerken</h3>
+                            <h3>{{ account.account_type === 'particulier' ? 'Gegevens bewerken' : 'Bedrijfsinformatie bewerken' }}</h3>
                             <div v-if="editError" class="error-msg">{{ editError }}</div>
                             <div v-if="editSuccess" class="success-msg">{{ editSuccess }}</div>
                             <form @submit.prevent="saveBusinessInfo">
                                 <div class="form-group">
-                                    <label>Bedrijfsnaam *</label>
+                                    <label>{{ account.account_type === 'particulier' ? 'Naam' : 'Bedrijfsnaam' }} *</label>
                                     <input type="text" v-model="businessForm.bedrijfsnaam" required>
                                 </div>
                                 <div class="form-group">
@@ -445,20 +447,22 @@
                                         <input type="text" v-model="businessForm.plaats">
                                     </div>
                                 </div>
-                                <div class="form-group">
-                                    <label>Website</label>
-                                    <input type="url" v-model="businessForm.website" placeholder="https://">
-                                </div>
-                                <div class="form-row">
+                                <template v-if="account.account_type !== 'particulier'">
                                     <div class="form-group">
-                                        <label>KVK-nummer</label>
-                                        <input type="text" v-model="businessForm.kvk_nummer">
+                                        <label>Website</label>
+                                        <input type="url" v-model="businessForm.website" placeholder="https://">
                                     </div>
-                                    <div class="form-group">
-                                        <label>BTW-ID</label>
-                                        <input type="text" v-model="businessForm.btw_id">
+                                    <div class="form-row">
+                                        <div class="form-group">
+                                            <label>KVK-nummer</label>
+                                            <input type="text" v-model="businessForm.kvk_nummer">
+                                        </div>
+                                        <div class="form-group">
+                                            <label>BTW-ID</label>
+                                            <input type="text" v-model="businessForm.btw_id">
+                                        </div>
                                     </div>
-                                </div>
+                                </template>
                                 <div class="modal-actions">
                                     <button type="button" class="btn btn-outline" @click="closeModal">Annuleren</button>
                                     <button type="submit" class="btn" :disabled="saving">{{ saving ? 'Opslaan...' : 'Opslaan' }}</button>

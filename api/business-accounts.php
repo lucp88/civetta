@@ -22,14 +22,29 @@ switch ($method) {
         }
         
         $status = $_GET['status'] ?? null;
-        
+        $accountType = $_GET['account_type'] ?? null;
+
         try {
+            $where = [];
+            $params = [];
+
             if ($status) {
-                $stmt = $pdo->prepare("SELECT * FROM business_accounts WHERE status = ? ORDER BY created_at DESC");
-                $stmt->execute([$status]);
-            } else {
-                $stmt = $pdo->query("SELECT * FROM business_accounts ORDER BY created_at DESC");
+                $where[] = "status = ?";
+                $params[] = $status;
             }
+            if ($accountType) {
+                $where[] = "account_type = ?";
+                $params[] = $accountType;
+            }
+
+            $sql = "SELECT * FROM business_accounts";
+            if ($where) {
+                $sql .= " WHERE " . implode(" AND ", $where);
+            }
+            $sql .= " ORDER BY created_at DESC";
+
+            $stmt = $pdo->prepare($sql);
+            $stmt->execute($params);
             $accounts = $stmt->fetchAll();
             echo json_encode(['success' => true, 'accounts' => $accounts]);
         } catch (PDOException $e) {
@@ -52,7 +67,13 @@ switch ($method) {
         $kvk_nummer = trim($data['kvk_nummer'] ?? '');
         $btw_id = trim($data['btw_id'] ?? '');
         $opmerkingen = trim($data['opmerkingen'] ?? '');
-        
+        $accountType = $data['account_type'] ?? 'zakelijk';
+        $hasBalance = !empty($data['has_balance']) ? 1 : 0;
+
+        if (!in_array($accountType, ['zakelijk', 'particulier'])) {
+            $accountType = 'zakelijk';
+        }
+
         if (!$bedrijfsnaam || !$adres || !$contactpersoon || !$email) {
             http_response_code(400);
             echo json_encode(['success' => false, 'error' => 'Vul alle verplichte velden in']);
@@ -75,10 +96,10 @@ switch ($method) {
             }
             
             $stmt = $pdo->prepare("
-                INSERT INTO business_accounts (bedrijfsnaam, adres, postcode, plaats, contactpersoon, email, telefoon, website, kvk_nummer, btw_id, opmerkingen, status)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending')
+                INSERT INTO business_accounts (account_type, bedrijfsnaam, adres, postcode, plaats, contactpersoon, email, telefoon, website, kvk_nummer, btw_id, has_balance, opmerkingen, status)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending')
             ");
-            $stmt->execute([$bedrijfsnaam, $adres, $postcode, $plaats, $contactpersoon, $email, $telefoon, $website, $kvk_nummer, $btw_id, $opmerkingen]);
+            $stmt->execute([$accountType, $bedrijfsnaam, $adres, $postcode, $plaats, $contactpersoon, $email, $telefoon, $website, $kvk_nummer, $btw_id, $hasBalance, $opmerkingen]);
             
             $id = $pdo->lastInsertId();
             
@@ -220,12 +241,21 @@ switch ($method) {
                     }
                 }
                 
-                $stmt = $pdo->prepare("
-                    UPDATE business_accounts 
-                    SET bedrijfsnaam = ?, adres = ?, postcode = ?, plaats = ?, contactpersoon = ?, email = ?, telefoon = ?, website = ?, kvk_nummer = ?, btw_id = ?
-                    WHERE id = ?
-                ");
-                $stmt->execute([$bedrijfsnaam, $adres, $postcode, $plaats, $contactpersoon, $email, $telefoon, $website, $kvk_nummer, $btw_id, $id]);
+                $hasBalanceUpdate = isset($data['has_balance']) ? (!empty($data['has_balance']) ? 1 : 0) : null;
+
+                $sql = "UPDATE business_accounts SET bedrijfsnaam = ?, adres = ?, postcode = ?, plaats = ?, contactpersoon = ?, email = ?, telefoon = ?, website = ?, kvk_nummer = ?, btw_id = ?";
+                $params = [$bedrijfsnaam, $adres, $postcode, $plaats, $contactpersoon, $email, $telefoon, $website, $kvk_nummer, $btw_id];
+
+                if ($hasBalanceUpdate !== null) {
+                    $sql .= ", has_balance = ?";
+                    $params[] = $hasBalanceUpdate;
+                }
+
+                $sql .= " WHERE id = ?";
+                $params[] = $id;
+
+                $stmt = $pdo->prepare($sql);
+                $stmt->execute($params);
                 
                 echo json_encode(['success' => true, 'message' => 'Account bijgewerkt']);
             } elseif ($action === 'reset_password') {

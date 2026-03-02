@@ -164,12 +164,12 @@ $adminBasePath = '../';
                         <span class="badge active">Actief</span>
                     </a>
 
-                    <div class="account-card disabled">
+                    <a href="accounts-particulieren.php" class="account-card">
                         <div class="icon"><i class="bi bi-person"></i></div>
                         <h3>Particulieren</h3>
                         <p>Beheer particuliere klantaccounts voor consumenten.</p>
-                        <span class="badge coming-soon">Komt binnenkort</span>
-                    </div>
+                        <span class="badge active">Actief</span>
+                    </a>
 
                     <a href="accounts-admin.php" class="account-card">
                         <div class="icon"><i class="bi bi-shield-lock"></i></div>

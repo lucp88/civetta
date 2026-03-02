@@ -222,13 +222,17 @@
                             <a href="bedrijfsgegevens.html" class="nav-card">
                                 <div class="nav-card-icon purple">&#9881;</div>
                                 <div class="nav-card-content">
-                                    <h3>Bedrijfsgegevens</h3>
-                                    <p>Beheer uw bedrijfsinformatie</p>
+                                    <h3>{{ accountType === 'particulier' ? 'Mijn Gegevens' : 'Bedrijfsgegevens' }}</h3>
+                                    <p>{{ accountType === 'particulier' ? 'Beheer uw gegevens' : 'Beheer uw bedrijfsinformatie' }}</p>
                                 </div>
                             </a>
                         </div>
 
                         <div class="quick-stats">
+                            <div v-if="hasBalance" class="stat-card">
+                                <h4>Saldo</h4>
+                                <div class="value price">{{ formatPrice(balance) }}</div>
+                            </div>
                             <div class="stat-card">
                                 <h4>Lopende Bestellingen</h4>
                                 <div class="value">{{ lopendeBestellingen }}</div>
@@ -273,7 +277,10 @@
                 return {
                     loading: true,
                     account: {},
-                    orders: []
+                    orders: [],
+                    accountType: 'zakelijk',
+                    hasBalance: false,
+                    balance: 0
                 };
             },
             
@@ -316,6 +323,9 @@
                         
                         if (data.success) {
                             this.account = data.account;
+                            this.accountType = data.account.account_type || 'zakelijk';
+                            this.hasBalance = !!parseInt(data.account.has_balance || 0);
+                            this.balance = parseFloat(data.account.balance || 0);
                             this.loading = false;
                         } else {
                             sessionStorage.removeItem('businessAccount');

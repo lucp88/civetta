@@ -15,8 +15,8 @@
     <link rel="icon" type="image/png" sizes="512x512" href="img/icon-512.png">
     <link rel="apple-touch-icon" href="img/icon-192.png">
     <link rel="stylesheet" href="css/style.css">
-    <link rel="stylesheet" href="css/order-shared.css?v=1">
-    <link rel="stylesheet" href="css/checkout.css?v=1">
+    <link rel="stylesheet" href="css/order-shared.css?v=2">
+    <link rel="stylesheet" href="css/checkout.css?v=2">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link href="https://fonts.googleapis.com/css2?family=Libre+Baskerville:ital,wght@0,400;0,700;1,400&family=Source+Sans+Pro:wght@400;600&display=swap" rel="stylesheet">
 </head>
@@ -250,18 +250,30 @@
                                 <div v-else class="payment-section">
                                     <div class="payment-label">Betaalmethode</div>
                                     <div class="payment-toggle">
-                                        <button type="button" 
-                                                class="payment-toggle-btn" 
+                                        <button type="button"
+                                                class="payment-toggle-btn"
                                                 :class="{ active: paymentType === 'direct' }"
                                                 @click="paymentType = 'direct'">
                                             iDEAL / Direct
                                         </button>
-                                        <button type="button" 
-                                                class="payment-toggle-btn" 
+                                        <button v-if="accountType !== 'particulier'"
+                                                type="button"
+                                                class="payment-toggle-btn"
                                                 :class="{ active: paymentType === 'later' }"
                                                 @click="paymentType = 'later'">
                                             Op factuur
                                         </button>
+                                        <button v-if="hasBalance"
+                                                type="button"
+                                                class="payment-toggle-btn"
+                                                :class="{ active: paymentType === 'saldo' }"
+                                                :disabled="accountBalance < orderData.total_amount"
+                                                @click="paymentType = 'saldo'">
+                                            Saldo ({{ formatPrice(accountBalance) }})
+                                        </button>
+                                    </div>
+                                    <div v-if="hasBalance && accountBalance < orderData.total_amount" style="font-size: 0.85rem; color: #888; margin-top: 0.5rem;">
+                                        Onvoldoende saldo voor deze bestelling
                                     </div>
                                 </div>
                                 
@@ -341,6 +353,9 @@
                 submitting: false,
                 error: '',
                 btwTarief: 9,
+                accountType: 'zakelijk',
+                hasBalance: false,
+                accountBalance: 0,
                 isRecurring: false,
                 recurringName: '',
                 recurringFrequency: 'weekly',
@@ -393,6 +408,7 @@
             buttonText() {
                 if (!this.deliveryDate) return 'Kies eerst een datum';
                 if (this.isRecurring) return 'Bestelling plaatsen';
+                if (this.paymentType === 'saldo') return 'Betalen met saldo';
                 return this.paymentType === 'direct' ? 'Betalen' : 'Bestelling plaatsen';
             }
         },
@@ -429,6 +445,9 @@ async mounted() {
                     if (data.success) {
                         this.account = data.account;
                         const acc = data.account;
+                        this.accountType = acc.account_type || 'zakelijk';
+                        this.hasBalance = !!parseInt(acc.has_balance || 0);
+                        this.accountBalance = parseFloat(acc.balance || 0);
                         const useBusiness = acc.delivery_same_as_business === undefined || !!parseInt(acc.delivery_same_as_business);
                         
                         this.deliveryAddress = {
@@ -506,7 +525,10 @@ async mounted() {
                         if (data.payment_url) {
                             window.location.href = data.payment_url;
                         } else {
-                            const status = this.isRecurring ? 'recurring' : (this.paymentType === 'later' ? 'invoice_sent' : 'success');
+                            let status = 'success';
+                            if (this.isRecurring) status = 'recurring';
+                            else if (this.paymentType === 'later') status = 'invoice_sent';
+                            else if (this.paymentType === 'saldo') status = 'saldo_paid';
                             window.location.href = 'bedankt-bestelling.html?order_id=' + data.order_id + '&status=' + status;
                         }
                     } else {

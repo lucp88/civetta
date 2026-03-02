@@ -68,7 +68,8 @@ createApp({
                 paid: true,
                 pending: true,
                 factuur: true,
-                ideal: true
+                ideal: true,
+                saldo: true
             }
         };
     },
@@ -173,10 +174,11 @@ createApp({
             const isPending = order.payment_status === 'pending';
             const isFactuur = order.payment_type === 'factuur' || order.payment_type === 'invoice';
             const isIdeal = order.payment_type === 'ideal' || order.payment_type === 'mollie_direct';
-            
+            const isSaldo = order.payment_type === 'saldo';
+
             const statusMatch = (this.filters.paid && isPaid) || (this.filters.pending && isPending);
-            const typeMatch = (this.filters.factuur && isFactuur) || (this.filters.ideal && isIdeal);
-            
+            const typeMatch = (this.filters.factuur && isFactuur) || (this.filters.ideal && isIdeal) || (this.filters.saldo && isSaldo);
+
             return statusMatch && typeMatch;
         },
         
@@ -864,10 +866,12 @@ createApp({
             const inBereiding = ['wordt_bereid', 'onderweg', 'afgeleverd'].includes(order.delivery_status);
             if (inBereiding) return false;
             
-            const isMolliePaid = order.payment_status === 'paid' && 
+            const isMolliePaid = order.payment_status === 'paid' &&
                                  (order.payment_type === 'ideal' || order.payment_type === 'mollie_direct');
             if (isMolliePaid) return false;
-            
+
+            if (order.payment_type === 'saldo' && order.payment_status === 'paid') return false;
+
             if (typeof order.can_edit !== 'undefined') {
                 return order.can_edit;
             }
@@ -1172,17 +1176,19 @@ createApp({
         },
         
         getPaymentTypeIcon(order) {
+            if (order.payment_type === 'saldo') return 'bi bi-wallet2';
             if (order.payment_type === 'ideal') return 'bi bi-credit-card';
             if (order.invoice_status === 'gefactureerd') return 'bi bi-file-earmark-text';
             return 'bi bi-receipt';
         },
-        
+
         getPaymentTypeLabel(type) {
             const labels = {
                 'ideal': 'iDEAL',
                 'mollie_direct': 'iDEAL',
                 'factuur': 'Factuur',
                 'invoice': 'Factuur',
+                'saldo': 'Saldo',
                 'cash': 'Contant'
             };
             return labels[type] || type;

@@ -10,6 +10,7 @@
  * Uitgesloten van automatische facturatie:
  * - Bestellingen die al gefactureerd zijn
  * - Bestellingen betaald via iDeal (die worden direct gefactureerd)
+ * - Bestellingen betaald via saldo (geen factuur nodig)
  * - Geannuleerde bestellingen
  * 
  * Draai dit script elk uur via cron:
@@ -88,6 +89,7 @@ function getOrdersToInvoice($pdo, $settings) {
         JOIN business_accounts ba ON bo.account_id = ba.id
         WHERE bo.delivery_date = ?
           AND bo.payment_type IN ('factuur', 'invoice')
+          AND bo.payment_type != 'saldo'
           AND (bo.eboekhouden_invoice_id IS NULL OR bo.eboekhouden_invoice_id = '')
           AND (bo.invoice_number IS NULL OR bo.invoice_number = '')
           AND (bo.is_cancelled IS NULL OR bo.is_cancelled = 0)

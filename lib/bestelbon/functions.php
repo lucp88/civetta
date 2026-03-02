@@ -191,6 +191,16 @@ function generateBestelbon($pdo, $orderId, $outputPath = null) {
         $pdf->SetFont('Helvetica', '', 9);
         $pdf->Ln(5);
         $pdf->MultiCell(0, 5, 'Dit is een interne bestelling. Er wordt geen factuur aangemaakt.', 0, 'L');
+    } elseif (!empty($order['payment_type']) && $order['payment_type'] === 'saldo') {
+        $pdf->SetFillColor(200, 230, 201);
+        $pdf->SetTextColor(27, 94, 32);
+        $pdf->SetFont('Helvetica', 'B', 10);
+        $pdf->Cell(0, 8, 'BETAALD MET SALDO', 0, 1, 'C', true);
+
+        $pdf->SetTextColor(0);
+        $pdf->SetFont('Helvetica', '', 9);
+        $pdf->Ln(5);
+        $pdf->MultiCell(0, 5, 'Deze bestelling is betaald met uw tegoed. Er wordt geen separate factuur aangemaakt.', 0, 'L');
     } else {
         $pdf->SetFillColor(255, 243, 205);
         $pdf->SetTextColor(133, 100, 4);
