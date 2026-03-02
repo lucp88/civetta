@@ -178,10 +178,10 @@ switch ($method) {
             exit;
         }
         
-        $minDate = date('Y-m-d', strtotime('+2 days'));
-        if ($deliveryDate < $minDate) {
+        // Delivery date must be in the future
+        if ($deliveryDate < date('Y-m-d')) {
             http_response_code(400);
-            echo json_encode(['success' => false, 'error' => 'Leverdatum moet minimaal 2 dagen in de toekomst liggen']);
+            echo json_encode(['success' => false, 'error' => 'Leverdatum moet in de toekomst liggen']);
             exit;
         }
 

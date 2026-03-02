@@ -14,8 +14,9 @@
     <link rel="icon" type="image/png" sizes="192x192" href="img/icon-192.png">
     <link rel="icon" type="image/png" sizes="512x512" href="img/icon-512.png">
     <link rel="apple-touch-icon" href="img/icon-192.png">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
     <link rel="stylesheet" href="css/style.css">
-    <link rel="stylesheet" href="css/order-shared.css?v=3">
+    <link rel="stylesheet" href="css/order-shared.css?v=4">
     <link rel="stylesheet" href="css/checkout.css?v=3">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link href="https://fonts.googleapis.com/css2?family=Libre+Baskerville:ital,wght@0,400;0,700;1,400&family=Source+Sans+Pro:wght@400;600&display=swap" rel="stylesheet">
@@ -98,7 +99,7 @@
                             </div>
                             <div class="form-group">
                                 <label>{{ isPickup ? 'Ophaaldatum' : 'Leverdatum' }}</label>
-                <input type="date" v-model="deliveryDate" :min="minDeliveryDateStr" class="date-input" :class="{ valid: isValidDeliveryDate, invalid: deliveryDate && !isValidDeliveryDate }">
+                <input type="text" ref="datePicker" class="date-input" :class="{ valid: isValidDeliveryDate, invalid: deliveryDate && !isValidDeliveryDate }" readonly placeholder="Kies een datum...">
                                 <div v-if="!deliveryDate" class="date-hint">
                                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                                         <circle cx="12" cy="12" r="10"/>
@@ -123,7 +124,7 @@
                                         <line x1="12" y1="17" x2="12.01" y2="17"/>
                                     </svg>
                                     <span>Niet genoeg voorbereidingstijd. Er zijn minimaal {{ voorbereidingDagen }} bakdagen nodig.
-                                        <a v-if="nextBakdag" href="#" @click.prevent="deliveryDate = minDeliveryDateStr" class="next-bakdag-link">Vroegst mogelijke datum: {{ formatDateNL(minDeliveryDateStr) }}</a>
+                                        <a v-if="nextBakdag" href="#" @click.prevent="selectEarliestDate" class="next-bakdag-link">Vroegst mogelijke datum: {{ formatDateNL(minDeliveryDateStr) }}</a>
                                     </span>
                                 </div>
                                 <div v-else class="date-hint valid">
@@ -135,7 +136,7 @@
                             </div>
                             <div class="form-group">
                                 <label>Opmerkingen <span class="optional">(optioneel)</span></label>
-                                <textarea v-model="notes" placeholder="{{ isPickup ? 'Speciale wensen...' : 'Leverinstructies, speciale wensen...' }}" rows="2"></textarea>
+                                <textarea v-model="notes" placeholder="Speciale wensen..." rows="2"></textarea>
                             </div>
                         </div>
 
@@ -315,12 +316,12 @@
                                                 type="button"
                                                 class="payment-toggle-btn"
                                                 :class="{ active: paymentType === 'saldo' }"
-                                                :disabled="accountBalance < orderData.total_amount"
+                                                :disabled="accountBalance < orderTotal"
                                                 @click="paymentType = 'saldo'">
                                             Saldo ({{ formatPrice(accountBalance) }})
                                         </button>
                                     </div>
-                                    <div v-if="hasBalance && accountBalance < orderData.total_amount" style="font-size: 0.85rem; color: #888; margin-top: 0.5rem;">
+                                    <div v-if="hasBalance && accountBalance < orderTotal" style="font-size: 0.85rem; color: #888; margin-top: 0.5rem;">
                                         Onvoldoende saldo voor deze bestelling
                                     </div>
                                 </div>
@@ -383,6 +384,8 @@
         </div>
     </footer>
 
+    <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
+    <script src="https://cdn.jsdelivr.net/npm/flatpickr/dist/l10n/nl.js"></script>
     <script src="https://unpkg.com/vue@3/dist/vue.global.prod.js"></script>
         <script src="js/main.js"></script>
     <script>
@@ -419,25 +422,22 @@
                 favoriteName: '',
                 sidebarExpanded: false,
                 showAddressModal: false,
-                editAddress: {}
+                editAddress: {},
+                flatpickrInstance: null
             };
         },
         
         computed: {
             minDeliveryDateStr() {
-                // Minimum is the earliest bakdag with enough preparation days
+                // Earliest bakdag where the bakproces (voorbereiding_dagen bakdagen) fits
                 if (this.bakdagen.length > 0) {
                     const today = new Date();
                     today.setHours(0, 0, 0, 0);
                     const todayStr = this.toDateStr(today);
-                    const minDateFallback = new Date();
-                    minDateFallback.setDate(minDateFallback.getDate() + 2);
-                    const minDateStr = this.toDateStr(minDateFallback);
 
-                    // Find earliest bakdag that has enough voorbereiding bakdagen before it
+                    // Find earliest bakdag that has enough bakdagen from today to it
                     for (const bakdag of this.bakdagen) {
-                        if (bakdag < minDateStr) continue;
-                        // Count bakdagen from today to this bakdag
+                        if (bakdag < todayStr) continue;
                         let count = 0;
                         for (const d of this.bakdagen) {
                             if (d >= todayStr && d <= bakdag) count++;
@@ -445,10 +445,15 @@
                         if (count >= this.voorbereidingDagen) return bakdag;
                     }
                 }
-                // Fallback: +2 days
+                // Fallback: tomorrow
                 const date = new Date();
-                date.setDate(date.getDate() + 2);
+                date.setDate(date.getDate() + 1);
                 return this.toDateStr(date);
+            },
+
+            availableBakdagen() {
+                // Only bakdagen from the minimum delivery date onwards
+                return this.bakdagen.filter(d => d >= this.minDeliveryDateStr);
             },
 
             isBakdag() {
@@ -539,19 +544,30 @@
             }
         },
         
+        watch: {
+            availableBakdagen(dates) {
+                if (this.flatpickrInstance) {
+                    this.flatpickrInstance.set('enable', dates);
+                    if (this.minDeliveryDateStr) {
+                        this.flatpickrInstance.set('minDate', this.minDeliveryDateStr);
+                    }
+                }
+            }
+        },
+
 async mounted() {
             const stored = sessionStorage.getItem('businessAccount');
             if (!stored) {
                 window.location.href = 'login-bedrijven.html';
                 return;
             }
-            
+
             const checkoutData = sessionStorage.getItem('checkoutData');
             if (!checkoutData) {
                 this.loading = false;
                 return;
             }
-            
+
             const parsedData = JSON.parse(checkoutData);
             this.orderData = parsedData;
             if (parsedData.save_as_favorite) {
@@ -560,6 +576,13 @@ async mounted() {
             }
             await Promise.all([this.loadAccount(), this.loadBakdagen()]);
             this.loading = false;
+            this.$nextTick(() => this.initFlatpickr());
+        },
+
+        beforeUnmount() {
+            if (this.flatpickrInstance) {
+                this.flatpickrInstance.destroy();
+            }
         },
         
         methods: {
@@ -587,9 +610,35 @@ async mounted() {
                 }
             },
 
+            initFlatpickr() {
+                if (!this.$refs.datePicker) return;
+                this.flatpickrInstance = flatpickr(this.$refs.datePicker, {
+                    locale: 'nl',
+                    dateFormat: 'Y-m-d',
+                    altInput: true,
+                    altFormat: 'l j F Y',
+                    enable: this.availableBakdagen,
+                    minDate: this.minDeliveryDateStr || 'today',
+                    disableMobile: true,
+                    onChange: (selectedDates, dateStr) => {
+                        this.deliveryDate = dateStr;
+                    }
+                });
+            },
+
             selectNextBakdag() {
                 if (this.nextBakdag) {
                     this.deliveryDate = this.nextBakdag;
+                    if (this.flatpickrInstance) {
+                        this.flatpickrInstance.setDate(this.nextBakdag, false);
+                    }
+                }
+            },
+
+            selectEarliestDate() {
+                this.deliveryDate = this.minDeliveryDateStr;
+                if (this.flatpickrInstance) {
+                    this.flatpickrInstance.setDate(this.minDeliveryDateStr, false);
                 }
             },
 
@@ -606,6 +655,9 @@ async mounted() {
                         this.accountBalance = parseFloat(acc.balance || 0);
                         this.deliveryEnabled = !!parseInt(acc.delivery_enabled || 0);
                         this.deliveryCost = parseFloat(acc.delivery_cost || 0);
+                        if (this.hasBalance && this.accountBalance > 0) {
+                            this.paymentType = 'saldo';
+                        }
                         const useBusiness = acc.delivery_same_as_business === undefined || !!parseInt(acc.delivery_same_as_business);
 
                         this.deliveryAddress = {

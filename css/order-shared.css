@@ -289,6 +289,94 @@
     filter: invert(35%) sepia(30%) saturate(800%) hue-rotate(350deg);
 }
 
+/* Flatpickr alt input styling */
+.date-input + .flatpickr-input + input.form-control {
+    width: 100%;
+    padding: 0.7rem 0.9rem;
+    border: 2px solid var(--color-parchment);
+    border-radius: 8px;
+    font-size: 0.95rem;
+    font-family: var(--font-body);
+    background: white;
+    color: var(--color-charcoal);
+    cursor: pointer;
+    transition: border-color 0.2s ease;
+}
+
+/* Flatpickr calendar theme */
+.flatpickr-calendar {
+    border-radius: 12px;
+    box-shadow: 0 8px 30px rgba(139, 90, 43, 0.15);
+    border: 1px solid #e8ddd0;
+    font-family: var(--font-body);
+}
+
+.flatpickr-months .flatpickr-month {
+    background: #8b5a2b;
+    color: white;
+    border-radius: 11px 11px 0 0;
+}
+
+.flatpickr-months .flatpickr-prev-month,
+.flatpickr-months .flatpickr-next-month {
+    fill: white;
+    color: white;
+}
+
+.flatpickr-months .flatpickr-prev-month:hover svg,
+.flatpickr-months .flatpickr-next-month:hover svg {
+    fill: #f5e6d3;
+}
+
+.flatpickr-current-month .flatpickr-monthDropdown-months,
+.flatpickr-current-month input.cur-year {
+    color: white;
+    font-weight: 600;
+}
+
+.flatpickr-current-month .flatpickr-monthDropdown-months:hover {
+    background: rgba(255, 255, 255, 0.15);
+}
+
+span.flatpickr-weekday {
+    color: #8b5a2b;
+    font-weight: 600;
+    font-size: 0.8rem;
+}
+
+.flatpickr-day {
+    border-radius: 8px;
+    color: #5c3d1e;
+}
+
+.flatpickr-day:hover {
+    background: #f5e6d3;
+    border-color: #d4a574;
+}
+
+.flatpickr-day.selected,
+.flatpickr-day.selected:hover {
+    background: #8b5a2b;
+    border-color: #8b5a2b;
+    color: white;
+}
+
+.flatpickr-day.today {
+    border-color: #d4a574;
+}
+
+.flatpickr-day.today:hover {
+    background: #f5e6d3;
+    color: #5c3d1e;
+}
+
+.flatpickr-day.flatpickr-disabled,
+.flatpickr-day.flatpickr-disabled:hover {
+    color: #ccc;
+    background: transparent;
+    cursor: not-allowed;
+}
+
 .date-hint {
     display: flex;
     align-items: center;
