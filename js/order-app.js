@@ -93,7 +93,7 @@ const app = createApp({
         },
         
         canOrder() {
-            return this.cartItems.length > 0 && this.deliveryDate && this.totalAmount > 0;
+            return this.cartItems.length > 0 && this.deliveryDate;
         },
         
         canSaveFavorite() {
@@ -140,7 +140,7 @@ const app = createApp({
                 const response = await fetch('api/products.php');
                 const data = await response.json();
                 if (data.success) {
-                    this.products = data.products.filter(p => (p.prijs && p.prijs > 0) || (p.variants && p.variants.length > 0));
+                    this.products = data.products.filter(p => (p.prijs != null) || (p.variants && p.variants.length > 0));
                     this.allAllergens = data.all_allergens || [];
                     if (data.btw_tarief) {
                         this.btwTarief = data.btw_tarief;
@@ -321,7 +321,11 @@ const app = createApp({
         
         handleImageError(e) {
             e.target.onerror = null;
-            e.target.src = 'img/placeholder-bread.jpg';
+            e.target.style.display = 'none';
+            const placeholder = document.createElement('div');
+            placeholder.className = 'cart-item-image cart-item-placeholder';
+            placeholder.innerHTML = '<svg viewBox="0 0 80 80" fill="none" xmlns="http://www.w3.org/2000/svg"><ellipse cx="40" cy="42" rx="28" ry="18" fill="#d4a574" opacity="0.4"/><ellipse cx="40" cy="38" rx="26" ry="16" fill="#c4956a" opacity="0.6"/><ellipse cx="40" cy="36" rx="24" ry="14" fill="#b8875c"/></svg>';
+            e.target.parentNode.insertBefore(placeholder, e.target);
         },
         
         showProductDetail(product) {

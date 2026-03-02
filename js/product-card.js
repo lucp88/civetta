@@ -178,6 +178,10 @@ const ProductDetailModal = {
         allAllergens: {
             type: Array,
             default: () => []
+        },
+        cartCounts: {
+            type: Object,
+            default: () => ({ simple: 0, variants: {} })
         }
     },
 
@@ -189,7 +193,8 @@ const ProductDetailModal = {
             showAllergens: true,
             variantQty: {},
             addedVariantId: null,
-            simpleQty: 1
+            simpleQty: 1,
+            simpleAdded: false
         };
     },
 
@@ -314,6 +319,7 @@ const ProductDetailModal = {
                                 <span class="variant-prijs">{{ formatPrice(v.prijs) }}</span>
                             </div>
                             <div v-if="showAddToCart" class="variant-actions">
+                                <span v-if="cartCounts.variants[v.id]" class="cart-count-hint">{{ cartCounts.variants[v.id] }} in wagen</span>
                                 <div class="variant-qty-group">
                                     <button class="variant-qty-btn" @click="changeQty(v.id, -1)">-</button>
                                     <input type="number" class="variant-qty-input" :value="variantQty[v.id] || 1" @change="setQty(v.id, $event.target.value)" min="1">
@@ -333,18 +339,22 @@ const ProductDetailModal = {
                         </div>
                     </div>
                     <template v-else>
-                        <div v-if="product.prijs" class="product-modal-price">
+                        <div v-if="product.prijs !== undefined && product.prijs !== null" class="product-modal-price">
                             {{ formatPrice(product.prijs) }}
                         </div>
-                        <div v-if="showAddToCart && product.prijs" class="modal-simple-actions">
-                            <div class="variant-qty-group">
-                                <button class="variant-qty-btn" @click="simpleQty = Math.max(1, simpleQty - 1)">-</button>
-                                <input type="number" class="variant-qty-input" v-model.number="simpleQty" min="1">
-                                <button class="variant-qty-btn" @click="simpleQty++">+</button>
+                        <div v-if="showAddToCart && (product.prijs !== undefined && product.prijs !== null)" class="modal-simple-row">
+                            <span v-if="cartCounts.simple > 0" class="cart-count-hint">{{ cartCounts.simple }} in wagen</span>
+                            <div class="modal-simple-actions">
+                                <div class="variant-qty-group">
+                                    <button class="variant-qty-btn" @click="simpleQty = Math.max(1, simpleQty - 1)">-</button>
+                                    <input type="number" class="variant-qty-input" v-model.number="simpleQty" min="1">
+                                    <button class="variant-qty-btn" @click="simpleQty++">+</button>
+                                </div>
+                                <button class="modal-add-simple-btn" :class="{ added: simpleAdded }" @click="addSimple">
+                                    <template v-if="simpleAdded">Toegevoegd ✓</template>
+                                    <template v-else>Toevoegen</template>
+                                </button>
                             </div>
-                            <button class="modal-add-simple-btn" @click="addSimple">
-                                Toevoegen
-                            </button>
                         </div>
                     </template>
                 </div>
@@ -373,6 +383,8 @@ const ProductDetailModal = {
         },
         addSimple() {
             this.$emit('add-simple', { product: this.product, quantity: this.simpleQty });
+            this.simpleAdded = true;
+            setTimeout(() => { this.simpleAdded = false; }, 1200);
         }
     }
 };
@@ -900,6 +912,18 @@ const productCardStyles = `
     }
     .modal-add-simple-btn:hover {
         background: var(--color-crust-dark);
+    }
+    .modal-add-simple-btn.added {
+        background: #2d5a27;
+    }
+    .modal-simple-row {
+        margin-top: 1rem;
+    }
+    .cart-count-hint {
+        font-size: 0.8rem;
+        color: #2d5a27;
+        font-weight: 600;
+        white-space: nowrap;
     }
 `;
 

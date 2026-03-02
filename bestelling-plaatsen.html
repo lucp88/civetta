@@ -16,7 +16,7 @@
     <link rel="apple-touch-icon" href="img/icon-192.png">
     <link rel="stylesheet" href="css/style.css">
     <link rel="stylesheet" href="css/order-shared.css?v=1">
-    <link rel="stylesheet" href="css/bestelling-plaatsen.css?v=2">
+    <link rel="stylesheet" href="css/bestelling-plaatsen.css?v=3">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link href="https://fonts.googleapis.com/css2?family=Libre+Baskerville:ital,wght@0,400;0,700;1,400&family=Source+Sans+Pro:wght@400;600&display=swap" rel="stylesheet">
 </head>
@@ -105,6 +105,7 @@
                                 :product="selectedProduct"
                                 :show-add-to-cart="true"
                                 :all-allergens="allAllergens"
+                                :cart-counts="getCartCounts(selectedProduct)"
                                 @close="selectedProduct = null"
                                 @add-to-cart="addVariantToCart"
                                 @add-simple="addSimpleFromModal">
@@ -144,10 +145,17 @@
                             
                             <div v-else class="cart-items">
                                 <div v-for="item in cartItems" :key="item.key" class="cart-item">
-                                    <img :src="item.product.foto || 'img/placeholder-bread.jpg'" 
-                                         :alt="item.product.naam" 
+                                    <img v-if="item.product.foto" :src="item.product.foto"
+                                         :alt="item.product.naam"
                                          class="cart-item-image"
                                          @error="handleImageError">
+                                    <div v-else class="cart-item-image cart-item-placeholder">
+                                        <svg viewBox="0 0 80 80" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                            <ellipse cx="40" cy="42" rx="28" ry="18" fill="#d4a574" opacity="0.4"/>
+                                            <ellipse cx="40" cy="38" rx="26" ry="16" fill="#c4956a" opacity="0.6"/>
+                                            <ellipse cx="40" cy="36" rx="24" ry="14" fill="#b8875c"/>
+                                        </svg>
+                                    </div>
                                     <div class="cart-item-info">
                                         <div class="cart-item-name">{{ item.product.naam }}</div>
                                         <div v-if="item.variantNaam && item.gewicht" class="cart-item-variant">{{ item.variantNaam }} - {{ item.gewicht }}g</div>
@@ -258,7 +266,7 @@
 
     <script src="https://unpkg.com/vue@3/dist/vue.global.prod.js"></script>
     <script src="js/main.js"></script>
-    <script src="js/product-card.js?v=6"></script>
+    <script src="js/product-card.js?v=7"></script>
     <script>
     const { createApp } = Vue;
 
@@ -356,7 +364,7 @@
             },
             
             canOrder() {
-                return this.cartItems.length > 0 && this.totalAmount > 0;
+                return this.cartItems.length > 0;
             },
             
             totalItemCount() {
@@ -399,7 +407,7 @@
                     const data = await response.json();
                     console.log('Products API response:', data);
                     if (data.success) {
-                        this.products = data.products.filter(p => (p.prijs && p.prijs > 0) || (p.variants && p.variants.length > 0));
+                        this.products = data.products.filter(p => (p.prijs != null) || (p.variants && p.variants.length > 0));
                         console.log('Filtered products:', this.products.length, 'of', data.products.length);
                         if (data.btw_tarief) {
                             this.btwTarief = data.btw_tarief;
@@ -614,9 +622,25 @@
             
             handleImageError(e) {
                 e.target.onerror = null;
-                e.target.src = 'img/placeholder-bread.jpg';
+                e.target.style.display = 'none';
+                const placeholder = document.createElement('div');
+                placeholder.className = 'cart-item-image cart-item-placeholder';
+                placeholder.innerHTML = '<svg viewBox="0 0 80 80" fill="none" xmlns="http://www.w3.org/2000/svg"><ellipse cx="40" cy="42" rx="28" ry="18" fill="#d4a574" opacity="0.4"/><ellipse cx="40" cy="38" rx="26" ry="16" fill="#c4956a" opacity="0.6"/><ellipse cx="40" cy="36" rx="24" ry="14" fill="#b8875c"/></svg>';
+                e.target.parentNode.insertBefore(placeholder, e.target);
             },
             
+            getCartCounts(product) {
+                if (!product) return { simple: 0, variants: {} };
+                const simple = this.cart[product.id] || 0;
+                const variants = {};
+                this.variantCart.forEach(item => {
+                    if (item.productId == product.id) {
+                        variants[item.variantId] = item.quantity;
+                    }
+                });
+                return { simple, variants };
+            },
+
             showProductDetail(product) {
                 this.selectedProduct = product;
             },
