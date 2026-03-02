@@ -1473,6 +1473,10 @@ $monthlyBreadCount = (int)$stmt->fetch()['total_breads'];
 
             groupedRecipes() {
                 const groups = {};
+                // Seed with all dough types so empty ones still appear
+                this.doughTypes.forEach(dt => {
+                    groups[dt.id] = { id: dt.id, name: dt.name, recipes: [] };
+                });
                 const uncategorized = [];
                 this.savedRecipes.forEach(r => {
                     if (r.dough_type_id) {
