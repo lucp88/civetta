@@ -44,12 +44,22 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET') {
         $current->modify('+1 day');
     }
 
+    // Get bakery address for pickup location
+    $stmtAddr = $pdo->query("SELECT setting_key, setting_value FROM settings WHERE setting_key IN ('bedrijf_naam', 'bedrijf_adres', 'bedrijf_postcode', 'bedrijf_plaats')");
+    $addrSettings = $stmtAddr->fetchAll(PDO::FETCH_KEY_PAIR);
+
     echo json_encode([
         'success' => true,
         'patroon' => $patroon,
         'voorbereiding_dagen' => $voorbereidingDagen,
         'extra_dagen' => $extraDagen,
-        'bakdagen' => $bakdagen
+        'bakdagen' => $bakdagen,
+        'bakkerij' => [
+            'naam' => $addrSettings['bedrijf_naam'] ?? '',
+            'adres' => $addrSettings['bedrijf_adres'] ?? '',
+            'postcode' => $addrSettings['bedrijf_postcode'] ?? '',
+            'plaats' => $addrSettings['bedrijf_plaats'] ?? ''
+        ]
     ]);
     exit;
 }

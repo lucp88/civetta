@@ -359,7 +359,13 @@ try {
                                     <?php if ($account['has_balance']): ?>
                                         <span class="balance-badge active">
                                             <i class="bi bi-wallet2"></i>
-                                            €<?= number_format($account['balance'], 2, ',', '.') ?>
+                                            &euro;<?= number_format($account['balance'], 2, ',', '.') ?>
+                                        </span>
+                                    <?php endif; ?>
+                                    <?php if (!empty($account['delivery_enabled'])): ?>
+                                        <span class="balance-badge" style="background: #e3f2fd; color: #1565c0;">
+                                            <i class="bi bi-truck"></i>
+                                            Bezorging<?php if ($account['delivery_cost'] > 0): ?> (&euro;<?= number_format($account['delivery_cost'], 2, ',', '.') ?>)<?php endif; ?>
                                         </span>
                                     <?php endif; ?>
                                 </div>
@@ -445,6 +451,18 @@ try {
                         <label for="create-has_balance" style="margin-bottom: 0;">Heeft saldo</label>
                     </div>
                 </div>
+                <div class="form-group">
+                    <div class="checkbox-group">
+                        <input type="checkbox" id="create-delivery_enabled" onchange="toggleCreateDeliveryFields()">
+                        <label for="create-delivery_enabled" style="margin-bottom: 0;">Bezorging ingeschakeld</label>
+                    </div>
+                </div>
+                <div id="create-delivery-fields" style="display: none;">
+                    <div class="form-group">
+                        <label>Bezorgkosten (&euro;)</label>
+                        <input type="number" id="create-delivery_cost" step="0.01" min="0" value="0" placeholder="0.00">
+                    </div>
+                </div>
                 <div class="modal-actions">
                     <button type="button" class="btn btn-secondary" onclick="closeCreateModal()">Annuleren</button>
                     <button type="submit" class="btn btn-success">Aanmaken</button>
@@ -493,6 +511,18 @@ try {
                     <div class="checkbox-group">
                         <input type="checkbox" id="edit-has_balance">
                         <label for="edit-has_balance" style="margin-bottom: 0;">Heeft saldo</label>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <div class="checkbox-group">
+                        <input type="checkbox" id="edit-delivery_enabled" onchange="toggleEditDeliveryFields()">
+                        <label for="edit-delivery_enabled" style="margin-bottom: 0;">Bezorging ingeschakeld</label>
+                    </div>
+                </div>
+                <div id="edit-delivery-fields" style="display: none;">
+                    <div class="form-group">
+                        <label>Bezorgkosten (&euro;)</label>
+                        <input type="number" id="edit-delivery_cost" step="0.01" min="0" value="0" placeholder="0.00">
                     </div>
                 </div>
                 <div class="modal-actions">
@@ -555,9 +585,20 @@ try {
             setTimeout(() => container.innerHTML = '', 5000);
         }
 
+        function toggleCreateDeliveryFields() {
+            document.getElementById('create-delivery-fields').style.display =
+                document.getElementById('create-delivery_enabled').checked ? '' : 'none';
+        }
+
+        function toggleEditDeliveryFields() {
+            document.getElementById('edit-delivery-fields').style.display =
+                document.getElementById('edit-delivery_enabled').checked ? '' : 'none';
+        }
+
         // Create
         function openCreateModal() {
             document.getElementById('create-form').reset();
+            document.getElementById('create-delivery-fields').style.display = 'none';
             document.getElementById('create-modal').classList.add('active');
         }
 
@@ -582,7 +623,9 @@ try {
                 website: '',
                 kvk_nummer: '',
                 btw_id: '',
-                has_balance: document.getElementById('create-has_balance').checked ? 1 : 0
+                has_balance: document.getElementById('create-has_balance').checked ? 1 : 0,
+                delivery_enabled: document.getElementById('create-delivery_enabled').checked ? 1 : 0,
+                delivery_cost: parseFloat(document.getElementById('create-delivery_cost').value) || 0
             };
 
             try {
@@ -616,6 +659,9 @@ try {
             document.getElementById('edit-email').value = account.email || '';
             document.getElementById('edit-telefoon').value = account.telefoon || '';
             document.getElementById('edit-has_balance').checked = !!parseInt(account.has_balance);
+            document.getElementById('edit-delivery_enabled').checked = !!parseInt(account.delivery_enabled);
+            document.getElementById('edit-delivery_cost').value = parseFloat(account.delivery_cost || 0).toFixed(2);
+            toggleEditDeliveryFields();
             document.getElementById('edit-modal').classList.add('active');
         }
 
@@ -640,7 +686,9 @@ try {
                 website: '',
                 kvk_nummer: '',
                 btw_id: '',
-                has_balance: document.getElementById('edit-has_balance').checked ? 1 : 0
+                has_balance: document.getElementById('edit-has_balance').checked ? 1 : 0,
+                delivery_enabled: document.getElementById('edit-delivery_enabled').checked ? 1 : 0,
+                delivery_cost: parseFloat(document.getElementById('edit-delivery_cost').value) || 0
             };
 
             try {

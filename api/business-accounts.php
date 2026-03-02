@@ -69,6 +69,8 @@ switch ($method) {
         $opmerkingen = trim($data['opmerkingen'] ?? '');
         $accountType = $data['account_type'] ?? 'zakelijk';
         $hasBalance = !empty($data['has_balance']) ? 1 : 0;
+        $deliveryEnabled = isset($data['delivery_enabled']) ? (!empty($data['delivery_enabled']) ? 1 : 0) : ($accountType === 'zakelijk' ? 1 : 0);
+        $deliveryCost = isset($data['delivery_cost']) ? floatval($data['delivery_cost']) : 0;
 
         if (!in_array($accountType, ['zakelijk', 'particulier'])) {
             $accountType = 'zakelijk';
@@ -96,10 +98,10 @@ switch ($method) {
             }
             
             $stmt = $pdo->prepare("
-                INSERT INTO business_accounts (account_type, bedrijfsnaam, adres, postcode, plaats, contactpersoon, email, telefoon, website, kvk_nummer, btw_id, has_balance, opmerkingen, status)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending')
+                INSERT INTO business_accounts (account_type, bedrijfsnaam, adres, postcode, plaats, contactpersoon, email, telefoon, website, kvk_nummer, btw_id, has_balance, opmerkingen, delivery_enabled, delivery_cost, status)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending')
             ");
-            $stmt->execute([$accountType, $bedrijfsnaam, $adres, $postcode, $plaats, $contactpersoon, $email, $telefoon, $website, $kvk_nummer, $btw_id, $hasBalance, $opmerkingen]);
+            $stmt->execute([$accountType, $bedrijfsnaam, $adres, $postcode, $plaats, $contactpersoon, $email, $telefoon, $website, $kvk_nummer, $btw_id, $hasBalance, $opmerkingen, $deliveryEnabled, $deliveryCost]);
             
             $id = $pdo->lastInsertId();
             
@@ -242,6 +244,8 @@ switch ($method) {
                 }
                 
                 $hasBalanceUpdate = isset($data['has_balance']) ? (!empty($data['has_balance']) ? 1 : 0) : null;
+                $deliveryEnabledUpdate = isset($data['delivery_enabled']) ? (!empty($data['delivery_enabled']) ? 1 : 0) : null;
+                $deliveryCostUpdate = isset($data['delivery_cost']) ? floatval($data['delivery_cost']) : null;
 
                 $sql = "UPDATE business_accounts SET bedrijfsnaam = ?, adres = ?, postcode = ?, plaats = ?, contactpersoon = ?, email = ?, telefoon = ?, website = ?, kvk_nummer = ?, btw_id = ?";
                 $params = [$bedrijfsnaam, $adres, $postcode, $plaats, $contactpersoon, $email, $telefoon, $website, $kvk_nummer, $btw_id];
@@ -249,6 +253,16 @@ switch ($method) {
                 if ($hasBalanceUpdate !== null) {
                     $sql .= ", has_balance = ?";
                     $params[] = $hasBalanceUpdate;
+                }
+
+                if ($deliveryEnabledUpdate !== null) {
+                    $sql .= ", delivery_enabled = ?";
+                    $params[] = $deliveryEnabledUpdate;
+                }
+
+                if ($deliveryCostUpdate !== null) {
+                    $sql .= ", delivery_cost = ?";
+                    $params[] = $deliveryCostUpdate;
                 }
 
                 $sql .= " WHERE id = ?";

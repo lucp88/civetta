@@ -164,6 +164,8 @@ switch ($method) {
         $paymentType = $data['payment_type'] ?? 'direct';
         $saveAsFavorite = $data['save_as_favorite'] ?? false;
         $favoriteName = trim($data['favorite_name'] ?? '');
+        $deliveryType = $data['delivery_type'] ?? 'pickup';
+        $deliveryAddressData = $data['delivery_address'] ?? null;
         $isRecurring = $data['is_recurring'] ?? false;
         $recurringName = trim($data['recurring_name'] ?? '');
         $recurringFrequency = $data['recurring_frequency'] ?? 'weekly';
@@ -182,7 +184,80 @@ switch ($method) {
             echo json_encode(['success' => false, 'error' => 'Leverdatum moet minimaal 2 dagen in de toekomst liggen']);
             exit;
         }
-        
+
+        // Validate delivery date is a bakdag
+        $stmtPatroon = $pdo->prepare("SELECT setting_value FROM settings WHERE setting_key = 'bakdagen_patroon'");
+        $stmtPatroon->execute();
+        $patroonStr = $stmtPatroon->fetchColumn() ?: '';
+        $patroon = $patroonStr ? array_map('intval', explode(',', $patroonStr)) : [];
+
+        $deliveryWeekday = (int)(new DateTime($deliveryDate))->format('N');
+        $isPatroonDay = in_array($deliveryWeekday, $patroon);
+
+        $stmtExtra = $pdo->prepare("SELECT COUNT(*) FROM bakdagen_extra WHERE datum = ?");
+        $stmtExtra->execute([$deliveryDate]);
+        $isExtraDay = (int)$stmtExtra->fetchColumn() > 0;
+
+        if (!empty($patroon) && !$isPatroonDay && !$isExtraDay) {
+            http_response_code(400);
+            echo json_encode(['success' => false, 'error' => 'De gekozen leverdatum is geen bakdag. Kies een geldige bakdag.']);
+            exit;
+        }
+
+        // Validate enough preparation days (bakdagen between today and delivery date)
+        $stmtVoorbereiding = $pdo->prepare("SELECT setting_value FROM settings WHERE setting_key = 'bakdagen_voorbereiding_dagen'");
+        $stmtVoorbereiding->execute();
+        $voorbereidingDagen = (int)($stmtVoorbereiding->fetchColumn() ?: 3);
+
+        $today = new DateTime();
+        $today->setTime(0, 0, 0);
+        $todayStr = $today->format('Y-m-d');
+        $deliveryDt = new DateTime($deliveryDate);
+
+        $stmtExtraRange = $pdo->prepare("SELECT datum FROM bakdagen_extra WHERE datum BETWEEN ? AND ?");
+        $stmtExtraRange->execute([$todayStr, $deliveryDate]);
+        $extraDatums = array_column($stmtExtraRange->fetchAll(), 'datum');
+
+        $bakdagenCount = 0;
+        $d = clone $today;
+        while ($d <= $deliveryDt) {
+            $wd = (int)$d->format('N');
+            $ds = $d->format('Y-m-d');
+            if (in_array($wd, $patroon) || in_array($ds, $extraDatums)) {
+                $bakdagenCount++;
+            }
+            $d->modify('+1 day');
+        }
+
+        if ($bakdagenCount < $voorbereidingDagen) {
+            http_response_code(400);
+            echo json_encode(['success' => false, 'error' => "Er zijn niet genoeg bakdagen voor deze leverdatum. Er zijn minimaal $voorbereidingDagen bakdagen nodig voor voorbereiding."]);
+            exit;
+        }
+
+        // Calculate delivery cost from account settings
+        $orderDeliveryCost = 0;
+        $stmtAcc = $pdo->prepare("SELECT delivery_enabled, delivery_cost FROM business_accounts WHERE id = ?");
+        $stmtAcc->execute([$accountId]);
+        $accDelivery = $stmtAcc->fetch();
+        if ($deliveryType === 'delivery' && $accDelivery && $accDelivery['delivery_enabled']) {
+            $orderDeliveryCost = floatval($accDelivery['delivery_cost'] ?? 0);
+        } else {
+            $deliveryType = 'pickup';
+        }
+        $totalAmount = floatval($totalAmount) + $orderDeliveryCost;
+
+        // Build delivery address string
+        $deliveryAddressStr = '';
+        if ($deliveryAddressData) {
+            $deliveryAddressStr = trim(
+                ($deliveryAddressData['bedrijfsnaam'] ?? '') . ', ' .
+                ($deliveryAddressData['adres'] ?? '') . ', ' .
+                ($deliveryAddressData['postcode'] ?? '') . ' ' .
+                ($deliveryAddressData['plaats'] ?? '')
+            );
+        }
+
         try {
             $pdo->beginTransaction();
             
@@ -195,10 +270,10 @@ switch ($method) {
                 $parentOrderId = null;
                 
                 $stmt = $pdo->prepare("
-                    INSERT INTO business_orders (account_id, delivery_date, payment_status, total_amount, notes, payment_type, is_recurring, recurring_name, recurring_frequency, recurring_day, recurring_end_date, recurring_group_id, recurring_confirmed_until, recurring_parent_id, invoice_status, delivery_status, created_at)
-                    VALUES (?, ?, 'pending', ?, ?, 'invoice', 1, ?, ?, ?, ?, ?, ?, ?, 'bestelbon', 'geplaatst', NOW())
+                    INSERT INTO business_orders (account_id, delivery_date, payment_status, total_amount, notes, payment_type, is_recurring, recurring_name, recurring_frequency, recurring_day, recurring_end_date, recurring_group_id, recurring_confirmed_until, recurring_parent_id, invoice_status, delivery_status, delivery_type, delivery_cost, delivery_address, created_at)
+                    VALUES (?, ?, 'pending', ?, ?, 'invoice', 1, ?, ?, ?, ?, ?, ?, ?, 'bestelbon', 'geplaatst', ?, ?, ?, NOW())
                 ");
-                
+
                 $itemStmt = $pdo->prepare("
                     INSERT INTO business_order_items (order_id, product_name, quantity, unit_price, variant_id, product_id)
                     VALUES (?, ?, ?, ?, ?, ?)
@@ -216,7 +291,10 @@ switch ($method) {
                         $recurringEndDate,
                         $recurringGroupId,
                         $confirmedUntil,
-                        $parentOrderId
+                        $parentOrderId,
+                        $deliveryType,
+                        $orderDeliveryCost,
+                        $deliveryAddressStr
                     ]);
                     $newOrderId = $pdo->lastInsertId();
                     $orderIds[] = $newOrderId;
@@ -244,15 +322,18 @@ switch ($method) {
                 $dbPaymentType = ($paymentType === 'saldo') ? 'saldo' : (($paymentType === 'later') ? 'factuur' : 'ideal');
                 
                 $stmt = $pdo->prepare("
-                    INSERT INTO business_orders (account_id, delivery_date, payment_status, total_amount, notes, payment_type, is_recurring, invoice_status, delivery_status, created_at)
-                    VALUES (?, ?, 'pending', ?, ?, ?, 0, 'bestelbon', 'geplaatst', NOW())
+                    INSERT INTO business_orders (account_id, delivery_date, payment_status, total_amount, notes, payment_type, is_recurring, invoice_status, delivery_status, delivery_type, delivery_cost, delivery_address, created_at)
+                    VALUES (?, ?, 'pending', ?, ?, ?, 0, 'bestelbon', 'geplaatst', ?, ?, ?, NOW())
                 ");
                 $stmt->execute([
-                    $accountId, 
-                    $deliveryDate, 
-                    $totalAmount, 
-                    $notes, 
-                    $dbPaymentType
+                    $accountId,
+                    $deliveryDate,
+                    $totalAmount,
+                    $notes,
+                    $dbPaymentType,
+                    $deliveryType,
+                    $orderDeliveryCost,
+                    $deliveryAddressStr
                 ]);
                 $orderId = $pdo->lastInsertId();
                 

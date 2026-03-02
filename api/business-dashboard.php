@@ -25,7 +25,7 @@ switch ($method) {
         try {
             if ($action === 'profile') {
                 $stmt = $pdo->prepare("
-                    SELECT id, account_type, bedrijfsnaam, adres, postcode, plaats, contactpersoon, email, telefoon, website, kvk_nummer, btw_id, has_balance, balance, created_at, approved_at
+                    SELECT id, account_type, bedrijfsnaam, adres, postcode, plaats, contactpersoon, email, telefoon, website, kvk_nummer, btw_id, has_balance, balance, delivery_enabled, delivery_cost, delivery_same_as_business, delivery_adres, delivery_postcode, delivery_plaats, delivery_contactpersoon, created_at, approved_at
                     FROM business_accounts
                     WHERE id = ? AND status = 'approved'
                 ");

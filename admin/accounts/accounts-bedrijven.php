@@ -280,6 +280,14 @@ try {
             margin-top: 1.5rem;
             justify-content: flex-end;
         }
+        .checkbox-group {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+        .checkbox-group input[type="checkbox"] {
+            width: auto;
+        }
         .form-row {
             display: grid;
             grid-template-columns: 1fr 2fr;
@@ -526,6 +534,18 @@ try {
                         <input type="text" id="create-btw_id">
                     </div>
                 </div>
+                <div class="form-group">
+                    <div class="checkbox-group">
+                        <input type="checkbox" id="create-delivery_enabled" checked onchange="toggleCreateDeliveryFields()">
+                        <label for="create-delivery_enabled" style="margin-bottom: 0;">Bezorging ingeschakeld</label>
+                    </div>
+                </div>
+                <div id="create-delivery-fields">
+                    <div class="form-group">
+                        <label>Bezorgkosten (&euro;)</label>
+                        <input type="number" id="create-delivery_cost" step="0.01" min="0" value="0" placeholder="0.00">
+                    </div>
+                </div>
                 <div class="modal-actions">
                     <button type="button" class="btn btn-secondary" onclick="closeCreateModal()">Annuleren</button>
                     <button type="submit" class="btn btn-success">Aanmaken</button>
@@ -581,6 +601,18 @@ try {
                     <div class="form-group">
                         <label>BTW-ID</label>
                         <input type="text" id="edit-btw_id">
+                    </div>
+                </div>
+                <div class="form-group">
+                    <div class="checkbox-group">
+                        <input type="checkbox" id="edit-delivery_enabled" onchange="toggleEditDeliveryFields()">
+                        <label for="edit-delivery_enabled" style="margin-bottom: 0;">Bezorging ingeschakeld</label>
+                    </div>
+                </div>
+                <div id="edit-delivery-fields" style="display: none;">
+                    <div class="form-group">
+                        <label>Bezorgkosten (&euro;)</label>
+                        <input type="number" id="edit-delivery_cost" step="0.01" min="0" value="0" placeholder="0.00">
                     </div>
                 </div>
                 <div class="modal-actions">
@@ -656,6 +688,16 @@ try {
             }
         }
 
+        function toggleCreateDeliveryFields() {
+            document.getElementById('create-delivery-fields').style.display =
+                document.getElementById('create-delivery_enabled').checked ? '' : 'none';
+        }
+
+        function toggleEditDeliveryFields() {
+            document.getElementById('edit-delivery-fields').style.display =
+                document.getElementById('edit-delivery_enabled').checked ? '' : 'none';
+        }
+
         function openEditModal(account) {
             document.getElementById('edit-id').value = account.id;
             document.getElementById('edit-bedrijfsnaam').value = account.bedrijfsnaam || '';
@@ -668,6 +710,9 @@ try {
             document.getElementById('edit-website').value = account.website || '';
             document.getElementById('edit-kvk_nummer').value = account.kvk_nummer || '';
             document.getElementById('edit-btw_id').value = account.btw_id || '';
+            document.getElementById('edit-delivery_enabled').checked = account.delivery_enabled === undefined || !!parseInt(account.delivery_enabled);
+            document.getElementById('edit-delivery_cost').value = parseFloat(account.delivery_cost || 0).toFixed(2);
+            toggleEditDeliveryFields();
             document.getElementById('edit-modal').classList.add('active');
         }
 
@@ -691,7 +736,9 @@ try {
                 telefoon: document.getElementById('edit-telefoon').value,
                 website: document.getElementById('edit-website').value,
                 kvk_nummer: document.getElementById('edit-kvk_nummer').value,
-                btw_id: document.getElementById('edit-btw_id').value
+                btw_id: document.getElementById('edit-btw_id').value,
+                delivery_enabled: document.getElementById('edit-delivery_enabled').checked ? 1 : 0,
+                delivery_cost: parseFloat(document.getElementById('edit-delivery_cost').value) || 0
             };
 
             try {
@@ -771,6 +818,8 @@ try {
 
         function openCreateModal() {
             document.getElementById('create-form').reset();
+            document.getElementById('create-delivery_enabled').checked = true;
+            toggleCreateDeliveryFields();
             document.getElementById('create-modal').classList.add('active');
         }
 
@@ -792,7 +841,9 @@ try {
                 telefoon: document.getElementById('create-telefoon').value,
                 website: document.getElementById('create-website').value,
                 kvk_nummer: document.getElementById('create-kvk_nummer').value,
-                btw_id: document.getElementById('create-btw_id').value
+                btw_id: document.getElementById('create-btw_id').value,
+                delivery_enabled: document.getElementById('create-delivery_enabled').checked ? 1 : 0,
+                delivery_cost: parseFloat(document.getElementById('create-delivery_cost').value) || 0
             };
 
             try {

@@ -237,6 +237,27 @@
     to { opacity: 1; transform: translateY(0); }
 }
 
+.bakdagen-uitleg {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.5rem;
+    padding: 0.6rem 0.8rem;
+    background: #f8f5f0;
+    border-radius: 8px;
+    font-size: 0.85rem;
+    color: var(--color-stone, #666);
+    margin-bottom: 0.75rem;
+    line-height: 1.4;
+}
+
+.bakdagen-uitleg svg {
+    width: 16px;
+    height: 16px;
+    flex-shrink: 0;
+    margin-top: 1px;
+    color: #8b5a2b;
+}
+
 .date-input {
     width: 100%;
     padding: 0.7rem 0.9rem;
@@ -259,6 +280,10 @@
     border-color: #22c55e;
 }
 
+.date-input.invalid {
+    border-color: #e57a2b;
+}
+
 .date-input::-webkit-calendar-picker-indicator {
     cursor: pointer;
     filter: invert(35%) sepia(30%) saturate(800%) hue-rotate(350deg);
@@ -277,9 +302,25 @@
     color: #22c55e;
 }
 
+.date-hint.warning {
+    color: #e57a2b;
+}
+
+.date-hint.warning a.next-bakdag-link {
+    color: #8b5a2b;
+    text-decoration: underline;
+    cursor: pointer;
+    font-weight: 600;
+}
+
+.date-hint.warning a.next-bakdag-link:hover {
+    color: #5c3d1e;
+}
+
 .date-hint svg {
     width: 14px;
     height: 14px;
+    flex-shrink: 0;
 }
 
 .qty-btn {

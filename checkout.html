@@ -15,8 +15,8 @@
     <link rel="icon" type="image/png" sizes="512x512" href="img/icon-512.png">
     <link rel="apple-touch-icon" href="img/icon-192.png">
     <link rel="stylesheet" href="css/style.css">
-    <link rel="stylesheet" href="css/order-shared.css?v=2">
-    <link rel="stylesheet" href="css/checkout.css?v=2">
+    <link rel="stylesheet" href="css/order-shared.css?v=3">
+    <link rel="stylesheet" href="css/checkout.css?v=3">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link href="https://fonts.googleapis.com/css2?family=Libre+Baskerville:ital,wght@0,400;0,700;1,400&family=Source+Sans+Pro:wght@400;600&display=swap" rel="stylesheet">
 </head>
@@ -72,7 +72,7 @@
                         
                         <div class="page-intro">
                             <h1>Nog één stap</h1>
-                            <p class="subtitle">Kies je leverdatum en rond je bestelling af</p>
+                            <p class="subtitle">Kies je {{ isPickup ? 'ophaaldatum' : 'leverdatum' }} en rond je bestelling af</p>
                         </div>
                     </div>
                     
@@ -86,17 +86,45 @@
                                     <line x1="8" y1="2" x2="8" y2="6"/>
                                     <line x1="3" y1="10" x2="21" y2="10"/>
                                 </svg>
-                                Levering
+                                {{ isPickup ? 'Ophalen' : 'Levering' }}
                             </h3>
+                            <div v-if="bakdagenUitleg" class="bakdagen-uitleg">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <circle cx="12" cy="12" r="10"/>
+                                    <line x1="12" y1="16" x2="12" y2="12"/>
+                                    <line x1="12" y1="8" x2="12.01" y2="8"/>
+                                </svg>
+                                <span>{{ bakdagenUitleg }}. Kies een van deze dagen als {{ isPickup ? 'ophaaldatum' : 'leverdatum' }}.</span>
+                            </div>
                             <div class="form-group">
-                                <label>Leverdatum</label>
-                <input type="date" v-model="deliveryDate" :min="minDeliveryDateStr" class="date-input" :class="{ valid: deliveryDate }">
+                                <label>{{ isPickup ? 'Ophaaldatum' : 'Leverdatum' }}</label>
+                <input type="date" v-model="deliveryDate" :min="minDeliveryDateStr" class="date-input" :class="{ valid: isValidDeliveryDate, invalid: deliveryDate && !isValidDeliveryDate }">
                                 <div v-if="!deliveryDate" class="date-hint">
                                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                                         <circle cx="12" cy="12" r="10"/>
                                         <path d="M12 6v6l4 2"/>
                                     </svg>
-                                    Selecteer wanneer je bestelling bezorgd moet worden
+                                    Selecteer een bakdag waarop je bestelling {{ isPickup ? 'opgehaald' : 'bezorgd' }} moet worden
+                                </div>
+                                <div v-else-if="!isBakdag" class="date-hint warning">
+                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                        <path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/>
+                                        <line x1="12" y1="9" x2="12" y2="13"/>
+                                        <line x1="12" y1="17" x2="12.01" y2="17"/>
+                                    </svg>
+                                    <span>{{ formatDateNL(deliveryDate) }} is geen bakdag.
+                                        <a v-if="nextBakdag" href="#" @click.prevent="selectNextBakdag" class="next-bakdag-link">Volgende bakdag: {{ formatDateNL(nextBakdag) }}</a>
+                                    </span>
+                                </div>
+                                <div v-else-if="!hasEnoughPrepDays" class="date-hint warning">
+                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                        <path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/>
+                                        <line x1="12" y1="9" x2="12" y2="13"/>
+                                        <line x1="12" y1="17" x2="12.01" y2="17"/>
+                                    </svg>
+                                    <span>Niet genoeg voorbereidingstijd. Er zijn minimaal {{ voorbereidingDagen }} bakdagen nodig.
+                                        <a v-if="nextBakdag" href="#" @click.prevent="deliveryDate = minDeliveryDateStr" class="next-bakdag-link">Vroegst mogelijke datum: {{ formatDateNL(minDeliveryDateStr) }}</a>
+                                    </span>
                                 </div>
                                 <div v-else class="date-hint valid">
                                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -107,13 +135,29 @@
                             </div>
                             <div class="form-group">
                                 <label>Opmerkingen <span class="optional">(optioneel)</span></label>
-                                <textarea v-model="notes" placeholder="Leverinstructies, speciale wensen..." rows="2"></textarea>
+                                <textarea v-model="notes" placeholder="{{ isPickup ? 'Speciale wensen...' : 'Leverinstructies, speciale wensen...' }}" rows="2"></textarea>
                             </div>
                         </div>
-                        
+
                         <div class="checkout-card">
                             <div class="delivery-info-row">
-                                <div class="delivery-info-col">
+                                <!-- Pickup: show bakery address -->
+                                <div v-if="isPickup" class="delivery-info-col">
+                                    <h3>
+                                        <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                            <path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/>
+                                            <polyline points="9 22 9 12 15 12 15 22"/>
+                                        </svg>
+                                        Ophaallocatie
+                                    </h3>
+                                    <div class="address-text-compact">
+                                        <strong>{{ bakkerijAdres.naam || 'Bakkerij Civetta' }}</strong><br>
+                                        {{ bakkerijAdres.adres }}<br>
+                                        {{ bakkerijAdres.postcode }} {{ bakkerijAdres.plaats }}
+                                    </div>
+                                </div>
+                                <!-- Delivery: show delivery address -->
+                                <div v-else class="delivery-info-col">
                                     <h3>
                                         <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                                             <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/>
@@ -136,7 +180,7 @@
                                             <line x1="8" y1="2" x2="8" y2="6"/>
                                             <line x1="3" y1="10" x2="21" y2="10"/>
                                         </svg>
-                                        Afleverdatum
+                                        {{ isPickup ? 'Ophaaldatum' : 'Afleverdatum' }}
                                     </h3>
                                     <div class="date-text-compact">
                                         <span v-if="deliveryDate">{{ formatDateNL(deliveryDate) }}</span>
@@ -190,7 +234,7 @@
                                 <span>Winkelwagen</span>
                                 <span class="cart-count">{{ totalItems }}</span>
                             </h2>
-                            <span class="sidebar-toggle-price">{{ formatPrice(orderData.total_amount) }}</span>
+                            <span class="sidebar-toggle-price">{{ formatPrice(orderTotal) }}</span>
                             <svg class="sidebar-toggle-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                                 <path d="M18 15l-6-6-6 6"/>
                             </svg>
@@ -237,9 +281,13 @@
                                         <span>BTW ({{ btwTarief }}%)</span>
                                         <span>{{ formatPrice(btwBedrag) }}</span>
                                     </div>
+                                    <div v-if="deliveryEnabled && deliveryCost > 0" class="total-row">
+                                        <span>Bezorgkosten</span>
+                                        <span>{{ formatPrice(deliveryCost) }}</span>
+                                    </div>
                                     <div class="total-row grand-total">
                                         <span>Totaal</span>
-                                        <span>{{ formatPrice(orderData.total_amount) }}</span>
+                                        <span>{{ formatPrice(orderTotal) }}</span>
                                     </div>
                                 </div>
                                 
@@ -348,6 +396,13 @@
                 account: null,
                 deliveryAddress: {},
                 deliveryDate: '',
+                bakdagen: [],
+                bakdagenLoaded: false,
+                bakdagenPatroon: [],
+                voorbereidingDagen: 3,
+                bakkerijAdres: {},
+                deliveryEnabled: false,
+                deliveryCost: 0,
                 notes: '',
                 paymentType: 'direct',
                 submitting: false,
@@ -370,9 +425,56 @@
         
         computed: {
             minDeliveryDateStr() {
+                // Minimum is the earliest bakdag with enough preparation days
+                if (this.bakdagen.length > 0) {
+                    const today = new Date();
+                    today.setHours(0, 0, 0, 0);
+                    const todayStr = this.toDateStr(today);
+                    const minDateFallback = new Date();
+                    minDateFallback.setDate(minDateFallback.getDate() + 2);
+                    const minDateStr = this.toDateStr(minDateFallback);
+
+                    // Find earliest bakdag that has enough voorbereiding bakdagen before it
+                    for (const bakdag of this.bakdagen) {
+                        if (bakdag < minDateStr) continue;
+                        // Count bakdagen from today to this bakdag
+                        let count = 0;
+                        for (const d of this.bakdagen) {
+                            if (d >= todayStr && d <= bakdag) count++;
+                        }
+                        if (count >= this.voorbereidingDagen) return bakdag;
+                    }
+                }
+                // Fallback: +2 days
                 const date = new Date();
                 date.setDate(date.getDate() + 2);
-                return date.toISOString().split('T')[0];
+                return this.toDateStr(date);
+            },
+
+            isBakdag() {
+                if (!this.deliveryDate || !this.bakdagen.length) return true;
+                return this.bakdagen.includes(this.deliveryDate);
+            },
+
+            nextBakdag() {
+                if (!this.deliveryDate) return null;
+                return this.bakdagen.find(d => d > this.deliveryDate && d >= this.minDeliveryDateStr) || null;
+            },
+
+            hasEnoughPrepDays() {
+                if (!this.deliveryDate || !this.bakdagen.length) return true;
+                const today = new Date();
+                today.setHours(0, 0, 0, 0);
+                const todayStr = this.toDateStr(today);
+                let count = 0;
+                for (const d of this.bakdagen) {
+                    if (d >= todayStr && d <= this.deliveryDate) count++;
+                }
+                return count >= this.voorbereidingDagen;
+            },
+
+            isValidDeliveryDate() {
+                return this.deliveryDate && this.isBakdag && this.hasEnoughPrepDays;
             },
             
             minEndDateStr() {
@@ -391,22 +493,46 @@
                 return this.orderData.items.reduce((sum, item) => sum + item.quantity, 0);
             },
             
+            orderTotal() {
+                if (!this.orderData) return 0;
+                return this.orderData.total_amount + (this.deliveryEnabled ? this.deliveryCost : 0);
+            },
+
             btwBedrag() {
                 if (!this.orderData) return 0;
-                return this.orderData.total_amount - (this.orderData.total_amount / (1 + this.btwTarief / 100));
+                return this.orderTotal - (this.orderTotal / (1 + this.btwTarief / 100));
             },
-            
+
             exclBtw() {
                 if (!this.orderData) return 0;
-                return this.orderData.total_amount - this.btwBedrag;
+                return this.orderTotal - this.btwBedrag;
+            },
+
+            bakdagenWeekdagen() {
+                const namen = ['', 'maandag', 'dinsdag', 'woensdag', 'donderdag', 'vrijdag', 'zaterdag', 'zondag'];
+                return this.bakdagenPatroon.map(n => namen[n]).filter(Boolean);
+            },
+
+            bakdagenUitleg() {
+                if (!this.bakdagenWeekdagen.length) return '';
+                if (this.bakdagenWeekdagen.length === 1) return 'Wij bakken op ' + this.bakdagenWeekdagen[0];
+                const last = this.bakdagenWeekdagen[this.bakdagenWeekdagen.length - 1];
+                const rest = this.bakdagenWeekdagen.slice(0, -1).join(', ');
+                return 'Wij bakken op ' + rest + ' en ' + last;
+            },
+
+            isPickup() {
+                return !this.deliveryEnabled;
             },
             
             canOrder() {
-                return this.deliveryDate && this.orderData?.items?.length > 0;
+                return this.isValidDeliveryDate && this.orderData?.items?.length > 0;
             },
             
             buttonText() {
                 if (!this.deliveryDate) return 'Kies eerst een datum';
+                if (!this.isBakdag) return 'Geen geldige bakdag';
+                if (!this.hasEnoughPrepDays) return 'Niet genoeg voorbereidingstijd';
                 if (this.isRecurring) return 'Bestelling plaatsen';
                 if (this.paymentType === 'saldo') return 'Betalen met saldo';
                 return this.paymentType === 'direct' ? 'Betalen' : 'Bestelling plaatsen';
@@ -432,11 +558,41 @@ async mounted() {
                 this.saveAsFavorite = parsedData.save_as_favorite;
                 this.favoriteName = parsedData.favorite_name || '';
             }
-            await this.loadAccount();
+            await Promise.all([this.loadAccount(), this.loadBakdagen()]);
             this.loading = false;
         },
         
         methods: {
+            toDateStr(d) {
+                return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+            },
+
+            async loadBakdagen() {
+                try {
+                    const today = new Date();
+                    const start = this.toDateStr(today);
+                    const end = this.toDateStr(new Date(today.getFullYear(), today.getMonth() + 3, today.getDate()));
+                    const response = await fetch(`api/bakdagen.php?start=${start}&end=${end}`);
+                    const data = await response.json();
+                    if (data.success) {
+                        this.bakdagen = data.bakdagen || [];
+                        this.bakdagenPatroon = data.patroon || [];
+                        this.voorbereidingDagen = data.voorbereiding_dagen || 3;
+                        this.bakkerijAdres = data.bakkerij || {};
+                    }
+                } catch (e) {
+                    console.error('Kon bakdagen niet laden:', e);
+                } finally {
+                    this.bakdagenLoaded = true;
+                }
+            },
+
+            selectNextBakdag() {
+                if (this.nextBakdag) {
+                    this.deliveryDate = this.nextBakdag;
+                }
+            },
+
             async loadAccount() {
                 try {
                     const response = await fetch('api/business-dashboard.php?action=profile');
@@ -448,8 +604,10 @@ async mounted() {
                         this.accountType = acc.account_type || 'zakelijk';
                         this.hasBalance = !!parseInt(acc.has_balance || 0);
                         this.accountBalance = parseFloat(acc.balance || 0);
+                        this.deliveryEnabled = !!parseInt(acc.delivery_enabled || 0);
+                        this.deliveryCost = parseFloat(acc.delivery_cost || 0);
                         const useBusiness = acc.delivery_same_as_business === undefined || !!parseInt(acc.delivery_same_as_business);
-                        
+
                         this.deliveryAddress = {
                             bedrijfsnaam: acc.bedrijfsnaam,
                             contactpersoon: useBusiness ? acc.contactpersoon : (acc.delivery_contactpersoon || acc.contactpersoon),
@@ -457,7 +615,7 @@ async mounted() {
                             postcode: useBusiness ? acc.postcode : (acc.delivery_postcode || acc.postcode),
                             plaats: useBusiness ? acc.plaats : (acc.delivery_plaats || acc.plaats)
                         };
-                        
+
                         this.editAddress = { ...this.deliveryAddress };
                     }
                 } catch (error) {
@@ -490,6 +648,10 @@ async mounted() {
                     this.error = 'Kies een leverdatum';
                     return;
                 }
+                if (!this.isValidDeliveryDate) {
+                    this.error = !this.isBakdag ? 'Kies een geldige bakdag als leverdatum' : 'Niet genoeg voorbereidingstijd voor deze datum';
+                    return;
+                }
                 
                 this.submitting = true;
                 
@@ -503,10 +665,11 @@ async mounted() {
                             items: this.orderData.items,
                             delivery_date: this.deliveryDate,
                             delivery_time: 'ochtend',
+                            delivery_type: this.deliveryEnabled ? 'delivery' : 'pickup',
                             notes: this.notes,
                             total_amount: this.orderData.total_amount,
                             payment_type: this.isRecurring ? 'recurring' : this.paymentType,
-                            delivery_address: this.deliveryAddress,
+                            delivery_address: this.deliveryEnabled ? this.deliveryAddress : null,
                             save_as_favorite: this.saveAsFavorite,
                             favorite_name: this.favoriteName,
                             is_recurring: this.isRecurring,
