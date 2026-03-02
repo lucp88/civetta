@@ -678,7 +678,23 @@ $adminBasePath = '../';
                             </div>
                             <div class="form-group" v-if="ingredientForm.is_allergeen">
                                 <label class="form-label">Allergeen naam (optioneel)</label>
-                                <input type="text" class="form-input" v-model="ingredientForm.allergeen_naam" placeholder="bijv. melk, gluten, noten">
+                                <select class="form-input" v-model="ingredientForm.allergeen_naam">
+                                    <option value="">— Selecteer allergeen —</option>
+                                    <option value="Gluten">Gluten</option>
+                                    <option value="Schaaldieren">Schaaldieren</option>
+                                    <option value="Eieren">Eieren</option>
+                                    <option value="Vis">Vis</option>
+                                    <option value="Pinda's">Pinda's</option>
+                                    <option value="Soja">Soja</option>
+                                    <option value="Melk">Melk</option>
+                                    <option value="Noten">Noten</option>
+                                    <option value="Selderij">Selderij</option>
+                                    <option value="Mosterd">Mosterd</option>
+                                    <option value="Sesam">Sesam</option>
+                                    <option value="Sulfieten">Sulfieten</option>
+                                    <option value="Lupine">Lupine</option>
+                                    <option value="Weekdieren">Weekdieren</option>
+                                </select>
                             </div>
                         </div>
                         <div class="modal-footer">

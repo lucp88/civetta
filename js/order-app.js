@@ -24,6 +24,7 @@ const app = createApp({
             selectedFavoriteId: '',
             saveAsFavorite: false,
             selectedProduct: null,
+            allAllergens: [],
             isRecurring: false,
             recurringName: '',
             recurringFrequency: 'weekly',
@@ -140,6 +141,7 @@ const app = createApp({
                 const data = await response.json();
                 if (data.success) {
                     this.products = data.products.filter(p => (p.prijs && p.prijs > 0) || (p.variants && p.variants.length > 0));
+                    this.allAllergens = data.all_allergens || [];
                     if (data.btw_tarief) {
                         this.btwTarief = data.btw_tarief;
                     }

@@ -4,6 +4,7 @@ const productDetailApp = createApp({
     data() {
         return {
             product: null,
+            allAllergens: [],
             loading: true,
             error: null,
             showDetails: false,
@@ -68,6 +69,11 @@ const productDetailApp = createApp({
             }, []);
         },
 
+        traceAllergens() {
+            const productAllergens = new Set(this.allergenList.map(a => a.toLowerCase()));
+            return this.allAllergens.filter(a => !productAllergens.has(a.toLowerCase()));
+        },
+
         hasBiologisch() {
             return this.displayIngredients && this.displayIngredients.includes('*');
         }
@@ -106,6 +112,7 @@ const productDetailApp = createApp({
                 }
 
                 this.product = product;
+                this.allAllergens = data.all_allergens || [];
                 document.title = product.naam + ' | Bakkerij Civetta';
 
                 // Auto-select first variant

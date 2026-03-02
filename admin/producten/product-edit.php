@@ -63,10 +63,10 @@ if ($firstRecipeId) {
         if (!empty($grainIds)) {
             $gIds = array_values(array_unique($grainIds));
             $gp = implode(',', array_fill(0, count($gIds), '?'));
-            $gStmt = $pdo->prepare("SELECT id, name, is_whole_grain, is_biologisch FROM ingredients WHERE id IN ($gp)");
+            $gStmt = $pdo->prepare("SELECT id, name, is_whole_grain, is_biologisch, is_allergeen, allergeen_naam FROM ingredients WHERE id IN ($gp)");
             $gStmt->execute($gIds);
             foreach ($gStmt->fetchAll() as $ing) {
-                $lookup[(int)$ing['id']] = ['name' => $ing['name'], 'is_whole_grain' => (bool)$ing['is_whole_grain'], 'is_biologisch' => (bool)$ing['is_biologisch']];
+                $lookup[(int)$ing['id']] = ['name' => $ing['name'], 'is_whole_grain' => (bool)$ing['is_whole_grain'], 'is_biologisch' => (bool)$ing['is_biologisch'], 'is_allergeen' => (bool)$ing['is_allergeen'], 'allergeen_naam' => $ing['allergeen_naam']];
             }
         }
 
@@ -76,7 +76,14 @@ if ($firstRecipeId) {
             $biologischNames[$row['name']] = true;
         }
 
-        $computedIngredientList = computeIngredientList($rd, $lookup, $biologischNames);
+        $allergeenNames = [];
+        $allergeenStmt = $pdo->query("SELECT LOWER(name) as name, allergeen_naam FROM ingredients WHERE is_allergeen = 1 AND is_active = 1");
+        foreach ($allergeenStmt->fetchAll() as $row) {
+            $allergeenNames[$row['name']] = $row['allergeen_naam'];
+        }
+
+        $result = computeIngredientList($rd, $lookup, $biologischNames, $allergeenNames);
+        $computedIngredientList = $result ? $result['text'] : null;
         $computedRecipeDetails  = computeRecipeDetails($rd, $lookup);
     } catch (Exception $e) {
         // Ingredient computation is non-critical — page still loads without it

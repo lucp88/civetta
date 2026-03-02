@@ -321,7 +321,7 @@
                             </div>
 
                             <!-- Allergenen (collapsible, default open) -->
-                            <div v-if="allergenList.length > 0">
+                            <div v-if="allergenList.length > 0 || traceAllergens.length > 0">
                                 <button class="samenstelling-toggle" @click="showAllergens = !showAllergens">
                                     <span>Allergenen</span>
                                     <span class="samenstelling-arrow" :class="{ open: showAllergens }">▼</span>
@@ -329,6 +329,9 @@
                                 <div v-if="showAllergens" class="samenstelling-content">
                                     <div v-for="name in allergenList" :key="name" class="samenstelling-row">
                                         <span><strong>{{ name }}</strong></span>
+                                    </div>
+                                    <div v-if="traceAllergens.length > 0" class="samenstelling-row" style="margin-top: 0.5rem; font-style: italic; font-size: 0.85rem;">
+                                        Kan sporen bevatten van: {{ traceAllergens.join(', ').toLowerCase() }}
                                     </div>
                                 </div>
                             </div>

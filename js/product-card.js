@@ -174,6 +174,10 @@ const ProductDetailModal = {
         showAddToCart: {
             type: Boolean,
             default: false
+        },
+        allAllergens: {
+            type: Array,
+            default: () => []
         }
     },
 
@@ -228,6 +232,10 @@ const ProductDetailModal = {
                 }
                 return list;
             }, []);
+        },
+        traceAllergens() {
+            const productAllergens = new Set(this.allergenList.map(a => a.toLowerCase()));
+            return this.allAllergens.filter(a => !productAllergens.has(a.toLowerCase()));
         }
     },
 
@@ -266,13 +274,16 @@ const ProductDetailModal = {
                         <div v-if="allergenList.length > 0" class="product-modal-bio-note">Vetgedrukt = allergeen</div>
                     </div>
 
-                    <div v-if="allergenList.length > 0" class="product-modal-recipe-details">
+                    <div v-if="allergenList.length > 0 || traceAllergens.length > 0" class="product-modal-recipe-details">
                         <button class="recipe-details-toggle" @click="showAllergens = !showAllergens">
                             Allergenen <span class="toggle-arrow">{{ showAllergens ? '▲' : '▼' }}</span>
                         </button>
                         <div v-if="showAllergens" class="recipe-details-content">
                             <div v-for="name in allergenList" :key="name" class="recipe-detail-row">
                                 <span><strong>{{ name }}</strong></span>
+                            </div>
+                            <div v-if="traceAllergens.length > 0" class="recipe-detail-row" style="margin-top: 0.5rem; font-style: italic; font-size: 0.85rem; border-bottom: none;">
+                                Kan sporen bevatten van: {{ traceAllergens.join(', ').toLowerCase() }}
                             </div>
                         </div>
                     </div>

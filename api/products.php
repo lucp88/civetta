@@ -128,10 +128,17 @@ try {
                 // Recipe/ingredient data unavailable — products still returned without it
             }
 
+            // Collect all distinct allergen names present in the bakery's ingredients
+            $allAllergens = [];
+            $allAllergenStmt = $pdo->query("SELECT DISTINCT allergeen_naam FROM ingredients WHERE is_allergeen = 1 AND is_active = 1 AND allergeen_naam IS NOT NULL AND allergeen_naam != '' ORDER BY allergeen_naam ASC");
+            foreach ($allAllergenStmt->fetchAll() as $row) {
+                $allAllergens[] = $row['allergeen_naam'];
+            }
+
             $stmt = $pdo->query("SELECT setting_value FROM settings WHERE setting_key = 'btw_tarief'");
             $btwTarief = floatval($stmt->fetchColumn() ?: 9);
 
-            echo json_encode(['success' => true, 'products' => $products, 'btw_tarief' => $btwTarief]);
+            echo json_encode(['success' => true, 'products' => $products, 'btw_tarief' => $btwTarief, 'all_allergens' => $allAllergens]);
             break;
             
         case 'POST':
