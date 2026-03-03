@@ -1,6 +1,7 @@
 <?php
 require_once 'cors.php';
 require_once '../admin/config.php';
+require_once __DIR__ . '/../lib/allergen-trace.php';
 
 header('Content-Type: application/json');
 
@@ -251,6 +252,7 @@ try {
                 ]);
 
                 $id = $pdo->lastInsertId();
+                updateAllergenTraceStatus($pdo, $data['ingredient_id']);
                 echo json_encode(['success' => true, 'id' => $id, 'message' => 'Voorraad toegevoegd']);
 
             } elseif ($action === 'consume') {
@@ -266,6 +268,7 @@ try {
                     floatval($data['quantity']),
                     $data['order_id'] ?? null
                 );
+                updateAllergenTraceStatus($pdo, $data['ingredient_id']);
 
                 echo json_encode($result);
 
@@ -298,11 +301,17 @@ try {
                     exit;
                 }
 
+                // Look up ingredient_id for allergen trace update
+                $lookupStmt = $pdo->prepare("SELECT ingredient_id FROM ingredient_batches WHERE id = ?");
+                $lookupStmt->execute([$data['batch_id']]);
+                $batchIngId = $lookupStmt->fetch()['ingredient_id'] ?? null;
+
                 $params[] = $data['batch_id'];
                 $sql = "UPDATE ingredient_batches SET " . implode(", ", $fields) . " WHERE id = ?";
                 $stmt = $pdo->prepare($sql);
                 $stmt->execute($params);
 
+                if ($batchIngId) updateAllergenTraceStatus($pdo, $batchIngId);
                 echo json_encode(['success' => true, 'message' => 'Batch aangepast']);
 
             } elseif ($action === 'purge_batch') {
@@ -347,6 +356,7 @@ try {
                     $stmt->execute([$data['batch_id']]);
 
                     $pdo->commit();
+                    updateAllergenTraceStatus($pdo, $batch['ingredient_id']);
                     echo json_encode(['success' => true, 'message' => 'Batch weggegooid']);
                 } catch (Exception $e) {
                     $pdo->rollBack();
@@ -429,6 +439,13 @@ try {
                     }
 
                     $pdo->commit();
+
+                    // Update allergen trace status for all affected ingredients
+                    $affectedIngIds = array_unique(array_map(fn($item) => intval($item['ingredient_id']), $data['items']));
+                    foreach ($affectedIngIds as $affIngId) {
+                        updateAllergenTraceStatus($pdo, $affIngId);
+                    }
+
                     echo json_encode(['success' => true, 'message' => 'Consolidatie opgeslagen', 'id' => $consolidationId]);
                 } catch (Exception $e) {
                     $pdo->rollBack();
@@ -446,9 +463,15 @@ try {
                 exit;
             }
 
+            // Look up ingredient_id before deleting
+            $lookupStmt = $pdo->prepare("SELECT ingredient_id FROM ingredient_batches WHERE id = ?");
+            $lookupStmt->execute([$batchId]);
+            $delBatchRow = $lookupStmt->fetch();
+
             $stmt = $pdo->prepare("DELETE FROM ingredient_batches WHERE id = ?");
             $stmt->execute([$batchId]);
 
+            if ($delBatchRow) updateAllergenTraceStatus($pdo, $delBatchRow['ingredient_id']);
             echo json_encode(['success' => true, 'message' => 'Batch verwijderd']);
             break;
 

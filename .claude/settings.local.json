@@ -7,7 +7,9 @@
       "Bash(where.exe:*)",
       "Bash(xargs sed:*)",
       "Bash(ls:*)",
-      "Bash(xargs grep -l \"ingredients\\\\|voorraad\")"
+      "Bash(xargs grep -l \"ingredients\\\\|voorraad\")",
+      "Bash(grep -l \"CREATE TABLE.*ingredients\" c:/Users/laure/Documents/Civetta/Website/source/repos/Civetta/civetta/admin/migrations/*.php)",
+      "Bash(grep -r \"baker_recipes\" c:/Users/laure/Documents/Civetta/Website/source/repos/Civetta/civetta/admin/migrations/*.php)"
     ]
   }
 }

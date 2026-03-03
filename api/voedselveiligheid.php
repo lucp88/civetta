@@ -415,6 +415,7 @@ switch ($action) {
         $actief      = isset($data['actief'])      ? (int)$data['actief']      : 1;
         $categorieId = isset($data['categorie_id']) && $data['categorie_id'] !== ''
                        ? (int)$data['categorie_id'] : null;
+        $isAllergeenKritisch = isset($data['is_allergeen_kritisch']) ? (int)$data['is_allergeen_kritisch'] : 0;
 
         if (empty($naam)) { echo json_encode(['success' => false, 'error' => 'Naam is verplicht']); exit; }
         if (!in_array($type, ['schoonmaak', 'voorraad'])) { echo json_encode(['success' => false, 'error' => 'Ongeldig type']); exit; }
@@ -423,11 +424,11 @@ switch ($action) {
         }
 
         if ($id) {
-            $stmt = $pdo->prepare("UPDATE schoonmaak_items SET naam = ?, categorie_id = ?, type = ?, frequentie = ?, actief = ? WHERE id = ?");
-            $stmt->execute([$naam, $categorieId, $type, $frequentie, $actief, $id]);
+            $stmt = $pdo->prepare("UPDATE schoonmaak_items SET naam = ?, categorie_id = ?, type = ?, frequentie = ?, actief = ?, is_allergeen_kritisch = ? WHERE id = ?");
+            $stmt->execute([$naam, $categorieId, $type, $frequentie, $actief, $isAllergeenKritisch, $id]);
         } else {
-            $stmt = $pdo->prepare("INSERT INTO schoonmaak_items (naam, categorie_id, type, frequentie, actief) VALUES (?, ?, ?, ?, ?)");
-            $stmt->execute([$naam, $categorieId, $type, $frequentie, $actief]);
+            $stmt = $pdo->prepare("INSERT INTO schoonmaak_items (naam, categorie_id, type, frequentie, actief, is_allergeen_kritisch) VALUES (?, ?, ?, ?, ?, ?)");
+            $stmt->execute([$naam, $categorieId, $type, $frequentie, $actief, $isAllergeenKritisch]);
             $id = $pdo->lastInsertId();
         }
 
@@ -442,6 +443,97 @@ switch ($action) {
 
         $stmt = $pdo->prepare("UPDATE schoonmaak_items SET actief = ? WHERE id = ?");
         $stmt->execute([(int)$actief, $id]);
+        echo json_encode(['success' => true]);
+        break;
+
+    // ==================== ALLERGEN TRACE STATUS ====================
+    case 'get_allergen_status':
+        $stmt = $pdo->query("
+            SELECT ats.*,
+                   DATEDIFF(NOW(), ats.stock_depleted_at) as days_since_depleted
+            FROM allergen_trace_status ats
+            ORDER BY
+                FIELD(ats.status, 'in_stock', 'depleted', 'cleared'),
+                ats.allergeen_naam
+        ");
+        $statuses = $stmt->fetchAll();
+
+        // Count of active allergen-critical cleaning items
+        $critStmt = $pdo->query("
+            SELECT COUNT(*) as cnt
+            FROM schoonmaak_items
+            WHERE is_allergeen_kritisch = 1 AND actief = 1
+        ");
+        $criticalCount = intval($critStmt->fetch()['cnt']);
+
+        // For each depleted allergen, check cleaning completion
+        foreach ($statuses as &$s) {
+            $s['cleaning_complete'] = false;
+            $s['cleaning_done'] = 0;
+            $s['cleaning_total'] = $criticalCount;
+
+            if ($s['status'] === 'depleted' && $s['stock_depleted_at'] && $criticalCount > 0) {
+                $cleanStmt = $pdo->prepare("
+                    SELECT COUNT(DISTINCT si.id) as done
+                    FROM schoonmaak_items si
+                    JOIN schoonmaak_lijst_items sli ON sli.item_id = si.id
+                    WHERE si.is_allergeen_kritisch = 1
+                      AND si.actief = 1
+                      AND sli.afgevinkt = 1
+                      AND sli.tijdstip_afgerond > ?
+                ");
+                $cleanStmt->execute([$s['stock_depleted_at']]);
+                $s['cleaning_done'] = intval($cleanStmt->fetch()['done']);
+                $s['cleaning_complete'] = ($s['cleaning_done'] >= $criticalCount);
+            }
+        }
+        unset($s);
+
+        echo json_encode([
+            'success' => true,
+            'statuses' => $statuses,
+            'critical_cleaning_count' => $criticalCount
+        ]);
+        break;
+
+    case 'clear_allergen':
+        $allergeenNaam = trim($jsonBody['allergeen_naam'] ?? '');
+        if (empty($allergeenNaam)) {
+            echo json_encode(['success' => false, 'error' => 'Allergeen naam is verplicht']);
+            exit;
+        }
+
+        $stmt = $pdo->prepare("
+            UPDATE allergen_trace_status
+            SET status = 'cleared',
+                manually_cleared_at = NOW(),
+                cleared_by = ?
+            WHERE allergeen_naam = ?
+        ");
+        $stmt->execute([
+            $_SESSION['username'] ?? 'admin',
+            $allergeenNaam
+        ]);
+
+        echo json_encode(['success' => true]);
+        break;
+
+    case 'reset_allergen':
+        $allergeenNaam = trim($jsonBody['allergeen_naam'] ?? '');
+        if (empty($allergeenNaam)) {
+            echo json_encode(['success' => false, 'error' => 'Allergeen naam is verplicht']);
+            exit;
+        }
+
+        $stmt = $pdo->prepare("
+            UPDATE allergen_trace_status
+            SET status = 'depleted',
+                manually_cleared_at = NULL,
+                cleared_by = NULL
+            WHERE allergeen_naam = ? AND status = 'cleared'
+        ");
+        $stmt->execute([$allergeenNaam]);
+
         echo json_encode(['success' => true]);
         break;
 

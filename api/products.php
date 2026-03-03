@@ -128,11 +128,19 @@ try {
                 // Recipe/ingredient data unavailable — products still returned without it
             }
 
-            // Collect all distinct allergen names present in the bakery's ingredients
+            // Collect trace allergens based on inventory stock status
             $allAllergens = [];
-            $allAllergenStmt = $pdo->query("SELECT DISTINCT allergeen_naam FROM ingredients WHERE is_allergeen = 1 AND is_active = 1 AND allergeen_naam IS NOT NULL AND allergeen_naam != '' ORDER BY allergeen_naam ASC");
-            foreach ($allAllergenStmt->fetchAll() as $row) {
-                $allAllergens[] = $row['allergeen_naam'];
+            try {
+                $allAllergenStmt = $pdo->query("SELECT allergeen_naam FROM allergen_trace_status WHERE status != 'cleared' ORDER BY allergeen_naam ASC");
+                foreach ($allAllergenStmt->fetchAll() as $row) {
+                    $allAllergens[] = $row['allergeen_naam'];
+                }
+            } catch (PDOException $e) {
+                // Fallback to old behavior if allergen_trace_status table doesn't exist yet
+                $allAllergenStmt = $pdo->query("SELECT DISTINCT allergeen_naam FROM ingredients WHERE is_allergeen = 1 AND is_active = 1 AND allergeen_naam IS NOT NULL AND allergeen_naam != '' ORDER BY allergeen_naam ASC");
+                foreach ($allAllergenStmt->fetchAll() as $row) {
+                    $allAllergens[] = $row['allergeen_naam'];
+                }
             }
 
             $stmt = $pdo->query("SELECT setting_value FROM settings WHERE setting_key = 'btw_tarief'");

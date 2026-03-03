@@ -1,5 +1,6 @@
 <?php
 require_once __DIR__ . '/../admin/config.php';
+require_once __DIR__ . '/../lib/allergen-trace.php';
 
 $stmt = $pdo->prepare("SELECT setting_value FROM settings WHERE setting_key = 'bestel_wijzig_deadline_uren'");
 $stmt->execute();
@@ -29,11 +30,12 @@ if (empty($orderItems)) {
 }
 
 $ordersToMark = [];
+$consumedIngredientIds = [];
 
 foreach ($orderItems as $item) {
     $orderId = $item['id'];
     $ordersToMark[$orderId] = true;
-    
+
     if (!$item['recipe_id']) {
         continue;
     }
@@ -59,6 +61,7 @@ foreach ($orderItems as $item) {
     foreach ($ingredients as $ing) {
         if ($ing['quantity'] > 0) {
             consumeIngredient($pdo, $ing['ingredient_id'], $ing['quantity'], $orderId);
+            $consumedIngredientIds[] = $ing['ingredient_id'];
         }
     }
     
@@ -69,6 +72,13 @@ foreach (array_keys($ordersToMark) as $orderId) {
     $stmt = $pdo->prepare("UPDATE business_orders SET inventory_consumed = 1 WHERE id = ?");
     $stmt->execute([$orderId]);
 }
+
+// Update allergen trace status for all consumed ingredients
+$consumedIngredientIds = array_unique($consumedIngredientIds);
+foreach ($consumedIngredientIds as $cIngId) {
+    updateAllergenTraceStatus($pdo, $cIngId);
+}
+autoClearDepletedAllergens($pdo);
 
 echo "Klaar. " . count($ordersToMark) . " orders verwerkt.\n";
 

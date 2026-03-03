@@ -205,6 +205,7 @@ $adminBasePath = '../';
         <div class="tabs">
             <div class="tab active" onclick="switchTab('overzicht')"><i class="bi bi-calendar3"></i> Overzicht</div>
             <div class="tab" onclick="switchTab('items')"><i class="bi bi-list-ul"></i> Items beheer</div>
+            <div class="tab" onclick="switchTab('allergenen')"><i class="bi bi-shield-exclamation"></i> Sporenallergenen</div>
         </div>
 
         <!-- ==================== OVERZICHT TAB ==================== -->
@@ -278,6 +279,43 @@ $adminBasePath = '../';
                 <div id="itemsEmpty" class="empty-state" style="display:none;">
                     <i class="bi bi-inbox"></i>
                     <p>Nog geen items. Klik op <strong>Nieuw item</strong> om te beginnen.</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- ==================== SPORENALLERGENEN TAB ==================== -->
+        <div id="tab-allergenen" class="tab-content">
+            <div class="panel">
+                <div class="panel-header">
+                    <div class="panel-title"><i class="bi bi-shield-exclamation"></i> Sporenallergenen Status</div>
+                    <button class="btn btn-ghost btn-sm" onclick="loadAllergenStatus()"><i class="bi bi-arrow-clockwise"></i> Vernieuwen</button>
+                </div>
+                <div id="allergenLoading" class="loading" style="padding:1rem;"><i class="bi bi-arrow-clockwise spin"></i> Laden…</div>
+                <div id="allergenContent" style="display:none;">
+                    <div style="font-size:0.85rem; color:#666; margin-bottom:1rem; padding:0.75rem; background:#faf6f1; border-radius:8px;">
+                        <i class="bi bi-info-circle"></i>
+                        Allergenen worden als sporenallergeen getoond zolang er voorraad is, of tot 60 dagen na uitputting
+                        <strong>en</strong> alle allergeen-kritische schoonmaakitems zijn afgerond.
+                    </div>
+                    <div class="table-wrapper" id="allergenTableWrap" style="display:none;">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>Allergeen</th>
+                                    <th>Status</th>
+                                    <th>Uitgeput sinds</th>
+                                    <th>Dagen resterend</th>
+                                    <th>Schoonmaak</th>
+                                    <th></th>
+                                </tr>
+                            </thead>
+                            <tbody id="allergenBody"></tbody>
+                        </table>
+                    </div>
+                    <div id="allergenEmpty" class="empty-state" style="display:none; padding:1.5rem;">
+                        <i class="bi bi-check-circle" style="color:#2e7d32; font-size:2rem;"></i>
+                        <p>Geen sporenallergenen geconfigureerd.</p>
+                    </div>
                 </div>
             </div>
         </div>
@@ -421,6 +459,15 @@ $adminBasePath = '../';
                     <option value="0">Inactief</option>
                 </select>
             </div>
+            <div class="form-group">
+                <label style="display:flex; align-items:center; gap:0.5rem; cursor:pointer;">
+                    <input type="checkbox" id="itemAllergeenKritisch" style="cursor:pointer; accent-color:#8b5a2b;">
+                    <span>Allergeen-kritisch</span>
+                </label>
+                <div style="font-size:0.78rem; color:#888; margin-top:0.25rem;">
+                    Moet afgerond zijn voordat sporenallergenen vrijgegeven kunnen worden na voorraaduitputting.
+                </div>
+            </div>
         </div>
         <div class="modal-footer">
             <button class="btn btn-ghost" onclick="closeModal('itemModal')">Annuleren</button>
@@ -459,10 +506,11 @@ let categorieen  = [];
 
 // ==================== TABS ====================
 function switchTab(tab) {
-    const names = ['overzicht', 'items'];
+    const names = ['overzicht', 'items', 'allergenen'];
     document.querySelectorAll('.tabs .tab').forEach((el, i) => el.classList.toggle('active', names[i] === tab));
     document.querySelectorAll('.tab-content').forEach(c => c.classList.toggle('active', c.id === 'tab-' + tab));
     if (tab === 'items') loadItemsTab();
+    if (tab === 'allergenen') loadAllergenStatus();
 }
 
 // ==================== FORMULIER MODAL ====================
@@ -821,8 +869,9 @@ function renderItems() {
         </tr>`;
         groups[cat].forEach(item => {
             const active = parseInt(item.actief) === 1;
+            const kritisch = parseInt(item.is_allergeen_kritisch) === 1;
             html += `<tr class="${active ? '' : 'inactive'}">
-                <td><strong>${escHtml(item.naam)}</strong></td>
+                <td><strong>${escHtml(item.naam)}</strong>${kritisch ? ' <span class="badge" style="background:#fff3e0;color:#e65100;font-size:0.7rem;">Allergeen-kritisch</span>' : ''}</td>
                 <td style="font-size:0.84rem; color:#666;">${formatFreq(item.frequentie)}</td>
                 <td>
                     <span class="badge" style="${active
@@ -865,11 +914,13 @@ function openItemModal(id) {
             document.getElementById('itemCategorie').value  = item.categorie_id || '';
             document.getElementById('itemFrequentie').value = item.frequentie;
             document.getElementById('itemActief').value     = item.actief;
+            document.getElementById('itemAllergeenKritisch').checked = parseInt(item.is_allergeen_kritisch) === 1;
         }
     } else {
         document.getElementById('itemNaam').value       = '';
         document.getElementById('itemCategorie').value  = '';
         document.getElementById('itemFrequentie').value = 'dagelijks';
+        document.getElementById('itemAllergeenKritisch').checked = false;
     }
 
     document.getElementById('itemModal').classList.add('open');
@@ -882,12 +933,14 @@ async function saveItem() {
     const catId      = document.getElementById('itemCategorie').value;
     const frequentie = document.getElementById('itemFrequentie').value;
     const actief     = document.getElementById('itemActief').value;
+    const isAllergeenKritisch = document.getElementById('itemAllergeenKritisch').checked ? 1 : 0;
 
     if (!naam) { showToast('Naam is verplicht', 'error'); return; }
     try {
         await callApi(null, {
             action: 'save_item', id: id || null, naam,
             categorie_id: catId, type: 'schoonmaak', frequentie, actief,
+            is_allergeen_kritisch: isAllergeenKritisch,
         });
         closeModal('itemModal');
         showToast(id ? 'Item bijgewerkt' : 'Item toegevoegd', 'success');
@@ -902,6 +955,93 @@ async function toggleItemActief(id, actief) {
         await callApi(null, { action: 'toggle_item', id, actief });
         showToast(actief ? 'Item geactiveerd' : 'Item gedeactiveerd', 'success');
         await loadItems();
+    } catch (e) { showToast('Fout: ' + e.message, 'error'); }
+}
+
+// ==================== SPORENALLERGENEN ====================
+async function loadAllergenStatus() {
+    showEl('allergenLoading'); hideEl('allergenContent');
+    try {
+        const data = await callApi('?action=get_allergen_status');
+        hideEl('allergenLoading'); showEl('allergenContent');
+        renderAllergenStatus(data.statuses, data.critical_cleaning_count);
+    } catch (e) {
+        document.getElementById('allergenLoading').innerHTML =
+            `<i class="bi bi-exclamation-triangle" style="color:#c62828;"></i> Fout: ${escHtml(e.message)}`;
+    }
+}
+
+function renderAllergenStatus(statuses, criticalCount) {
+    const body  = document.getElementById('allergenBody');
+    const empty = document.getElementById('allergenEmpty');
+    const wrap  = document.getElementById('allergenTableWrap');
+
+    if (!statuses || statuses.length === 0) {
+        body.innerHTML = '';
+        hideEl('allergenTableWrap'); showEl('allergenEmpty');
+        return;
+    }
+    showEl('allergenTableWrap'); hideEl('allergenEmpty');
+
+    body.innerHTML = statuses.map(s => {
+        const isInStock  = s.status === 'in_stock';
+        const isDepleted = s.status === 'depleted';
+        const isCleared  = s.status === 'cleared';
+
+        let statusBadge, depletedSince, daysRemaining, cleaningStatus, actionBtn;
+
+        if (isInStock) {
+            statusBadge    = '<span class="badge" style="background:#fff3e0;color:#e65100;">Op voorraad</span>';
+            depletedSince  = '—';
+            daysRemaining  = '—';
+            cleaningStatus = '—';
+            actionBtn      = '';
+        } else if (isDepleted) {
+            statusBadge   = '<span class="badge" style="background:#ffebee;color:#c62828;">Uitgeput</span>';
+            depletedSince = s.stock_depleted_at ? formatDate(s.stock_depleted_at.substring(0, 10)) : '—';
+            const days    = parseInt(s.days_since_depleted) || 0;
+            const remaining = Math.max(0, 60 - days);
+            daysRemaining = remaining > 0
+                ? `${remaining} dagen`
+                : '<span style="color:#2e7d32;">Verlopen</span>';
+            cleaningStatus = criticalCount === 0
+                ? '<span style="color:#888;">Geen items</span>'
+                : `${s.cleaning_done}/${s.cleaning_total}${s.cleaning_complete ? ' <span style="color:#2e7d32;">✓</span>' : ''}`;
+            actionBtn = `<button class="btn btn-ghost btn-sm" onclick="clearAllergen('${escAttr(s.allergeen_naam)}')"><i class="bi bi-check-lg"></i> Vrijgeven</button>`;
+        } else {
+            statusBadge   = '<span class="badge" style="background:#e8f5e9;color:#2e7d32;">Vrijgegeven</span>';
+            depletedSince = s.stock_depleted_at ? formatDate(s.stock_depleted_at.substring(0, 10)) : '—';
+            daysRemaining = '—';
+            cleaningStatus = s.cleared_by === 'auto' ? 'Automatisch' : `Door: ${escHtml(s.cleared_by || '?')}`;
+            actionBtn = `<button class="btn btn-ghost btn-sm" onclick="resetAllergen('${escAttr(s.allergeen_naam)}')"><i class="bi bi-arrow-counterclockwise"></i> Terugzetten</button>`;
+        }
+
+        return `<tr>
+            <td><strong>${escHtml(s.allergeen_naam)}</strong></td>
+            <td>${statusBadge}</td>
+            <td>${depletedSince}</td>
+            <td>${daysRemaining}</td>
+            <td>${cleaningStatus}</td>
+            <td>${actionBtn}</td>
+        </tr>`;
+    }).join('');
+}
+
+async function clearAllergen(naam) {
+    if (!confirm(`Allergeen "${naam}" handmatig vrijgeven?\n\nDit allergeen wordt niet meer als sporenallergeen getoond op productpagina's.`)) return;
+    try {
+        await callApi(null, { action: 'clear_allergen', allergeen_naam: naam });
+        showToast('Allergeen vrijgegeven', 'success');
+        loadAllergenStatus();
+    } catch (e) { showToast('Fout: ' + e.message, 'error'); }
+}
+
+async function resetAllergen(naam) {
+    if (!confirm(`Allergeen "${naam}" terugzetten naar uitgeput status?`)) return;
+    try {
+        await callApi(null, { action: 'reset_allergen', allergeen_naam: naam });
+        showToast('Allergeen teruggezet', 'success');
+        loadAllergenStatus();
     } catch (e) { showToast('Fout: ' + e.message, 'error'); }
 }
 
