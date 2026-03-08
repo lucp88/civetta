@@ -1,9 +1,20 @@
 <?php
 if ($_SERVER["REQUEST_METHOD"] == "POST") {
+    // Honeypot spam filter - bots fill in hidden fields
+    if (!empty($_POST["_honey"])) {
+        try {
+            require_once 'admin/config.php';
+            $stmt = $pdo->prepare("INSERT INTO honeypot_logs (pagina, ip_adres, user_agent, ingevulde_waarde) VALUES (?, ?, ?, ?)");
+            $stmt->execute(['contact', $_SERVER['REMOTE_ADDR'] ?? '', $_SERVER['HTTP_USER_AGENT'] ?? '', substr($_POST["_honey"], 0, 255)]);
+        } catch (Exception $e) {}
+        header("Location: bedankt.html");
+        exit;
+    }
+
     $name = strip_tags(trim($_POST["name"]));
     $email = filter_var(trim($_POST["email"]), FILTER_SANITIZE_EMAIL);
     $message = trim($_POST["message"]);
-    
+
     if (empty($name) || empty($message) || !filter_var($email, FILTER_VALIDATE_EMAIL)) {
         http_response_code(400);
         header("Location: contact.html?error=1");

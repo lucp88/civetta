@@ -642,7 +642,7 @@
             async mounted() {
                 const stored = sessionStorage.getItem('businessAccount');
                 if (!stored) {
-                    window.location.href = 'login-bedrijven.html';
+                    window.location.href = 'login.html';
                     return;
                 }
                 await this.loadProfile();
@@ -664,11 +664,11 @@
                             this.loading = false;
                         } else {
                             sessionStorage.removeItem('businessAccount');
-                            window.location.href = 'login-bedrijven.html';
+                            window.location.href = 'login.html';
                         }
                     } catch (error) {
                         sessionStorage.removeItem('businessAccount');
-                        window.location.href = 'login-bedrijven.html';
+                        window.location.href = 'login.html';
                     }
                 },
                 
@@ -893,7 +893,7 @@
                         
                         if (data.success) {
                             sessionStorage.removeItem('businessAccount');
-                            window.location.href = 'login-bedrijven.html?deleted=1';
+                            window.location.href = 'login.html?deleted=1';
                         } else {
                             this.deleteError = data.error || 'Er ging iets mis';
                         }

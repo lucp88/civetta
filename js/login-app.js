@@ -27,6 +27,11 @@ createApp({
                 const data = await response.json();
                 
                 if (data.success) {
+                    if (data.is_admin) {
+                        sessionStorage.setItem('adminLoggedIn', '1');
+                        window.location.href = 'admin/index.php';
+                        return;
+                    }
                     sessionStorage.setItem('businessAccount', JSON.stringify(data.account));
                     window.location.href = 'zakelijk-dashboard.html';
                 } else {

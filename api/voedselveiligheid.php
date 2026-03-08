@@ -419,7 +419,7 @@ switch ($action) {
 
         if (empty($naam)) { echo json_encode(['success' => false, 'error' => 'Naam is verplicht']); exit; }
         if (!in_array($type, ['schoonmaak', 'voorraad'])) { echo json_encode(['success' => false, 'error' => 'Ongeldig type']); exit; }
-        if (!in_array($frequentie, ['dagelijks', 'wekelijks', 'maandelijks'])) {
+        if (!in_array($frequentie, ['dagelijks', 'dagelijks_mits_gebruikt', 'wekelijks', 'maandelijks'])) {
             echo json_encode(['success' => false, 'error' => 'Ongeldige frequentie']); exit;
         }
 

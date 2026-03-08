@@ -29,7 +29,7 @@ createApp({
     async mounted() {
         const stored = sessionStorage.getItem('businessAccount');
         if (!stored) {
-            window.location.href = 'login-bedrijven.html';
+            window.location.href = 'login.html';
             return;
         }
         
@@ -48,11 +48,11 @@ createApp({
                     this.loading = false;
                 } else {
                     sessionStorage.removeItem('businessAccount');
-                    window.location.href = 'login-bedrijven.html';
+                    window.location.href = 'login.html';
                 }
             } catch (error) {
                 sessionStorage.removeItem('businessAccount');
-                window.location.href = 'login-bedrijven.html';
+                window.location.href = 'login.html';
             }
         },
         

@@ -92,7 +92,7 @@ try {
             ->execute(['btw_tarief', '9']);
     }
     
-    echo "<p><a href='login.php'>Ga naar login</a></p>";
+    echo "<p><a href='/login.html'>Ga naar login</a></p>";
     echo "<p style='color: orange;'><strong>Verwijder dit bestand (setup.php) na installatie!</strong></p>";
     
 } catch (PDOException $e) {

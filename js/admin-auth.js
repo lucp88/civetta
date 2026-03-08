@@ -49,6 +49,7 @@ window.AdminAuthMixin = {
         },
         async logout() {
             await fetch('api/auth.php?action=logout');
+            sessionStorage.removeItem('adminLoggedIn');
             this.isAuthenticated = false;
             this.adminUser = null;
             this.updateNavForAdmin();
@@ -89,7 +90,7 @@ window.AdminAuthMixin = {
             if (!navLogin) return;
 
             if (this.isAuthenticated) {
-                navLogin.querySelector('.login-trigger').textContent = 'Admin';
+                navLogin.querySelector('.login-trigger').textContent = 'Mijn Account';
                 const dropdown = navLogin.querySelector('.login-dropdown');
                 dropdown.innerHTML = '';
 
@@ -114,7 +115,7 @@ window.AdminAuthMixin = {
                 navLogin.querySelector('.login-trigger').textContent = 'Inloggen';
                 const dropdown = navLogin.querySelector('.login-dropdown');
                 if (dropdown) {
-                    dropdown.innerHTML = '<a href="login-bedrijven.html">Bedrijven</a>' +
+                    dropdown.innerHTML = '<a href="login.html">Bedrijven</a>' +
                         '<a href="#" class="disabled">Particulieren (binnenkort)</a>';
                 }
             }

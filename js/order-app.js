@@ -119,7 +119,7 @@ const app = createApp({
     async mounted() {
         const stored = sessionStorage.getItem('businessAccount');
         if (!stored) {
-            window.location.href = 'login-bedrijven.html';
+            window.location.href = 'login.html';
             return;
         }
         

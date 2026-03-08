@@ -88,8 +88,9 @@ try {
                         JOIN ingredient_batches b ON c.batch_id = b.id
                         WHERE $where
                         ORDER BY c.consumed_at DESC
-                        LIMIT $limit";
+                        LIMIT ?";
 
+                $params[] = $limit;
                 $stmt = $pdo->prepare($sql);
                 $stmt->execute($params);
                 $history = $stmt->fetchAll();
@@ -321,7 +322,7 @@ try {
                     exit;
                 }
 
-                $stmt = $pdo->prepare("SELECT id, ingredient_id, quantity_remaining FROM ingredient_batches WHERE id = ?");
+                $stmt = $pdo->prepare("SELECT id, ingredient_id, quantity_remaining, price_per_kg FROM ingredient_batches WHERE id = ?");
                 $stmt->execute([$data['batch_id']]);
                 $batch = $stmt->fetch();
 
@@ -337,19 +338,12 @@ try {
                 try {
                     if ($qtyRemaining > 0) {
                         $stmt = $pdo->prepare("
-                            INSERT INTO inventory_consumption (ingredient_id, batch_id, order_id, reason, note, quantity_consumed, cost)
-                            VALUES (?, ?, NULL, 'purge', ?, ?, ?)
+                            INSERT INTO inventory_consumption (ingredient_id, batch_id, order_id, quantity_consumed, cost)
+                            VALUES (?, ?, NULL, ?, ?)
                         ");
-                        $note = $data['note'] ?? 'Weggegooid door gebruiker';
                         $cost = ($qtyRemaining / 1000) * floatval($batch['price_per_kg'] ?? 0);
 
-                        // Get price from batch
-                        $stmt2 = $pdo->prepare("SELECT price_per_kg FROM ingredient_batches WHERE id = ?");
-                        $stmt2->execute([$data['batch_id']]);
-                        $batchPrice = $stmt2->fetch()['price_per_kg'] ?? 0;
-                        $cost = ($qtyRemaining / 1000) * floatval($batchPrice);
-
-                        $stmt->execute([$batch['ingredient_id'], $batch['id'], $note, $qtyRemaining, $cost]);
+                        $stmt->execute([$batch['ingredient_id'], $batch['id'], $qtyRemaining, $cost]);
                     }
 
                     $stmt = $pdo->prepare("UPDATE ingredient_batches SET quantity_remaining = 0 WHERE id = ?");
@@ -412,7 +406,7 @@ try {
                                 $stmt5 = $pdo->prepare("UPDATE ingredient_batches SET quantity_remaining = quantity_remaining - ? WHERE id = ?");
                                 $stmt5->execute([$useFromBatch, $batch['id']]);
 
-                                $stmt6 = $pdo->prepare("INSERT INTO inventory_consumption (ingredient_id, batch_id, order_id, reason, note, quantity_consumed, cost) VALUES (?, ?, NULL, 'consolidation', 'Derving bij consolidatie', ?, ?)");
+                                $stmt6 = $pdo->prepare("INSERT INTO inventory_consumption (ingredient_id, batch_id, order_id, quantity_consumed, cost) VALUES (?, ?, NULL, ?, ?)");
                                 $stmt6->execute([$ingId, $batch['id'], $useFromBatch, $cost]);
 
                                 $toDeduct -= $useFromBatch;
@@ -571,8 +565,8 @@ function consumeIngredient($pdo, $ingredientId, $quantityGrams, $orderId = null)
             $stmt->execute([$useFromBatch, $batch['id']]);
 
             $stmt = $pdo->prepare("
-                INSERT INTO inventory_consumption (ingredient_id, batch_id, order_id, reason, quantity_consumed, cost)
-                VALUES (?, ?, ?, 'order', ?, ?)
+                INSERT INTO inventory_consumption (ingredient_id, batch_id, order_id, quantity_consumed, cost)
+                VALUES (?, ?, ?, ?, ?)
             ");
             $stmt->execute([$ingredientId, $batch['id'], $orderId, $useFromBatch, $costForBatch]);
 

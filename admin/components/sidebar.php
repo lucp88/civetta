@@ -3,6 +3,17 @@ $sidebarPendingAccounts = $sidebarPendingAccounts ?? 0;
 $sidebarUnprocessedOrders = $sidebarUnprocessedOrders ?? 0;
 $currentPage = $currentPage ?? '';
 ?>
+<script>
+function toggleSidebar() {
+    var dd = document.getElementById('mobileDropdown');
+    if (dd) dd.classList.toggle('open');
+}
+function closeSidebar() {
+    var dd = document.getElementById('mobileDropdown');
+    if (dd) dd.classList.remove('open');
+}
+window.addEventListener('resize', closeSidebar);
+</script>
 <style>
 :root {
     --brown-dark: #3d2514;
@@ -186,10 +197,18 @@ $currentPage = $currentPage ?? '';
     display: none;
     background: none;
     border: none;
-    font-size: 1.3rem;
+    font-size: 1.5rem;
     color: var(--text-primary);
     cursor: pointer;
-    padding: 0.25rem;
+    padding: 0.5rem;
+    min-width: 44px;
+    min-height: 44px;
+    align-items: center;
+    justify-content: center;
+    -webkit-tap-highlight-color: rgba(0,0,0,0.1);
+    touch-action: manipulation;
+    position: relative;
+    z-index: 210;
 }
 
 .topbar-title {
@@ -237,16 +256,15 @@ $currentPage = $currentPage ?? '';
     top: var(--header-height);
     left: 0;
     right: 0;
+    bottom: 0;
     background: var(--brown-dark);
-    z-index: 101;
-    max-height: 0;
-    overflow: hidden;
-    transition: max-height 0.3s ease;
+    z-index: 201;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
 }
 
 .mobile-dropdown.open {
-    max-height: calc(100vh - var(--header-height));
-    overflow-y: auto;
+    display: block !important;
 }
 
 .mobile-dropdown .nav-section {
@@ -265,14 +283,12 @@ $currentPage = $currentPage ?? '';
 
 @media (max-width: 1024px) {
     .sidebar {
-        transform: translateX(-100%);
+        display: none;
     }
 
-    .sidebar.open {
-        transform: translateX(0);
+    .mobile-overlay {
+        display: none !important;
     }
-
-    .mobile-overlay.open { display: block; }
 
     .admin-main { margin-left: 0; }
 
@@ -282,25 +298,16 @@ $currentPage = $currentPage ?? '';
 }
 
 @media (max-width: 768px) {
-    .sidebar {
-        display: none;
+    :root {
+        --header-height: 56px;
     }
-
-    .mobile-overlay {
-        display: none !important;
-    }
-
-    .mobile-dropdown {
-        display: block;
-    }
-
-    .admin-main { margin-left: 0; }
 
     .mobile-toggle { display: flex; }
 
     .topbar {
         padding: 0 1rem;
-        height: 56px;
+        height: var(--header-height);
+        z-index: 200;
     }
 
     .topbar-title {
@@ -333,10 +340,22 @@ $currentPage = $currentPage ?? '';
         <a href="<?= $adminBasePath ?? '' ?>index.php" class="nav-item <?= $currentPage === 'dashboard' ? 'active' : '' ?>">
             <i class="bi bi-grid-1x2-fill"></i> Dashboard
         </a>
+        <a href="<?= $adminBasePath ?? '' ?>reporting/analytics.php" class="nav-item <?= $currentPage === 'analytics' ? 'active' : '' ?>">
+            <i class="bi bi-bar-chart-line"></i> Analytics
+        </a>
 
         <div class="nav-section">Bakkerij</div>
         <a href="<?= $adminBasePath ?? '' ?>bakker/bakker-dashboard.php" class="nav-item <?= $currentPage === 'bakker-dashboard' ? 'active' : '' ?>">
             <i class="bi bi-calendar3"></i> Planning
+        </a>
+        <a href="<?= $adminBasePath ?? '' ?>bestellingen/orders.php" class="nav-item <?= $currentPage === 'orders' ? 'active' : '' ?>">
+            <i class="bi bi-box-seam"></i> Bestellingen
+            <?php if ($sidebarUnprocessedOrders > 0): ?>
+                <span class="nav-badge"><?= $sidebarUnprocessedOrders ?></span>
+            <?php endif; ?>
+        </a>
+        <a href="<?= $adminBasePath ?? '' ?>producten/products.php" class="nav-item <?= $currentPage === 'products' ? 'active' : '' ?>">
+            <i class="bi bi-basket3"></i> Producten
         </a>
         <a href="<?= $adminBasePath ?? '' ?>bakker/bakcalculator.php" class="nav-item <?= $currentPage === 'bakcalculator' ? 'active' : '' ?>">
             <i class="bi bi-journal-text"></i> Receptuur
@@ -348,23 +367,6 @@ $currentPage = $currentPage ?? '';
             <i class="bi bi-check2-square"></i> Voedselveiligheid
         </a>
 
-        <div class="nav-section">Beheer</div>
-        <a href="<?= $adminBasePath ?? '' ?>bestellingen/orders.php" class="nav-item <?= $currentPage === 'orders' ? 'active' : '' ?>">
-            <i class="bi bi-box-seam"></i> Bestellingen
-            <?php if ($sidebarUnprocessedOrders > 0): ?>
-                <span class="nav-badge"><?= $sidebarUnprocessedOrders ?></span>
-            <?php endif; ?>
-        </a>
-        <a href="<?= $adminBasePath ?? '' ?>producten/products.php" class="nav-item <?= $currentPage === 'products' ? 'active' : '' ?>">
-            <i class="bi bi-basket3"></i> Producten
-        </a>
-        <a href="<?= $adminBasePath ?? '' ?>accounts/accounts.php" class="nav-item <?= $currentPage === 'accounts' ? 'active' : '' ?>">
-            <i class="bi bi-people"></i> Accounts
-            <?php if ($sidebarPendingAccounts > 0): ?>
-                <span class="nav-badge"><?= $sidebarPendingAccounts ?></span>
-            <?php endif; ?>
-        </a>
-
         <div class="nav-section">Content</div>
         <a href="<?= $adminBasePath ?? '' ?>blog/posts.php" class="nav-item <?= $currentPage === 'blog' ? 'active' : '' ?>">
             <i class="bi bi-pencil-square"></i> Blog Posts
@@ -373,17 +375,26 @@ $currentPage = $currentPage ?? '';
             <i class="bi bi-heart"></i> Donaties
         </a>
 
-        <div class="nav-section">Rapportage</div>
-        <a href="<?= $adminBasePath ?? '' ?>reporting/analytics.php" class="nav-item <?= $currentPage === 'analytics' ? 'active' : '' ?>">
-            <i class="bi bi-bar-chart-line"></i> Analytics
+        <div class="nav-section">Beheer</div>
+        <a href="<?= $adminBasePath ?? '' ?>accounts/accounts.php" class="nav-item <?= $currentPage === 'accounts' ? 'active' : '' ?>">
+            <i class="bi bi-people"></i> Accounts
+            <?php if ($sidebarPendingAccounts > 0): ?>
+                <span class="nav-badge"><?= $sidebarPendingAccounts ?></span>
+            <?php endif; ?>
         </a>
-
-        <div class="nav-section">Instellingen</div>
         <a href="<?= $adminBasePath ?? '' ?>settings/settings-bedrijf.php" class="nav-item <?= $currentPage === 'settings-bedrijf' ? 'active' : '' ?>">
             <i class="bi bi-building"></i> Bedrijfsgegevens
         </a>
         <a href="<?= $adminBasePath ?? '' ?>settings/settings-boekhouding.php" class="nav-item <?= $currentPage === 'settings-boekhouding' ? 'active' : '' ?>">
             <i class="bi bi-receipt"></i> Boekhouding
+        </a>
+
+        <div class="nav-section">Web-Dev</div>
+        <a href="<?= $adminBasePath ?? '' ?>honeypot.php" class="nav-item <?= $currentPage === 'honeypot' ? 'active' : '' ?>">
+            <i class="bi bi-shield-check"></i> Honeypot
+        </a>
+        <a href="<?= $adminBasePath ?? '' ?>migrations/index.php" class="nav-item <?= $currentPage === 'migrations' ? 'active' : '' ?>">
+            <i class="bi bi-database-gear"></i> Migraties
         </a>
     </nav>
 
@@ -398,10 +409,22 @@ $currentPage = $currentPage ?? '';
         <a href="<?= $adminBasePath ?? '' ?>index.php" class="nav-item <?= $currentPage === 'dashboard' ? 'active' : '' ?>">
             <i class="bi bi-grid-1x2-fill"></i> Dashboard
         </a>
+        <a href="<?= $adminBasePath ?? '' ?>reporting/analytics.php" class="nav-item <?= $currentPage === 'analytics' ? 'active' : '' ?>">
+            <i class="bi bi-bar-chart-line"></i> Analytics
+        </a>
 
         <div class="nav-section">Bakkerij</div>
         <a href="<?= $adminBasePath ?? '' ?>bakker/bakker-dashboard.php" class="nav-item <?= $currentPage === 'bakker-dashboard' ? 'active' : '' ?>">
             <i class="bi bi-calendar3"></i> Planning
+        </a>
+        <a href="<?= $adminBasePath ?? '' ?>bestellingen/orders.php" class="nav-item <?= $currentPage === 'orders' ? 'active' : '' ?>">
+            <i class="bi bi-box-seam"></i> Bestellingen
+            <?php if ($sidebarUnprocessedOrders > 0): ?>
+                <span class="nav-badge"><?= $sidebarUnprocessedOrders ?></span>
+            <?php endif; ?>
+        </a>
+        <a href="<?= $adminBasePath ?? '' ?>producten/products.php" class="nav-item <?= $currentPage === 'products' ? 'active' : '' ?>">
+            <i class="bi bi-basket3"></i> Producten
         </a>
         <a href="<?= $adminBasePath ?? '' ?>bakker/bakcalculator.php" class="nav-item <?= $currentPage === 'bakcalculator' ? 'active' : '' ?>">
             <i class="bi bi-journal-text"></i> Receptuur
@@ -413,23 +436,6 @@ $currentPage = $currentPage ?? '';
             <i class="bi bi-check2-square"></i> Voedselveiligheid
         </a>
 
-        <div class="nav-section">Beheer</div>
-        <a href="<?= $adminBasePath ?? '' ?>bestellingen/orders.php" class="nav-item <?= $currentPage === 'orders' ? 'active' : '' ?>">
-            <i class="bi bi-box-seam"></i> Bestellingen
-            <?php if ($sidebarUnprocessedOrders > 0): ?>
-                <span class="nav-badge"><?= $sidebarUnprocessedOrders ?></span>
-            <?php endif; ?>
-        </a>
-        <a href="<?= $adminBasePath ?? '' ?>producten/products.php" class="nav-item <?= $currentPage === 'products' ? 'active' : '' ?>">
-            <i class="bi bi-basket3"></i> Producten
-        </a>
-        <a href="<?= $adminBasePath ?? '' ?>accounts/accounts.php" class="nav-item <?= $currentPage === 'accounts' ? 'active' : '' ?>">
-            <i class="bi bi-people"></i> Accounts
-            <?php if ($sidebarPendingAccounts > 0): ?>
-                <span class="nav-badge"><?= $sidebarPendingAccounts ?></span>
-            <?php endif; ?>
-        </a>
-
         <div class="nav-section">Content</div>
         <a href="<?= $adminBasePath ?? '' ?>blog/posts.php" class="nav-item <?= $currentPage === 'blog' ? 'active' : '' ?>">
             <i class="bi bi-pencil-square"></i> Blog Posts
@@ -438,17 +444,26 @@ $currentPage = $currentPage ?? '';
             <i class="bi bi-heart"></i> Donaties
         </a>
 
-        <div class="nav-section">Rapportage</div>
-        <a href="<?= $adminBasePath ?? '' ?>reporting/analytics.php" class="nav-item <?= $currentPage === 'analytics' ? 'active' : '' ?>">
-            <i class="bi bi-bar-chart-line"></i> Analytics
+        <div class="nav-section">Beheer</div>
+        <a href="<?= $adminBasePath ?? '' ?>accounts/accounts.php" class="nav-item <?= $currentPage === 'accounts' ? 'active' : '' ?>">
+            <i class="bi bi-people"></i> Accounts
+            <?php if ($sidebarPendingAccounts > 0): ?>
+                <span class="nav-badge"><?= $sidebarPendingAccounts ?></span>
+            <?php endif; ?>
         </a>
-
-        <div class="nav-section">Instellingen</div>
         <a href="<?= $adminBasePath ?? '' ?>settings/settings-bedrijf.php" class="nav-item <?= $currentPage === 'settings-bedrijf' ? 'active' : '' ?>">
             <i class="bi bi-building"></i> Bedrijfsgegevens
         </a>
         <a href="<?= $adminBasePath ?? '' ?>settings/settings-boekhouding.php" class="nav-item <?= $currentPage === 'settings-boekhouding' ? 'active' : '' ?>">
             <i class="bi bi-receipt"></i> Boekhouding
+        </a>
+
+        <div class="nav-section">Web-Dev</div>
+        <a href="<?= $adminBasePath ?? '' ?>honeypot.php" class="nav-item <?= $currentPage === 'honeypot' ? 'active' : '' ?>">
+            <i class="bi bi-shield-check"></i> Honeypot
+        </a>
+        <a href="<?= $adminBasePath ?? '' ?>migrations/index.php" class="nav-item <?= $currentPage === 'migrations' ? 'active' : '' ?>">
+            <i class="bi bi-database-gear"></i> Migraties
         </a>
 
         <div class="sidebar-footer">
@@ -457,24 +472,3 @@ $currentPage = $currentPage ?? '';
     </nav>
 </div>
 
-<script>
-function toggleSidebar() {
-    const width = window.innerWidth;
-    if (width <= 768) {
-        document.getElementById('mobileDropdown').classList.toggle('open');
-    } else {
-        document.getElementById('sidebar').classList.toggle('open');
-        document.getElementById('overlay').classList.toggle('open');
-    }
-}
-
-function closeSidebar() {
-    document.getElementById('sidebar').classList.remove('open');
-    document.getElementById('overlay').classList.remove('open');
-    document.getElementById('mobileDropdown').classList.remove('open');
-}
-
-window.addEventListener('resize', function() {
-    closeSidebar();
-});
-</script>

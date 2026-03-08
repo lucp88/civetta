@@ -328,7 +328,7 @@ function buildAccountRegistrationEmail($account, $bedrijf = []) {
             </div>
             
             <p style="text-align: center;">
-                <a href="https://bakkerij-civetta.nl/login-bedrijven.html" class="cta-button">Naar het dashboard</a>
+                <a href="https://bakkerij-civetta.nl/login.html" class="cta-button">Naar het dashboard</a>
             </p>
             
             <div class="divider"></div>
@@ -370,7 +370,7 @@ function buildAccountApprovedEmail($account, $password, $bedrijf = []) {
             </div>
             
             <p style="text-align: center;">
-                <a href="https://bakkerij-civetta.nl/login-bedrijven.html" class="cta-button">Nu inloggen</a>
+                <a href="https://bakkerij-civetta.nl/login.html" class="cta-button">Nu inloggen</a>
             </p>
             
             <div class="warning-box">
@@ -423,7 +423,7 @@ function buildPasswordResetEmail($account, $password, $bedrijf = []) {
             </div>
             
             <p style="text-align: center;">
-                <a href="https://bakkerij-civetta.nl/login-bedrijven.html" class="cta-button">Nu inloggen</a>
+                <a href="https://bakkerij-civetta.nl/login.html" class="cta-button">Nu inloggen</a>
             </p>
             
             <div class="warning-box">

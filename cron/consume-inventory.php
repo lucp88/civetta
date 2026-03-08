@@ -10,7 +10,7 @@ $cutoffTime = date('Y-m-d H:i:s', strtotime("+{$deadlineHours} hours"));
 
 $stmt = $pdo->prepare("
     SELECT bo.id, bo.delivery_date, oi.product_id, oi.variant_id, oi.quantity,
-           p.naam as product_naam, p.recipe_id, pv.gewicht
+           p.naam as product_naam, pv.recipe_id, pv.gewicht
     FROM business_orders bo
     JOIN business_order_items oi ON bo.id = oi.order_id
     JOIN products p ON oi.product_id = p.id
@@ -30,6 +30,7 @@ if (empty($orderItems)) {
 }
 
 $ordersToMark = [];
+$markedOrders = [];
 $consumedIngredientIds = [];
 
 foreach ($orderItems as $item) {
@@ -66,11 +67,13 @@ foreach ($orderItems as $item) {
     }
     
     echo "Order #{$orderId}: {$item['quantity']}x {$item['product_naam']} ({$totalWeight}g) - voorraad afgeschreven\n";
-}
 
-foreach (array_keys($ordersToMark) as $orderId) {
-    $stmt = $pdo->prepare("UPDATE business_orders SET inventory_consumed = 1 WHERE id = ?");
-    $stmt->execute([$orderId]);
+    // Mark order immediately after processing to prevent double-consumption on partial failure
+    if (!isset($markedOrders[$orderId])) {
+        $stmt = $pdo->prepare("UPDATE business_orders SET inventory_consumed = 1 WHERE id = ?");
+        $stmt->execute([$orderId]);
+        $markedOrders[$orderId] = true;
+    }
 }
 
 // Update allergen trace status for all consumed ingredients
@@ -185,37 +188,44 @@ function findIngredientByName($pdo, $name) {
 }
 
 function consumeIngredient($pdo, $ingredientId, $quantityGrams, $orderId = null) {
-    $stmt = $pdo->prepare("
-        SELECT id, quantity_remaining, price_per_kg
-        FROM ingredient_batches
-        WHERE ingredient_id = ? AND quantity_remaining > 0
-        ORDER BY purchase_date ASC
-        FOR UPDATE
-    ");
-    $stmt->execute([$ingredientId]);
-    $batches = $stmt->fetchAll();
-    
-    $remaining = $quantityGrams;
-    $totalCost = 0;
-    
-    foreach ($batches as $batch) {
-        if ($remaining <= 0) break;
-        
-        $useFromBatch = min($remaining, $batch['quantity_remaining']);
-        $costForBatch = ($useFromBatch / 1000) * $batch['price_per_kg'];
-        
-        $stmt = $pdo->prepare("UPDATE ingredient_batches SET quantity_remaining = quantity_remaining - ? WHERE id = ?");
-        $stmt->execute([$useFromBatch, $batch['id']]);
-        
+    $pdo->beginTransaction();
+    try {
         $stmt = $pdo->prepare("
-            INSERT INTO inventory_consumption (ingredient_id, batch_id, order_id, quantity_consumed, cost)
-            VALUES (?, ?, ?, ?, ?)
+            SELECT id, quantity_remaining, price_per_kg
+            FROM ingredient_batches
+            WHERE ingredient_id = ? AND quantity_remaining > 0
+            ORDER BY purchase_date ASC
+            FOR UPDATE
         ");
-        $stmt->execute([$ingredientId, $batch['id'], $orderId, $useFromBatch, $costForBatch]);
-        
-        $totalCost += $costForBatch;
-        $remaining -= $useFromBatch;
+        $stmt->execute([$ingredientId]);
+        $batches = $stmt->fetchAll();
+
+        $remaining = $quantityGrams;
+        $totalCost = 0;
+
+        foreach ($batches as $batch) {
+            if ($remaining <= 0) break;
+
+            $useFromBatch = min($remaining, $batch['quantity_remaining']);
+            $costForBatch = ($useFromBatch / 1000) * $batch['price_per_kg'];
+
+            $stmt = $pdo->prepare("UPDATE ingredient_batches SET quantity_remaining = quantity_remaining - ? WHERE id = ?");
+            $stmt->execute([$useFromBatch, $batch['id']]);
+
+            $stmt = $pdo->prepare("
+                INSERT INTO inventory_consumption (ingredient_id, batch_id, order_id, quantity_consumed, cost)
+                VALUES (?, ?, ?, ?, ?)
+            ");
+            $stmt->execute([$ingredientId, $batch['id'], $orderId, $useFromBatch, $costForBatch]);
+
+            $totalCost += $costForBatch;
+            $remaining -= $useFromBatch;
+        }
+
+        $pdo->commit();
+        return ['consumed' => $quantityGrams - $remaining, 'cost' => $totalCost, 'shortage' => $remaining];
+    } catch (Exception $e) {
+        $pdo->rollBack();
+        throw $e;
     }
-    
-    return ['consumed' => $quantityGrams - $remaining, 'cost' => $totalCost, 'shortage' => $remaining];
 }
