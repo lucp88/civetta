@@ -44,7 +44,7 @@ try {
             .admin-content { padding: 1.25rem; }
         }
         .breadcrumb { margin-bottom: 1.5rem; }
-        .breadcrumb a { color: #8b5a2b; text-decoration: none; }
+        .breadcrumb a { color: #3d6b3d; text-decoration: none; }
         .breadcrumb a:hover { text-decoration: underline; }
         .breadcrumb span { color: #888; margin: 0 0.5rem; }
         .section {
@@ -55,7 +55,7 @@ try {
             margin-bottom: 1.5rem;
         }
         .section h2 {
-            color: #5c3d1e;
+            color: #2d4a2d;
             margin-bottom: 1rem;
             display: flex;
             align-items: center;
@@ -63,7 +63,7 @@ try {
         }
         .section h2 .count {
             background: #e8dfd2;
-            color: #8b5a2b;
+            color: #3d6b3d;
             font-size: 0.85rem;
             padding: 0.2rem 0.6rem;
             border-radius: 12px;
@@ -98,7 +98,7 @@ try {
         .account-name {
             font-size: 1.15rem;
             font-weight: 600;
-            color: #5c3d1e;
+            color: #2d4a2d;
             display: flex;
             align-items: center;
             gap: 0.5rem;
@@ -116,13 +116,13 @@ try {
         }
         .account-details dt {
             font-weight: 600;
-            color: #8b5a2b;
+            color: #3d6b3d;
             font-size: 0.75rem;
             text-transform: uppercase;
             letter-spacing: 0.05em;
         }
         .account-details dd { margin-bottom: 0.5rem; }
-        .account-details a { color: #8b5a2b; text-decoration: none; }
+        .account-details a { color: #3d6b3d; text-decoration: none; }
         .account-details a:hover { text-decoration: underline; }
         .account-actions {
             margin-top: 1rem;
@@ -135,7 +135,7 @@ try {
         .btn {
             display: inline-block;
             padding: 0.5rem 1rem;
-            background: #8b5a2b;
+            background: #3d6b3d;
             color: white;
             text-decoration: none;
             border-radius: 6px;
@@ -144,7 +144,7 @@ try {
             cursor: pointer;
             transition: background 0.2s;
         }
-        .btn:hover { background: #5c3d1e; }
+        .btn:hover { background: #2d4a2d; }
         .btn-success { background: #28a745; }
         .btn-success:hover { background: #1e7e34; }
         .btn-danger { background: #dc3545; }
@@ -178,7 +178,7 @@ try {
         }
         .balance-badge.inactive {
             background: #e8dfd2;
-            color: #8b5a2b;
+            color: #3d6b3d;
         }
         .section-header {
             display: flex;
@@ -192,7 +192,7 @@ try {
             align-items: center;
             gap: 0.4rem;
             padding: 0.5rem 1rem;
-            background: #8b5a2b;
+            background: #3d6b3d;
             color: white;
             border: none;
             border-radius: 6px;
@@ -201,7 +201,7 @@ try {
             font-weight: 500;
             transition: background 0.2s;
         }
-        .btn-new:hover { background: #5c3d1e; }
+        .btn-new:hover { background: #2d4a2d; }
         .modal-overlay {
             display: none;
             position: fixed;
@@ -224,14 +224,14 @@ try {
         }
         .modal.modal-wide { max-width: 600px; }
         .modal h3 {
-            color: #5c3d1e;
+            color: #2d4a2d;
             margin-bottom: 1rem;
         }
         .modal .form-group { margin-bottom: 1rem; }
         .modal .form-group label {
             display: block;
             font-weight: 600;
-            color: #5c3d1e;
+            color: #2d4a2d;
             margin-bottom: 0.25rem;
             font-size: 0.85rem;
         }
@@ -247,7 +247,7 @@ try {
         .modal .form-group input:focus,
         .modal .form-group textarea:focus {
             outline: none;
-            border-color: #8b5a2b;
+            border-color: #3d6b3d;
         }
         .modal-actions {
             display: flex;
@@ -299,7 +299,7 @@ try {
         .balance-display .amount {
             font-size: 1.5rem;
             font-weight: 700;
-            color: #5c3d1e;
+            color: #2d4a2d;
         }
         .balance-display .label {
             font-size: 0.8rem;
@@ -567,7 +567,7 @@ try {
                 </div>
             </form>
 
-            <h4 style="color: #5c3d1e; margin-bottom: 0.5rem; font-size: 0.9rem;">Transactiehistorie</h4>
+            <h4 style="color: #2d4a2d; margin-bottom: 0.5rem; font-size: 0.9rem;">Transactiehistorie</h4>
             <div class="transaction-list" id="transaction-list">
                 <div class="empty">Laden...</div>
             </div>
@@ -578,6 +578,7 @@ try {
         </div>
     </div>
 
+    <script src="../../js/ui-notifications.js?v=1"></script>
     <script>
         function showMessage(text, type) {
             const container = document.getElementById('message-container');
@@ -713,7 +714,7 @@ try {
 
         // Delete
         async function deleteAccount(id, name) {
-            if (!confirm(`Weet je zeker dat je "${name}" permanent wilt verwijderen? Dit kan niet ongedaan worden gemaakt.`)) return;
+            if (!await showConfirm(`Weet je zeker dat je "${name}" permanent wilt verwijderen? Dit kan niet ongedaan worden gemaakt.`)) return;
 
             try {
                 const response = await fetch(`../../api/business-accounts.php?id=${id}`, {
@@ -734,7 +735,7 @@ try {
 
         // Reset password
         async function resetPassword(id, email) {
-            if (!confirm(`Weet je zeker dat je een nieuw wachtwoord wilt genereren voor ${email}? Het nieuwe wachtwoord wordt per e-mail verzonden.`)) return;
+            if (!await showConfirm(`Weet je zeker dat je een nieuw wachtwoord wilt genereren voor ${email}? Het nieuwe wachtwoord wordt per e-mail verzonden.`)) return;
 
             try {
                 const response = await fetch('../../api/business-accounts.php', {

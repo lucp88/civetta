@@ -43,7 +43,7 @@ $monthlyBreadCount = (int)$stmt->fetch()['total_breads'];
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Bak Calculator | Civetta Admin</title>
     <link rel="manifest" href="../manifest.json">
-    <meta name="theme-color" content="#5c3d1e">
+    <meta name="theme-color" content="#2d4a2d">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <link rel="apple-touch-icon" sizes="192x192" href="/img/icon-192.png">
@@ -62,48 +62,48 @@ $monthlyBreadCount = (int)$stmt->fetch()['total_breads'];
             .admin-content { padding: 1rem; }
         }
         .top-bar { display: flex; gap: 1rem; align-items: center; margin-bottom: 1.5rem; flex-wrap: wrap; }
-        .recipe-name-input { flex: 1; min-width: 200px; padding: 0.6rem 1rem; border: 2px solid #e0d5c7; border-radius: 8px; font-size: 1.1rem; font-weight: 600; color: #5c3d1e; background: white; }
+        .recipe-name-input { flex: 1; min-width: 200px; padding: 0.6rem 1rem; border: 2px solid #e0d5c7; border-radius: 8px; font-size: 1.1rem; font-weight: 600; color: #2d4a2d; background: white; }
         .recipe-name-input:focus { outline: none; border-color: #c8913a; }
         .recipe-name-input::placeholder { color: #bbb; font-weight: 400; }
         .dough-type-select { display: flex; gap: 0.25rem; align-items: center; }
-        .form-select-sm { padding: 0.5rem 0.75rem; border: 2px solid #e0d5c7; border-radius: 8px; font-size: 0.9rem; background: white; color: #5c3d1e; min-width: 140px; }
+        .form-select-sm { padding: 0.5rem 0.75rem; border: 2px solid #e0d5c7; border-radius: 8px; font-size: 0.9rem; background: white; color: #2d4a2d; min-width: 140px; }
         .form-select-sm:focus { outline: none; border-color: #c8913a; }
         .btn-icon { width: 36px; height: 36px; border: 2px solid #e0d5c7; border-radius: 8px; background: white; cursor: pointer; display: flex; align-items: center; justify-content: center; color: #888; }
         .btn-icon:hover { border-color: #c8913a; color: #c8913a; }
         .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.5); display: flex; align-items: center; justify-content: center; z-index: 1000; }
         .modal-content { background: white; border-radius: 12px; width: 90%; max-width: 400px; box-shadow: 0 10px 40px rgba(0,0,0,0.2); }
         .modal-header { display: flex; justify-content: space-between; align-items: center; padding: 1rem 1.25rem; border-bottom: 1px solid #e0d5c7; }
-        .modal-header h3 { font-size: 1.1rem; color: #5c3d1e; margin: 0; display: flex; align-items: center; gap: 0.5rem; }
+        .modal-header h3 { font-size: 1.1rem; color: #2d4a2d; margin: 0; display: flex; align-items: center; gap: 0.5rem; }
         .modal-close { background: none; border: none; font-size: 1.5rem; color: #888; cursor: pointer; line-height: 1; }
         .modal-close:hover { color: #c62828; }
         .modal-body { padding: 1.25rem; }
         .dough-type-list { max-height: 250px; overflow-y: auto; margin-bottom: 1rem; }
         .dough-type-item { display: flex; justify-content: space-between; align-items: center; padding: 0.6rem 0.75rem; border-radius: 6px; background: #faf6f1; margin-bottom: 0.5rem; }
-        .dough-type-item span { font-weight: 500; color: #5c3d1e; }
+        .dough-type-item span { font-weight: 500; color: #2d4a2d; }
         .btn-icon-danger { width: 28px; height: 28px; border: none; border-radius: 6px; background: transparent; cursor: pointer; color: #888; display: flex; align-items: center; justify-content: center; }
         .btn-icon-danger:hover { background: #ffebee; color: #c62828; }
         .empty-msg { text-align: center; color: #888; padding: 1rem; font-size: 0.9rem; }
         .add-dough-type { display: flex; gap: 0.5rem; }
         .add-dough-type .form-input { flex: 1; }
         .btn { padding: 0.6rem 1.2rem; border: none; border-radius: 8px; font-size: 0.9rem; font-weight: 600; cursor: pointer; display: inline-flex; align-items: center; gap: 0.4rem; transition: all 0.2s; }
-        .btn-primary { background: #8b5a2b; color: white; }
-        .btn-primary:hover { background: #5c3d1e; }
+        .btn-primary { background: #3d6b3d; color: white; }
+        .btn-primary:hover { background: #2d4a2d; }
         .btn-success { background: #2e7d32; color: white; }
         .btn-success:hover { background: #1b5e20; }
         .btn-danger { background: #c62828; color: white; }
         .btn-danger:hover { background: #b71c1c; }
-        .btn-ghost { background: transparent; color: #8b5a2b; border: 2px solid #e0d5c7; }
-        .btn-ghost:hover { border-color: #8b5a2b; background: #faf6f1; }
+        .btn-ghost { background: transparent; color: #3d6b3d; border: 2px solid #e0d5c7; }
+        .btn-ghost:hover { border-color: #3d6b3d; background: #faf6f1; }
         .btn-sm { padding: 0.35rem 0.7rem; font-size: 0.8rem; }
         .tabs { display: flex; gap: 0.25rem; border-bottom: 2px solid #e0d5c7; margin-bottom: 1.5rem; overflow-x: auto; scrollbar-width: none; }
         .tabs::-webkit-scrollbar { display: none; }
         .tab { padding: 0.7rem 1.2rem; cursor: pointer; font-weight: 500; color: #888; border-bottom: 3px solid transparent; margin-bottom: -2px; white-space: nowrap; transition: all 0.2s; user-select: none; }
-        .tab:hover { color: #5c3d1e; }
-        .tab.active { color: #8b5a2b; border-bottom-color: #c8913a; font-weight: 700; }
+        .tab:hover { color: #2d4a2d; }
+        .tab.active { color: #3d6b3d; border-bottom-color: #c8913a; font-weight: 700; }
         .layout { display: grid; grid-template-columns: 1fr 340px; gap: 1.5rem; align-items: start; }
         @media (max-width: 900px) { .layout { grid-template-columns: 1fr; } }
         .panel { background: white; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.08); padding: 1.5rem; margin-bottom: 1.5rem; }
-        .panel-title { font-size: 1.1rem; font-weight: 700; color: #5c3d1e; margin-bottom: 1rem; display: flex; align-items: center; gap: 0.5rem; }
+        .panel-title { font-size: 1.1rem; font-weight: 700; color: #2d4a2d; margin-bottom: 1rem; display: flex; align-items: center; gap: 0.5rem; }
         .panel-title i { color: #c8913a; }
         .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
         @media (max-width: 500px) { .form-grid { grid-template-columns: 1fr; } }
@@ -127,13 +127,13 @@ $monthlyBreadCount = (int)$stmt->fetch()['total_breads'];
         .btn-remove:hover { background: #c62828; color: white; border-color: #c62828; }
         .btn-add { width: 100%; padding: 0.5rem; border: 2px dashed #d5cbbf; border-radius: 8px; background: transparent; color: #999; cursor: pointer; font-size: 0.85rem; display: flex; align-items: center; justify-content: center; gap: 0.3rem; }
         .btn-add:hover { border-color: #c8913a; color: #c8913a; background: #faf6f1; }
-        .weight-tag { display: inline-block; padding: 0.15rem 0.5rem; background: #f5f0e8; border-radius: 4px; font-size: 0.8rem; font-weight: 600; color: #8b5a2b; }
+        .weight-tag { display: inline-block; padding: 0.15rem 0.5rem; background: #f5f0e8; border-radius: 4px; font-size: 0.8rem; font-weight: 600; color: #3d6b3d; }
         .toggle-row { display: flex; align-items: center; gap: 0.75rem; margin-bottom: 1rem; }
         .toggle { position: relative; width: 48px; height: 26px; background: #ddd; border-radius: 13px; cursor: pointer; transition: background 0.2s; flex-shrink: 0; }
         .toggle.on { background: #c8913a; }
         .toggle::after { content: ''; position: absolute; width: 22px; height: 22px; background: white; border-radius: 50%; top: 2px; left: 2px; transition: transform 0.2s; box-shadow: 0 1px 3px rgba(0,0,0,0.2); }
         .toggle.on::after { transform: translateX(22px); }
-        .toggle-label { font-weight: 600; color: #5c3d1e; font-size: 0.95rem; }
+        .toggle-label { font-weight: 600; color: #2d4a2d; font-size: 0.95rem; }
         .calc-sidebar { position: sticky; top: 1.5rem; }
         .summary-card { background: white; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.08); overflow: hidden; }
         .summary-header { background: linear-gradient(135deg, #c8913a, #a0722e); color: white; padding: 1rem 1.25rem; }
@@ -142,7 +142,7 @@ $monthlyBreadCount = (int)$stmt->fetch()['total_breads'];
         .summary-row { display: flex; justify-content: space-between; align-items: center; padding: 0.45rem 0; }
         .summary-row.total { border-top: 2px solid #e8e0d5; margin-top: 0.5rem; padding-top: 0.75rem; }
         .summary-label { font-size: 0.85rem; color: #888; }
-        .summary-value { font-weight: 700; color: #5c3d1e; }
+        .summary-value { font-weight: 700; color: #2d4a2d; }
         .summary-value.accent { color: #c8913a; font-size: 1.1rem; }
         .summary-section-title { font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.05em; color: #bbb; font-weight: 700; margin-top: 0.75rem; margin-bottom: 0.25rem; }
         .pct-bar { height: 6px; background: #eee; border-radius: 3px; margin-top: 0.75rem; overflow: hidden; display: flex; }
@@ -155,9 +155,9 @@ $monthlyBreadCount = (int)$stmt->fetch()['total_breads'];
         .recipe-group:last-child { margin-bottom: 0; }
         .recipe-group-header { display: flex; align-items: center; gap: 0.5rem; padding: 0.5rem 0; border-bottom: 2px solid #e8e0d5; margin-bottom: 0.25rem; cursor: pointer; user-select: none; }
         .recipe-group-header:hover { background: #faf8f4; }
-        .recipe-group-header i { color: #8b5a2b; font-size: 0.9rem; transition: transform 0.2s; }
+        .recipe-group-header i { color: #3d6b3d; font-size: 0.9rem; transition: transform 0.2s; }
         .recipe-group-header.collapsed i { transform: rotate(-90deg); }
-        .recipe-group-name { font-weight: 600; color: #5c3d1e; font-size: 0.9rem; }
+        .recipe-group-name { font-weight: 600; color: #2d4a2d; font-size: 0.9rem; }
         .recipe-group-count { font-size: 0.75rem; color: #999; background: #f0f0f0; padding: 0.1rem 0.4rem; border-radius: 10px; }
         .recipe-group-items { list-style: none; }
         .recipe-group-items.collapsed { display: none; }
@@ -165,7 +165,7 @@ $monthlyBreadCount = (int)$stmt->fetch()['total_breads'];
         .recipe-item:last-child { border-bottom: none; }
         .recipe-item::before { content: ''; position: absolute; left: 0.5rem; width: 0.75rem; height: 1px; background: #ddd; }
         .recipe-info { flex: 1; position: relative; }
-        .recipe-info h4 { color: #5c3d1e; font-size: 0.9rem; margin-bottom: 0.15rem; display: flex; align-items: center; gap: 0.5rem; }
+        .recipe-info h4 { color: #2d4a2d; font-size: 0.9rem; margin-bottom: 0.15rem; display: flex; align-items: center; gap: 0.5rem; }
         .recipe-info h4 .recipe-type-badge { font-size: 0.65rem; padding: 0.1rem 0.35rem; border-radius: 3px; font-weight: 500; background: #e8f5e9; color: #2e7d32; text-transform: uppercase; }
         .recipe-info small { color: #999; font-size: 0.75rem; }
         .uncategorized-header { color: #999; font-style: italic; }
@@ -173,13 +173,13 @@ $monthlyBreadCount = (int)$stmt->fetch()['total_breads'];
         .overview-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem; }
         @media (max-width: 700px) { .overview-grid { grid-template-columns: 1fr; } }
         .overview-section { background: #faf8f4; border-radius: 8px; padding: 1rem; }
-        .overview-section h4 { font-size: 0.85rem; color: #8b5a2b; margin-bottom: 0.75rem; display: flex; align-items: center; gap: 0.4rem; }
+        .overview-section h4 { font-size: 0.85rem; color: #3d6b3d; margin-bottom: 0.75rem; display: flex; align-items: center; gap: 0.4rem; }
         .overview-item { display: flex; justify-content: space-between; padding: 0.3rem 0; font-size: 0.9rem; }
         .overview-item .name { color: #666; }
         .overview-item .value { font-weight: 600; color: #333; }
         .overview-item.sub { padding-left: 1rem; font-size: 0.85rem; }
         .overview-item.sub .name { color: #aaa; }
-        .overview-total { display: flex; justify-content: space-between; padding: 0.5rem 0; border-top: 2px solid #e0d5c7; margin-top: 0.5rem; font-weight: 700; color: #5c3d1e; }
+        .overview-total { display: flex; justify-content: space-between; padding: 0.5rem 0; border-top: 2px solid #e0d5c7; margin-top: 0.5rem; font-weight: 700; color: #2d4a2d; }
         .bp-table { width: 100%; border-collapse: collapse; font-size: 0.9rem; }
         .bp-table th { text-align: left; padding: 0.5rem; color: #888; font-size: 0.75rem; text-transform: uppercase; border-bottom: 2px solid #e8e0d5; }
         .bp-table td { padding: 0.5rem; border-bottom: 1px solid #f0f0f0; }
@@ -193,7 +193,7 @@ $monthlyBreadCount = (int)$stmt->fetch()['total_breads'];
         .empty-state i { font-size: 2.5rem; display: block; margin-bottom: 0.5rem; }
         .method-day { background: #faf7f2; border: 2px solid #e8e0d5; border-radius: 10px; padding: 1rem; margin-bottom: 1rem; }
         .method-day-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 0.75rem; }
-        .method-day-header h4 { margin: 0; font-size: 1rem; color: #5c3d1e; display: flex; align-items: center; gap: 0.4rem; }
+        .method-day-header h4 { margin: 0; font-size: 1rem; color: #2d4a2d; display: flex; align-items: center; gap: 0.4rem; }
         .method-step { display: flex; align-items: flex-start; gap: 0.5rem; margin-bottom: 0.5rem; border-radius: 6px; padding: 0.2rem; transition: background 0.15s, opacity 0.15s; }
         .method-step.dragging { opacity: 0.4; }
         .method-step.drag-over { background: #e8f0fe; box-shadow: inset 0 -2px 0 #c8913a; }
@@ -202,10 +202,10 @@ $monthlyBreadCount = (int)$stmt->fetch()['total_breads'];
         .method-step-num { min-width: 1.6rem; height: 1.6rem; background: #c8913a; color: white; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 0.75rem; font-weight: 700; margin-top: 0.4rem; flex-shrink: 0; }
         .method-step textarea { flex: 1; padding: 0.5rem 0.75rem; border: 2px solid #e8e0d5; border-radius: 6px; font-family: inherit; font-size: 0.9rem; resize: vertical; min-height: 2.4rem; color: #333; }
         .method-step textarea:focus { outline: none; border-color: #c8913a; }
-        .method-add-step { display: inline-flex; align-items: center; gap: 0.3rem; padding: 0.3rem 0.7rem; font-size: 0.8rem; color: #8b5a2b; background: none; border: 1px dashed #cbb89d; border-radius: 6px; cursor: pointer; margin-top: 0.25rem; }
-        .method-add-step:hover { background: #f0e8da; border-color: #8b5a2b; }
-        .method-add-day { display: inline-flex; align-items: center; gap: 0.4rem; padding: 0.5rem 1rem; font-size: 0.85rem; color: #5c3d1e; background: none; border: 2px dashed #cbb89d; border-radius: 8px; cursor: pointer; }
-        .method-add-day:hover { background: #f5f0e8; border-color: #8b5a2b; }
+        .method-add-step { display: inline-flex; align-items: center; gap: 0.3rem; padding: 0.3rem 0.7rem; font-size: 0.8rem; color: #3d6b3d; background: none; border: 1px dashed #cbb89d; border-radius: 6px; cursor: pointer; margin-top: 0.25rem; }
+        .method-add-step:hover { background: #f0e8da; border-color: #3d6b3d; }
+        .method-add-day { display: inline-flex; align-items: center; gap: 0.4rem; padding: 0.5rem 1rem; font-size: 0.85rem; color: #2d4a2d; background: none; border: 2px dashed #cbb89d; border-radius: 8px; cursor: pointer; }
+        .method-add-day:hover { background: #f5f0e8; border-color: #3d6b3d; }
         .method-apply-btn { display: inline-flex; align-items: center; gap: 0.3rem; padding: 0.35rem 0.75rem; font-size: 0.8rem; color: #1a56c4; background: #e8f0fe; border: 1px solid #90b4f5; border-radius: 6px; cursor: pointer; }
         .method-apply-btn:hover { background: #d0e2fc; }
         .category-label { font-size: 0.7rem; padding: 0.15rem 0.4rem; border-radius: 4px; font-weight: 600; text-transform: uppercase; }
@@ -376,7 +376,7 @@ $monthlyBreadCount = (int)$stmt->fetch()['total_breads'];
                             <i class="bi bi-exclamation-triangle"></i> Totaal is {{ sourdoughGrainsPctTotal }}% — moet 100% zijn
                         </div>
                         <div style="margin-top:0.75rem; display:flex; gap:1.5rem; flex-wrap:wrap">
-                            <span class="form-label">Zuurdesem meel: <strong style="color:#5c3d1e">{{ formatW(sourdoughFlour) }}g</strong></span>
+                            <span class="form-label">Zuurdesem meel: <strong style="color:#2d4a2d">{{ formatW(sourdoughFlour) }}g</strong></span>
                             <span class="form-label">Zuurdesem water: <strong style="color:#4a90d9">{{ formatW(sourdoughWater) }}g</strong></span>
                             <span class="form-label">Zuurdesem totaal: <strong style="color:#c8913a">{{ formatW(sourdoughWeight) }}g</strong></span>
                         </div>
@@ -423,7 +423,7 @@ $monthlyBreadCount = (int)$stmt->fetch()['total_breads'];
                             <i class="bi bi-exclamation-triangle"></i> Totaal is {{ preFermentGrainsPctTotal }}% — moet 100% zijn
                         </div>
                         <div style="margin-top:0.75rem; display:flex; gap:1.5rem; flex-wrap:wrap">
-                            <span class="form-label">Voordeeg meel: <strong style="color:#5c3d1e">{{ formatW(preFermentFlour) }}g</strong></span>
+                            <span class="form-label">Voordeeg meel: <strong style="color:#2d4a2d">{{ formatW(preFermentFlour) }}g</strong></span>
                             <span class="form-label">Voordeeg water: <strong style="color:#4a90d9">{{ formatW(preFermentWater) }}g</strong></span>
                             <span class="form-label">Voordeeg totaal: <strong style="color:#c8913a">{{ formatW(preFermentWeight) }}g</strong></span>
                         </div>
@@ -460,7 +460,7 @@ $monthlyBreadCount = (int)$stmt->fetch()['total_breads'];
                             <i class="bi bi-exclamation-triangle"></i> Totaal is {{ mainGrainsPctTotal }}% — moet 100% zijn
                         </div>
                         <div style="margin-top:0.75rem; display:flex; gap:1.5rem; flex-wrap:wrap">
-                            <span class="form-label">Hoofddeeg meel: <strong style="color:#5c3d1e">{{ formatW(mainDoughFlour) }}g</strong></span>
+                            <span class="form-label">Hoofddeeg meel: <strong style="color:#2d4a2d">{{ formatW(mainDoughFlour) }}g</strong></span>
                             <span class="form-label">Hoofddeeg water: <strong style="color:#4a90d9">{{ formatW(mainDoughWater) }}g</strong></span>
                             <span class="form-label">Effectieve hydratatie: <strong style="color:#c8913a">{{ formatP(effectiveMainDoughHydration) }}%</strong></span>
                         </div>
@@ -721,7 +721,7 @@ $monthlyBreadCount = (int)$stmt->fetch()['total_breads'];
                             </div>
                         </div>
                         <p v-if="ingredientsLoaded && totalIngredientCost === 0" style="color:#888;font-size:0.85rem;margin-top:0.5rem">
-                            <i class="bi bi-info-circle"></i> Vul ingrediëntprijzen in via <a href="voorraad.php" style="color:#8b5a2b">Voorraadbeheer</a> voor kostprijsberekening.
+                            <i class="bi bi-info-circle"></i> Vul ingrediëntprijzen in via <a href="voorraad.php" style="color:#3d6b3d">Voorraadbeheer</a> voor kostprijsberekening.
                         </p>
                     </div>
                 </div>
@@ -892,11 +892,11 @@ $monthlyBreadCount = (int)$stmt->fetch()['total_breads'];
                         </template>
 
                         <div class="summary-row total">
-                            <span class="summary-label" style="font-weight:700;color:#5c3d1e">Deeggewicht</span>
+                            <span class="summary-label" style="font-weight:700;color:#2d4a2d">Deeggewicht</span>
                             <span class="summary-value accent">{{ formatW(doughWeight) }}g</span>
                         </div>
                         <div class="summary-row">
-                            <span class="summary-label" style="font-weight:700;color:#5c3d1e">Totaal</span>
+                            <span class="summary-label" style="font-weight:700;color:#2d4a2d">Totaal</span>
                             <span class="summary-value accent">{{ formatW(totalFinalWeight) }}g</span>
                         </div>
 
@@ -932,7 +932,7 @@ $monthlyBreadCount = (int)$stmt->fetch()['total_breads'];
                             <div v-for="dt in doughTypes" :key="dt.id" class="dough-type-item">
                                 <span>{{ dt.name }}</span>
                                 <div style="display:flex;gap:0.25rem">
-                                    <button class="btn-icon-danger" @click="editDoughType(dt)" title="Bewerken" style="color:#8b5a2b"><i class="bi bi-pencil"></i></button>
+                                    <button class="btn-icon-danger" @click="editDoughType(dt)" title="Bewerken" style="color:#3d6b3d"><i class="bi bi-pencil"></i></button>
                                     <button class="btn-icon-danger" @click="deleteDoughType(dt.id)" title="Verwijderen"><i class="bi bi-trash"></i></button>
                                 </div>
                             </div>
@@ -1146,6 +1146,7 @@ $monthlyBreadCount = (int)$stmt->fetch()['total_breads'];
         </div>
     </div>
 
+    <script src="../../js/ui-notifications.js?v=1"></script>
     <script src="https://unpkg.com/vue@3/dist/vue.global.prod.js"></script>
     <script>
     const { createApp } = Vue;
@@ -1540,10 +1541,10 @@ $monthlyBreadCount = (int)$stmt->fetch()['total_breads'];
                 if (this.isInherited) return;
                 this.methodDays.push({ label: 'Dag ' + (this.methodDays.length + 1), steps: [''] });
             },
-            removeDay(di) {
+            async removeDay(di) {
                 if (this.isInherited || this.methodDays.length <= 1) return;
                 const hasContent = this.methodDays[di].steps.some(s => s.trim());
-                if (hasContent && !confirm('Dag ' + (di + 1) + ' bevat stappen. Weet je zeker dat je deze wilt verwijderen?')) return;
+                if (hasContent && !await showConfirm('Dag ' + (di + 1) + ' bevat stappen. Weet je zeker dat je deze wilt verwijderen?')) return;
                 this.methodDays.splice(di, 1);
             },
             addStep(di) {
@@ -1596,9 +1597,9 @@ $monthlyBreadCount = (int)$stmt->fetch()['total_breads'];
                 this.dragStep = null;
                 this.dragOverStep = null;
             },
-            applyDoughTypeMethod() {
+            async applyDoughTypeMethod() {
                 if (!this.inheritedMethodDays) return;
-                if (!confirm('Methode stappen overnemen van deegsoort? Bestaande stappen worden overschreven.')) return;
+                if (!await showConfirm('Methode stappen overnemen van deegsoort? Bestaande stappen worden overschreven.')) return;
                 this.methodDays = JSON.parse(JSON.stringify(this.inheritedMethodDays));
             },
             syncMethodDaysToInheritedDayCount() {
@@ -1729,7 +1730,7 @@ $monthlyBreadCount = (int)$stmt->fetch()['total_breads'];
             },
 
             async deleteRecipe(id) {
-                if (!confirm('Weet je zeker dat je dit recept wilt verwijderen?')) return;
+                if (!await showConfirm('Weet je zeker dat je dit recept wilt verwijderen?')) return;
                 try {
                     await fetch('../../api/baker-recipes.php?id=' + id, { method: 'DELETE' });
                     if (this.currentRecipeId === id) { this.currentRecipeId = null; }
@@ -2107,7 +2108,7 @@ $monthlyBreadCount = (int)$stmt->fetch()['total_breads'];
             },
 
             async deleteDoughType(id) {
-                if (!confirm('Weet je zeker dat je deze deegsoort wilt verwijderen?')) return;
+                if (!await showConfirm('Weet je zeker dat je deze deegsoort wilt verwijderen?')) return;
                 try {
                     const res = await fetch('../../api/dough-types.php?id=' + id, { method: 'DELETE' });
                     const data = await res.json();
@@ -2131,20 +2132,27 @@ $monthlyBreadCount = (int)$stmt->fetch()['total_breads'];
     <script>
     if ('serviceWorker' in navigator) {
         navigator.serviceWorker.register('../sw.js', { scope: '/admin/' });
-        if ('PushManager' in window && Notification.permission === 'granted') {
+        if ('PushManager' in window) {
             navigator.serviceWorker.ready.then(async reg => {
-                const sub = await reg.pushManager.getSubscription();
-                if (sub) return;
                 try {
-                    const r = await fetch('/api/push-subscriptions.php?action=vapid-key');
-                    const { publicKey } = await r.json();
-                    const padding = '='.repeat((4 - publicKey.length % 4) % 4);
-                    const raw = atob((publicKey + padding).replace(/-/g, '+').replace(/_/g, '/'));
-                    const key = Uint8Array.from([...raw].map(c => c.charCodeAt(0)));
-                    const newSub = await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: key });
-                    const j = newSub.toJSON();
+                    let permission = Notification.permission;
+                    if (permission === 'default') {
+                        permission = await Notification.requestPermission();
+                    }
+                    if (permission !== 'granted') return;
+
+                    let sub = await reg.pushManager.getSubscription();
+                    if (!sub) {
+                        const r = await fetch('/api/push-subscriptions.php?action=vapid-key');
+                        const { publicKey } = await r.json();
+                        const padding = '='.repeat((4 - publicKey.length % 4) % 4);
+                        const raw = atob((publicKey + padding).replace(/-/g, '+').replace(/_/g, '/'));
+                        const key = Uint8Array.from([...raw].map(c => c.charCodeAt(0)));
+                        sub = await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: key });
+                    }
+                    const j = sub.toJSON();
                     await fetch('/api/push-subscriptions.php', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ endpoint: j.endpoint, keys: { p256dh: j.keys.p256dh, auth: j.keys.auth } }) });
-                } catch (e) {}
+                } catch (e) { console.error('Push setup failed:', e); }
             });
         }
     }

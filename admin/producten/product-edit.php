@@ -211,7 +211,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             padding: 1.5rem;
         }
         .card h2 {
-            color: #5c3d1e;
+            color: #2d4a2d;
             margin-bottom: 1.5rem;
         }
         .form-group {
@@ -251,7 +251,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         .btn {
             display: inline-block;
             padding: 0.75rem 1.5rem;
-            background: #8b5a2b;
+            background: #3d6b3d;
             color: white;
             text-decoration: none;
             border-radius: 6px;
@@ -259,7 +259,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             border: none;
             cursor: pointer;
         }
-        .btn:hover { background: #5c3d1e; }
+        .btn:hover { background: #2d4a2d; }
         .btn-secondary {
             background: #888;
         }
@@ -291,7 +291,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             margin-bottom: 1.5rem;
         }
         .breadcrumb a {
-            color: #8b5a2b;
+            color: #3d6b3d;
             text-decoration: none;
         }
         .breadcrumb a:hover {
@@ -343,7 +343,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         .file-input::file-selector-button {
             direction: ltr;
             padding: 0.5rem 1rem;
-            background: #8b5a2b;
+            background: #3d6b3d;
             color: white;
             border: none;
             border-radius: 6px;
@@ -351,7 +351,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             margin-left: 1rem;
         }
         .file-input::file-selector-button:hover {
-            background: #5c3d1e;
+            background: #2d4a2d;
         }
         .current-foto {
             margin-bottom: 1rem;
@@ -375,7 +375,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             top: 2rem;
         }
         .preview-section h3 {
-            color: #5c3d1e;
+            color: #2d4a2d;
             margin-bottom: 1rem;
             font-size: 1.1rem;
         }
@@ -407,7 +407,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         .preview-naam {
             font-family: Georgia, serif;
             font-size: 1.2rem;
-            color: #5c3d1e;
+            color: #2d4a2d;
             margin-bottom: 0.5rem;
         }
         .preview-beschrijving {
@@ -432,7 +432,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             font-family: Georgia, serif;
             font-size: 1.1rem;
             font-weight: 700;
-            color: #8b5a2b;
+            color: #3d6b3d;
         }
         .variant-row {
             display: flex;
@@ -514,7 +514,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             justify-content: space-between;
             font-size: 0.9rem;
             padding: 0.25rem 0;
-            color: #5c3d1e;
+            color: #2d4a2d;
         }
         .preview-variant .gewicht {
             color: #666;
@@ -544,14 +544,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             display: flex;
             justify-content: space-between;
             padding: 0.2rem 0;
-            color: #5c3d1e;
+            color: #2d4a2d;
             border-bottom: 1px solid #f0e6d8;
         }
         .recipe-details-box .detail-row:last-child { border-bottom: none; }
         .recipe-details-box .detail-subtitle {
             font-size: 0.75rem;
             font-weight: 700;
-            color: #8b5a2b;
+            color: #3d6b3d;
             text-transform: uppercase;
             letter-spacing: 0.05em;
             margin: 0.5rem 0 0.2rem 0;

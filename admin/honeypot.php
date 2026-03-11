@@ -302,7 +302,7 @@ $sidebarUnprocessedOrders = $stmt->fetch()['count'];
                             <option value="30" selected>30 dagen</option>
                             <option value="90">90 dagen</option>
                         </select>
-                        <button type="submit" class="btn-danger" onclick="return confirm('Weet je het zeker?')">Opschonen</button>
+                        <button type="submit" class="btn-danger" onclick="return confirmSubmit(this.form, 'Weet je het zeker?')">Opschonen</button>
                     </form>
                 </div>
 
@@ -345,5 +345,6 @@ $sidebarUnprocessedOrders = $stmt->fetch()['count'];
             </div>
         </div>
     </div>
+<script src="../js/ui-notifications.js?v=1"></script>
 </body>
 </html>

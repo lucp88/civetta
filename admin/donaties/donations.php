@@ -67,7 +67,7 @@ $adminBasePath = '../';
             margin-bottom: 1.5rem;
         }
         .card h2 {
-            color: #5c3d1e;
+            color: #2d4a2d;
             margin-bottom: 1rem;
             display: flex;
             justify-content: space-between;
@@ -80,7 +80,7 @@ $adminBasePath = '../';
             margin-bottom: 1.5rem;
         }
         .stat-box {
-            background: linear-gradient(135deg, #8b5a2b, #5c3d1e);
+            background: linear-gradient(135deg, #3d6b3d, #2d4a2d);
             color: white;
             padding: 1.25rem;
             border-radius: 10px;
@@ -104,7 +104,7 @@ $adminBasePath = '../';
             border-bottom: 1px solid #e8dfd2;
         }
         th {
-            color: #8b5a2b;
+            color: #3d6b3d;
             font-weight: 600;
         }
         .amount {
@@ -126,7 +126,7 @@ $adminBasePath = '../';
             margin-bottom: 1.5rem;
         }
         .breadcrumb a {
-            color: #8b5a2b;
+            color: #3d6b3d;
             text-decoration: none;
         }
         .breadcrumb a:hover {
@@ -167,7 +167,7 @@ $adminBasePath = '../';
         .add-form label {
             display: block;
             font-size: 0.85rem;
-            color: #8b5a2b;
+            color: #3d6b3d;
             margin-bottom: 0.25rem;
             font-weight: 600;
         }
@@ -180,10 +180,10 @@ $adminBasePath = '../';
         }
         .add-form input:focus {
             outline: none;
-            border-color: #8b5a2b;
+            border-color: #3d6b3d;
         }
         .btn-add {
-            background: #8b5a2b;
+            background: #3d6b3d;
             color: white;
             border: none;
             padding: 0.5rem 1.25rem;
@@ -192,7 +192,7 @@ $adminBasePath = '../';
             font-size: 0.9rem;
             white-space: nowrap;
         }
-        .btn-add:hover { background: #5c3d1e; }
+        .btn-add:hover { background: #2d4a2d; }
         .method {
             display: inline-block;
             padding: 0.2rem 0.5rem;
@@ -235,7 +235,7 @@ $adminBasePath = '../';
                 position: absolute;
                 left: 0.5rem;
                 font-weight: 600;
-                color: #8b5a2b;
+                color: #3d6b3d;
             }
         }
     </style>
@@ -337,7 +337,7 @@ $adminBasePath = '../';
                                 <td data-label="Bericht" class="message"><?= $donation['message'] ? htmlspecialchars($donation['message']) : '-' ?></td>
                                 <td data-label="Methode"><span class="method <?= $isManual ? 'manual' : 'mollie' ?>"><?= $isManual ? 'Manueel' : 'Mollie' ?></span></td>
                                 <td class="actions">
-                                    <form method="POST" style="display:inline" onsubmit="return confirm('Weet je zeker dat je deze donatie wilt verwijderen?')">
+                                    <form method="POST" style="display:inline" onsubmit="return confirmSubmit(this, 'Weet je zeker dat je deze donatie wilt verwijderen?')">
                                         <input type="hidden" name="delete_id" value="<?= $donation['id'] ?>">
                                         <button type="submit" class="btn-delete">Verwijderen</button>
                                     </form>
@@ -350,5 +350,6 @@ $adminBasePath = '../';
             </div>
         </div>
     </div>
+<script src="../../js/ui-notifications.js?v=1"></script>
 </body>
 </html>

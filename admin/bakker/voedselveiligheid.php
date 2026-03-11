@@ -28,41 +28,41 @@ $adminBasePath = '../';
         /* Tabs */
         .tabs { display: flex; gap: 0.25rem; border-bottom: 2px solid #e0d5c7; margin-bottom: 1.5rem; overflow-x: auto; }
         .tab { padding: 0.7rem 1.2rem; cursor: pointer; font-weight: 500; color: #888; border-bottom: 3px solid transparent; margin-bottom: -2px; white-space: nowrap; transition: all 0.2s; user-select: none; display: flex; align-items: center; gap: 0.4rem; }
-        .tab:hover { color: #5c3d1e; }
-        .tab.active { color: #8b5a2b; border-bottom-color: #c8913a; font-weight: 700; }
+        .tab:hover { color: #2d4a2d; }
+        .tab.active { color: #3d6b3d; border-bottom-color: #c8913a; font-weight: 700; }
         .tab-content { display: none; }
         .tab-content.active { display: block; }
 
         /* Panels */
         .panel { background: white; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.08); padding: 1.5rem; margin-bottom: 1.5rem; }
         .panel-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; flex-wrap: wrap; gap: 0.75rem; }
-        .panel-title { font-size: 1.05rem; font-weight: 700; color: #5c3d1e; display: flex; align-items: center; gap: 0.5rem; }
+        .panel-title { font-size: 1.05rem; font-weight: 700; color: #2d4a2d; display: flex; align-items: center; gap: 0.5rem; }
         .panel-title i { color: #c8913a; }
 
         /* Buttons */
         .btn { padding: 0.5rem 1rem; border: none; border-radius: 8px; font-size: 0.85rem; font-weight: 600; cursor: pointer; display: inline-flex; align-items: center; gap: 0.4rem; transition: all 0.2s; text-decoration: none; }
-        .btn-primary { background: #8b5a2b; color: white; }
-        .btn-primary:hover { background: #5c3d1e; }
+        .btn-primary { background: #3d6b3d; color: white; }
+        .btn-primary:hover { background: #2d4a2d; }
         .btn-success { background: #2e7d32; color: white; }
         .btn-success:hover { background: #1b5e20; }
         .btn-danger { background: #c62828; color: white; }
-        .btn-ghost { background: transparent; color: #8b5a2b; border: 2px solid #e0d5c7; }
-        .btn-ghost:hover { border-color: #8b5a2b; background: #faf6f1; }
+        .btn-ghost { background: transparent; color: #3d6b3d; border: 2px solid #e0d5c7; }
+        .btn-ghost:hover { border-color: #3d6b3d; background: #faf6f1; }
         .btn-sm { padding: 0.35rem 0.7rem; font-size: 0.8rem; }
         .btn-icon { padding: 0.3rem 0.45rem; background: transparent; border: 1px solid #e0d5c7; color: #666; border-radius: 6px; cursor: pointer; display: inline-flex; align-items: center; transition: all 0.15s; font-size: 0.85rem; }
-        .btn-icon:hover { background: #f5f0e8; color: #5c3d1e; border-color: #8b5a2b; }
+        .btn-icon:hover { background: #f5f0e8; color: #2d4a2d; border-color: #3d6b3d; }
         .btn-icon.danger:hover { background: #ffebee; color: #c62828; border-color: #c62828; }
 
         /* Forms */
         .form-control { width: 100%; padding: 0.5rem 0.75rem; border: 1.5px solid #e0d5c7; border-radius: 8px; font-size: 0.9rem; color: #333; background: white; font-family: inherit; }
-        .form-control:focus { outline: none; border-color: #8b5a2b; box-shadow: 0 0 0 3px rgba(139,90,43,0.1); }
+        .form-control:focus { outline: none; border-color: #3d6b3d; box-shadow: 0 0 0 3px rgba(139,90,43,0.1); }
         select.form-control { height: 38px; }
         .form-group { margin-bottom: 1rem; }
-        .form-label { display: block; font-size: 0.85rem; font-weight: 600; color: #5c3d1e; margin-bottom: 0.35rem; }
+        .form-label { display: block; font-size: 0.85rem; font-weight: 600; color: #2d4a2d; margin-bottom: 0.35rem; }
 
         /* Date input */
         .date-input { padding: 0.5rem 0.75rem; border: 1.5px solid #e0d5c7; border-radius: 8px; font-size: 0.9rem; color: #333; background: white; font-family: inherit; }
-        .date-input:focus { outline: none; border-color: #8b5a2b; }
+        .date-input:focus { outline: none; border-color: #3d6b3d; }
 
         /* Status bar */
         .status-bar { display: flex; align-items: center; gap: 0.75rem; padding: 0.65rem 1rem; border-radius: 8px; margin-bottom: 1rem; font-size: 0.87rem; flex-wrap: wrap; }
@@ -74,7 +74,7 @@ $adminBasePath = '../';
         table.checklist { width: 100%; border-collapse: collapse; font-size: 0.87rem; }
         table.checklist th { text-align: left; padding: 0.55rem 0.7rem; color: #888; font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.04em; border-bottom: 2px solid #e8e0d5; white-space: nowrap; }
         table.checklist td { padding: 0.5rem 0.7rem; border-bottom: 1px solid #f0ebe5; vertical-align: middle; }
-        table.checklist tr.cat-header td { background: #f5f0e8; font-weight: 700; color: #5c3d1e; font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.05em; padding: 0.45rem 0.7rem; border-bottom: 1px solid #e8dfd2; }
+        table.checklist tr.cat-header td { background: #f5f0e8; font-weight: 700; color: #2d4a2d; font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.05em; padding: 0.45rem 0.7rem; border-bottom: 1px solid #e8dfd2; }
         table.checklist tr.item-checked td { background: #f0fff4; }
         table.checklist tr.item-not-due td { opacity: 0.55; }
         table.checklist tr:not(.cat-header):hover td { background: #faf8f5; }
@@ -83,7 +83,7 @@ $adminBasePath = '../';
         /* Inline inputs */
         .td-input { width: 100%; border: 1px solid transparent; border-radius: 6px; padding: 0.28rem 0.45rem; font-size: 0.84rem; background: transparent; color: #333; font-family: inherit; }
         .td-input:hover:not(:focus) { border-color: #e0d5c7; }
-        .td-input:focus { border-color: #8b5a2b; background: white; outline: none; }
+        .td-input:focus { border-color: #3d6b3d; background: white; outline: none; }
 
         /* Checkbox */
         .cb-wrap { display: flex; justify-content: center; align-items: center; }
@@ -101,7 +101,7 @@ $adminBasePath = '../';
         table.items { width: 100%; border-collapse: collapse; font-size: 0.9rem; }
         table.items th { padding: 0.65rem 0.75rem; text-align: left; color: #888; font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.04em; border-bottom: 2px solid #e8e0d5; }
         table.items td { padding: 0.65rem 0.75rem; border-bottom: 1px solid #f0ebe5; vertical-align: middle; }
-        table.items tr.cat-header td { background: #f5f0e8; font-weight: 700; color: #5c3d1e; font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.05em; }
+        table.items tr.cat-header td { background: #f5f0e8; font-weight: 700; color: #2d4a2d; font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.05em; }
         table.items tr.inactive td { opacity: 0.45; }
         table.items tr:not(.cat-header):hover td { background: #faf8f5; }
 
@@ -121,7 +121,7 @@ $adminBasePath = '../';
         .cat-manage-item .cat-name { flex: 1; font-weight: 500; }
         .cat-add { display: flex; gap: 0.5rem; padding: 0.75rem; background: #faf8f5; border-top: 1px solid #e8e0d5; border-radius: 0 0 8px 8px; }
         .cat-add input { flex: 1; padding: 0.45rem 0.7rem; border: 1.5px solid #e0d5c7; border-radius: 7px; font-size: 0.88rem; font-family: inherit; background: white; }
-        .cat-add input:focus { outline: none; border-color: #8b5a2b; }
+        .cat-add input:focus { outline: none; border-color: #3d6b3d; }
         .cat-empty { padding: 0.75rem; color: #999; font-size: 0.85rem; text-align: center; border: 1px solid #e8e0d5; border-radius: 8px; }
 
         /* Empty state */
@@ -136,14 +136,14 @@ $adminBasePath = '../';
         .modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 1000; justify-content: center; align-items: center; }
         .modal-overlay.open { display: flex; }
         .modal { background: white; border-radius: 12px; padding: 1.75rem; max-width: 540px; width: 92%; max-height: 88vh; overflow-y: auto; }
-        .modal-title { font-size: 1.05rem; font-weight: 700; color: #5c3d1e; margin-bottom: 1rem; display: flex; align-items: center; gap: 0.5rem; }
+        .modal-title { font-size: 1.05rem; font-weight: 700; color: #2d4a2d; margin-bottom: 1rem; display: flex; align-items: center; gap: 0.5rem; }
         .modal-body { margin-bottom: 1.25rem; }
         .modal-footer { display: flex; gap: 0.75rem; justify-content: flex-end; flex-wrap: wrap; }
 
         /* Formulier modal (large) */
         .formulier-modal { max-width: 980px; width: 96%; max-height: 94vh; padding: 0; display: flex; flex-direction: column; }
         .fmodal-header { display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap; padding: 1rem 1.25rem; border-bottom: 1px solid #e8e0d5; flex-shrink: 0; }
-        .fmodal-title { font-size: 1rem; font-weight: 700; color: #5c3d1e; display: flex; align-items: center; gap: 0.4rem; white-space: nowrap; }
+        .fmodal-title { font-size: 1rem; font-weight: 700; color: #2d4a2d; display: flex; align-items: center; gap: 0.4rem; white-space: nowrap; }
         .fmodal-title i { color: #c8913a; }
         .fmodal-divider { width: 1px; height: 22px; background: #e0d5c7; flex-shrink: 0; }
         .fmodal-body { overflow-y: auto; padding: 1.25rem; flex: 1; }
@@ -338,7 +338,7 @@ $adminBasePath = '../';
             <div style="margin-left:auto; display:flex; gap:0.5rem; align-items:center; flex-wrap:wrap;">
                 <span id="progressLabel" style="font-size:0.82rem; color:#666;"></span>
                 <label style="display:flex; align-items:center; gap:0.3rem; font-size:0.82rem; color:#666; cursor:pointer; user-select:none; white-space:nowrap;">
-                    <input type="checkbox" id="showNonDue" onchange="renderChecklist()" style="cursor:pointer; accent-color:#8b5a2b;">
+                    <input type="checkbox" id="showNonDue" onchange="renderChecklist()" style="cursor:pointer; accent-color:#3d6b3d;">
                     Niet-due
                 </label>
                 <button class="btn btn-ghost btn-sm" onclick="window.print()" title="Printen"><i class="bi bi-printer"></i></button>
@@ -433,7 +433,7 @@ $adminBasePath = '../';
 <!-- ITEM MODAL -->
 <div class="modal-overlay" id="itemModal">
     <div class="modal">
-        <div class="modal-title"><i class="bi bi-pencil-square" style="color:#8b5a2b;"></i> <span id="itemModalTitle">Item toevoegen</span></div>
+        <div class="modal-title"><i class="bi bi-pencil-square" style="color:#3d6b3d;"></i> <span id="itemModalTitle">Item toevoegen</span></div>
         <div class="modal-body">
             <input type="hidden" id="itemId">
             <div class="form-group">
@@ -461,7 +461,7 @@ $adminBasePath = '../';
             </div>
             <div class="form-group">
                 <label style="display:flex; align-items:center; gap:0.5rem; cursor:pointer;">
-                    <input type="checkbox" id="itemAllergeenKritisch" style="cursor:pointer; accent-color:#8b5a2b;">
+                    <input type="checkbox" id="itemAllergeenKritisch" style="cursor:pointer; accent-color:#3d6b3d;">
                     <span>Allergeen-kritisch</span>
                 </label>
                 <div style="font-size:0.78rem; color:#888; margin-top:0.25rem;">
@@ -479,7 +479,7 @@ $adminBasePath = '../';
 <!-- CAT EDIT MODAL -->
 <div class="modal-overlay" id="catModal">
     <div class="modal" style="max-width:380px;">
-        <div class="modal-title"><i class="bi bi-tag" style="color:#8b5a2b;"></i> Categorie bewerken</div>
+        <div class="modal-title"><i class="bi bi-tag" style="color:#3d6b3d;"></i> Categorie bewerken</div>
         <div class="modal-body">
             <input type="hidden" id="catEditId">
             <div class="form-group">
@@ -496,6 +496,7 @@ $adminBasePath = '../';
 
 <div class="toast" id="toast"></div>
 
+<script src="../../js/ui-notifications.js?v=1"></script>
 <script>
 const API = '../../api/voedselveiligheid.php';
 
@@ -574,7 +575,7 @@ async function createList() {
 // ==================== REFRESH LIST ====================
 async function refreshList() {
     if (!currentList) return;
-    if (!confirm('Formulier opnieuw opbouwen met de huidige actieve items?')) return;
+    if (!await showConfirm('Formulier opnieuw opbouwen met de huidige actieve items?')) return;
     showEl('listLoading'); hideEl('listPanel');
     try {
         const datum = document.getElementById('listDate').value;
@@ -823,7 +824,7 @@ async function saveCatEdit() {
 
 async function deleteCategorie(id) {
     const c = categorieen.find(x => x.id == id);
-    if (!confirm(`Categorie "${c?.naam}" verwijderen? Items worden niet verwijderd.`)) return;
+    if (!await showConfirm(`Categorie "${c?.naam}" verwijderen? Items worden niet verwijderd.`)) return;
     try {
         await callApi(null, { action: 'delete_categorie', id });
         await loadCategorieen();
@@ -950,7 +951,7 @@ async function saveItem() {
 
 async function toggleItemActief(id, actief) {
     const item = masterItems.find(i => i.id == id);
-    if (!item || !confirm(`Item "${item.naam}" ${actief ? 'activeren' : 'deactiveren'}?`)) return;
+    if (!item || !await showConfirm(`Item "${item.naam}" ${actief ? 'activeren' : 'deactiveren'}?`)) return;
     try {
         await callApi(null, { action: 'toggle_item', id, actief });
         showToast(actief ? 'Item geactiveerd' : 'Item gedeactiveerd', 'success');
@@ -1028,7 +1029,7 @@ function renderAllergenStatus(statuses, criticalCount) {
 }
 
 async function clearAllergen(naam) {
-    if (!confirm(`Allergeen "${naam}" handmatig vrijgeven?\n\nDit allergeen wordt niet meer als sporenallergeen getoond op productpagina's.`)) return;
+    if (!await showConfirm(`Allergeen "${naam}" handmatig vrijgeven?\n\nDit allergeen wordt niet meer als sporenallergeen getoond op productpagina's.`)) return;
     try {
         await callApi(null, { action: 'clear_allergen', allergeen_naam: naam });
         showToast('Allergeen vrijgegeven', 'success');
@@ -1037,7 +1038,7 @@ async function clearAllergen(naam) {
 }
 
 async function resetAllergen(naam) {
-    if (!confirm(`Allergeen "${naam}" terugzetten naar uitgeput status?`)) return;
+    if (!await showConfirm(`Allergeen "${naam}" terugzetten naar uitgeput status?`)) return;
     try {
         await callApi(null, { action: 'reset_allergen', allergeen_naam: naam });
         showToast('Allergeen teruggezet', 'success');
@@ -1100,7 +1101,7 @@ function openListDate(datum) {
 }
 
 async function deleteList(id, datum) {
-    if (!confirm(`Formulier van ${formatDate(datum)} verwijderen? Dit kan niet ongedaan worden.`)) return;
+    if (!await showConfirm(`Formulier van ${formatDate(datum)} verwijderen? Dit kan niet ongedaan worden.`)) return;
     try {
         await callApi(null, { action: 'delete_list', lijst_id: id });
         showToast('Formulier verwijderd', 'success');

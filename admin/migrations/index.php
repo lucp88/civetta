@@ -320,7 +320,7 @@ $sidebarUnprocessedOrders = $stmt->fetch()['count'];
                 <div class="migration-file"><?= htmlspecialchars($mig['basename']) ?>.php</div>
             </div>
         </div>
-        <form method="POST" style="margin:0;" onsubmit="return confirm('Migratie <?= htmlspecialchars($mig['number']) ?> uitvoeren?')">
+        <form method="POST" style="margin:0;" onsubmit="return confirmSubmit(this, 'Migratie <?= htmlspecialchars($mig['number']) ?> uitvoeren?')">
             <input type="hidden" name="run" value="<?= htmlspecialchars($mig['basename']) ?>">
             <button type="submit" class="run-btn">Uitvoeren</button>
         </form>
@@ -334,5 +334,6 @@ $sidebarUnprocessedOrders = $stmt->fetch()['count'];
             </div>
         </div>
     </div>
+<script src="../../js/ui-notifications.js?v=1"></script>
 </body>
 </html>

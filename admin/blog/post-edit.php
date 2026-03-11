@@ -85,7 +85,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             padding: 1.5rem;
         }
         .card h2 {
-            color: #5c3d1e;
+            color: #2d4a2d;
             margin-bottom: 1.5rem;
         }
         .form-group {
@@ -116,7 +116,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         .btn {
             display: inline-block;
             padding: 0.75rem 1.5rem;
-            background: #8b5a2b;
+            background: #3d6b3d;
             color: white;
             text-decoration: none;
             border-radius: 6px;
@@ -124,7 +124,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             border: none;
             cursor: pointer;
         }
-        .btn:hover { background: #5c3d1e; }
+        .btn:hover { background: #2d4a2d; }
         .btn-secondary {
             background: #888;
         }
@@ -156,7 +156,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             margin-bottom: 1.5rem;
         }
         .breadcrumb a {
-            color: #8b5a2b;
+            color: #3d6b3d;
             text-decoration: none;
         }
         .breadcrumb a:hover {

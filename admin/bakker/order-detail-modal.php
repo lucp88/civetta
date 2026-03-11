@@ -1,6 +1,6 @@
 <?php
-$detailAccentColor = $detailAccentColor ?? '#8b5a2b';
-$detailAccentColorDark = $detailAccentColorDark ?? '#5c3d1e';
+$detailAccentColor = $detailAccentColor ?? '#3d6b3d';
+$detailAccentColorDark = $detailAccentColorDark ?? '#2d4a2d';
 $detailLinkColor = $detailLinkColor ?? $detailAccentColor;
 ?>
 

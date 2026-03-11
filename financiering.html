@@ -268,6 +268,7 @@
         </div>
     </footer>
 
+    <script src="js/ui-notifications.js?v=1"></script>
     <script src="js/main.js"></script>
     <script>
         (async function loadProgress() {
@@ -332,7 +333,7 @@
             donateBtn.addEventListener('click', async function() {
                 const amount = customInput.value || selectedAmount;
                 if (!amount || amount < 1) {
-                    alert('Selecteer of vul een bedrag in van minimaal €1');
+                    showToast('Selecteer of vul een bedrag in van minimaal €1', 'warning');
                     return;
                 }
                 
@@ -343,25 +344,27 @@
                 this.style.pointerEvents = 'none';
                 
                 try {
+                    const recaptchaToken = await getRecaptchaToken('donate');
                     const response = await fetch('api/mollie.php', {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ 
+                        body: JSON.stringify({
                             amount: parseFloat(amount),
                             name: name,
-                            message: message
+                            message: message,
+                            recaptcha_token: recaptchaToken
                         })
                     });
                     const data = await response.json();
                     if (data.success && data.checkoutUrl) {
                         window.location.href = data.checkoutUrl;
                     } else {
-                        alert(data.error || 'Er ging iets mis');
+                        showToast(data.error || 'Er ging iets mis', 'error');
                         updateButton();
                         this.style.pointerEvents = 'auto';
                     }
                 } catch (error) {
-                    alert('Er ging iets mis');
+                    showToast('Er ging iets mis', 'error');
                     updateButton();
                     this.style.pointerEvents = 'auto';
                 }

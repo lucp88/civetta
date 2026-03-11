@@ -91,7 +91,7 @@ $adminAccounts = $pdo->query("SELECT id, username, created_at FROM users ORDER B
         @media (max-width: 768px) { .admin-content { padding: 1.25rem; } }
 
         .breadcrumb { margin-bottom: 1.5rem; }
-        .breadcrumb a { color: #8b5a2b; text-decoration: none; }
+        .breadcrumb a { color: #3d6b3d; text-decoration: none; }
         .breadcrumb a:hover { text-decoration: underline; }
 
         .page-title { font-size: 1.5rem; font-weight: 700; margin-bottom: 0.5rem; }
@@ -220,7 +220,7 @@ $adminAccounts = $pdo->query("SELECT id, username, created_at FROM users ORDER B
                                         <i class="bi bi-key"></i> Wachtwoord
                                     </button>
                                     <?php if ($account['username'] !== $_SESSION['admin_user']): ?>
-                                        <form method="post" style="display:inline;" onsubmit="return confirm('Weet je zeker dat je dit account wilt verwijderen?')">
+                                        <form method="post" style="display:inline;" onsubmit="return confirmSubmit(this, 'Weet je zeker dat je dit account wilt verwijderen?')">
                                             <input type="hidden" name="action" value="delete">
                                             <input type="hidden" name="id" value="<?= $account['id'] ?>">
                                             <button type="submit" class="btn btn-danger"><i class="bi bi-trash"></i></button>
@@ -263,6 +263,7 @@ $adminAccounts = $pdo->query("SELECT id, username, created_at FROM users ORDER B
         </div>
     </div>
 
+    <script src="../../js/ui-notifications.js?v=1"></script>
     <script>
     function toggleReset(id) {
         const el = document.getElementById('reset-' + id);

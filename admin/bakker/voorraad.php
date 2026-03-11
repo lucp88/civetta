@@ -27,23 +27,23 @@ $adminBasePath = '../';
 
         .tabs { display: flex; gap: 0.25rem; border-bottom: 2px solid #e0d5c7; margin-bottom: 1.5rem; overflow-x: auto; }
         .tab { padding: 0.7rem 1.2rem; cursor: pointer; font-weight: 500; color: #888; border-bottom: 3px solid transparent; margin-bottom: -2px; white-space: nowrap; transition: all 0.2s; user-select: none; display: flex; align-items: center; gap: 0.4rem; }
-        .tab:hover { color: #5c3d1e; }
-        .tab.active { color: #8b5a2b; border-bottom-color: #c8913a; font-weight: 700; }
+        .tab:hover { color: #2d4a2d; }
+        .tab.active { color: #3d6b3d; border-bottom-color: #c8913a; font-weight: 700; }
 
         .panel { background: white; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.08); padding: 1.5rem; margin-bottom: 1.5rem; }
         .panel-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; flex-wrap: wrap; gap: 1rem; }
-        .panel-title { font-size: 1.1rem; font-weight: 700; color: #5c3d1e; display: flex; align-items: center; gap: 0.5rem; }
+        .panel-title { font-size: 1.1rem; font-weight: 700; color: #2d4a2d; display: flex; align-items: center; gap: 0.5rem; }
         .panel-title i { color: #c8913a; }
 
         .btn { padding: 0.5rem 1rem; border: none; border-radius: 8px; font-size: 0.85rem; font-weight: 600; cursor: pointer; display: inline-flex; align-items: center; gap: 0.4rem; transition: all 0.2s; }
-        .btn-primary { background: #8b5a2b; color: white; }
-        .btn-primary:hover { background: #5c3d1e; }
+        .btn-primary { background: #3d6b3d; color: white; }
+        .btn-primary:hover { background: #2d4a2d; }
         .btn-success { background: #2e7d32; color: white; }
         .btn-success:hover { background: #1b5e20; }
         .btn-danger { background: #c62828; color: white; }
         .btn-danger:hover { background: #b71c1c; }
-        .btn-ghost { background: transparent; color: #8b5a2b; border: 2px solid #e0d5c7; }
-        .btn-ghost:hover { border-color: #8b5a2b; background: #faf6f1; }
+        .btn-ghost { background: transparent; color: #3d6b3d; border: 2px solid #e0d5c7; }
+        .btn-ghost:hover { border-color: #3d6b3d; background: #faf6f1; }
         .btn-sm { padding: 0.35rem 0.7rem; font-size: 0.8rem; }
 
         .table-wrapper { overflow-x: auto; }
@@ -63,15 +63,15 @@ $adminBasePath = '../';
         .badge-topping { background: #fce4ec; color: #c2185b; }
         .badge-overig { background: #f5f5f5; color: #616161; }
         .badge-volkoren { background: #8d6e63; color: white; }
-        .badge-wit { background: #faf6f1; color: #8b5a2b; border: 1px solid #e8dfd2; }
+        .badge-wit { background: #faf6f1; color: #3d6b3d; border: 1px solid #e8dfd2; }
         .badge-ok { background: #e8f5e9; color: #2e7d32; }
         .badge-laag { background: #fff3e0; color: #e65100; }
         .badge-tekort { background: #ffebee; color: #c62828; }
 
         .subtabs { display: flex; gap: 0.5rem; margin-bottom: 1rem; }
         .subtab { padding: 0.6rem 1rem; cursor: pointer; font-weight: 500; color: #888; background: #f5f0e8; border-radius: 8px; transition: all 0.2s; user-select: none; display: flex; align-items: center; gap: 0.4rem; font-size: 0.9rem; }
-        .subtab:hover { background: #e8dfd2; color: #5c3d1e; }
-        .subtab.active { background: #8b5a2b; color: white; }
+        .subtab:hover { background: #e8dfd2; color: #2d4a2d; }
+        .subtab.active { background: #3d6b3d; color: white; }
 
         .grain-type-list { margin-bottom: 1rem; }
         .grain-type-item { display: flex; justify-content: space-between; align-items: center; padding: 0.5rem 0; border-bottom: 1px solid #f0f0f0; }
@@ -79,7 +79,7 @@ $adminBasePath = '../';
         .add-grain-type { display: flex; gap: 0.5rem; margin-top: 1rem; padding-top: 1rem; border-top: 1px solid #eee; }
 
         .stock-bar { width: 100px; height: 8px; background: #eee; border-radius: 4px; overflow: hidden; }
-        .stock-bar-fill { height: 100%; background: #8b5a2b; transition: width 0.3s; }
+        .stock-bar-fill { height: 100%; background: #3d6b3d; transition: width 0.3s; }
         .stock-bar-fill.low { background: #ff9800; }
         .stock-bar-fill.empty { background: #c62828; }
 
@@ -87,7 +87,7 @@ $adminBasePath = '../';
         .modal-overlay.active { display: flex; }
         .modal { background: white; border-radius: 12px; max-width: 500px; width: 100%; max-height: 90vh; overflow-y: auto; box-shadow: 0 20px 60px rgba(0,0,0,0.3); }
         .modal-wide { max-width: 800px; }
-        .modal-header { background: linear-gradient(135deg, #8b5a2b, #5c3d1e); color: white; padding: 1rem 1.25rem; border-radius: 12px 12px 0 0; display: flex; justify-content: space-between; align-items: center; }
+        .modal-header { background: linear-gradient(135deg, #3d6b3d, #2d4a2d); color: white; padding: 1rem 1.25rem; border-radius: 12px 12px 0 0; display: flex; justify-content: space-between; align-items: center; }
         .modal-header h3 { margin: 0; font-size: 1.1rem; }
         .modal-close { width: 32px; height: 32px; border: none; background: rgba(255,255,255,0.2); border-radius: 6px; cursor: pointer; font-size: 1.2rem; color: white; display: flex; align-items: center; justify-content: center; }
         .modal-close:hover { background: rgba(255,255,255,0.3); }
@@ -95,7 +95,7 @@ $adminBasePath = '../';
         .modal-footer { padding: 1rem 1.25rem; border-top: 1px solid #eee; display: flex; gap: 0.75rem; justify-content: flex-end; }
 
         .form-group { margin-bottom: 1rem; }
-        .form-label { display: block; margin-bottom: 0.4rem; font-weight: 600; color: #5c3d1e; font-size: 0.85rem; }
+        .form-label { display: block; margin-bottom: 0.4rem; font-weight: 600; color: #2d4a2d; font-size: 0.85rem; }
         .form-input, .form-select { width: 100%; padding: 0.6rem 0.75rem; border: 2px solid #e8dfd2; border-radius: 8px; font-size: 0.95rem; font-family: inherit; }
         .form-input:focus, .form-select:focus { outline: none; border-color: #c8913a; }
         .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
@@ -116,7 +116,7 @@ $adminBasePath = '../';
         .stat-cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem; margin-bottom: 1.5rem; }
         .stat-card { background: white; border-radius: 12px; padding: 1.25rem; box-shadow: 0 4px 15px rgba(0,0,0,0.08); }
         .stat-card-label { font-size: 0.8rem; color: #888; text-transform: uppercase; letter-spacing: 0.03em; margin-bottom: 0.25rem; }
-        .stat-card-value { font-size: 1.75rem; font-weight: 700; color: #5c3d1e; }
+        .stat-card-value { font-size: 1.75rem; font-weight: 700; color: #2d4a2d; }
         .stat-card-sub { font-size: 0.85rem; color: #aaa; margin-top: 0.25rem; }
 
         .toast { position: fixed; bottom: 2rem; right: 2rem; padding: 0.75rem 1.5rem; background: #333; color: white; border-radius: 8px; font-size: 0.9rem; z-index: 2000; box-shadow: 0 4px 15px rgba(0,0,0,0.2); }
@@ -125,14 +125,14 @@ $adminBasePath = '../';
 
         .utility-card { background: #faf8f5; border: 2px solid #e8dfd2; border-radius: 12px; padding: 1.25rem; margin-bottom: 1rem; }
         .utility-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; }
-        .utility-title { font-weight: 700; color: #5c3d1e; display: flex; align-items: center; gap: 0.5rem; }
+        .utility-title { font-weight: 700; color: #2d4a2d; display: flex; align-items: center; gap: 0.5rem; }
         .utility-title i { color: #c8913a; }
         .estimate-badge { background: #fff3e0; color: #e65100; font-size: 0.7rem; padding: 0.15rem 0.4rem; border-radius: 4px; font-weight: 600; }
 
         .month-nav { display: flex; align-items: center; gap: 1rem; margin-bottom: 1.5rem; }
-        .month-nav button { background: none; border: 2px solid #e8dfd2; border-radius: 8px; padding: 0.5rem; cursor: pointer; color: #8b5a2b; }
-        .month-nav button:hover { background: #faf6f1; border-color: #8b5a2b; }
-        .month-nav span { font-weight: 700; color: #5c3d1e; font-size: 1.1rem; }
+        .month-nav button { background: none; border: 2px solid #e8dfd2; border-radius: 8px; padding: 0.5rem; cursor: pointer; color: #3d6b3d; }
+        .month-nav button:hover { background: #faf6f1; border-color: #3d6b3d; }
+        .month-nav span { font-weight: 700; color: #2d4a2d; font-size: 1.1rem; }
 
         .consolidation-item { display: grid; grid-template-columns: 2fr 1fr 1fr 1fr; gap: 0.5rem; align-items: center; padding: 0.5rem 0; border-bottom: 1px solid #f0ebe5; font-size: 0.9rem; }
         .consolidation-item:last-child { border-bottom: none; }
@@ -149,7 +149,7 @@ $adminBasePath = '../';
         .forecast-row-laag { background: #fff8e1; }
         .forecast-row-tekort { background: #ffebee; }
 
-        .spinner { display: inline-block; width: 1rem; height: 1rem; border: 2px solid #e8dfd2; border-top-color: #8b5a2b; border-radius: 50%; animation: spin 0.6s linear infinite; }
+        .spinner { display: inline-block; width: 1rem; height: 1rem; border: 2px solid #e8dfd2; border-top-color: #3d6b3d; border-radius: 50%; animation: spin 0.6s linear infinite; }
         @keyframes spin { to { transform: rotate(360deg); } }
     </style>
 </head>
@@ -541,7 +541,7 @@ $adminBasePath = '../';
                             <div style="display:grid;grid-template-columns:1fr 1fr;gap:1.5rem;align-items:center">
                                 <div>
                                     <div style="font-size:0.8rem;color:#888;margin-bottom:0.25rem">Broden {{ monthName }}</div>
-                                    <div style="font-size:1.75rem;font-weight:700;color:#5c3d1e">{{ monthlyLoaves.totaal }}</div>
+                                    <div style="font-size:1.75rem;font-weight:700;color:#2d4a2d">{{ monthlyLoaves.totaal }}</div>
                                     <div style="font-size:0.8rem;color:#aaa;margin-top:0.2rem">{{ monthlyLoaves.gebakken }} gebakken &bull; {{ monthlyLoaves.te_bakken }} te bakken</div>
                                 </div>
                                 <div>
@@ -841,6 +841,7 @@ $adminBasePath = '../';
         </div>
     </div>
 
+    <script src="../../js/ui-notifications.js?v=1"></script>
     <script src="https://unpkg.com/vue@3/dist/vue.global.prod.js"></script>
     <script>
     const { createApp } = Vue;
@@ -1089,7 +1090,7 @@ $adminBasePath = '../';
             },
 
             async deleteGrainType(id) {
-                if (!confirm('Weet je zeker dat je deze graansoort wilt verwijderen?')) return;
+                if (!await showConfirm('Weet je zeker dat je deze graansoort wilt verwijderen?')) return;
                 try {
                     const res = await fetch(`../../api/grain-types.php?id=${id}`, { method: 'DELETE' });
                     const data = await res.json();
@@ -1209,7 +1210,7 @@ $adminBasePath = '../';
             async purgeBatch(batch) {
                 const name = batch.ingredient_name;
                 const qty = this.formatStock(batch.quantity_remaining);
-                if (!confirm(`"${name}" (${qty}) weggooien?\n\nDit wordt gelogd als derving en kan niet ongedaan gemaakt worden.`)) return;
+                if (!await showConfirm(`"${name}" (${qty}) weggooien?\n\nDit wordt gelogd als derving en kan niet ongedaan gemaakt worden.`)) return;
                 try {
                     const res = await fetch('../../api/inventory.php', {
                         method: 'POST',
@@ -1228,7 +1229,7 @@ $adminBasePath = '../';
             },
 
             async deleteBatch(id) {
-                if (!confirm('Weet je zeker dat je deze batch wilt verwijderen?')) return;
+                if (!await showConfirm('Weet je zeker dat je deze batch wilt verwijderen?')) return;
                 try {
                     const res = await fetch(`../../api/inventory.php?batch_id=${id}`, { method: 'DELETE' });
                     const data = await res.json();

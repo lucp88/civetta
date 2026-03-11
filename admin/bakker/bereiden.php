@@ -1,4 +1,10 @@
 <?php
+// Redirect to unified planning page
+$params = $_GET;
+$params['filter'] = 'bakken';
+header('Location: planning.php?' . http_build_query($params));
+exit;
+
 require_once '../config.php';
 requireLogin();
 
@@ -224,7 +230,7 @@ function formatDutchDate($date) {
         .dough-type-header {
             font-weight: 700;
             font-size: 0.95rem;
-            color: #5c3d1e;
+            color: #2d4a2d;
             padding: 0.75rem 0 0.4rem;
             border-bottom: 3px solid #c8913a;
             margin-top: 0.75rem;
@@ -238,7 +244,7 @@ function formatDutchDate($date) {
         .recipe-group-title {
             font-weight: 600;
             font-size: 0.85rem;
-            color: #8b5a2b;
+            color: #3d6b3d;
             padding: 0.5rem 0 0.25rem;
             border-bottom: 1px solid #e8dfd2;
             margin-top: 0.4rem;
@@ -269,7 +275,7 @@ function formatDutchDate($date) {
             transition: all 0.2s;
         }
         .btn-dagproductie:hover {
-            background: linear-gradient(135deg, #a0722e, #8b5a2b);
+            background: linear-gradient(135deg, #a0722e, #3d6b3d);
             transform: translateY(-1px);
         }
 
@@ -329,7 +335,7 @@ function formatDutchDate($date) {
             display: flex;
             align-items: center;
             gap: 0.5rem;
-            color: #5c3d1e;
+            color: #2d4a2d;
             font-weight: 600;
             font-size: 0.85rem;
             white-space: nowrap;
@@ -393,7 +399,7 @@ function formatDutchDate($date) {
             cursor: pointer;
             font-weight: 600;
             font-size: 0.9rem;
-            color: #5c3d1e;
+            color: #2d4a2d;
             border: 2px solid transparent;
             transition: all 0.2s;
         }
@@ -448,7 +454,7 @@ function formatDutchDate($date) {
         }
         .add-extra-bakdag button:hover { background: #e55a2b; }
         .bakdagen-modal-section h4 {
-            color: #5c3d1e;
+            color: #2d4a2d;
             font-size: 0.9rem;
             margin-bottom: 0.5rem;
             display: flex;
@@ -499,7 +505,7 @@ function formatDutchDate($date) {
         }
         .appointments-section h4 {
             font-size: 0.9rem;
-            color: #5c3d1e;
+            color: #2d4a2d;
             margin-bottom: 0.5rem;
             display: flex;
             align-items: center;
@@ -561,7 +567,7 @@ function formatDutchDate($date) {
             display: block;
             font-size: 0.8rem;
             font-weight: 600;
-            color: #5c3d1e;
+            color: #2d4a2d;
             margin-bottom: 0.3rem;
         }
         .appt-form .form-control {
@@ -842,7 +848,7 @@ function formatDutchDate($date) {
                                         <?php foreach ($doughTypeTotals as $doughType => $dtData): ?>
                                             <div class="dough-type-header">
                                                 <span><i class="bi bi-layers"></i> <?= htmlspecialchars($doughType) ?></span>
-                                                <span style="font-weight:700;color:#5c3d1e"><?= number_format($dtData['total_dough']/1000, 2, ',', '.') ?> kg</span>
+                                                <span style="font-weight:700;color:#2d4a2d"><?= number_format($dtData['total_dough']/1000, 2, ',', '.') ?> kg</span>
                                             </div>
                                             <?php foreach ($dtData['recipes'] as $recipe => $rData): ?>
                                                 <div class="recipe-group-title" style="margin-left:0.75rem">
@@ -1151,7 +1157,7 @@ function formatDutchDate($date) {
                     <div class="form-group">
                         <label>Kleur</label>
                         <div class="color-options" id="apptColorOptions">
-                            <div class="color-option selected" style="background:#8b5a2b" data-color="#8b5a2b" onclick="selectApptColor(this)"></div>
+                            <div class="color-option selected" style="background:#3d6b3d" data-color="#3d6b3d" onclick="selectApptColor(this)"></div>
                             <div class="color-option" style="background:#ff6b35" data-color="#ff6b35" onclick="selectApptColor(this)"></div>
                             <div class="color-option" style="background:#2196f3" data-color="#2196f3" onclick="selectApptColor(this)"></div>
                             <div class="color-option" style="background:#4caf50" data-color="#4caf50" onclick="selectApptColor(this)"></div>
@@ -1168,7 +1174,7 @@ function formatDutchDate($date) {
         </div>
     </div>
 
-    <?php $detailAccentColor = '#8b5a2b'; $detailAccentColorDark = '#5c3d1e'; include 'order-detail-modal.php'; ?>
+    <?php $detailAccentColor = '#3d6b3d'; $detailAccentColorDark = '#2d4a2d'; include 'order-detail-modal.php'; ?>
 
     <script>
     const currentDate = '<?= $viewDate ?>';
@@ -1265,7 +1271,7 @@ function formatDutchDate($date) {
     }
 
     // Appointment functions
-    let selectedApptColor = '#8b5a2b';
+    let selectedApptColor = '#3d6b3d';
 
     function openAppointmentModal(date) {
         document.getElementById('apptModalTitle').textContent = 'Afspraak toevoegen';
@@ -1276,7 +1282,7 @@ function formatDutchDate($date) {
         document.getElementById('apptEndTime').value = '';
         document.getElementById('apptDescription').value = '';
         document.getElementById('btnDeleteAppt').style.display = 'none';
-        selectApptColorByValue('#8b5a2b');
+        selectApptColorByValue('#3d6b3d');
         document.getElementById('appointmentModal').classList.add('active');
     }
 
@@ -1289,7 +1295,7 @@ function formatDutchDate($date) {
         document.getElementById('apptEndTime').value = appt.end_time ? appt.end_time.substring(0, 5) : '';
         document.getElementById('apptDescription').value = appt.description || '';
         document.getElementById('btnDeleteAppt').style.display = '';
-        selectApptColorByValue(appt.color || '#8b5a2b');
+        selectApptColorByValue(appt.color || '#3d6b3d');
         document.getElementById('appointmentModal').classList.add('active');
     }
 
@@ -1432,7 +1438,7 @@ function formatDutchDate($date) {
             for (const doughType of Object.keys(doughTypeTotals).sort()) {
                 const dtData = doughTypeTotals[doughType];
                 const kgTotal = (dtData.totalDough / 1000).toFixed(2).replace('.', ',');
-                html += `<div class="dough-type-header"><span><i class="bi bi-layers"></i> ${escapeHtml(doughType)}</span><span style="font-weight:700;color:#5c3d1e">${kgTotal} kg</span></div>`;
+                html += `<div class="dough-type-header"><span><i class="bi bi-layers"></i> ${escapeHtml(doughType)}</span><span style="font-weight:700;color:#2d4a2d">${kgTotal} kg</span></div>`;
                 for (const recipe of Object.keys(dtData.recipes).sort()) {
                     const rData = dtData.recipes[recipe];
                     const kgRecipe = (rData.totalDough / 1000).toFixed(2).replace('.', ',');
@@ -1485,7 +1491,7 @@ function formatDutchDate($date) {
                 const timeStr = appt.start_time ? `<div class="appt-time"><i class="bi bi-clock"></i> ${appt.start_time.substring(0,5)}${appt.end_time ? ' - ' + appt.end_time.substring(0,5) : ''}</div>` : '';
                 const descStr = appt.description ? `<div class="appt-desc">${escapeHtml(appt.description)}</div>` : '';
                 html += `<div class="appointment-card" onclick='closeAllModals();openEditAppointment(${JSON.stringify(appt).replace(/'/g, "&#39;")})'>
-                    <div class="appt-color" style="background:${appt.color || '#8b5a2b'}"></div>
+                    <div class="appt-color" style="background:${appt.color || '#3d6b3d'}"></div>
                     <div class="appt-info">
                         <div class="appt-title">${escapeHtml(appt.title)}</div>
                         ${timeStr}${descStr}
@@ -1508,20 +1514,27 @@ function formatDutchDate($date) {
     <script>
     if ('serviceWorker' in navigator) {
         navigator.serviceWorker.register('../sw.js', { scope: '/admin/' });
-        if ('PushManager' in window && Notification.permission === 'granted') {
+        if ('PushManager' in window) {
             navigator.serviceWorker.ready.then(async reg => {
-                const sub = await reg.pushManager.getSubscription();
-                if (sub) return;
                 try {
-                    const r = await fetch('/api/push-subscriptions.php?action=vapid-key');
-                    const { publicKey } = await r.json();
-                    const padding = '='.repeat((4 - publicKey.length % 4) % 4);
-                    const raw = atob((publicKey + padding).replace(/-/g, '+').replace(/_/g, '/'));
-                    const key = Uint8Array.from([...raw].map(c => c.charCodeAt(0)));
-                    const newSub = await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: key });
-                    const j = newSub.toJSON();
+                    let permission = Notification.permission;
+                    if (permission === 'default') {
+                        permission = await Notification.requestPermission();
+                    }
+                    if (permission !== 'granted') return;
+
+                    let sub = await reg.pushManager.getSubscription();
+                    if (!sub) {
+                        const r = await fetch('/api/push-subscriptions.php?action=vapid-key');
+                        const { publicKey } = await r.json();
+                        const padding = '='.repeat((4 - publicKey.length % 4) % 4);
+                        const raw = atob((publicKey + padding).replace(/-/g, '+').replace(/_/g, '/'));
+                        const key = Uint8Array.from([...raw].map(c => c.charCodeAt(0)));
+                        sub = await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: key });
+                    }
+                    const j = sub.toJSON();
                     await fetch('/api/push-subscriptions.php', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ endpoint: j.endpoint, keys: { p256dh: j.keys.p256dh, auth: j.keys.auth } }) });
-                } catch (e) {}
+                } catch (e) { console.error('Push setup failed:', e); }
             });
         }
     }

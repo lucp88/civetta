@@ -1,2 +1,4 @@
 .env
 .htaccess
+admin/secrets.php
+vendor/

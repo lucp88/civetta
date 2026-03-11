@@ -1,3 +1,26 @@
+// reCAPTCHA v3 - set your site key here (public key, safe to expose)
+window.RECAPTCHA_SITE_KEY = '6LfXDocsAAAAABbTwZUzQXnYdaRvyWa5cVGulfwd';
+
+// Load reCAPTCHA script if site key is configured
+if (window.RECAPTCHA_SITE_KEY) {
+    const script = document.createElement('script');
+    script.src = 'https://www.google.com/recaptcha/api.js?render=' + window.RECAPTCHA_SITE_KEY;
+    script.async = true;
+    document.head.appendChild(script);
+}
+
+// Helper: get reCAPTCHA token for an action
+window.getRecaptchaToken = function(action) {
+    if (!window.RECAPTCHA_SITE_KEY || !window.grecaptcha) {
+        return Promise.resolve('');
+    }
+    return new Promise(function(resolve) {
+        grecaptcha.ready(function() {
+            grecaptcha.execute(window.RECAPTCHA_SITE_KEY, { action: action }).then(resolve).catch(function() { resolve(''); });
+        });
+    });
+};
+
 document.addEventListener('DOMContentLoaded', function() {
     const mobileMenuBtn = document.querySelector('.mobile-menu-btn');
     const navLinks = document.querySelector('.nav-links');

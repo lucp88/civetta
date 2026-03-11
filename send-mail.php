@@ -1,13 +1,20 @@
 <?php
 if ($_SERVER["REQUEST_METHOD"] == "POST") {
+    require_once 'admin/config.php';
+
     // Honeypot spam filter - bots fill in hidden fields
     if (!empty($_POST["_honey"])) {
         try {
-            require_once 'admin/config.php';
             $stmt = $pdo->prepare("INSERT INTO honeypot_logs (pagina, ip_adres, user_agent, ingevulde_waarde) VALUES (?, ?, ?, ?)");
             $stmt->execute(['contact', $_SERVER['REMOTE_ADDR'] ?? '', $_SERVER['HTTP_USER_AGENT'] ?? '', substr($_POST["_honey"], 0, 255)]);
         } catch (Exception $e) {}
         header("Location: bedankt.html");
+        exit;
+    }
+
+    // reCAPTCHA v3 verification
+    if (recaptchaSiteKey() && !verifyRecaptcha($_POST['recaptcha_token'] ?? '', 'contact')) {
+        header("Location: contact.html?error=1");
         exit;
     }
 

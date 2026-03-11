@@ -63,7 +63,7 @@ createApp({
         },
 
         async deleteImage(image) {
-            if (!confirm('Weet je zeker dat je deze foto wilt verwijderen?')) return;
+            if (!await showConfirm('Weet je zeker dat je deze foto wilt verwijderen?')) return;
             try {
                 const response = await fetch('api/gallery.php', {
                     method: 'DELETE',

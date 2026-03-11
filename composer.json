@@ -3,6 +3,7 @@
     "description": "Bakkerij Civetta website",
     "require": {
         "php": ">=7.4",
-        "mantix/eboekhouden-rest-api": "^1.0"
+        "mantix/eboekhouden-rest-api": "^1.0",
+        "dompdf/dompdf": "^2.0"
     }
 }

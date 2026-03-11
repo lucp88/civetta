@@ -54,7 +54,7 @@ $adminBasePath = '../';
             margin-bottom: 1.5rem;
         }
         .card h2 {
-            color: #5c3d1e;
+            color: #2d4a2d;
             margin-bottom: 1rem;
             display: flex;
             justify-content: space-between;
@@ -63,7 +63,7 @@ $adminBasePath = '../';
         .btn {
             display: inline-block;
             padding: 0.5rem 1rem;
-            background: #8b5a2b;
+            background: #3d6b3d;
             color: white;
             text-decoration: none;
             border-radius: 6px;
@@ -71,7 +71,7 @@ $adminBasePath = '../';
             border: none;
             cursor: pointer;
         }
-        .btn:hover { background: #5c3d1e; }
+        .btn:hover { background: #2d4a2d; }
         .btn-small {
             padding: 0.35rem 0.75rem;
             font-size: 0.85rem;
@@ -89,7 +89,7 @@ $adminBasePath = '../';
             vertical-align: middle;
         }
         th {
-            color: #8b5a2b;
+            color: #3d6b3d;
             font-weight: 600;
             font-size: 0.8rem;
             text-transform: uppercase;
@@ -115,7 +115,7 @@ $adminBasePath = '../';
         .variant-badge {
             display: inline-block;
             background: #f5f0ea;
-            color: #5c3d1e;
+            color: #2d4a2d;
             padding: 0.2rem 0.55rem;
             border-radius: 4px;
             font-size: 0.8rem;
@@ -124,7 +124,7 @@ $adminBasePath = '../';
         }
         .single-price {
             font-weight: 600;
-            color: #5c3d1e;
+            color: #2d4a2d;
         }
         .product-deegtype {
             font-size: 0.75rem;
@@ -143,7 +143,7 @@ $adminBasePath = '../';
             margin-bottom: 1.5rem;
         }
         .breadcrumb a {
-            color: #8b5a2b;
+            color: #3d6b3d;
             text-decoration: none;
         }
         .breadcrumb a:hover {
@@ -165,7 +165,7 @@ $adminBasePath = '../';
         }
         .settings-form label {
             font-weight: 500;
-            color: #5c3d1e;
+            color: #2d4a2d;
         }
         .settings-form input {
             padding: 0.5rem;
@@ -243,7 +243,7 @@ $adminBasePath = '../';
                                 </td>
                                 <td class="actions">
                                     <a href="product-edit.php?id=<?= $product['id'] ?>" class="btn btn-small">Bewerken</a>
-                                    <a href="product-delete.php?id=<?= $product['id'] ?>" class="btn btn-small btn-danger" onclick="return confirm('Weet je zeker dat je dit product wilt verwijderen?')">Verwijderen</a>
+                                    <a href="product-delete.php?id=<?= $product['id'] ?>" class="btn btn-small btn-danger" onclick="return confirmLink(this.href, 'Weet je zeker dat je dit product wilt verwijderen?')">Verwijderen</a>
                                 </td>
                             </tr>
                         <?php endforeach; ?>
@@ -254,5 +254,6 @@ $adminBasePath = '../';
             </div>
         </div>
     </div>
+<script src="../../js/ui-notifications.js?v=1"></script>
 </body>
 </html>

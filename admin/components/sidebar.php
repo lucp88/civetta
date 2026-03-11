@@ -1,7 +1,9 @@
 <?php
 $sidebarPendingAccounts = $sidebarPendingAccounts ?? 0;
 $sidebarUnprocessedOrders = $sidebarUnprocessedOrders ?? 0;
-$currentPage = $currentPage ?? '';
+if (!isset($currentPage) || $currentPage === '') {
+    $currentPage = basename($_SERVER['SCRIPT_NAME'], '.php');
+}
 ?>
 <script>
 function toggleSidebar() {
@@ -16,20 +18,20 @@ window.addEventListener('resize', closeSidebar);
 </script>
 <style>
 :root {
-    --brown-dark: #3d2514;
-    --brown: #5c3d1e;
-    --brown-medium: #8b5a2b;
-    --brown-light: #b07d4f;
-    --cream: #f8f5f0;
-    --cream-dark: #ede8e0;
+    --green-dark: #1a2e1a;
+    --green: #2d4a2d;
+    --green-medium: #3d6b3d;
+    --green-light: #5a9a5a;
+    --cream: #f5f6f4;
+    --cream-dark: #e8eae6;
     --white: #ffffff;
-    --text-primary: #2c1810;
-    --text-secondary: #6b5c52;
-    --text-muted: #9a8d84;
-    --border: #e5ddd4;
-    --shadow-sm: 0 1px 3px rgba(60,35,20,0.06);
-    --shadow-md: 0 4px 12px rgba(60,35,20,0.08);
-    --shadow-lg: 0 8px 30px rgba(60,35,20,0.12);
+    --text-primary: #1a1e1a;
+    --text-secondary: #5a635a;
+    --text-muted: #8a918a;
+    --border: #d4d9d4;
+    --shadow-sm: 0 1px 3px rgba(20,35,20,0.06);
+    --shadow-md: 0 4px 12px rgba(20,35,20,0.08);
+    --shadow-lg: 0 8px 30px rgba(20,35,20,0.12);
     --radius-sm: 8px;
     --radius-md: 12px;
     --radius-lg: 16px;
@@ -44,7 +46,7 @@ window.addEventListener('resize', closeSidebar);
 
 .sidebar {
     width: var(--sidebar-width);
-    background: var(--brown-dark);
+    background: var(--green-dark);
     color: white;
     position: fixed;
     top: 0;
@@ -67,7 +69,7 @@ window.addEventListener('resize', closeSidebar);
 .sidebar-brand-icon {
     width: 36px;
     height: 36px;
-    background: linear-gradient(135deg, var(--brown-medium), var(--brown-light));
+    background: linear-gradient(135deg, var(--green-medium), var(--green-light));
     border-radius: 10px;
     display: flex;
     align-items: center;
@@ -130,7 +132,7 @@ window.addEventListener('resize', closeSidebar);
 .nav-item.active {
     color: white;
     background: rgba(255,255,255,0.08);
-    border-left-color: var(--brown-light);
+    border-left-color: var(--green-light);
 }
 
 .nav-item i {
@@ -233,7 +235,7 @@ window.addEventListener('resize', closeSidebar);
     transition: color 0.15s;
 }
 
-.topbar-link:hover { color: var(--brown); }
+.topbar-link:hover { color: var(--green); }
 
 .mobile-overlay {
     display: none;
@@ -257,7 +259,7 @@ window.addEventListener('resize', closeSidebar);
     left: 0;
     right: 0;
     bottom: 0;
-    background: var(--brown-dark);
+    background: var(--green-dark);
     z-index: 201;
     overflow-y: auto;
     -webkit-overflow-scrolling: touch;
@@ -336,18 +338,32 @@ window.addEventListener('resize', closeSidebar);
     </div>
 
     <nav class="sidebar-nav">
-        <div class="nav-section">Overzicht</div>
-        <a href="<?= $adminBasePath ?? '' ?>index.php" class="nav-item <?= $currentPage === 'dashboard' ? 'active' : '' ?>">
+        <div class="nav-section">Bedrijf</div>
+        <a href="<?= $adminBasePath ?? '' ?>index.php" class="nav-item <?= $currentPage === 'index' || $currentPage === 'dashboard' ? 'active' : '' ?>">
             <i class="bi bi-grid-1x2-fill"></i> Dashboard
         </a>
         <a href="<?= $adminBasePath ?? '' ?>reporting/analytics.php" class="nav-item <?= $currentPage === 'analytics' ? 'active' : '' ?>">
             <i class="bi bi-bar-chart-line"></i> Analytics
+        </a>
+        <a href="<?= $adminBasePath ?? '' ?>settings/settings-boekhouding.php" class="nav-item <?= $currentPage === 'settings-boekhouding' ? 'active' : '' ?>">
+            <i class="bi bi-receipt"></i> Boekhouding
         </a>
 
         <div class="nav-section">Bakkerij</div>
         <a href="<?= $adminBasePath ?? '' ?>bakker/bakker-dashboard.php" class="nav-item <?= $currentPage === 'bakker-dashboard' ? 'active' : '' ?>">
             <i class="bi bi-calendar3"></i> Planning
         </a>
+        <a href="<?= $adminBasePath ?? '' ?>bakker/bakcalculator.php" class="nav-item <?= $currentPage === 'bakcalculator' ? 'active' : '' ?>">
+            <i class="bi bi-journal-text"></i> Receptuur
+        </a>
+        <a href="<?= $adminBasePath ?? '' ?>bakker/voorraad.php" class="nav-item <?= $currentPage === 'voorraad' ? 'active' : '' ?>">
+            <i class="bi bi-box-seam-fill"></i> Voorraadbeheer
+        </a>
+        <a href="<?= $adminBasePath ?? '' ?>bakker/voedselveiligheid.php" class="nav-item <?= $currentPage === 'voedselveiligheid' ? 'active' : '' ?>">
+            <i class="bi bi-check2-square"></i> Voedselveiligheid
+        </a>
+
+        <div class="nav-section">Winkel</div>
         <a href="<?= $adminBasePath ?? '' ?>bestellingen/orders.php" class="nav-item <?= $currentPage === 'orders' ? 'active' : '' ?>">
             <i class="bi bi-box-seam"></i> Bestellingen
             <?php if ($sidebarUnprocessedOrders > 0): ?>
@@ -357,22 +373,13 @@ window.addEventListener('resize', closeSidebar);
         <a href="<?= $adminBasePath ?? '' ?>producten/products.php" class="nav-item <?= $currentPage === 'products' ? 'active' : '' ?>">
             <i class="bi bi-basket3"></i> Producten
         </a>
-        <a href="<?= $adminBasePath ?? '' ?>bakker/bakcalculator.php" class="nav-item <?= $currentPage === 'bakcalculator' ? 'active' : '' ?>">
-            <i class="bi bi-journal-text"></i> Receptuur
-        </a>
-        <a href="<?= $adminBasePath ?? '' ?>bakker/voorraad.php" class="nav-item <?= $currentPage === 'voorraad' ? 'active' : '' ?>">
-            <i class="bi bi-box-seam-fill"></i> Voorraadbeheer
-        </a>
-        <a href="<?= $adminBasePath ?? '' ?>bakker/voedselveiligheid.php" class="nav-item <?= $currentPage === 'schoonmaak' ? 'active' : '' ?>">
-            <i class="bi bi-check2-square"></i> Voedselveiligheid
+        <a href="<?= $adminBasePath ?? '' ?>donaties/donations.php" class="nav-item <?= $currentPage === 'donations' ? 'active' : '' ?>">
+            <i class="bi bi-heart"></i> Donaties
         </a>
 
         <div class="nav-section">Content</div>
-        <a href="<?= $adminBasePath ?? '' ?>blog/posts.php" class="nav-item <?= $currentPage === 'blog' ? 'active' : '' ?>">
+        <a href="<?= $adminBasePath ?? '' ?>blog/posts.php" class="nav-item <?= $currentPage === 'posts' ? 'active' : '' ?>">
             <i class="bi bi-pencil-square"></i> Blog Posts
-        </a>
-        <a href="<?= $adminBasePath ?? '' ?>donaties/donations.php" class="nav-item <?= $currentPage === 'donations' ? 'active' : '' ?>">
-            <i class="bi bi-heart"></i> Donaties
         </a>
 
         <div class="nav-section">Beheer</div>
@@ -384,9 +391,6 @@ window.addEventListener('resize', closeSidebar);
         </a>
         <a href="<?= $adminBasePath ?? '' ?>settings/settings-bedrijf.php" class="nav-item <?= $currentPage === 'settings-bedrijf' ? 'active' : '' ?>">
             <i class="bi bi-building"></i> Bedrijfsgegevens
-        </a>
-        <a href="<?= $adminBasePath ?? '' ?>settings/settings-boekhouding.php" class="nav-item <?= $currentPage === 'settings-boekhouding' ? 'active' : '' ?>">
-            <i class="bi bi-receipt"></i> Boekhouding
         </a>
 
         <div class="nav-section">Web-Dev</div>
@@ -405,18 +409,32 @@ window.addEventListener('resize', closeSidebar);
 
 <div class="mobile-dropdown" id="mobileDropdown">
     <nav>
-        <div class="nav-section">Overzicht</div>
-        <a href="<?= $adminBasePath ?? '' ?>index.php" class="nav-item <?= $currentPage === 'dashboard' ? 'active' : '' ?>">
+        <div class="nav-section">Bedrijf</div>
+        <a href="<?= $adminBasePath ?? '' ?>index.php" class="nav-item <?= $currentPage === 'index' || $currentPage === 'dashboard' ? 'active' : '' ?>">
             <i class="bi bi-grid-1x2-fill"></i> Dashboard
         </a>
         <a href="<?= $adminBasePath ?? '' ?>reporting/analytics.php" class="nav-item <?= $currentPage === 'analytics' ? 'active' : '' ?>">
             <i class="bi bi-bar-chart-line"></i> Analytics
+        </a>
+        <a href="<?= $adminBasePath ?? '' ?>settings/settings-boekhouding.php" class="nav-item <?= $currentPage === 'settings-boekhouding' ? 'active' : '' ?>">
+            <i class="bi bi-receipt"></i> Boekhouding
         </a>
 
         <div class="nav-section">Bakkerij</div>
         <a href="<?= $adminBasePath ?? '' ?>bakker/bakker-dashboard.php" class="nav-item <?= $currentPage === 'bakker-dashboard' ? 'active' : '' ?>">
             <i class="bi bi-calendar3"></i> Planning
         </a>
+        <a href="<?= $adminBasePath ?? '' ?>bakker/bakcalculator.php" class="nav-item <?= $currentPage === 'bakcalculator' ? 'active' : '' ?>">
+            <i class="bi bi-journal-text"></i> Receptuur
+        </a>
+        <a href="<?= $adminBasePath ?? '' ?>bakker/voorraad.php" class="nav-item <?= $currentPage === 'voorraad' ? 'active' : '' ?>">
+            <i class="bi bi-box-seam-fill"></i> Voorraadbeheer
+        </a>
+        <a href="<?= $adminBasePath ?? '' ?>bakker/voedselveiligheid.php" class="nav-item <?= $currentPage === 'voedselveiligheid' ? 'active' : '' ?>">
+            <i class="bi bi-check2-square"></i> Voedselveiligheid
+        </a>
+
+        <div class="nav-section">Winkel</div>
         <a href="<?= $adminBasePath ?? '' ?>bestellingen/orders.php" class="nav-item <?= $currentPage === 'orders' ? 'active' : '' ?>">
             <i class="bi bi-box-seam"></i> Bestellingen
             <?php if ($sidebarUnprocessedOrders > 0): ?>
@@ -426,22 +444,13 @@ window.addEventListener('resize', closeSidebar);
         <a href="<?= $adminBasePath ?? '' ?>producten/products.php" class="nav-item <?= $currentPage === 'products' ? 'active' : '' ?>">
             <i class="bi bi-basket3"></i> Producten
         </a>
-        <a href="<?= $adminBasePath ?? '' ?>bakker/bakcalculator.php" class="nav-item <?= $currentPage === 'bakcalculator' ? 'active' : '' ?>">
-            <i class="bi bi-journal-text"></i> Receptuur
-        </a>
-        <a href="<?= $adminBasePath ?? '' ?>bakker/voorraad.php" class="nav-item <?= $currentPage === 'voorraad' ? 'active' : '' ?>">
-            <i class="bi bi-box-seam-fill"></i> Voorraadbeheer
-        </a>
-        <a href="<?= $adminBasePath ?? '' ?>bakker/voedselveiligheid.php" class="nav-item <?= $currentPage === 'schoonmaak' ? 'active' : '' ?>">
-            <i class="bi bi-check2-square"></i> Voedselveiligheid
+        <a href="<?= $adminBasePath ?? '' ?>donaties/donations.php" class="nav-item <?= $currentPage === 'donations' ? 'active' : '' ?>">
+            <i class="bi bi-heart"></i> Donaties
         </a>
 
         <div class="nav-section">Content</div>
-        <a href="<?= $adminBasePath ?? '' ?>blog/posts.php" class="nav-item <?= $currentPage === 'blog' ? 'active' : '' ?>">
+        <a href="<?= $adminBasePath ?? '' ?>blog/posts.php" class="nav-item <?= $currentPage === 'posts' ? 'active' : '' ?>">
             <i class="bi bi-pencil-square"></i> Blog Posts
-        </a>
-        <a href="<?= $adminBasePath ?? '' ?>donaties/donations.php" class="nav-item <?= $currentPage === 'donations' ? 'active' : '' ?>">
-            <i class="bi bi-heart"></i> Donaties
         </a>
 
         <div class="nav-section">Beheer</div>
@@ -453,9 +462,6 @@ window.addEventListener('resize', closeSidebar);
         </a>
         <a href="<?= $adminBasePath ?? '' ?>settings/settings-bedrijf.php" class="nav-item <?= $currentPage === 'settings-bedrijf' ? 'active' : '' ?>">
             <i class="bi bi-building"></i> Bedrijfsgegevens
-        </a>
-        <a href="<?= $adminBasePath ?? '' ?>settings/settings-boekhouding.php" class="nav-item <?= $currentPage === 'settings-boekhouding' ? 'active' : '' ?>">
-            <i class="bi bi-receipt"></i> Boekhouding
         </a>
 
         <div class="nav-section">Web-Dev</div>

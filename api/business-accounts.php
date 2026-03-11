@@ -55,7 +55,15 @@ switch ($method) {
         
     case 'POST':
         $data = json_decode(file_get_contents('php://input'), true);
-        
+
+        // reCAPTCHA v3 verification (only for public registrations, not admin_create)
+        $isAdminCreate = !empty($data['admin_create']) && isset($_SESSION['admin_logged_in']) && $_SESSION['admin_logged_in'];
+        if (!$isAdminCreate && recaptchaSiteKey() && !verifyRecaptcha($data['recaptcha_token'] ?? '', 'register')) {
+            http_response_code(400);
+            echo json_encode(['success' => false, 'error' => 'Spam verificatie mislukt. Probeer het opnieuw.']);
+            exit;
+        }
+
         $bedrijfsnaam = trim($data['bedrijfsnaam'] ?? '');
         $adres = trim($data['adres'] ?? '');
         $postcode = trim($data['postcode'] ?? '');

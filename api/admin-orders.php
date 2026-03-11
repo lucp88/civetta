@@ -363,6 +363,67 @@ switch ($method) {
             $totalAmount += floatval($item['quantity']) * floatval($item['unit_price']);
         }
 
+        // Bakeday check — warn for internal orders, don't block
+        $confirmOverride = !empty($data['confirm_override']);
+        if (!$confirmOverride) {
+            $stmtPatroon = $pdo->prepare("SELECT setting_value FROM settings WHERE setting_key = 'bakdagen_patroon'");
+            $stmtPatroon->execute();
+            $patroonStr = $stmtPatroon->fetchColumn() ?: '';
+            $patroon = $patroonStr ? array_map('intval', explode(',', $patroonStr)) : [];
+
+            $warnings = [];
+            if (!empty($patroon)) {
+                $deliveryWeekday = (int)(new DateTime($deliveryDate))->format('N');
+                $isPatroonDay = in_array($deliveryWeekday, $patroon);
+
+                $stmtExtra = $pdo->prepare("SELECT COUNT(*) FROM bakdagen_extra WHERE datum = ?");
+                $stmtExtra->execute([$deliveryDate]);
+                $isExtraDay = (int)$stmtExtra->fetchColumn() > 0;
+
+                if (!$isPatroonDay && !$isExtraDay) {
+                    $warnings[] = date('d-m-Y', strtotime($deliveryDate)) . ' is geen bakdag.';
+                }
+
+                // Check preparation days
+                $stmtVoorbereiding = $pdo->prepare("SELECT setting_value FROM settings WHERE setting_key = 'bakdagen_voorbereiding_dagen'");
+                $stmtVoorbereiding->execute();
+                $voorbereidingDagen = (int)($stmtVoorbereiding->fetchColumn() ?: 3);
+
+                $today = new DateTime();
+                $today->setTime(0, 0, 0);
+                $todayStr = $today->format('Y-m-d');
+                $deliveryDt = new DateTime($deliveryDate);
+
+                $stmtExtraRange = $pdo->prepare("SELECT datum FROM bakdagen_extra WHERE datum BETWEEN ? AND ?");
+                $stmtExtraRange->execute([$todayStr, $deliveryDate]);
+                $extraDatums = array_column($stmtExtraRange->fetchAll(), 'datum');
+
+                $bakdagenCount = 0;
+                $d = clone $today;
+                while ($d <= $deliveryDt) {
+                    $wd = (int)$d->format('N');
+                    $ds = $d->format('Y-m-d');
+                    if (in_array($wd, $patroon) || in_array($ds, $extraDatums)) {
+                        $bakdagenCount++;
+                    }
+                    $d->modify('+1 day');
+                }
+
+                if ($bakdagenCount < $voorbereidingDagen) {
+                    $warnings[] = "Niet genoeg bakdagen voor voorbereiding ($bakdagenCount van $voorbereidingDagen nodig).";
+                }
+            }
+
+            if (!empty($warnings)) {
+                echo json_encode([
+                    'success' => false,
+                    'needs_confirm' => true,
+                    'warning' => implode(' ', $warnings) . ' Wil je toch doorgaan?'
+                ]);
+                exit;
+            }
+        }
+
         require_once __DIR__ . '/../lib/bestelbon/functions.php';
 
         try {
@@ -409,38 +470,39 @@ switch ($method) {
 
             if (!$isInternal) {
                 sendBestelbonEmail($pdo, $orderId);
+            }
 
-                $itemsList = "";
-                foreach ($items as $item) {
-                    $itemsList .= "- {$item['quantity']}x {$item['product_name']} (€" . number_format($item['unit_price'], 2, ',', '.') . " p/st)\n";
-                }
+            $itemsList = "";
+            foreach ($items as $item) {
+                $itemsList .= "- {$item['quantity']}x {$item['product_name']} (€" . number_format($item['unit_price'], 2, ',', '.') . " p/st)\n";
+            }
 
-                $to = "info@bakkerij-civetta.nl";
-                $subject = "Nieuwe bestelling (admin) van {$accountInfo['bedrijfsnaam']} (#$orderId)";
-                $body = "Er is een nieuwe bestelling geplaatst via het admin panel!\n\n";
-                $body .= "Bestelling #$orderId\n";
-                $body .= "Bedrijf: {$accountInfo['bedrijfsnaam']}\n";
-                $body .= "Contactpersoon: {$accountInfo['contactpersoon']}\n";
-                $body .= "E-mail: {$accountInfo['email']}\n\n";
-                $body .= "Gewenste leverdatum: " . date('d-m-Y', strtotime($deliveryDate)) . "\n\n";
-                $body .= "Producten:\n$itemsList\n";
-                $body .= "Totaalbedrag: €" . number_format($totalAmount, 2, ',', '.') . "\n\n";
-                if ($notes) {
-                    $body .= "Opmerkingen: $notes\n\n";
-                }
-                $body .= "Geplaatst door: Admin\n";
+            $to = "info@bakkerij-civetta.nl";
+            $typeLabel = $isInternal ? 'intern' : 'admin';
+            $subject = "Nieuwe bestelling ($typeLabel) van {$accountInfo['bedrijfsnaam']} (#$orderId)";
+            $body = "Er is een nieuwe bestelling geplaatst via het admin panel!\n\n";
+            $body .= "Bestelling #$orderId\n";
+            $body .= "Bedrijf: {$accountInfo['bedrijfsnaam']}\n";
+            $body .= "Contactpersoon: {$accountInfo['contactpersoon']}\n";
+            $body .= "E-mail: {$accountInfo['email']}\n\n";
+            $body .= "Gewenste leverdatum: " . date('d-m-Y', strtotime($deliveryDate)) . "\n\n";
+            $body .= "Producten:\n$itemsList\n";
+            $body .= "Totaalbedrag: €" . number_format($totalAmount, 2, ',', '.') . "\n\n";
+            if ($notes) {
+                $body .= "Opmerkingen: $notes\n\n";
+            }
+            $body .= "Geplaatst door: Admin\n";
 
-                $headers = "From: noreply@bakkerij-civetta.nl\r\n";
-                $headers .= "Content-Type: text/plain; charset=UTF-8\r\n";
-                @mail($to, $subject, $body, $headers);
+            $headers = "From: noreply@bakkerij-civetta.nl\r\n";
+            $headers .= "Content-Type: text/plain; charset=UTF-8\r\n";
+            @mail($to, $subject, $body, $headers);
 
-                try {
-                    $pushTitle = 'Nieuwe bestelling (admin)';
-                    $pushBody = $accountInfo['bedrijfsnaam'] . ' - €' . number_format($totalAmount, 2, ',', '.') . ' (' . date('d-m-Y', strtotime($deliveryDate)) . ')';
-                    sendPushNotification($pdo, $pushTitle, $pushBody);
-                } catch (\Throwable $e) {
-                    error_log('Push notification fout: ' . $e->getMessage());
-                }
+            try {
+                $pushTitle = $isInternal ? 'Nieuwe interne bestelling' : 'Nieuwe bestelling (admin)';
+                $pushBody = $accountInfo['bedrijfsnaam'] . ' - €' . number_format($totalAmount, 2, ',', '.') . ' (' . date('d-m-Y', strtotime($deliveryDate)) . ')';
+                sendPushNotification($pdo, $pushTitle, $pushBody);
+            } catch (\Throwable $e) {
+                error_log('Push notification fout: ' . $e->getMessage());
             }
 
             $message = $isInternal

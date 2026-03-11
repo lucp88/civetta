@@ -57,11 +57,11 @@ $aantalReminders   = countRows($pdo, 'renewal_reminders_sent');
     <style>
         body { font-family: -apple-system, sans-serif; padding: 2rem; background: #f5f2ed; }
         .card { background: white; padding: 2rem; border-radius: 12px; max-width: 640px; margin: 0 auto; box-shadow: 0 4px 15px rgba(0,0,0,0.1); }
-        h1 { color: #5c3d1e; margin-bottom: 0.5rem; }
+        h1 { color: #2d4a2d; margin-bottom: 0.5rem; }
         .subtitle { color: #888; margin-bottom: 1.5rem; font-size: 0.9rem; }
         table { width: 100%; border-collapse: collapse; margin: 1rem 0; }
         th, td { text-align: left; padding: 0.6rem 0.75rem; border-bottom: 1px solid #eee; }
-        th { background: #f5f2ed; color: #5c3d1e; font-weight: 600; }
+        th { background: #f5f2ed; color: #2d4a2d; font-weight: 600; }
         td.aantal { font-weight: 700; color: #c62828; text-align: right; }
         td.aantal.nul { color: #2e7d32; }
         .waarschuwing { background: #fff3e0; border-left: 4px solid #e65100; padding: 1rem 1.25rem; border-radius: 6px; margin: 1.5rem 0; }
@@ -75,8 +75,8 @@ $aantalReminders   = countRows($pdo, 'renewal_reminders_sent');
         .btn-verwijder { display: inline-block; padding: 0.75rem 1.75rem; background: #c62828; color: white; border: none; border-radius: 8px; font-size: 1rem; font-weight: 600; cursor: pointer; }
         .btn-verwijder:hover { background: #8c1c1c; }
         .btn-verwijder:disabled { background: #ccc; cursor: not-allowed; }
-        .btn-terug { display: inline-block; padding: 0.75rem 1.5rem; background: #8b5a2b; color: white; text-decoration: none; border-radius: 8px; margin-top: 1rem; }
-        .btn-terug:hover { background: #5c3d1e; }
+        .btn-terug { display: inline-block; padding: 0.75rem 1.5rem; background: #3d6b3d; color: white; text-decoration: none; border-radius: 8px; margin-top: 1rem; }
+        .btn-terug:hover { background: #2d4a2d; }
         .leeg { color: #2e7d32; font-style: italic; }
     </style>
 </head>

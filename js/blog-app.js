@@ -98,7 +98,7 @@ createApp({
         },
 
         async deletePost(post) {
-            if (!confirm(`Weet je zeker dat je "${post.title}" wilt verwijderen?`)) return;
+            if (!await showConfirm(`Weet je zeker dat je "${post.title}" wilt verwijderen?`)) return;
             try {
                 const response = await fetch('api/posts.php', {
                     method: 'DELETE',

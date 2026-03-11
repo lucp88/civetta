@@ -1,8 +1,11 @@
 <?php
-require_once __DIR__ . '/../shared.php';
-require_once __DIR__ . '/BestelbonPDF.php';
-require_once __DIR__ . '/../../api/email-templates.php';
-require_once __DIR__ . '/../../api/delivery-status.php';
+require_once __DIR__ . '/../includes/functions.php';
+require_once __DIR__ . '/../includes/delivery-status.php';
+
+// Load DomPDF via Composer autoloader
+require_once __DIR__ . '/../../vendor/autoload.php';
+use Dompdf\Dompdf;
+use Dompdf\Options;
 
 function generateBestelbonNumber($pdo, $orderId) {
     return 'B' . date('Y') . '-' . str_pad($orderId, 4, '0', STR_PAD_LEFT);
@@ -16,29 +19,84 @@ function calculateEditDeadline($deliveryDate, $deadlineHours) {
 
 function canOrderBeEdited($pdo, $orderId) {
     $stmt = $pdo->prepare("
-        SELECT bo.delivery_date, bo.payment_status, bo.order_status 
-        FROM business_orders bo 
+        SELECT bo.delivery_date, bo.payment_status, bo.order_status
+        FROM business_orders bo
         WHERE bo.id = ?
     ");
     $stmt->execute([$orderId]);
     $order = $stmt->fetch();
-    
+
     if (!$order) return false;
     if ($order['payment_status'] === 'paid') return false;
     if (in_array($order['order_status'], ['wordt_vandaag_geleverd', 'afgeleverd'])) return false;
-    
+
     $deadlineHours = getWijzigDeadlineUren($pdo);
     $deadline = calculateEditDeadline($order['delivery_date'], $deadlineHours);
     $now = new DateTime();
-    
+
     return $now < $deadline;
 }
 
+// ── Template rendering ───────────────────────────────────────────────────────
+
+function renderTemplate($templateFile, $vars) {
+    $html = file_get_contents(__DIR__ . '/templates/' . $templateFile);
+    foreach ($vars as $key => $value) {
+        $html = str_replace('{{' . $key . '}}', $value, $html);
+    }
+    // Remove any unreplaced conditionals
+    $html = preg_replace('/\{\{#if \w+\}\}.*?\{\{\/if\}\}/s', '', $html);
+    return $html;
+}
+
+function renderPdf($html) {
+    $options = new Options();
+    $options->set('isRemoteEnabled', false);
+    $options->set('defaultFont', 'Helvetica');
+
+    $dompdf = new Dompdf($options);
+    $dompdf->loadHtml($html);
+    $dompdf->setPaper('A4', 'portrait');
+    $dompdf->render();
+    return $dompdf;
+}
+
+function buildItemsRows($items) {
+    $rows = '';
+    foreach ($items as $item) {
+        $lineTotal = $item['quantity'] * $item['unit_price'];
+        $rows .= '<tr>';
+        $rows .= '<td>' . h($item['product_name']) . '</td>';
+        $rows .= '<td>' . (int)$item['quantity'] . '</td>';
+        $rows .= '<td>' . formatEuro($item['unit_price']) . '</td>';
+        $rows .= '<td>' . formatEuro($lineTotal) . '</td>';
+        $rows .= '</tr>';
+    }
+    return $rows;
+}
+
+function getBedrijfVars($bedrijf) {
+    $naam = $bedrijf['bedrijf_naam'] ?: 'Bakkerij Civetta';
+    $plaats = ($bedrijf['bedrijf_postcode'] || $bedrijf['bedrijf_plaats'])
+        ? trim($bedrijf['bedrijf_postcode'] . ' ' . $bedrijf['bedrijf_plaats'])
+        : 'Leersum, Utrecht';
+    $email = $bedrijf['bedrijf_email'] ?: 'info@bakkerij-civetta.nl';
+    return ['bedrijf_naam' => h($naam), 'bedrijf_plaats' => h($plaats), 'bedrijf_email' => h($email)];
+}
+
+function calculateBtw($totalInclBtw, $btwTarief) {
+    $btwBedrag = $totalInclBtw - ($totalInclBtw / (1 + $btwTarief / 100));
+    $exclBtw = $totalInclBtw - $btwBedrag;
+    return ['excl' => $exclBtw, 'btw' => $btwBedrag, 'incl' => $totalInclBtw];
+}
+
+// ── Bestelbon generators ─────────────────────────────────────────────────────
+
 function generateBestelbon($pdo, $orderId, $outputPath = null) {
     $stmt = $pdo->prepare("
-        SELECT bo.*, ba.bedrijfsnaam, ba.adres, ba.postcode, ba.plaats, 
+        SELECT bo.*, ba.bedrijfsnaam, ba.adres, ba.postcode, ba.plaats,
                ba.contactpersoon, ba.email, ba.telefoon, ba.kvk_nummer, ba.btw_id,
-               ba.delivery_same_as_business, ba.delivery_adres, ba.delivery_postcode, 
+               ba.delivery_same_as_business, ba.delivery_adres, ba.delivery_postcode,
                ba.delivery_plaats, ba.delivery_contactpersoon
         FROM business_orders bo
         JOIN business_accounts ba ON bo.account_id = ba.id
@@ -46,203 +104,90 @@ function generateBestelbon($pdo, $orderId, $outputPath = null) {
     ");
     $stmt->execute([$orderId]);
     $order = $stmt->fetch();
-    
     if (!$order) return false;
-    
+
     $stmt = $pdo->prepare("SELECT product_name, quantity, unit_price FROM business_order_items WHERE order_id = ?");
     $stmt->execute([$orderId]);
     $items = $stmt->fetchAll();
-    
-    $stmt = $pdo->query("SELECT setting_value FROM settings WHERE setting_key = 'btw_tarief'");
-    $btwTarief = floatval($stmt->fetchColumn() ?: 9);
-    
+
+    $btwTarief = floatval(getSetting($pdo, 'btw_tarief', '9'));
     $bedrijf = getBedrijfsGegevens($pdo);
     $deadlineHours = getWijzigDeadlineUren($pdo);
-    
-    $totalInclBtw = floatval($order['total_amount']);
-    $btwBedrag = $totalInclBtw - ($totalInclBtw / (1 + $btwTarief / 100));
-    $exclBtw = $totalInclBtw - $btwBedrag;
-    
+
+    $totals = calculateBtw(floatval($order['total_amount']), $btwTarief);
     $bestelbonNummer = $order['bestelbon_number'] ?: generateBestelbonNumber($pdo, $orderId);
-    $besteldatum = date('d-m-Y', strtotime($order['created_at']));
-    $leverDatum = date('d-m-Y', strtotime($order['delivery_date']));
-    
+
+    $deliveryAdres = $order['delivery_same_as_business'] ? $order['adres'] : ($order['delivery_adres'] ?: $order['adres']);
+    $deliveryPostcode = $order['delivery_same_as_business'] ? $order['postcode'] : ($order['delivery_postcode'] ?: $order['postcode']);
+    $deliveryPlaats = $order['delivery_same_as_business'] ? $order['plaats'] : ($order['delivery_plaats'] ?: $order['plaats']);
+
     $editDeadline = calculateEditDeadline($order['delivery_date'], $deadlineHours);
     $canEdit = canOrderBeEdited($pdo, $orderId);
-    
-    $deliveryAdres = $order['delivery_same_as_business'] 
-        ? $order['adres'] 
-        : ($order['delivery_adres'] ?: $order['adres']);
-    $deliveryPostcode = $order['delivery_same_as_business'] 
-        ? $order['postcode'] 
-        : ($order['delivery_postcode'] ?: $order['postcode']);
-    $deliveryPlaats = $order['delivery_same_as_business'] 
-        ? $order['plaats'] 
-        : ($order['delivery_plaats'] ?: $order['plaats']);
-    
-    $pdf = new BestelbonPDF();
-    $pdf->AddPage();
-    $pdf->SetAutoPageBreak(true, 20);
 
-    $bedrijfNaam = $bedrijf['bedrijf_naam'] ?: 'Bakkerij Civetta';
-    $bedrijfPlaats = ($bedrijf['bedrijf_postcode'] || $bedrijf['bedrijf_plaats'])
-        ? trim($bedrijf['bedrijf_postcode'] . ' ' . $bedrijf['bedrijf_plaats'])
-        : 'Leersum, Utrecht';
-    $bedrijfEmail = $bedrijf['bedrijf_email'] ?: 'info@bakkerij-civetta.nl';
-
+    // Build status block
+    $statusBlock = '';
     if (!empty($order['is_internal'])) {
-        $pdf->SetFillColor(139, 90, 43);
-        $pdf->SetTextColor(255);
-        $pdf->SetFont('Helvetica', 'B', 14);
-        $pdf->Cell(0, 10, 'INTERNE BESTELLING', 0, 1, 'C', true);
-        $pdf->Ln(5);
-        $pdf->SetTextColor(0);
-    }
-
-    $pdf->SetFont('Helvetica', 'B', 10);
-    $pdf->Cell(95, 5, $bedrijfNaam, 0, 0);
-    $pdf->Cell(95, 5, 'Klant:', 0, 1);
-    
-    $pdf->SetFont('Helvetica', '', 9);
-    $pdf->Cell(95, 5, $bedrijfPlaats, 0, 0);
-    $pdf->SetFont('Helvetica', 'B', 9);
-    $pdf->Cell(95, 5, $order['bedrijfsnaam'], 0, 1);
-    
-    $pdf->SetFont('Helvetica', '', 9);
-    $pdf->Cell(95, 5, $bedrijfEmail, 0, 0);
-    $pdf->Cell(95, 5, 't.a.v. ' . $order['contactpersoon'], 0, 1);
-    
-    $pdf->Cell(95, 5, '', 0, 0);
-    $pdf->Cell(95, 5, $order['email'], 0, 1);
-    
-    $pdf->Ln(10);
-    
-    $pdf->SetFont('Helvetica', 'B', 9);
-    $pdf->Cell(45, 6, 'Bestelbonnummer:', 0, 0);
-    $pdf->SetFont('Helvetica', '', 9);
-    $pdf->Cell(45, 6, $bestelbonNummer, 0, 0);
-    $pdf->SetFont('Helvetica', 'B', 9);
-    $pdf->Cell(45, 6, 'Besteldatum:', 0, 0);
-    $pdf->SetFont('Helvetica', '', 9);
-    $pdf->Cell(45, 6, $besteldatum, 0, 1);
-    
-    $pdf->SetFont('Helvetica', 'B', 9);
-    $pdf->Cell(45, 6, 'Bestelnummer:', 0, 0);
-    $pdf->SetFont('Helvetica', '', 9);
-    $pdf->Cell(45, 6, '#' . $orderId, 0, 0);
-    $pdf->SetFont('Helvetica', 'B', 9);
-    $pdf->Cell(45, 6, 'Leverdatum:', 0, 0);
-    $pdf->SetFont('Helvetica', '', 9);
-    $pdf->Cell(45, 6, $leverDatum, 0, 1);
-    
-    $pdf->Ln(5);
-    
-    $pdf->SetFont('Helvetica', 'B', 9);
-    $pdf->Cell(45, 6, 'Afleveradres:', 0, 0);
-    $pdf->SetFont('Helvetica', '', 9);
-    $pdf->Cell(145, 6, $deliveryAdres . ', ' . $deliveryPostcode . ' ' . $deliveryPlaats, 0, 1);
-    
-    $pdf->Ln(10);
-    
-    $pdf->SetFillColor(92, 61, 30);
-    $pdf->SetTextColor(255);
-    $pdf->SetFont('Helvetica', 'B', 9);
-    $pdf->Cell(90, 8, ' Product', 1, 0, 'L', true);
-    $pdf->Cell(25, 8, 'Aantal', 1, 0, 'C', true);
-    $pdf->Cell(35, 8, 'Prijs/stuk', 1, 0, 'R', true);
-    $pdf->Cell(40, 8, 'Totaal', 1, 1, 'R', true);
-    
-    $pdf->SetTextColor(0);
-    $pdf->SetFont('Helvetica', '', 9);
-    
-    $fill = false;
-    foreach ($items as $item) {
-        $pdf->SetFillColor(245, 242, 237);
-        $lineTotal = $item['quantity'] * $item['unit_price'];
-        $pdf->Cell(90, 7, ' ' . $item['product_name'], 1, 0, 'L', $fill);
-        $pdf->Cell(25, 7, $item['quantity'], 1, 0, 'C', $fill);
-        $pdf->Cell(35, 7, euro($item['unit_price']), 1, 0, 'R', $fill);
-        $pdf->Cell(40, 7, euro($lineTotal), 1, 1, 'R', $fill);
-        $fill = !$fill;
-    }
-    
-    $pdf->Ln(5);
-    
-    $pdf->SetFont('Helvetica', '', 9);
-    $pdf->Cell(150, 6, 'Subtotaal excl. BTW:', 0, 0, 'R');
-    $pdf->Cell(40, 6, euro($exclBtw), 0, 1, 'R');
-    
-    $pdf->Cell(150, 6, 'BTW (' . $btwTarief . '%):', 0, 0, 'R');
-    $pdf->Cell(40, 6, euro($btwBedrag), 0, 1, 'R');
-    
-    $pdf->SetFont('Helvetica', 'B', 11);
-    $pdf->Cell(150, 8, 'Totaal incl. BTW:', 0, 0, 'R');
-    $pdf->Cell(40, 8, euro($totalInclBtw), 0, 1, 'R');
-    
-    $pdf->Ln(10);
-    
-    if (!empty($order['is_internal'])) {
-        $pdf->SetFillColor(139, 90, 43);
-        $pdf->SetTextColor(255);
-        $pdf->SetFont('Helvetica', 'B', 10);
-        $pdf->Cell(0, 8, 'INTERNE BESTELBON - GEEN FACTUUR', 0, 1, 'C', true);
-
-        $pdf->SetTextColor(0);
-        $pdf->SetFont('Helvetica', '', 9);
-        $pdf->Ln(5);
-        $pdf->MultiCell(0, 5, 'Dit is een interne bestelling. Er wordt geen factuur aangemaakt.', 0, 'L');
+        $statusBlock = '<div class="status-box status-internal">INTERNE BESTELBON - GEEN FACTUUR</div>';
+        $statusBlock .= '<p class="info-text">Dit is een interne bestelling. Er wordt geen factuur aangemaakt.</p>';
     } elseif (!empty($order['payment_type']) && $order['payment_type'] === 'saldo') {
-        $pdf->SetFillColor(200, 230, 201);
-        $pdf->SetTextColor(27, 94, 32);
-        $pdf->SetFont('Helvetica', 'B', 10);
-        $pdf->Cell(0, 8, 'BETAALD MET SALDO', 0, 1, 'C', true);
-
-        $pdf->SetTextColor(0);
-        $pdf->SetFont('Helvetica', '', 9);
-        $pdf->Ln(5);
-        $pdf->MultiCell(0, 5, 'Deze bestelling is betaald met uw tegoed. Er wordt geen separate factuur aangemaakt.', 0, 'L');
+        $statusBlock = '<div class="status-box status-paid-saldo">BETAALD MET SALDO</div>';
+        $statusBlock .= '<p class="info-text">Deze bestelling is betaald met uw tegoed. Er wordt geen separate factuur aangemaakt.</p>';
     } else {
-        $pdf->SetFillColor(255, 243, 205);
-        $pdf->SetTextColor(133, 100, 4);
-        $pdf->SetFont('Helvetica', 'B', 10);
-        $pdf->Cell(0, 8, 'BESTELBON - FACTUUR VOLGT NA LEVERING', 0, 1, 'C', true);
-
-        $pdf->SetTextColor(0);
-        $pdf->SetFont('Helvetica', '', 9);
-        $pdf->Ln(5);
-
+        $statusBlock = '<div class="status-box status-pending">BESTELBON - FACTUUR VOLGT NA LEVERING</div>';
         if ($canEdit) {
-            $pdf->MultiCell(0, 5, 'Deze bestelling kan nog gewijzigd worden tot ' . $editDeadline->format('d-m-Y H:i') . '.', 0, 'L');
-            $pdf->MultiCell(0, 5, 'Wijzigingen kunt u doorvoeren via uw dashboard op onze website.', 0, 'L');
+            $statusBlock .= '<p class="info-text">Deze bestelling kan nog gewijzigd worden tot ' . h($editDeadline->format('d-m-Y H:i')) . '.</p>';
+            $statusBlock .= '<p class="info-text">Wijzigingen kunt u doorvoeren via uw dashboard op onze website.</p>';
         } else {
-            $pdf->MultiCell(0, 5, 'De deadline voor wijzigingen is verstreken. Deze bestelling kan niet meer worden aangepast.', 0, 'L');
+            $statusBlock .= '<p class="info-text">De deadline voor wijzigingen is verstreken. Deze bestelling kan niet meer worden aangepast.</p>';
         }
+        $statusBlock .= '<p class="info-text">Wilt u direct betalen? Dat kan via het dashboard in uw account.</p>';
+        $statusBlock .= '<p class="info-text">Na levering ontvangt u de offici&euml;le factuur.</p>';
+    }
 
-        $pdf->Ln(5);
-        $pdf->MultiCell(0, 5, 'Wilt u direct betalen? Dat kan via het dashboard in uw account.', 0, 'L');
-        $pdf->MultiCell(0, 5, 'Na levering ontvangt u de officiële factuur.', 0, 'L');
+    // Handle {{#if is_internal}} block
+    $isInternalBlock = !empty($order['is_internal'])
+        ? '<div class="status-box status-internal">INTERNE BESTELLING</div>'
+        : '';
+
+    $vars = array_merge(getBedrijfVars($bedrijf), [
+        'bestelbon_nummer' => h($bestelbonNummer),
+        'bestel_datum' => date('d-m-Y', strtotime($order['created_at'])),
+        'lever_datum' => date('d-m-Y', strtotime($order['delivery_date'])),
+        'order_id' => $orderId,
+        'klant_bedrijfsnaam' => h($order['bedrijfsnaam']),
+        'klant_contactpersoon' => h($order['contactpersoon']),
+        'klant_email' => h($order['email']),
+        'delivery_adres' => h($deliveryAdres),
+        'delivery_postcode' => h($deliveryPostcode),
+        'delivery_plaats' => h($deliveryPlaats),
+        'items_rows' => buildItemsRows($items),
+        'subtotaal' => formatEuro($totals['excl']),
+        'btw_tarief' => $btwTarief,
+        'btw_bedrag' => formatEuro($totals['btw']),
+        'totaal' => formatEuro($totals['incl']),
+        'status_block' => $statusBlock,
+    ]);
+
+    $html = renderTemplate('bestelbon.html', $vars);
+    // Replace the conditional is_internal block manually
+    if (!empty($order['is_internal'])) {
+        $html = preg_replace('/\{\{#if is_internal\}\}(.*?)\{\{\/if\}\}/s', '$1', $html);
     }
-    
-    $pdf->SetTextColor(0);
-    $pdf->Ln(10);
-    $pdf->SetFont('Helvetica', '', 8);
-    $pdf->SetTextColor(128);
-    $footerLine1 = $bedrijfNaam . ' | ' . $bedrijfPlaats . ' | ' . $bedrijfEmail;
-    $pdf->MultiCell(0, 4, $footerLine1, 0, 'C');
-    
+
+    $dompdf = renderPdf($html);
+
     if ($outputPath) {
-        $pdf->Output('F', $outputPath);
+        file_put_contents($outputPath, $dompdf->output());
         return $outputPath;
-    } else {
-        return $pdf;
     }
+    return $dompdf;
 }
 
 function generateRecurringBestelbon($pdo, $recurringGroupId, $outputPath = null) {
     $stmt = $pdo->prepare("
-        SELECT bo.*, ba.bedrijfsnaam, ba.adres, ba.postcode, ba.plaats, 
+        SELECT bo.*, ba.bedrijfsnaam, ba.adres, ba.postcode, ba.plaats,
                ba.contactpersoon, ba.email, ba.telefoon,
-               ba.delivery_same_as_business, ba.delivery_adres, ba.delivery_postcode, 
+               ba.delivery_same_as_business, ba.delivery_adres, ba.delivery_postcode,
                ba.delivery_plaats
         FROM business_orders bo
         JOIN business_accounts ba ON bo.account_id = ba.id
@@ -252,9 +197,8 @@ function generateRecurringBestelbon($pdo, $recurringGroupId, $outputPath = null)
     ");
     $stmt->execute([$recurringGroupId]);
     $firstOrder = $stmt->fetch();
-    
     if (!$firstOrder) return false;
-    
+
     $stmt = $pdo->prepare("
         SELECT bo.id, bo.delivery_date, bo.total_amount, bo.order_status
         FROM business_orders bo
@@ -265,214 +209,159 @@ function generateRecurringBestelbon($pdo, $recurringGroupId, $outputPath = null)
     ");
     $stmt->execute([$recurringGroupId]);
     $upcomingOrders = $stmt->fetchAll();
-    
+
     $stmt = $pdo->prepare("
-        SELECT ti.product_name, ti.quantity, ti.unit_price 
+        SELECT ti.product_name, ti.quantity, ti.unit_price
         FROM recurring_group_template_items ti
         JOIN recurring_group_templates t ON ti.template_id = t.id
         WHERE t.recurring_group_id = ?
     ");
     $stmt->execute([$recurringGroupId]);
     $items = $stmt->fetchAll();
-    
+
     if (empty($items)) {
         $stmt = $pdo->prepare("SELECT product_name, quantity, unit_price FROM business_order_items WHERE order_id = ?");
         $stmt->execute([$firstOrder['id']]);
         $items = $stmt->fetchAll();
     }
-    
-    $stmt = $pdo->query("SELECT setting_value FROM settings WHERE setting_key = 'btw_tarief'");
-    $btwTarief = floatval($stmt->fetchColumn() ?: 9);
-    
+
+    $btwTarief = floatval(getSetting($pdo, 'btw_tarief', '9'));
     $bedrijf = getBedrijfsGegevens($pdo);
     $deadlineHours = getWijzigDeadlineUren($pdo);
-    
-    $pdf = new BestelbonPDF();
-    $pdf->AddPage();
-    $pdf->SetAutoPageBreak(true, 20);
-    
-    $bedrijfNaam = $bedrijf['bedrijf_naam'] ?: 'Bakkerij Civetta';
-    $bedrijfPlaats = ($bedrijf['bedrijf_postcode'] || $bedrijf['bedrijf_plaats']) 
-        ? trim($bedrijf['bedrijf_postcode'] . ' ' . $bedrijf['bedrijf_plaats']) 
-        : 'Leersum, Utrecht';
-    $bedrijfEmail = $bedrijf['bedrijf_email'] ?: 'info@bakkerij-civetta.nl';
-    
-    $pdf->SetFont('Helvetica', 'B', 14);
-    $pdf->Cell(0, 8, 'TERUGKERENDE BESTELLING - OVERZICHT', 0, 1, 'C');
-    $pdf->Ln(5);
-    
-    $pdf->SetFont('Helvetica', 'B', 10);
-    $pdf->Cell(95, 5, $bedrijfNaam, 0, 0);
-    $pdf->Cell(95, 5, 'Klant:', 0, 1);
-    
-    $pdf->SetFont('Helvetica', '', 9);
-    $pdf->Cell(95, 5, $bedrijfPlaats, 0, 0);
-    $pdf->SetFont('Helvetica', 'B', 9);
-    $pdf->Cell(95, 5, $firstOrder['bedrijfsnaam'], 0, 1);
-    
-    $pdf->SetFont('Helvetica', '', 9);
-    $pdf->Cell(95, 5, $bedrijfEmail, 0, 0);
-    $pdf->Cell(95, 5, 't.a.v. ' . $firstOrder['contactpersoon'], 0, 1);
-    
-    $pdf->Ln(10);
-    
-    $pdf->SetFont('Helvetica', 'B', 9);
-    $pdf->Cell(45, 6, 'Naam bestelling:', 0, 0);
-    $pdf->SetFont('Helvetica', '', 9);
-    $pdf->Cell(145, 6, $firstOrder['recurring_name'] ?: 'Terugkerende bestelling', 0, 1);
-    
-    $pdf->SetFont('Helvetica', 'B', 9);
-    $pdf->Cell(45, 6, 'Frequentie:', 0, 0);
-    $pdf->SetFont('Helvetica', '', 9);
-    $frequentieLabels = ['weekly' => 'Wekelijks', 'biweekly' => 'Tweewekelijks', 'monthly' => 'Maandelijks'];
-    $pdf->Cell(145, 6, $frequentieLabels[$firstOrder['recurring_frequency']] ?? $firstOrder['recurring_frequency'], 0, 1);
-    
-    $pdf->Ln(10);
-    
-    $pdf->SetFont('Helvetica', 'B', 11);
-    $pdf->Cell(0, 6, 'Producten per levering:', 0, 1);
-    $pdf->Ln(3);
-    
-    $pdf->SetFillColor(92, 61, 30);
-    $pdf->SetTextColor(255);
-    $pdf->SetFont('Helvetica', 'B', 9);
-    $pdf->Cell(100, 8, ' Product', 1, 0, 'L', true);
-    $pdf->Cell(30, 8, 'Aantal', 1, 0, 'C', true);
-    $pdf->Cell(30, 8, 'Prijs/stuk', 1, 0, 'R', true);
-    $pdf->Cell(30, 8, 'Totaal', 1, 1, 'R', true);
-    
-    $pdf->SetTextColor(0);
-    $pdf->SetFont('Helvetica', '', 9);
-    
+
     $totalInclBtw = 0;
     foreach ($items as $item) {
-        $lineTotal = $item['quantity'] * $item['unit_price'];
-        $totalInclBtw += $lineTotal;
-        $pdf->Cell(100, 7, ' ' . $item['product_name'], 1, 0, 'L');
-        $pdf->Cell(30, 7, $item['quantity'], 1, 0, 'C');
-        $pdf->Cell(30, 7, euro($item['unit_price']), 1, 0, 'R');
-        $pdf->Cell(30, 7, euro($lineTotal), 1, 1, 'R');
+        $totalInclBtw += $item['quantity'] * $item['unit_price'];
     }
-    
-    $btwBedrag = $totalInclBtw - ($totalInclBtw / (1 + $btwTarief / 100));
-    $exclBtw = $totalInclBtw - $btwBedrag;
-    
-    $pdf->Ln(3);
-    $pdf->SetFont('Helvetica', '', 9);
-    $pdf->Cell(160, 6, 'Subtotaal excl. BTW:', 0, 0, 'R');
-    $pdf->Cell(30, 6, euro($exclBtw), 0, 1, 'R');
-    
-    $pdf->Cell(160, 6, 'BTW (' . $btwTarief . '%):', 0, 0, 'R');
-    $pdf->Cell(30, 6, euro($btwBedrag), 0, 1, 'R');
-    
-    $pdf->SetFont('Helvetica', 'B', 10);
-    $pdf->Cell(160, 7, 'Totaal per levering (incl. BTW):', 0, 0, 'R');
-    $pdf->Cell(30, 7, euro($totalInclBtw), 0, 1, 'R');
-    
-    $pdf->Ln(10);
-    
-    $pdf->SetFont('Helvetica', 'B', 11);
-    $pdf->Cell(0, 6, 'Ingeplande leveringen (komende 3 maanden):', 0, 1);
-    $pdf->Ln(3);
-    
-    $pdf->SetFillColor(92, 61, 30);
-    $pdf->SetTextColor(255);
-    $pdf->SetFont('Helvetica', 'B', 9);
-    $pdf->Cell(50, 8, ' Leverdatum', 1, 0, 'L', true);
-    $pdf->Cell(50, 8, 'Bedrag', 1, 0, 'R', true);
-    $pdf->Cell(50, 8, 'Status', 1, 0, 'C', true);
-    $pdf->Cell(40, 8, 'Wijzigbaar tot', 1, 1, 'C', true);
-    
-    $pdf->SetTextColor(0);
-    $pdf->SetFont('Helvetica', '', 9);
-    
-    $fill = false;
+    $totals = calculateBtw($totalInclBtw, $btwTarief);
+
+    $frequentieLabels = ['weekly' => 'Wekelijks', 'biweekly' => 'Tweewekelijks', 'monthly' => 'Maandelijks'];
+
+    // Build schedule rows
+    $statusLabels = ['geplaatst' => 'Geplaatst', 'wordt_bereid' => 'Wordt bereid', 'wordt_vandaag_geleverd' => 'Vandaag', 'afgeleverd' => 'Afgeleverd'];
+    $scheduleRows = '';
     foreach ($upcomingOrders as $upcoming) {
-        $pdf->SetFillColor(245, 242, 237);
         $editDeadline = calculateEditDeadline($upcoming['delivery_date'], $deadlineHours);
         $canEdit = (new DateTime()) < $editDeadline;
-        
-        $statusLabels = [
-            'geplaatst' => 'Geplaatst',
-            'wordt_bereid' => 'Wordt bereid',
-            'wordt_vandaag_geleverd' => 'Vandaag',
-            'afgeleverd' => 'Afgeleverd'
-        ];
-        
-        $pdf->Cell(50, 7, ' ' . date('d-m-Y', strtotime($upcoming['delivery_date'])), 1, 0, 'L', $fill);
-        $pdf->Cell(50, 7, euro($upcoming['total_amount']), 1, 0, 'R', $fill);
-        $pdf->Cell(50, 7, $statusLabels[$upcoming['order_status']] ?? $upcoming['order_status'], 1, 0, 'C', $fill);
-        $pdf->Cell(40, 7, $canEdit ? $editDeadline->format('d-m H:i') : '-', 1, 1, 'C', $fill);
-        $fill = !$fill;
+        $scheduleRows .= '<tr>';
+        $scheduleRows .= '<td>' . date('d-m-Y', strtotime($upcoming['delivery_date'])) . '</td>';
+        $scheduleRows .= '<td>' . formatEuro($upcoming['total_amount']) . '</td>';
+        $scheduleRows .= '<td>' . ($statusLabels[$upcoming['order_status']] ?? $upcoming['order_status']) . '</td>';
+        $scheduleRows .= '<td>' . ($canEdit ? $editDeadline->format('d-m H:i') : '&mdash;') . '</td>';
+        $scheduleRows .= '</tr>';
     }
-    
-    $pdf->Ln(10);
-    
-    $pdf->SetFillColor(232, 244, 253);
-    $pdf->SetTextColor(0, 64, 133);
-    $pdf->SetFont('Helvetica', '', 9);
-    $pdf->MultiCell(0, 6, 'Let op: 2 weken voor het einde van deze 3 maanden zullen wij u vragen om de bestelling te herbevestigen.', 0, 'L', true);
-    
-    $pdf->SetTextColor(0);
-    $pdf->Ln(5);
-    $pdf->SetFont('Helvetica', '', 9);
-    $pdf->MultiCell(0, 5, 'Individuele leveringen kunnen gewijzigd worden via uw dashboard, mits ' . $deadlineHours . ' uur voor de leverdatum.', 0, 'L');
-    $pdf->MultiCell(0, 5, 'Na elke levering ontvangt u een factuur.', 0, 'L');
-    
-    $pdf->SetTextColor(0);
-    $pdf->Ln(10);
-    $pdf->SetFont('Helvetica', '', 8);
-    $pdf->SetTextColor(128);
-    $footerLine1 = $bedrijfNaam . ' | ' . $bedrijfPlaats . ' | ' . $bedrijfEmail;
-    $pdf->MultiCell(0, 4, $footerLine1, 0, 'C');
-    
+
+    $vars = array_merge(getBedrijfVars($bedrijf), [
+        'klant_bedrijfsnaam' => h($firstOrder['bedrijfsnaam']),
+        'klant_contactpersoon' => h($firstOrder['contactpersoon']),
+        'recurring_naam' => h($firstOrder['recurring_name'] ?: 'Terugkerende bestelling'),
+        'frequentie' => $frequentieLabels[$firstOrder['recurring_frequency']] ?? $firstOrder['recurring_frequency'],
+        'items_rows' => buildItemsRows($items),
+        'subtotaal' => formatEuro($totals['excl']),
+        'btw_tarief' => $btwTarief,
+        'btw_bedrag' => formatEuro($totals['btw']),
+        'totaal' => formatEuro($totals['incl']),
+        'schedule_rows' => $scheduleRows,
+        'deadline_uren' => $deadlineHours,
+    ]);
+
+    $dompdf = renderPdf(renderTemplate('bestelbon-recurring.html', $vars));
+
     if ($outputPath) {
-        $pdf->Output('F', $outputPath);
+        file_put_contents($outputPath, $dompdf->output());
         return $outputPath;
-    } else {
-        return $pdf;
     }
+    return $dompdf;
 }
 
-function sendBestelbonEmail($pdo, $orderId) {
-    $bestelbonDir = __DIR__ . '/../../bestelbonnen';
-    if (!is_dir($bestelbonDir)) {
-        mkdir($bestelbonDir, 0755, true);
-    }
-    
-    $bestelbonFile = $bestelbonDir . '/bestelbon-' . $orderId . '.pdf';
-    generateBestelbon($pdo, $orderId, $bestelbonFile);
-    
+function generateCancelledBestelbon($pdo, $orderId, $outputPath = null) {
     $stmt = $pdo->prepare("
-        SELECT bo.*, ba.bedrijfsnaam, ba.contactpersoon, ba.email, ba.adres, ba.postcode, ba.plaats,
-               ba.delivery_same_as_business, ba.delivery_adres, ba.delivery_postcode, ba.delivery_plaats
-        FROM business_orders bo 
-        JOIN business_accounts ba ON bo.account_id = ba.id 
+        SELECT bo.*, ba.bedrijfsnaam, ba.adres, ba.postcode, ba.plaats,
+               ba.contactpersoon, ba.email, ba.telefoon, ba.kvk_nummer, ba.btw_id,
+               ba.delivery_same_as_business, ba.delivery_adres, ba.delivery_postcode,
+               ba.delivery_plaats, ba.delivery_contactpersoon
+        FROM business_orders bo
+        JOIN business_accounts ba ON bo.account_id = ba.id
         WHERE bo.id = ?
     ");
     $stmt->execute([$orderId]);
     $order = $stmt->fetch();
-    
-    if (!$order || !file_exists($bestelbonFile)) return false;
-    
+    if (!$order) return false;
+
+    $stmt = $pdo->prepare("SELECT product_name, quantity, unit_price FROM business_order_items WHERE order_id = ?");
+    $stmt->execute([$orderId]);
+    $items = $stmt->fetchAll();
+
+    $btwTarief = floatval(getSetting($pdo, 'btw_tarief', '9'));
+    $bedrijf = getBedrijfsGegevens($pdo);
+    $totals = calculateBtw(floatval($order['total_amount']), $btwTarief);
     $bestelbonNummer = $order['bestelbon_number'] ?: generateBestelbonNumber($pdo, $orderId);
-    
+
+    $vars = array_merge(getBedrijfVars($bedrijf), [
+        'bestelbon_nummer' => h($bestelbonNummer),
+        'bestel_datum' => date('d-m-Y', strtotime($order['created_at'])),
+        'lever_datum' => date('d-m-Y', strtotime($order['delivery_date'])),
+        'annulerings_datum' => date('d-m-Y H:i'),
+        'klant_bedrijfsnaam' => h($order['bedrijfsnaam']),
+        'klant_contactpersoon' => h($order['contactpersoon']),
+        'klant_email' => h($order['email']),
+        'items_rows' => buildItemsRows($items),
+        'subtotaal' => formatEuro($totals['excl']),
+        'btw_tarief' => $btwTarief,
+        'btw_bedrag' => formatEuro($totals['btw']),
+        'totaal' => formatEuro($totals['incl']),
+    ]);
+
+    $dompdf = renderPdf(renderTemplate('bestelbon-cancelled.html', $vars));
+
+    if ($outputPath) {
+        file_put_contents($outputPath, $dompdf->output());
+        return $outputPath;
+    }
+    return $dompdf;
+}
+
+// ── Email senders (unchanged API, use email-templates for HTML body) ─────────
+
+function sendBestelbonEmail($pdo, $orderId) {
+    require_once __DIR__ . '/../../api/email-templates.php';
+
+    $bestelbonDir = __DIR__ . '/../../bestelbonnen';
+    if (!is_dir($bestelbonDir)) {
+        mkdir($bestelbonDir, 0755, true);
+    }
+
+    $bestelbonFile = $bestelbonDir . '/bestelbon-' . $orderId . '.pdf';
+    generateBestelbon($pdo, $orderId, $bestelbonFile);
+
+    $stmt = $pdo->prepare("
+        SELECT bo.*, ba.bedrijfsnaam, ba.contactpersoon, ba.email, ba.adres, ba.postcode, ba.plaats,
+               ba.delivery_same_as_business, ba.delivery_adres, ba.delivery_postcode, ba.delivery_plaats
+        FROM business_orders bo
+        JOIN business_accounts ba ON bo.account_id = ba.id
+        WHERE bo.id = ?
+    ");
+    $stmt->execute([$orderId]);
+    $order = $stmt->fetch();
+
+    if (!$order || !file_exists($bestelbonFile)) return false;
+
+    $bestelbonNummer = $order['bestelbon_number'] ?: generateBestelbonNumber($pdo, $orderId);
+
     if (!$order['bestelbon_number']) {
         $stmt = $pdo->prepare("UPDATE business_orders SET bestelbon_number = ?, bestelbon_sent_at = NOW() WHERE id = ?");
         $stmt->execute([$bestelbonNummer, $orderId]);
     }
-    
+
     $stmt = $pdo->prepare("SELECT product_name, quantity, unit_price FROM business_order_items WHERE order_id = ?");
     $stmt->execute([$orderId]);
     $items = $stmt->fetchAll();
-    
-    $stmt = $pdo->query("SELECT setting_value FROM settings WHERE setting_key = 'btw_tarief'");
-    $btwTarief = floatval($stmt->fetchColumn() ?: 9);
-    
+
+    $btwTarief = floatval(getSetting($pdo, 'btw_tarief', '9'));
     $deadlineHours = getWijzigDeadlineUren($pdo);
     $editDeadline = calculateEditDeadline($order['delivery_date'], $deadlineHours);
     $order['can_be_edited_until'] = $editDeadline->format('Y-m-d H:i:s');
-    
+
     if (!$order['delivery_same_as_business']) {
         $order['delivery_adres'] = $order['delivery_adres'] ?: $order['adres'];
         $order['delivery_postcode'] = $order['delivery_postcode'] ?: $order['postcode'];
@@ -482,47 +371,48 @@ function sendBestelbonEmail($pdo, $orderId) {
         $order['delivery_postcode'] = $order['postcode'];
         $order['delivery_plaats'] = $order['plaats'];
     }
-    
+
     $bedrijf = getBedrijfsGegevens($pdo);
-    
     $htmlBody = buildOrderConfirmationEmail($order, $items, $bedrijf, $btwTarief);
-    
+
     $to = $order['email'];
     $subject = "Bestelbevestiging $bestelbonNummer - Bakkerij Civetta";
-    
+
     $attachments = [
         ['path' => $bestelbonFile, 'name' => "bestelbon-$orderId.pdf", 'type' => 'application/pdf']
     ];
-    
+
     return sendHtmlEmail($to, $subject, $htmlBody, $attachments);
 }
 
 function sendRecurringBestelbonEmail($pdo, $recurringGroupId) {
+    require_once __DIR__ . '/../../api/email-templates.php';
+
     $bestelbonDir = __DIR__ . '/../../bestelbonnen';
     if (!is_dir($bestelbonDir)) {
         mkdir($bestelbonDir, 0755, true);
     }
-    
+
     $bestelbonFile = $bestelbonDir . '/bestelbon-recurring-' . $recurringGroupId . '.pdf';
     generateRecurringBestelbon($pdo, $recurringGroupId, $bestelbonFile);
-    
+
     $stmt = $pdo->prepare("
-        SELECT bo.*, ba.bedrijfsnaam, ba.contactpersoon, ba.email 
-        FROM business_orders bo 
-        JOIN business_accounts ba ON bo.account_id = ba.id 
+        SELECT bo.*, ba.bedrijfsnaam, ba.contactpersoon, ba.email
+        FROM business_orders bo
+        JOIN business_accounts ba ON bo.account_id = ba.id
         WHERE bo.recurring_group_id = ?
         ORDER BY bo.delivery_date ASC
         LIMIT 1
     ");
     $stmt->execute([$recurringGroupId]);
     $order = $stmt->fetch();
-    
+
     if (!$order || !file_exists($bestelbonFile)) return false;
-    
+
     $stmt = $pdo->prepare("SELECT product_name, quantity, unit_price FROM business_order_items WHERE order_id = ?");
     $stmt->execute([$order['id']]);
     $items = $stmt->fetchAll();
-    
+
     $stmt = $pdo->prepare("
         SELECT id, delivery_date, total_amount, order_status
         FROM business_orders
@@ -532,278 +422,116 @@ function sendRecurringBestelbonEmail($pdo, $recurringGroupId) {
     ");
     $stmt->execute([$recurringGroupId]);
     $upcomingOrders = $stmt->fetchAll();
-    
-    $stmt = $pdo->query("SELECT setting_value FROM settings WHERE setting_key = 'btw_tarief'");
-    $btwTarief = floatval($stmt->fetchColumn() ?: 9);
-    
+
+    $btwTarief = floatval(getSetting($pdo, 'btw_tarief', '9'));
     $bedrijf = getBedrijfsGegevens($pdo);
-    
     $htmlBody = buildRecurringConfirmationEmail($order, $items, $upcomingOrders, $bedrijf, $btwTarief);
-    
+
     $to = $order['email'];
     $subject = "Terugkerende bestelling bevestigd - Bakkerij Civetta";
-    
+
     $attachments = [
         ['path' => $bestelbonFile, 'name' => 'overzicht-terugkerende-bestelling.pdf', 'type' => 'application/pdf']
     ];
-    
+
     return sendHtmlEmail($to, $subject, $htmlBody, $attachments);
 }
 
-function generateCancelledBestelbon($pdo, $orderId, $outputPath = null) {
+function sendCancellationEmail($pdo, $orderId) {
+    require_once __DIR__ . '/../../api/email-templates.php';
+
+    $bestelbonDir = __DIR__ . '/../../bestelbonnen';
+    if (!is_dir($bestelbonDir)) {
+        mkdir($bestelbonDir, 0755, true);
+    }
+
+    $bestelbonFile = $bestelbonDir . '/bestelbon-geannuleerd-' . $orderId . '.pdf';
+    generateCancelledBestelbon($pdo, $orderId, $bestelbonFile);
+
     $stmt = $pdo->prepare("
-        SELECT bo.*, ba.bedrijfsnaam, ba.adres, ba.postcode, ba.plaats, 
-               ba.contactpersoon, ba.email, ba.telefoon, ba.kvk_nummer, ba.btw_id,
-               ba.delivery_same_as_business, ba.delivery_adres, ba.delivery_postcode, 
-               ba.delivery_plaats, ba.delivery_contactpersoon
+        SELECT bo.*, ba.bedrijfsnaam, ba.contactpersoon, ba.email
         FROM business_orders bo
         JOIN business_accounts ba ON bo.account_id = ba.id
         WHERE bo.id = ?
     ");
     $stmt->execute([$orderId]);
     $order = $stmt->fetch();
-    
-    if (!$order) return false;
-    
-    $stmt = $pdo->prepare("SELECT product_name, quantity, unit_price FROM business_order_items WHERE order_id = ?");
-    $stmt->execute([$orderId]);
-    $items = $stmt->fetchAll();
-    
-    $stmt = $pdo->query("SELECT setting_value FROM settings WHERE setting_key = 'btw_tarief'");
-    $btwTarief = floatval($stmt->fetchColumn() ?: 9);
-    
-    $bedrijf = getBedrijfsGegevens($pdo);
-    
-    $totalInclBtw = floatval($order['total_amount']);
-    $btwBedrag = $totalInclBtw - ($totalInclBtw / (1 + $btwTarief / 100));
-    $exclBtw = $totalInclBtw - $btwBedrag;
-    
-    $bestelbonNummer = $order['bestelbon_number'] ?: generateBestelbonNumber($pdo, $orderId);
-    $besteldatum = date('d-m-Y', strtotime($order['created_at']));
-    $leverDatum = date('d-m-Y', strtotime($order['delivery_date']));
-    $annuleringsDatum = date('d-m-Y H:i');
-    
-    $pdf = new BestelbonPDF();
-    $pdf->AddPage();
-    $pdf->SetAutoPageBreak(true, 20);
-    
-    $bedrijfNaam = $bedrijf['bedrijf_naam'] ?: 'Bakkerij Civetta';
-    $bedrijfPlaats = ($bedrijf['bedrijf_postcode'] || $bedrijf['bedrijf_plaats']) 
-        ? trim($bedrijf['bedrijf_postcode'] . ' ' . $bedrijf['bedrijf_plaats']) 
-        : 'Leersum, Utrecht';
-    $bedrijfEmail = $bedrijf['bedrijf_email'] ?: 'info@bakkerij-civetta.nl';
-    
-    $pdf->SetFillColor(220, 53, 69);
-    $pdf->SetTextColor(255);
-    $pdf->SetFont('Helvetica', 'B', 14);
-    $pdf->Cell(0, 10, 'GEANNULEERD', 0, 1, 'C', true);
-    $pdf->Ln(5);
-    
-    $pdf->SetTextColor(0);
-    $pdf->SetFont('Helvetica', 'B', 10);
-    $pdf->Cell(95, 5, $bedrijfNaam, 0, 0);
-    $pdf->Cell(95, 5, 'Klant:', 0, 1);
-    
-    $pdf->SetFont('Helvetica', '', 9);
-    $pdf->Cell(95, 5, $bedrijfPlaats, 0, 0);
-    $pdf->SetFont('Helvetica', 'B', 9);
-    $pdf->Cell(95, 5, $order['bedrijfsnaam'], 0, 1);
-    
-    $pdf->SetFont('Helvetica', '', 9);
-    $pdf->Cell(95, 5, $bedrijfEmail, 0, 0);
-    $pdf->Cell(95, 5, 't.a.v. ' . $order['contactpersoon'], 0, 1);
-    
-    $pdf->Cell(95, 5, '', 0, 0);
-    $pdf->Cell(95, 5, $order['email'], 0, 1);
-    
-    $pdf->Ln(10);
-    
-    $pdf->SetFont('Helvetica', 'B', 9);
-    $pdf->Cell(45, 6, 'Bestelbonnummer:', 0, 0);
-    $pdf->SetFont('Helvetica', '', 9);
-    $pdf->Cell(45, 6, $bestelbonNummer, 0, 0);
-    $pdf->SetFont('Helvetica', 'B', 9);
-    $pdf->Cell(45, 6, 'Besteldatum:', 0, 0);
-    $pdf->SetFont('Helvetica', '', 9);
-    $pdf->Cell(45, 6, $besteldatum, 0, 1);
-    
-    $pdf->SetFont('Helvetica', 'B', 9);
-    $pdf->Cell(45, 6, 'Bestelnummer:', 0, 0);
-    $pdf->SetFont('Helvetica', '', 9);
-    $pdf->Cell(45, 6, '#' . $orderId, 0, 0);
-    $pdf->SetFont('Helvetica', 'B', 9);
-    $pdf->Cell(45, 6, 'Geannuleerd op:', 0, 0);
-    $pdf->SetFont('Helvetica', '', 9);
-    $pdf->Cell(45, 6, $annuleringsDatum, 0, 1);
-    
-    $pdf->Ln(5);
-    
-    $pdf->SetFont('Helvetica', 'B', 9);
-    $pdf->Cell(45, 6, 'Oorspronkelijke leverdatum:', 0, 0);
-    $pdf->SetFont('Helvetica', '', 9);
-    $pdf->Cell(145, 6, $leverDatum, 0, 1);
-    
-    $pdf->Ln(10);
-    
-    $pdf->SetFillColor(200, 200, 200);
-    $pdf->SetTextColor(100);
-    $pdf->SetFont('Helvetica', 'B', 9);
-    $pdf->Cell(90, 8, ' Product', 1, 0, 'L', true);
-    $pdf->Cell(25, 8, 'Aantal', 1, 0, 'C', true);
-    $pdf->Cell(35, 8, 'Prijs/stuk', 1, 0, 'R', true);
-    $pdf->Cell(40, 8, 'Totaal', 1, 1, 'R', true);
-    
-    $pdf->SetTextColor(128);
-    $pdf->SetFont('Helvetica', '', 9);
-    
-    foreach ($items as $item) {
-        $lineTotal = $item['quantity'] * $item['unit_price'];
-        $pdf->Cell(90, 7, ' ' . $item['product_name'], 1, 0, 'L');
-        $pdf->Cell(25, 7, $item['quantity'], 1, 0, 'C');
-        $pdf->Cell(35, 7, euro($item['unit_price']), 1, 0, 'R');
-        $pdf->Cell(40, 7, euro($lineTotal), 1, 1, 'R');
-    }
-    
-    $pdf->Ln(5);
-    
-    $pdf->SetTextColor(128);
-    $pdf->SetFont('Helvetica', '', 9);
-    $pdf->Cell(150, 6, 'Subtotaal excl. BTW:', 0, 0, 'R');
-    $pdf->Cell(40, 6, euro($exclBtw), 0, 1, 'R');
-    
-    $pdf->Cell(150, 6, 'BTW (' . $btwTarief . '%):', 0, 0, 'R');
-    $pdf->Cell(40, 6, euro($btwBedrag), 0, 1, 'R');
-    
-    $pdf->SetFont('Helvetica', 'B', 11);
-    $pdf->Cell(150, 8, 'Totaal incl. BTW:', 0, 0, 'R');
-    $pdf->Cell(40, 8, euro($totalInclBtw), 0, 1, 'R');
-    
-    $pdf->Ln(10);
-    
-    $pdf->SetFillColor(220, 53, 69);
-    $pdf->SetTextColor(255);
-    $pdf->SetFont('Helvetica', 'B', 10);
-    $pdf->Cell(0, 8, 'DEZE BESTELLING IS GEANNULEERD', 0, 1, 'C', true);
-    
-    $pdf->SetTextColor(0);
-    $pdf->SetFont('Helvetica', '', 9);
-    $pdf->Ln(5);
-    $pdf->MultiCell(0, 5, 'Deze bestelling is geannuleerd en zal niet worden geleverd.', 0, 'L');
-    $pdf->MultiCell(0, 5, 'Heeft u vragen? Neem dan contact met ons op.', 0, 'L');
-    
-    $pdf->SetTextColor(0);
-    $pdf->Ln(10);
-    $pdf->SetFont('Helvetica', '', 8);
-    $pdf->SetTextColor(128);
-    $footerLine1 = $bedrijfNaam . ' | ' . $bedrijfPlaats . ' | ' . $bedrijfEmail;
-    $pdf->MultiCell(0, 4, $footerLine1, 0, 'C');
-    
-    if ($outputPath) {
-        $pdf->Output('F', $outputPath);
-        return $outputPath;
-    } else {
-        return $pdf;
-    }
-}
 
-function sendCancellationEmail($pdo, $orderId) {
-    $bestelbonDir = __DIR__ . '/../../bestelbonnen';
-    if (!is_dir($bestelbonDir)) {
-        mkdir($bestelbonDir, 0755, true);
-    }
-    
-    $bestelbonFile = $bestelbonDir . '/bestelbon-geannuleerd-' . $orderId . '.pdf';
-    generateCancelledBestelbon($pdo, $orderId, $bestelbonFile);
-    
-    $stmt = $pdo->prepare("
-        SELECT bo.*, ba.bedrijfsnaam, ba.contactpersoon, ba.email 
-        FROM business_orders bo 
-        JOIN business_accounts ba ON bo.account_id = ba.id 
-        WHERE bo.id = ?
-    ");
-    $stmt->execute([$orderId]);
-    $order = $stmt->fetch();
-    
     if (!$order) return false;
-    
+
     $stmt = $pdo->prepare("SELECT product_name, quantity, unit_price FROM business_order_items WHERE order_id = ?");
     $stmt->execute([$orderId]);
     $items = $stmt->fetchAll();
-    
-    $stmt = $pdo->query("SELECT setting_value FROM settings WHERE setting_key = 'btw_tarief'");
-    $btwTarief = floatval($stmt->fetchColumn() ?: 9);
-    
+
+    $btwTarief = floatval(getSetting($pdo, 'btw_tarief', '9'));
     $bestelbonNummer = $order['bestelbon_number'] ?: generateBestelbonNumber($pdo, $orderId);
-    
     $bedrijf = getBedrijfsGegevens($pdo);
-    
     $htmlBody = buildCancellationEmail($order, $items, $bedrijf, $btwTarief);
-    
+
     $to = $order['email'];
     $subject = "Annulering bestelling $bestelbonNummer - Bakkerij Civetta";
-    
+
     $attachments = [];
     if (file_exists($bestelbonFile)) {
         $attachments[] = ['path' => $bestelbonFile, 'name' => "annulering-$orderId.pdf", 'type' => 'application/pdf'];
     }
-    
+
     $customerSent = sendHtmlEmail($to, $subject, $htmlBody, $attachments);
-    
+
     $adminHtmlBody = buildAdminOrderNotificationEmail($order, $items, false, $bedrijf);
     $adminHtmlBody = str_replace('Bestelling gewijzigd', 'Bestelling geannuleerd', $adminHtmlBody);
-    
     sendHtmlEmail('info@bakkerij-civetta.nl', "Bestelling geannuleerd: #{$orderId} - {$order['bedrijfsnaam']}", $adminHtmlBody, [], $order['email']);
-    
+
     return $customerSent;
 }
 
 function sendRecurringPauseEmail($pdo, $accountInfo, $affectedOrders, $unaffectedOrders, $isPause) {
+    require_once __DIR__ . '/../../api/email-templates.php';
+
     $bedrijf = getBedrijfsGegevens($pdo);
-    
     $htmlBody = buildRecurringPauseEmail($accountInfo, $affectedOrders, $unaffectedOrders, $isPause, $bedrijf);
-    
+
     $to = $accountInfo['email'];
     $recurringName = $accountInfo['recurring_name'] ?? 'Terugkerende bestelling';
-    
-    if ($isPause) {
-        $subject = "Leveringen gepauzeerd: $recurringName - Bakkerij Civetta";
-    } else {
-        $subject = "Leveringen hervat: $recurringName - Bakkerij Civetta";
-    }
-    
+
+    $subject = $isPause
+        ? "Leveringen gepauzeerd: $recurringName - Bakkerij Civetta"
+        : "Leveringen hervat: $recurringName - Bakkerij Civetta";
+
     $customerSent = sendHtmlEmail($to, $subject, $htmlBody);
-    
-    $adminSubject = $isPause 
+
+    $adminSubject = $isPause
         ? "Terugkerende bestelling gepauzeerd: {$accountInfo['bedrijfsnaam']}"
         : "Terugkerende bestelling hervat: {$accountInfo['bedrijfsnaam']}";
-    
     sendHtmlEmail('info@bakkerij-civetta.nl', $adminSubject, $htmlBody, [], $accountInfo['email']);
-    
+
     return $customerSent;
 }
 
 function sendRecurringUpdateEmail($pdo, $recurringGroupId, $oldItems, $newItems) {
+    require_once __DIR__ . '/../../api/email-templates.php';
+
     $bestelbonDir = __DIR__ . '/../../bestelbonnen';
     if (!is_dir($bestelbonDir)) {
         mkdir($bestelbonDir, 0755, true);
     }
-    
+
     $bestelbonFile = $bestelbonDir . '/bestelbon-recurring-' . $recurringGroupId . '.pdf';
     generateRecurringBestelbon($pdo, $recurringGroupId, $bestelbonFile);
-    
+
     $stmt = $pdo->prepare("
-        SELECT bo.*, ba.bedrijfsnaam, ba.contactpersoon, ba.email 
-        FROM business_orders bo 
-        JOIN business_accounts ba ON bo.account_id = ba.id 
+        SELECT bo.*, ba.bedrijfsnaam, ba.contactpersoon, ba.email
+        FROM business_orders bo
+        JOIN business_accounts ba ON bo.account_id = ba.id
         WHERE bo.recurring_group_id = ?
         ORDER BY bo.delivery_date ASC
         LIMIT 1
     ");
     $stmt->execute([$recurringGroupId]);
     $order = $stmt->fetch();
-    
+
     if (!$order) return false;
-    
+
     $stmt = $pdo->prepare("
         SELECT id, delivery_date, total_amount
         FROM business_orders
@@ -814,26 +542,22 @@ function sendRecurringUpdateEmail($pdo, $recurringGroupId, $oldItems, $newItems)
     ");
     $stmt->execute([$recurringGroupId]);
     $upcomingOrders = $stmt->fetchAll();
-    
-    $stmt = $pdo->query("SELECT setting_value FROM settings WHERE setting_key = 'btw_tarief'");
-    $btwTarief = floatval($stmt->fetchColumn() ?: 9);
-    
+
+    $btwTarief = floatval(getSetting($pdo, 'btw_tarief', '9'));
     $bedrijf = getBedrijfsGegevens($pdo);
-    
     $htmlBody = buildRecurringUpdateEmail($order, $oldItems, $newItems, $upcomingOrders, $bedrijf, $btwTarief);
-    
+
     $to = $order['email'];
     $recurringName = $order['recurring_name'] ?? 'Terugkerende bestelling';
     $subject = "Bestelling gewijzigd: $recurringName - Bakkerij Civetta";
-    
+
     $attachments = [];
     if (file_exists($bestelbonFile)) {
         $attachments[] = ['path' => $bestelbonFile, 'name' => 'gewijzigde-bestelbon.pdf', 'type' => 'application/pdf'];
     }
-    
+
     $customerSent = sendHtmlEmail($to, $subject, $htmlBody, $attachments);
-    
     sendHtmlEmail('info@bakkerij-civetta.nl', "Terugkerende bestelling gewijzigd: {$order['bedrijfsnaam']}", $htmlBody, [], $order['email']);
-    
+
     return $customerSent;
 }

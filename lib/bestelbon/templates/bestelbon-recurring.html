@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+<meta charset="UTF-8">
+<style>
+    @page { margin: 40px 50px; }
+    body {
+        font-family: Helvetica, Arial, sans-serif;
+        color: #333;
+        font-size: 10pt;
+        line-height: 1.5;
+    }
+    h1 { font-size: 20pt; color: #5c3d1e; margin: 0; }
+    h2 { font-size: 13pt; color: #5c3d1e; margin: 20px 0 10px 0; }
+    .logo { font-size: 16pt; font-weight: bold; color: #8b5a2b; }
+    .header-table { width: 100%; margin-bottom: 25px; border-bottom: 2px solid #e8dfd2; padding-bottom: 15px; }
+    .parties-table { width: 100%; margin-bottom: 20px; }
+    .party-label { font-size: 7pt; text-transform: uppercase; letter-spacing: 1px; color: #999; margin-bottom: 4px; }
+    .meta-table { width: 100%; margin-bottom: 20px; background: #faf6f0; border-radius: 4px; }
+    .meta-table td { padding: 8px 12px; text-align: center; }
+    .meta-label { font-size: 7pt; text-transform: uppercase; letter-spacing: 0.5px; color: #999; display: block; margin-bottom: 2px; }
+    .meta-value { font-weight: bold; font-size: 10pt; }
+    .items-table { width: 100%; border-collapse: collapse; margin-bottom: 15px; }
+    .items-table th { text-align: left; padding: 10px 8px; font-size: 7pt; text-transform: uppercase; letter-spacing: 0.5px; color: #fff; background: #5c3d1e; }
+    .items-table th:nth-child(2) { text-align: center; }
+    .items-table th:nth-child(3), .items-table th:last-child { text-align: right; }
+    .items-table td { padding: 8px; font-size: 10pt; border-bottom: 1px solid #e8dfd2; }
+    .items-table td:nth-child(2) { text-align: center; color: #666; }
+    .items-table td:nth-child(3), .items-table td:last-child { text-align: right; }
+    .items-table tr:nth-child(even) td { background: #faf6f0; }
+    .schedule-table { width: 100%; border-collapse: collapse; margin-bottom: 15px; }
+    .schedule-table th { text-align: left; padding: 10px 8px; font-size: 7pt; text-transform: uppercase; letter-spacing: 0.5px; color: #fff; background: #5c3d1e; }
+    .schedule-table th:nth-child(2) { text-align: right; }
+    .schedule-table th:nth-child(3) { text-align: center; }
+    .schedule-table th:last-child { text-align: center; }
+    .schedule-table td { padding: 8px; font-size: 10pt; border-bottom: 1px solid #e8dfd2; }
+    .schedule-table td:nth-child(2) { text-align: right; }
+    .schedule-table td:nth-child(3) { text-align: center; }
+    .schedule-table td:last-child { text-align: center; }
+    .schedule-table tr:nth-child(even) td { background: #faf6f0; }
+    .totals-table { width: 250px; margin-left: auto; border-collapse: collapse; }
+    .totals-table td { padding: 4px 8px; font-size: 10pt; }
+    .totals-table td:last-child { text-align: right; }
+    .totals-table .total-row td { border-top: 2px solid #5c3d1e; font-weight: bold; font-size: 11pt; padding-top: 8px; color: #5c3d1e; }
+    .info-box { background: #e8f4fd; border-left: 4px solid #2196f3; padding: 10px 15px; margin: 15px 0; border-radius: 0 4px 4px 0; }
+    .info-box p { margin: 5px 0; font-size: 9pt; color: #004085; }
+    .footer { text-align: center; margin-top: 30px; padding-top: 12px; border-top: 1px solid #e8dfd2; font-size: 8pt; color: #999; }
+</style>
+</head>
+<body>
+
+<table class="header-table" cellpadding="0" cellspacing="0">
+    <tr>
+        <td style="width: 50%; vertical-align: top;">
+            <div class="logo">{{bedrijf_naam}}</div>
+        </td>
+        <td style="width: 50%; text-align: right; vertical-align: top;">
+            <h1>Terugkerende bestelling</h1>
+            <div style="font-size: 9pt; color: #999;">Overzicht</div>
+        </td>
+    </tr>
+</table>
+
+<table class="parties-table" cellpadding="0" cellspacing="0">
+    <tr>
+        <td style="width: 50%; vertical-align: top;">
+            <div class="party-label">Van</div>
+            <strong>{{bedrijf_naam}}</strong><br>
+            {{bedrijf_plaats}}<br>
+            {{bedrijf_email}}
+        </td>
+        <td style="width: 50%; vertical-align: top;">
+            <div class="party-label">Klant</div>
+            <strong>{{klant_bedrijfsnaam}}</strong><br>
+            t.a.v. {{klant_contactpersoon}}
+        </td>
+    </tr>
+</table>
+
+<table class="meta-table" cellpadding="0" cellspacing="0">
+    <tr>
+        <td>
+            <span class="meta-label">Naam bestelling</span>
+            <span class="meta-value">{{recurring_naam}}</span>
+        </td>
+        <td>
+            <span class="meta-label">Frequentie</span>
+            <span class="meta-value">{{frequentie}}</span>
+        </td>
+    </tr>
+</table>
+
+<h2>Producten per levering</h2>
+
+<table class="items-table">
+    <thead>
+        <tr>
+            <th>Product</th>
+            <th>Aantal</th>
+            <th>Prijs/stuk</th>
+            <th>Totaal</th>
+        </tr>
+    </thead>
+    <tbody>
+        {{items_rows}}
+    </tbody>
+</table>
+
+<table class="totals-table">
+    <tr>
+        <td>Subtotaal excl. BTW</td>
+        <td>{{subtotaal}}</td>
+    </tr>
+    <tr>
+        <td>BTW ({{btw_tarief}}%)</td>
+        <td>{{btw_bedrag}}</td>
+    </tr>
+    <tr class="total-row">
+        <td>Per levering incl. BTW</td>
+        <td>{{totaal}}</td>
+    </tr>
+</table>
+
+<h2>Ingeplande leveringen (komende 3 maanden)</h2>
+
+<table class="schedule-table">
+    <thead>
+        <tr>
+            <th>Leverdatum</th>
+            <th>Bedrag</th>
+            <th>Status</th>
+            <th>Wijzigbaar tot</th>
+        </tr>
+    </thead>
+    <tbody>
+        {{schedule_rows}}
+    </tbody>
+</table>
+
+<div class="info-box">
+    <p><strong>Let op:</strong> 2 weken voor het einde van deze 3 maanden zullen wij u vragen om de bestelling te herbevestigen.</p>
+    <p>Individuele leveringen kunnen gewijzigd worden via uw dashboard, mits {{deadline_uren}} uur voor de leverdatum.</p>
+    <p>Na elke levering ontvangt u een factuur.</p>
+</div>
+
+<div class="footer">
+    {{bedrijf_naam}} &middot; {{bedrijf_plaats}} &middot; {{bedrijf_email}}
+</div>
+
+</body>
+</html>

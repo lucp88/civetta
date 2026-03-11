@@ -45,7 +45,7 @@ $posts = $stmt->fetchAll();
             margin-bottom: 1.5rem;
         }
         .card h2 {
-            color: #5c3d1e;
+            color: #2d4a2d;
             margin-bottom: 1rem;
             display: flex;
             justify-content: space-between;
@@ -54,7 +54,7 @@ $posts = $stmt->fetchAll();
         .btn {
             display: inline-block;
             padding: 0.5rem 1rem;
-            background: #8b5a2b;
+            background: #3d6b3d;
             color: white;
             text-decoration: none;
             border-radius: 6px;
@@ -62,7 +62,7 @@ $posts = $stmt->fetchAll();
             border: none;
             cursor: pointer;
         }
-        .btn:hover { background: #5c3d1e; }
+        .btn:hover { background: #2d4a2d; }
         .btn-small {
             padding: 0.35rem 0.75rem;
             font-size: 0.85rem;
@@ -83,7 +83,7 @@ $posts = $stmt->fetchAll();
             border-bottom: 1px solid #e8dfd2;
         }
         th {
-            color: #8b5a2b;
+            color: #3d6b3d;
             font-weight: 600;
         }
         .actions { white-space: nowrap; }
@@ -98,7 +98,7 @@ $posts = $stmt->fetchAll();
             margin-bottom: 1.5rem;
         }
         .breadcrumb a {
-            color: #8b5a2b;
+            color: #3d6b3d;
             text-decoration: none;
         }
         .breadcrumb a:hover {
@@ -160,7 +160,7 @@ $posts = $stmt->fetchAll();
                                         <td><?= htmlspecialchars($post['title']) ?></td>
                                         <td class="actions">
                                             <a href="post-edit.php?id=<?= $post['id'] ?>" class="btn btn-small">Bewerken</a>
-                                            <a href="post-delete.php?id=<?= $post['id'] ?>" class="btn btn-small btn-danger" onclick="return confirm('Weet je zeker dat je deze post wilt verwijderen?')">Verwijderen</a>
+                                            <a href="post-delete.php?id=<?= $post['id'] ?>" class="btn btn-small btn-danger" onclick="return confirmLink(this.href, 'Weet je zeker dat je deze post wilt verwijderen?')">Verwijderen</a>
                                         </td>
                                     </tr>
                                 <?php endforeach; ?>
@@ -171,5 +171,6 @@ $posts = $stmt->fetchAll();
             </div>
         </div>
     </div>
+<script src="../../js/ui-notifications.js?v=1"></script>
 </body>
 </html>

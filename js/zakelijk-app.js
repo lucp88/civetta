@@ -27,12 +27,13 @@ createApp({
         async submitRegistration() {
             this.error = '';
             this.submitting = true;
-            
+
             try {
+                const recaptchaToken = await getRecaptchaToken('register');
                 const response = await fetch('api/business-accounts.php', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(this.form)
+                    body: JSON.stringify({ ...this.form, recaptcha_token: recaptchaToken })
                 });
                 
                 const data = await response.json();

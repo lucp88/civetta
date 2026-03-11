@@ -1,4 +1,10 @@
 <?php
+// Redirect to unified planning page
+$params = $_GET;
+$params['filter'] = 'bezorging';
+header('Location: planning.php?' . http_build_query($params));
+exit;
+
 require_once '../config.php';
 requireLogin();
 
@@ -453,7 +459,7 @@ function formatDutchDate($date) {
         .internal-toggle input[type="checkbox"] {
             width: 18px;
             height: 18px;
-            accent-color: #8b5a2b;
+            accent-color: #3d6b3d;
         }
 
         /* Variant dropdown in product row */
@@ -499,7 +505,7 @@ function formatDutchDate($date) {
         }
         .appointments-section h4 {
             font-size: 0.9rem;
-            color: #5c3d1e;
+            color: #2d4a2d;
             margin-bottom: 0.5rem;
             display: flex;
             align-items: center;
@@ -543,7 +549,7 @@ function formatDutchDate($date) {
             display: block;
             font-size: 0.8rem;
             font-weight: 600;
-            color: #5c3d1e;
+            color: #2d4a2d;
             margin-bottom: 0.3rem;
         }
         .appt-form .form-control {
@@ -992,7 +998,7 @@ function formatDutchDate($date) {
                     <div class="form-group">
                         <label>Kleur</label>
                         <div class="color-options" id="apptColorOptions">
-                            <div class="color-option selected" style="background:#8b5a2b" data-color="#8b5a2b" onclick="selectApptColor(this)"></div>
+                            <div class="color-option selected" style="background:#3d6b3d" data-color="#3d6b3d" onclick="selectApptColor(this)"></div>
                             <div class="color-option" style="background:#ff6b35" data-color="#ff6b35" onclick="selectApptColor(this)"></div>
                             <div class="color-option" style="background:#2196f3" data-color="#2196f3" onclick="selectApptColor(this)"></div>
                             <div class="color-option" style="background:#4caf50" data-color="#4caf50" onclick="selectApptColor(this)"></div>
@@ -1102,7 +1108,7 @@ function formatDutchDate($date) {
     <script src="../../js/bakker-calendar.js?v=1"></script>
     <script>
     // Appointment functions
-    let selectedApptColor = '#8b5a2b';
+    let selectedApptColor = '#3d6b3d';
 
     function openAppointmentModal(date) {
         document.getElementById('apptModalTitle').textContent = 'Afspraak toevoegen';
@@ -1113,7 +1119,7 @@ function formatDutchDate($date) {
         document.getElementById('apptEndTime').value = '';
         document.getElementById('apptDescription').value = '';
         document.getElementById('btnDeleteAppt').style.display = 'none';
-        selectApptColorByValue('#8b5a2b');
+        selectApptColorByValue('#3d6b3d');
         document.getElementById('appointmentModal').classList.add('active');
     }
 
@@ -1126,7 +1132,7 @@ function formatDutchDate($date) {
         document.getElementById('apptEndTime').value = appt.end_time ? appt.end_time.substring(0, 5) : '';
         document.getElementById('apptDescription').value = appt.description || '';
         document.getElementById('btnDeleteAppt').style.display = '';
-        selectApptColorByValue(appt.color || '#8b5a2b');
+        selectApptColorByValue(appt.color || '#3d6b3d');
         document.getElementById('appointmentModal').classList.add('active');
     }
 
@@ -1222,7 +1228,7 @@ function formatDutchDate($date) {
                 const timeStr = appt.start_time ? `<div class="appt-time"><i class="bi bi-clock"></i> ${appt.start_time.substring(0,5)}${appt.end_time ? ' - ' + appt.end_time.substring(0,5) : ''}</div>` : '';
                 const descStr = appt.description ? `<div class="appt-desc">${escapeHtml(appt.description)}</div>` : '';
                 apptHtml += `<div class="appointment-card" onclick='closeAllModals();openEditAppointment(${JSON.stringify(appt).replace(/'/g, "&#39;")})'>
-                    <div class="appt-color" style="background:${appt.color || '#8b5a2b'}"></div>
+                    <div class="appt-color" style="background:${appt.color || '#3d6b3d'}"></div>
                     <div class="appt-info">
                         <div class="appt-title">${escapeHtml(appt.title)}</div>
                         ${timeStr}${descStr}
@@ -1886,20 +1892,27 @@ function formatDutchDate($date) {
     <script>
     if ('serviceWorker' in navigator) {
         navigator.serviceWorker.register('../sw.js', { scope: '/admin/' });
-        if ('PushManager' in window && Notification.permission === 'granted') {
+        if ('PushManager' in window) {
             navigator.serviceWorker.ready.then(async reg => {
-                const sub = await reg.pushManager.getSubscription();
-                if (sub) return;
                 try {
-                    const r = await fetch('/api/push-subscriptions.php?action=vapid-key');
-                    const { publicKey } = await r.json();
-                    const padding = '='.repeat((4 - publicKey.length % 4) % 4);
-                    const raw = atob((publicKey + padding).replace(/-/g, '+').replace(/_/g, '/'));
-                    const key = Uint8Array.from([...raw].map(c => c.charCodeAt(0)));
-                    const newSub = await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: key });
-                    const j = newSub.toJSON();
+                    let permission = Notification.permission;
+                    if (permission === 'default') {
+                        permission = await Notification.requestPermission();
+                    }
+                    if (permission !== 'granted') return;
+
+                    let sub = await reg.pushManager.getSubscription();
+                    if (!sub) {
+                        const r = await fetch('/api/push-subscriptions.php?action=vapid-key');
+                        const { publicKey } = await r.json();
+                        const padding = '='.repeat((4 - publicKey.length % 4) % 4);
+                        const raw = atob((publicKey + padding).replace(/-/g, '+').replace(/_/g, '/'));
+                        const key = Uint8Array.from([...raw].map(c => c.charCodeAt(0)));
+                        sub = await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: key });
+                    }
+                    const j = sub.toJSON();
                     await fetch('/api/push-subscriptions.php', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ endpoint: j.endpoint, keys: { p256dh: j.keys.p256dh, auth: j.keys.auth } }) });
-                } catch (e) {}
+                } catch (e) { console.error('Push setup failed:', e); }
             });
         }
     }

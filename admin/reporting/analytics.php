@@ -538,9 +538,9 @@ $adminBasePath = '../';
     let currentGranularity = { revenue: 'day', products: 'day' };
 
     const chartColors = {
-        primary: '#8b5a2b',
-        primaryLight: '#b07d4f',
-        secondary: '#5c3d1e',
+        primary: '#3d6b3d',
+        primaryLight: '#5a9a5a',
+        secondary: '#2d4a2d',
         grid: '#e5ddd4',
         text: '#6b5c52'
     };

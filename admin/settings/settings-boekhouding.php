@@ -117,7 +117,7 @@ if ($huidigeWaarden['facturatie_systeem'] === 'eboekhouden' && !empty($huidigeWa
             margin-bottom: 1.5rem;
         }
         .card h2 {
-            color: #5c3d1e;
+            color: #2d4a2d;
             margin-bottom: 1.5rem;
             padding-bottom: 0.75rem;
             border-bottom: 2px solid #f5f2ed;
@@ -128,7 +128,7 @@ if ($huidigeWaarden['facturatie_systeem'] === 'eboekhouden' && !empty($huidigeWa
         .form-group label {
             display: block;
             margin-bottom: 0.5rem;
-            color: #5c3d1e;
+            color: #2d4a2d;
             font-weight: 500;
         }
         .form-group input[type="text"],
@@ -141,7 +141,7 @@ if ($huidigeWaarden['facturatie_systeem'] === 'eboekhouden' && !empty($huidigeWa
         }
         .form-group input:focus {
             outline: none;
-            border-color: #8b5a2b;
+            border-color: #3d6b3d;
         }
         .radio-group {
             display: flex;
@@ -161,7 +161,7 @@ if ($huidigeWaarden['facturatie_systeem'] === 'eboekhouden' && !empty($huidigeWa
             border-color: #d4a574;
         }
         .radio-option.selected {
-            border-color: #8b5a2b;
+            border-color: #3d6b3d;
             background: #faf8f5;
         }
         .radio-option input[type="radio"] {
@@ -170,7 +170,7 @@ if ($huidigeWaarden['facturatie_systeem'] === 'eboekhouden' && !empty($huidigeWa
             height: 18px;
         }
         .radio-option .option-content h3 {
-            color: #5c3d1e;
+            color: #2d4a2d;
             font-size: 1rem;
             margin-bottom: 0.25rem;
         }
@@ -190,12 +190,12 @@ if ($huidigeWaarden['facturatie_systeem'] === 'eboekhouden' && !empty($huidigeWa
             display: block;
         }
         .eboekhouden-settings h3 {
-            color: #5c3d1e;
+            color: #2d4a2d;
             font-size: 1rem;
             margin-bottom: 1rem;
         }
         .btn {
-            background: linear-gradient(135deg, #8b5a2b, #5c3d1e);
+            background: linear-gradient(135deg, #3d6b3d, #2d4a2d);
             color: white;
             padding: 0.75rem 1.5rem;
             border: none;
@@ -259,7 +259,7 @@ if ($huidigeWaarden['facturatie_systeem'] === 'eboekhouden' && !empty($huidigeWa
             border: 1px solid #ddd;
             border-left: none;
             border-radius: 0 6px 6px 0;
-            color: #5c3d1e;
+            color: #2d4a2d;
             font-weight: 500;
         }
         .form-row {
@@ -281,7 +281,7 @@ if ($huidigeWaarden['facturatie_systeem'] === 'eboekhouden' && !empty($huidigeWa
         }
         .form-group input[type="time"]:focus {
             outline: none;
-            border-color: #8b5a2b;
+            border-color: #3d6b3d;
         }
         .form-select {
             width: 100%;
@@ -294,7 +294,7 @@ if ($huidigeWaarden['facturatie_systeem'] === 'eboekhouden' && !empty($huidigeWa
         }
         .form-select:focus {
             outline: none;
-            border-color: #8b5a2b;
+            border-color: #3d6b3d;
         }
         .no-ledgers-notice {
             padding: 0.75rem;
@@ -321,7 +321,7 @@ if ($huidigeWaarden['facturatie_systeem'] === 'eboekhouden' && !empty($huidigeWa
             margin-bottom: 1.5rem;
         }
         .breadcrumb a {
-            color: #8b5a2b;
+            color: #3d6b3d;
             text-decoration: none;
         }
         .breadcrumb a:hover {

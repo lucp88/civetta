@@ -15,20 +15,47 @@ $stmtExtra = $pdo->prepare("SELECT datum FROM bakdagen_extra WHERE datum BETWEEN
 $stmtExtra->execute([$today, date('Y-m-d', strtotime('+14 days'))]);
 $extraDatums = array_column($stmtExtra->fetchAll(), 'datum');
 
+// Load voorbereiding_dagen setting
+$stmtVb = $pdo->prepare("SELECT setting_value FROM settings WHERE setting_key = 'bakdagen_voorbereiding_dagen'");
+$stmtVb->execute();
+$voorbereidingDagen = (int)($stmtVb->fetchColumn() ?: 3);
+
 // Check if today is a baking day
 $todayWeekday = (int)(new DateTime($today))->format('N');
 $todayIsBakdag = in_array($todayWeekday, $bakdagenPatroon) || in_array($today, $extraDatums);
 
-// Find next baking day
+// Helper: check if a date is a bakdag
+function isBakdag($dateStr, $patroon, $extra) {
+    $wd = (int)(new DateTime($dateStr))->format('N');
+    return in_array($wd, $patroon) || in_array($dateStr, $extra);
+}
+
+// Helper: count bakdagen between today and a given date (inclusive)
+function countBakdagenBetween($todayStr, $targetStr, $patroon, $extra) {
+    $count = 0;
+    $d = new DateTime($todayStr);
+    $target = new DateTime($targetStr);
+    while ($d <= $target) {
+        if (isBakdag($d->format('Y-m-d'), $patroon, $extra)) {
+            $count++;
+        }
+        $d->modify('+1 day');
+    }
+    return $count;
+}
+
+// Find next POSSIBLE baking day (enough bakdagen lead time for new orders)
 $nextBakdag = null;
 $nextBakdagDt = null;
-for ($d = 1; $d <= 14; $d++) {
+for ($d = 1; $d <= 30; $d++) {
     $checkDate = date('Y-m-d', strtotime("+{$d} days"));
-    $checkWeekday = (int)(new DateTime($checkDate))->format('N');
-    if (in_array($checkWeekday, $bakdagenPatroon) || in_array($checkDate, $extraDatums)) {
-        $nextBakdag = $checkDate;
-        $nextBakdagDt = new DateTime($checkDate);
-        break;
+    if (isBakdag($checkDate, $bakdagenPatroon, $extraDatums)) {
+        $bakdagenCount = countBakdagenBetween($today, $checkDate, $bakdagenPatroon, $extraDatums);
+        if ($bakdagenCount >= $voorbereidingDagen) {
+            $nextBakdag = $checkDate;
+            $nextBakdagDt = new DateTime($checkDate);
+            break;
+        }
     }
 }
 
@@ -106,7 +133,7 @@ function getGreeting() {
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Bakker Planning | Civetta Admin</title>
     <link rel="manifest" href="../manifest.json">
-    <meta name="theme-color" content="#5c3d1e">
+    <meta name="theme-color" content="#2d4a2d">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <link rel="apple-touch-icon" sizes="192x192" href="/img/icon-192.png">
@@ -470,7 +497,7 @@ function getGreeting() {
                 </div>
 
                 <div class="action-cards">
-                    <a href="bereiden.php" class="action-card bereiden">
+                    <a href="planning.php?filter=bakken" class="action-card bereiden">
                         <div class="action-card-icon">
                             <i class="bi bi-fire"></i>
                         </div>
@@ -499,7 +526,7 @@ function getGreeting() {
                         </div>
                     </a>
 
-                    <a href="leveren.php" class="action-card leveren">
+                    <a href="planning.php?filter=bezorging" class="action-card leveren">
                         <div class="action-card-icon">
                             <i class="bi bi-truck"></i>
                         </div>
@@ -533,7 +560,7 @@ function getGreeting() {
                                     Bereiden
                                 <?php endif; ?>
                             </h3>
-                            <a href="bereiden.php?mode=day" class="summary-header-link">Bekijk alles</a>
+                            <a href="planning.php?filter=bakken&mode=day" class="summary-header-link">Bekijk alles</a>
                         </div>
                         <div class="summary-body">
                             <?php if (empty($doughToBake)): ?>
@@ -551,7 +578,7 @@ function getGreeting() {
                             <?php endif; ?>
                         </div>
                         <?php if (count($doughToBake) > 5): ?>
-                            <a href="bereiden.php?mode=day" class="more-link">
+                            <a href="planning.php?filter=bakken&mode=day" class="more-link">
                                 +<?= count($doughToBake) - 5 ?> meer deegsoorten
                             </a>
                         <?php endif; ?>
@@ -560,7 +587,7 @@ function getGreeting() {
                     <div class="summary-card">
                         <div class="summary-header">
                             <h3><i class="bi bi-truck" style="color: #1976d2;"></i> Leveringen vandaag</h3>
-                            <a href="leveren.php?mode=day" class="summary-header-link">Bekijk alles</a>
+                            <a href="planning.php?filter=bezorging&mode=day" class="summary-header-link">Bekijk alles</a>
                         </div>
                         <div class="summary-body">
                             <?php if (empty($upcomingDeliveries)): ?>
@@ -591,20 +618,27 @@ function getGreeting() {
     <script>
     if ('serviceWorker' in navigator) {
         navigator.serviceWorker.register('../sw.js', { scope: '/admin/' });
-        if ('PushManager' in window && Notification.permission === 'granted') {
+        if ('PushManager' in window) {
             navigator.serviceWorker.ready.then(async reg => {
-                const sub = await reg.pushManager.getSubscription();
-                if (sub) return;
                 try {
-                    const r = await fetch('/api/push-subscriptions.php?action=vapid-key');
-                    const { publicKey } = await r.json();
-                    const padding = '='.repeat((4 - publicKey.length % 4) % 4);
-                    const raw = atob((publicKey + padding).replace(/-/g, '+').replace(/_/g, '/'));
-                    const key = Uint8Array.from([...raw].map(c => c.charCodeAt(0)));
-                    const newSub = await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: key });
-                    const j = newSub.toJSON();
+                    let permission = Notification.permission;
+                    if (permission === 'default') {
+                        permission = await Notification.requestPermission();
+                    }
+                    if (permission !== 'granted') return;
+
+                    let sub = await reg.pushManager.getSubscription();
+                    if (!sub) {
+                        const r = await fetch('/api/push-subscriptions.php?action=vapid-key');
+                        const { publicKey } = await r.json();
+                        const padding = '='.repeat((4 - publicKey.length % 4) % 4);
+                        const raw = atob((publicKey + padding).replace(/-/g, '+').replace(/_/g, '/'));
+                        const key = Uint8Array.from([...raw].map(c => c.charCodeAt(0)));
+                        sub = await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: key });
+                    }
+                    const j = sub.toJSON();
                     await fetch('/api/push-subscriptions.php', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ endpoint: j.endpoint, keys: { p256dh: j.keys.p256dh, auth: j.keys.auth } }) });
-                } catch (e) {}
+                } catch (e) { console.error('Push setup failed:', e); }
             });
         }
     }

@@ -114,7 +114,7 @@ $existsCount = count(array_filter($results, fn($r) => $r['type'] === 'exists'));
             min-height: 100vh;
         }
         .header {
-            background: linear-gradient(135deg, #8b5a2b, #5c3d1e);
+            background: linear-gradient(135deg, #3d6b3d, #2d4a2d);
             color: white;
             padding: 1rem 2rem;
             display: flex;
@@ -142,7 +142,7 @@ $existsCount = count(array_filter($results, fn($r) => $r['type'] === 'exists'));
             margin-bottom: 1rem;
         }
         .card h2 {
-            color: #5c3d1e;
+            color: #2d4a2d;
             margin-bottom: 1rem;
         }
         .card p {
@@ -153,7 +153,7 @@ $existsCount = count(array_filter($results, fn($r) => $r['type'] === 'exists'));
         .btn {
             display: inline-block;
             padding: 0.75rem 1.5rem;
-            background: #8b5a2b;
+            background: #3d6b3d;
             color: white;
             text-decoration: none;
             border-radius: 6px;
@@ -161,7 +161,7 @@ $existsCount = count(array_filter($results, fn($r) => $r['type'] === 'exists'));
             cursor: pointer;
             font-size: 1rem;
         }
-        .btn:hover { background: #5c3d1e; }
+        .btn:hover { background: #2d4a2d; }
         .summary {
             padding: 1rem;
             border-radius: 8px;
@@ -204,7 +204,7 @@ $existsCount = count(array_filter($results, fn($r) => $r['type'] === 'exists'));
             margin-bottom: 1.5rem;
         }
         .breadcrumb a {
-            color: #8b5a2b;
+            color: #3d6b3d;
             text-decoration: none;
         }
         .breadcrumb span {

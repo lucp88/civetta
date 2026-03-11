@@ -13,14 +13,16 @@ createApp({
         async login() {
             this.error = '';
             this.loading = true;
-            
+
             try {
+                const recaptchaToken = await getRecaptchaToken('login');
                 const response = await fetch('api/business-login.php', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
                         email: this.email,
-                        password: this.password
+                        password: this.password,
+                        recaptcha_token: recaptchaToken
                     })
                 });
                 

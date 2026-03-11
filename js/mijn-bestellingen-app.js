@@ -222,7 +222,7 @@ createApp({
         
         async extendRecurring(group) {
             this.openDropdownId = null;
-            if (!confirm(`Wil je deze terugkerende bestelling verlengen met 3 maanden?`)) return;
+            if (!await showConfirm('Wil je deze terugkerende bestelling verlengen met 3 maanden?')) return;
             try {
                 const response = await fetch('api/business-recurring.php', {
                     method: 'PUT',
@@ -234,20 +234,20 @@ createApp({
                 });
                 const data = await response.json();
                 if (data.success) {
-                    alert(data.message);
+                    showToast(data.message, 'success');
                     await this.loadRecurringOrders();
                 } else {
-                    alert(data.error || 'Kon niet verlengen');
+                    showToast(data.error || 'Kon niet verlengen', 'error');
                 }
             } catch (error) {
                 console.error('Kon niet verlengen', error);
-                alert('Er ging iets mis bij het verlengen');
+                showToast('Er ging iets mis bij het verlengen', 'error');
             }
         },
         
         async stopRecurring(group) {
             this.openDropdownId = null;
-            if (!confirm('Weet je zeker dat je deze terugkerende bestelling wilt stoppen? Alle toekomstige leveringen worden geannuleerd.')) return;
+            if (!await showConfirm('Weet je zeker dat je deze terugkerende bestelling wilt stoppen? Alle toekomstige leveringen worden geannuleerd.')) return;
             try {
                 const response = await fetch('api/business-recurring.php', {
                     method: 'PUT',
@@ -259,10 +259,10 @@ createApp({
                 });
                 const data = await response.json();
                 if (data.success) {
-                    alert(data.message);
+                    showToast(data.message, 'success');
                     await this.loadRecurringOrders();
                 } else {
-                    alert(data.error || 'Kon niet stoppen');
+                    showToast(data.error || 'Kon niet stoppen', 'error');
                 }
             } catch (error) {
                 console.error('Kon niet stoppen', error);
@@ -271,7 +271,7 @@ createApp({
         
         async pauseRecurring(group) {
             this.openDropdownId = null;
-            if (!confirm('Wil je deze terugkerende bestelling pauzeren? Bestellingen die al in bereiding zijn gaan wel door.')) return;
+            if (!await showConfirm('Wil je deze terugkerende bestelling pauzeren? Bestellingen die al in bereiding zijn gaan wel door.')) return;
             try {
                 const response = await fetch('api/business-recurring.php', {
                     method: 'PUT',
@@ -283,20 +283,20 @@ createApp({
                 });
                 const data = await response.json();
                 if (data.success) {
-                    alert(data.message);
+                    showToast(data.message, 'success');
                     await Promise.all([this.loadRecurringOrders(), this.loadOrders()]);
                 } else {
-                    alert(data.error || 'Kon niet pauzeren');
+                    showToast(data.error || 'Kon niet pauzeren', 'error');
                 }
             } catch (error) {
                 console.error('Kon niet pauzeren', error);
-                alert('Er ging iets mis bij het pauzeren');
+                showToast('Er ging iets mis bij het pauzeren', 'error');
             }
         },
         
         async resumeRecurring(group) {
             this.openDropdownId = null;
-            if (!confirm('Wil je deze terugkerende bestelling hervatten? Bestellingen waarvan de deadline is verstreken worden geannuleerd.')) return;
+            if (!await showConfirm('Wil je deze terugkerende bestelling hervatten? Bestellingen waarvan de deadline is verstreken worden geannuleerd.')) return;
             try {
                 const response = await fetch('api/business-recurring.php', {
                     method: 'PUT',
@@ -308,14 +308,14 @@ createApp({
                 });
                 const data = await response.json();
                 if (data.success) {
-                    alert(data.message);
+                    showToast(data.message, 'success');
                     await Promise.all([this.loadRecurringOrders(), this.loadOrders()]);
                 } else {
-                    alert(data.error || 'Kon niet hervatten');
+                    showToast(data.error || 'Kon niet hervatten', 'error');
                 }
             } catch (error) {
                 console.error('Kon niet hervatten', error);
-                alert('Er ging iets mis bij het hervatten');
+                showToast('Er ging iets mis bij het hervatten', 'error');
             }
         },
         
@@ -355,9 +355,9 @@ createApp({
             this.editingProducts = false;
         },
         
-        closeDetailModal() {
+        async closeDetailModal() {
             if (this.detailFormChanged) {
-                if (!confirm('Je hebt onopgeslagen wijzigingen. Weet je zeker dat je wilt sluiten?')) {
+                if (!await showConfirm('Je hebt onopgeslagen wijzigingen. Weet je zeker dat je wilt sluiten?')) {
                     return;
                 }
             }
@@ -483,10 +483,10 @@ createApp({
             }
             
             if (items.length === 0) {
-                alert('Voeg minimaal één product toe');
+                showToast('Voeg minimaal één product toe', 'warning');
                 return;
             }
-            
+
             this.savingEdit = true;
             try {
                 const response = await fetch('api/business-recurring.php', {
@@ -502,7 +502,7 @@ createApp({
                 });
                 const data = await response.json();
                 if (data.success) {
-                    alert(data.message);
+                    showToast(data.message, 'success');
                     this.originalDetailForm = JSON.parse(JSON.stringify(this.detailForm));
                     await Promise.all([this.loadRecurringOrders(), this.loadOrders()]);
                     const updatedGroup = this.recurringGroups.find(g => g.recurring_group_id === this.selectedRecurringGroup.recurring_group_id);
@@ -510,11 +510,11 @@ createApp({
                         this.showRecurringDetail(updatedGroup);
                     }
                 } else {
-                    alert(data.error || 'Kon niet opslaan');
+                    showToast(data.error || 'Kon niet opslaan', 'error');
                 }
             } catch (error) {
                 console.error('Fout bij opslaan', error);
-                alert('Er ging iets mis');
+                showToast('Er ging iets mis', 'error');
             } finally {
                 this.savingEdit = false;
             }
@@ -603,10 +603,10 @@ createApp({
             }
             
             if (items.length === 0) {
-                alert('Voeg minimaal één product toe');
+                showToast('Voeg minimaal één product toe', 'warning');
                 return;
             }
-            
+
             this.savingEdit = true;
             try {
                 const response = await fetch('api/business-recurring.php', {
@@ -622,7 +622,7 @@ createApp({
                 });
                 const data = await response.json();
                 if (data.success) {
-                    alert(data.message);
+                    showToast(data.message, 'success');
                     const groupId = this.editSingleGroupId;
                     this.editSingleDelivery = null;
                     await Promise.all([this.loadRecurringOrders(), this.loadOrders()]);
@@ -631,18 +631,18 @@ createApp({
                         this.showRecurringDetail(updatedGroup);
                     }
                 } else {
-                    alert(data.error || 'Kon niet opslaan');
+                    showToast(data.error || 'Kon niet opslaan', 'error');
                 }
             } catch (error) {
                 console.error('Fout bij opslaan', error);
-                alert('Er ging iets mis');
+                showToast('Er ging iets mis', 'error');
             } finally {
                 this.savingEdit = false;
             }
         },
         
         async skipDelivery(delivery, group) {
-            if (!confirm(`Weet je zeker dat je de levering van ${this.formatDateShort(delivery.delivery_date)} wilt overslaan?`)) return;
+            if (!await showConfirm(`Weet je zeker dat je de levering van ${this.formatDateShort(delivery.delivery_date)} wilt overslaan?`)) return;
             
             try {
                 const response = await fetch('api/business-recurring.php', {
@@ -657,15 +657,15 @@ createApp({
                 });
                 const data = await response.json();
                 if (data.success) {
-                    alert(data.message);
+                    showToast(data.message, 'success');
                     this.selectedRecurringGroup = null;
                     await Promise.all([this.loadRecurringOrders(), this.loadOrders()]);
                 } else {
-                    alert(data.error || 'Kon levering niet overslaan');
+                    showToast(data.error || 'Kon levering niet overslaan', 'error');
                 }
             } catch (error) {
                 console.error('Fout bij overslaan', error);
-                alert('Er ging iets mis');
+                showToast('Er ging iets mis', 'error');
             }
         },
         
@@ -974,10 +974,10 @@ createApp({
             }
             
             if (items.length === 0) {
-                alert('Voeg minimaal één product toe');
+                showToast('Voeg minimaal één product toe', 'warning');
                 return;
             }
-            
+
             this.savingOrder = true;
             try {
                 const response = await fetch('api/business-orders.php', {
@@ -997,11 +997,11 @@ createApp({
                     if (updated) this.selectedOrder = updated;
                     this.editingOrder = false;
                 } else {
-                    alert(data.error || 'Kon niet opslaan');
+                    showToast(data.error || 'Kon niet opslaan', 'error');
                 }
             } catch (error) {
                 console.error('Fout bij opslaan', error);
-                alert('Er ging iets mis');
+                showToast('Er ging iets mis', 'error');
             } finally {
                 this.savingOrder = false;
             }
@@ -1062,13 +1062,13 @@ createApp({
                     this.showCancelDialog = false;
                     await this.loadOrders();
                     this.selectedOrder = null;
-                    alert(data.message);
+                    showToast(data.message, 'success');
                 } else {
-                    alert(data.error || 'Kon niet annuleren');
+                    showToast(data.error || 'Kon niet annuleren', 'error');
                 }
             } catch (error) {
                 console.error('Fout bij annuleren', error);
-                alert('Er ging iets mis');
+                showToast('Er ging iets mis', 'error');
             } finally {
                 this.cancellingOrder = false;
             }
@@ -1080,8 +1080,8 @@ createApp({
                 return;
             }
             
-            if (!confirm('Weet je zeker dat je deze bestelling wilt annuleren?')) return;
-            
+            if (!await showConfirm('Weet je zeker dat je deze bestelling wilt annuleren?')) return;
+
             try {
                 const response = await fetch('api/business-orders.php', {
                     method: 'PUT',
@@ -1095,13 +1095,13 @@ createApp({
                 if (data.success) {
                     await this.loadOrders();
                     this.selectedOrder = null;
-                    alert(data.message);
+                    showToast(data.message, 'success');
                 } else {
-                    alert(data.error || 'Kon niet annuleren');
+                    showToast(data.error || 'Kon niet annuleren', 'error');
                 }
             } catch (error) {
                 console.error('Fout bij annuleren', error);
-                alert('Er ging iets mis');
+                showToast('Er ging iets mis', 'error');
             }
         },
         
@@ -1111,7 +1111,7 @@ createApp({
         },
         
         async deleteFavorite(id) {
-            if (!confirm('Weet je zeker dat je deze favoriet wilt verwijderen?')) return;
+            if (!await showConfirm('Weet je zeker dat je deze favoriet wilt verwijderen?')) return;
             
             try {
                 const response = await fetch('api/business-favorites.php', {

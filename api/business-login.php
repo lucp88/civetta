@@ -56,6 +56,13 @@ if (!$email || !$password) {
     exit;
 }
 
+// reCAPTCHA v3 verification
+if (recaptchaSiteKey() && !verifyRecaptcha($data['recaptcha_token'] ?? '', 'login')) {
+    http_response_code(400);
+    echo json_encode(['success' => false, 'error' => 'Spam verificatie mislukt. Probeer het opnieuw.']);
+    exit;
+}
+
 try {
     // Check if this is an admin login (no @ means username, not email)
     $isAdminLogin = strpos($email, '@') === false;

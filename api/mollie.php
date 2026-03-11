@@ -17,6 +17,14 @@ if (empty($mollieApiKey)) {
 }
 
 $data = json_decode(file_get_contents('php://input'), true);
+
+// reCAPTCHA v3 verification
+if (recaptchaSiteKey() && !verifyRecaptcha($data['recaptcha_token'] ?? '', 'donate')) {
+    http_response_code(400);
+    echo json_encode(['success' => false, 'error' => 'Spam verificatie mislukt. Probeer het opnieuw.']);
+    exit;
+}
+
 $amount = floatval($data['amount'] ?? 0);
 $name = trim($data['name'] ?? '');
 $message = trim($data['message'] ?? '');

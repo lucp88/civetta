@@ -118,7 +118,7 @@ $adminBasePath = '../';
             margin-bottom: 1.5rem;
         }
         .breadcrumb a {
-            color: #8b5a2b;
+            color: #3d6b3d;
             text-decoration: none;
         }
         .breadcrumb a:hover { text-decoration: underline; }
@@ -137,7 +137,7 @@ $adminBasePath = '../';
             margin-bottom: 1.5rem;
         }
         .stat-box {
-            background: linear-gradient(135deg, #8b5a2b, #5c3d1e);
+            background: linear-gradient(135deg, #3d6b3d, #2d4a2d);
             color: white;
             padding: 1.25rem;
             border-radius: 10px;
@@ -159,7 +159,7 @@ $adminBasePath = '../';
             margin-bottom: 1.5rem;
         }
         .card h2 {
-            color: #5c3d1e;
+            color: #2d4a2d;
             margin-bottom: 1rem;
             font-size: 1.3rem;
         }
@@ -195,7 +195,7 @@ $adminBasePath = '../';
         .order-header-badges { display: flex; align-items: center; gap: 0.4rem; flex-wrap: wrap; flex-shrink: 0; }
         .order-header-meta { font-size: 0.8rem; color: #888; display: flex; gap: 0.75rem; flex-wrap: wrap; }
         .order-header-meta span { display: inline-flex; align-items: center; gap: 0.25rem; }
-        .order-header-amount { font-weight: 700; color: #5c3d1e; font-size: 0.95rem; white-space: nowrap; }
+        .order-header-amount { font-weight: 700; color: #2d4a2d; font-size: 0.95rem; white-space: nowrap; }
         .order-header .order-id {
             font-weight: 700;
             color: #333;
@@ -292,7 +292,7 @@ $adminBasePath = '../';
             margin-top: 0.25rem;
             border-top: 2px solid #e8e8e8;
             font-weight: 700;
-            color: #5c3d1e;
+            color: #2d4a2d;
         }
         .order-actions {
             padding: 1rem;
@@ -314,7 +314,7 @@ $adminBasePath = '../';
             font-size: 0.9rem;
         }
         .btn-update {
-            background: #8b5a2b;
+            background: #3d6b3d;
             color: white;
             border: none;
             padding: 0.4rem 1rem;
@@ -322,7 +322,7 @@ $adminBasePath = '../';
             cursor: pointer;
             font-size: 0.85rem;
         }
-        .btn-update:hover { background: #5c3d1e; }
+        .btn-update:hover { background: #2d4a2d; }
         .empty {
             color: #888;
             font-style: italic;
@@ -351,12 +351,12 @@ $adminBasePath = '../';
             color: #666;
         }
         .filter-btn:hover {
-            border-color: #8b5a2b;
-            color: #8b5a2b;
+            border-color: #3d6b3d;
+            color: #3d6b3d;
         }
         .filter-btn.active {
-            background: #8b5a2b;
-            border-color: #8b5a2b;
+            background: #3d6b3d;
+            border-color: #3d6b3d;
             color: white;
         }
         .filter-btn i {
@@ -461,7 +461,7 @@ $adminBasePath = '../';
             padding: 1.25rem 1.5rem;
             border-bottom: 1px solid #eee;
         }
-        .modal-header h3 { margin: 0; color: #5c3d1e; font-size: 1.1rem; }
+        .modal-header h3 { margin: 0; color: #2d4a2d; font-size: 1.1rem; }
         .modal-close {
             background: none;
             border: none;
@@ -513,7 +513,7 @@ $adminBasePath = '../';
             color: #666;
             transition: all 0.15s;
         }
-        .qty-btn:hover { border-color: #8b5a2b; color: #8b5a2b; }
+        .qty-btn:hover { border-color: #3d6b3d; color: #3d6b3d; }
         .qty-display { min-width: 24px; text-align: center; font-weight: 600; font-size: 0.95rem; }
         .edit-total-row {
             display: flex;
@@ -522,7 +522,7 @@ $adminBasePath = '../';
             margin-top: 0.5rem;
             border-top: 2px solid #e8e8e8;
             font-weight: 700;
-            color: #5c3d1e;
+            color: #2d4a2d;
             font-size: 1rem;
         }
         .modal-footer {
@@ -534,8 +534,8 @@ $adminBasePath = '../';
         }
         .btn-cancel { background: #e0e0e0; color: #333; border: none; padding: 0.5rem 1.25rem; border-radius: 6px; cursor: pointer; font-size: 0.9rem; }
         .btn-cancel:hover { background: #ccc; }
-        .btn-save { background: #8b5a2b; color: white; border: none; padding: 0.5rem 1.25rem; border-radius: 6px; cursor: pointer; font-size: 0.9rem; font-weight: 600; }
-        .btn-save:hover { background: #5c3d1e; }
+        .btn-save { background: #3d6b3d; color: white; border: none; padding: 0.5rem 1.25rem; border-radius: 6px; cursor: pointer; font-size: 0.9rem; font-weight: 600; }
+        .btn-save:hover { background: #2d4a2d; }
         .btn-save:disabled { opacity: 0.6; cursor: not-allowed; }
 
         /* FAB button */
@@ -546,7 +546,7 @@ $adminBasePath = '../';
             width: 56px;
             height: 56px;
             border-radius: 50%;
-            background: linear-gradient(135deg, #8b5a2b, #5c3d1e);
+            background: linear-gradient(135deg, #3d6b3d, #2d4a2d);
             color: white;
             border: none;
             cursor: pointer;
@@ -574,7 +574,7 @@ $adminBasePath = '../';
             transition: border-color 0.2s;
             box-sizing: border-box;
         }
-        .new-order-modal .form-control:focus { border-color: #8b5a2b; outline: none; }
+        .new-order-modal .form-control:focus { border-color: #3d6b3d; outline: none; }
 
         .product-select-row {
             display: flex;
@@ -601,9 +601,9 @@ $adminBasePath = '../';
 
         .btn-add-product {
             padding: 0.4rem 1rem;
-            border: 2px dashed #8b5a2b;
+            border: 2px dashed #3d6b3d;
             background: transparent;
-            color: #8b5a2b;
+            color: #3d6b3d;
             border-radius: 8px;
             cursor: pointer;
             font-size: 0.9rem;
@@ -621,11 +621,11 @@ $adminBasePath = '../';
             font-size: 1.1rem;
             font-weight: 600;
         }
-        .order-total-bar .total-amount { color: #5c3d1e; font-size: 1.3rem; }
+        .order-total-bar .total-amount { color: #2d4a2d; font-size: 1.3rem; }
 
         .btn-submit-order {
             padding: 0.75rem 2rem;
-            background: linear-gradient(135deg, #8b5a2b, #5c3d1e);
+            background: linear-gradient(135deg, #3d6b3d, #2d4a2d);
             color: white;
             border: none;
             border-radius: 8px;
@@ -633,7 +633,7 @@ $adminBasePath = '../';
             font-size: 1rem;
             font-weight: 600;
         }
-        .btn-submit-order:hover { background: linear-gradient(135deg, #5c3d1e, #3e2a14); }
+        .btn-submit-order:hover { background: linear-gradient(135deg, #2d4a2d, #3e2a14); }
         .btn-submit-order:disabled { opacity: 0.6; cursor: not-allowed; }
 
         /* Internal toggle */
@@ -656,7 +656,7 @@ $adminBasePath = '../';
         .internal-toggle input[type="checkbox"] {
             width: 18px;
             height: 18px;
-            accent-color: #8b5a2b;
+            accent-color: #3d6b3d;
         }
 
         /* Customer info card */
@@ -672,7 +672,7 @@ $adminBasePath = '../';
         .customer-info-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0.5rem; }
         .ci-label { font-size: 0.7rem; text-transform: uppercase; color: #888; font-weight: 600; }
         .ci-value { color: #333; font-size: 0.85rem; }
-        .ci-value a { color: #8b5a2b; text-decoration: none; }
+        .ci-value a { color: #3d6b3d; text-decoration: none; }
         .ci-value a:hover { text-decoration: underline; }
 
         /* Bakdag indicator */
@@ -758,7 +758,7 @@ $adminBasePath = '../';
             display: flex;
             justify-content: space-between;
             font-weight: 700;
-            color: #5c3d1e;
+            color: #2d4a2d;
         }
         .settle-remainder-actions {
             padding: 1rem 0;
@@ -777,7 +777,7 @@ $adminBasePath = '../';
         }
         .btn-writeoff:hover { background: #5a6268; }
         .btn-transfer {
-            background: #8b5a2b;
+            background: #3d6b3d;
             color: white;
             border: none;
             padding: 0.5rem 1.25rem;
@@ -786,17 +786,37 @@ $adminBasePath = '../';
             font-size: 0.9rem;
             font-weight: 600;
         }
-        .btn-transfer:hover { background: #5c3d1e; }
+        .btn-transfer:hover { background: #2d4a2d; }
 
         .sold-info { font-size: 0.8rem; color: #2e7d32; }
         .remainder-info { font-size: 0.8rem; color: #dc3545; }
+
+        /* Multi-select */
+        .order-select { width: 20px; height: 20px; accent-color: #3d6b3d; cursor: pointer; flex-shrink: 0; }
+        .order-card.selected > .order-header { background: #f5f0eb; border-left: 3px solid #3d6b3d; }
+        .batch-bar { display: none; position: fixed; bottom: 0; left: 0; right: 0; background: white; border-top: 2px solid #3d6b3d; padding: 0.75rem 2rem; z-index: 950; gap: 1rem; align-items: center; justify-content: space-between; box-shadow: 0 -4px 20px rgba(0,0,0,0.12); }
+        .batch-bar.show { display: flex; }
+        .batch-bar-info { font-size: 0.9rem; font-weight: 600; color: #333; }
+        .batch-bar-actions { display: flex; gap: 0.5rem; flex-wrap: wrap; }
+        .batch-btn { display: inline-flex; align-items: center; gap: 0.3rem; padding: 0.5rem 1rem; border: none; border-radius: 6px; font-size: 0.85rem; font-weight: 600; cursor: pointer; }
+        .batch-btn-paid { background: #4caf50; color: white; }
+        .batch-btn-paid:hover { background: #388e3c; }
+        .batch-btn-cancel { background: #ff9800; color: white; }
+        .batch-btn-cancel:hover { background: #e68a00; }
+        .batch-btn-delete { background: #dc3545; color: white; }
+        .batch-btn-delete:hover { background: #b71c1c; }
+        .batch-btn-deselect { background: #eee; color: #666; }
+        .batch-btn-deselect:hover { background: #ddd; }
 
         @media (max-width: 768px) {
             .fab { bottom: 1.5rem; right: 1.5rem; width: 48px; height: 48px; font-size: 1.25rem; }
             .product-select-row { flex-wrap: wrap; }
             .product-select-row select { flex: 1 1 100%; }
             .settle-item-row { flex-wrap: wrap; gap: 0.4rem; }
+            .batch-bar { padding: 0.75rem 1rem; gap: 0.5rem; flex-wrap: wrap; }
+            .batch-bar.show + .fab { bottom: 5rem; }
         }
+
     </style>
 </head>
 <body>
@@ -849,7 +869,12 @@ $adminBasePath = '../';
         </div>
 
         <div class="card">
-            <h2>Lopende Bestellingen</h2>
+            <h2 style="display:flex;align-items:center;gap:0.75rem;">
+                <label style="display:flex;align-items:center;gap:0.4rem;cursor:pointer;font-size:0.8rem;font-weight:500;color:#888;" title="Alles selecteren">
+                    <input type="checkbox" class="order-select" id="selectAll" onclick="toggleSelectAll(this.checked)"> Alles
+                </label>
+                <span style="flex:1;">Lopende Bestellingen</span>
+            </h2>
             <input type="text" class="search-bar" id="searchInput" placeholder="Zoek op klantnaam, ordernummer of leverdatum..." oninput="applySearch()">
             
             <div class="filter-bar">
@@ -875,8 +900,9 @@ $adminBasePath = '../';
             <?php else: ?>
                 <div class="orders-grid">
                     <?php foreach ($upcomingOrders as $order): ?>
-                        <div class="order-card collapsed" data-payment-status="<?= $order['payment_status'] ?>" data-payment-type="<?= $order['payment_type'] ?>" data-search="<?= strtolower($order['id'] . ' ' . htmlspecialchars($order['bedrijfsnaam']) . ' ' . htmlspecialchars($order['contactpersoon']) . ' ' . $order['delivery_date'] . ' ' . getDutchDate($order['delivery_date'])) ?>">
+                        <div class="order-card collapsed" data-order-id="<?= $order['id'] ?>" data-payment-status="<?= $order['payment_status'] ?>" data-payment-type="<?= $order['payment_type'] ?>" data-search="<?= strtolower($order['id'] . ' ' . htmlspecialchars($order['bedrijfsnaam']) . ' ' . htmlspecialchars($order['contactpersoon']) . ' ' . $order['delivery_date'] . ' ' . getDutchDate($order['delivery_date'])) ?>">
                             <div class="order-header" onclick="this.parentElement.classList.toggle('collapsed')">
+                                <input type="checkbox" class="order-select" data-order-id="<?= $order['id'] ?>" onclick="event.stopPropagation();toggleOrderSelect(<?= $order['id'] ?>)" title="Selecteer">
                                 <div class="order-header-info">
                                     <i class="bi bi-chevron-down toggle-icon"></i>
                                     <span class="order-id">#<?= $order['id'] ?></span>
@@ -1010,7 +1036,7 @@ $adminBasePath = '../';
                                         <i class="bi bi-clipboard-check"></i> Afhandelen
                                     </button>
                                 <?php endif; ?>
-                                <form method="POST" style="display:inline;" onsubmit="return confirm('Bestelling #<?= $order['id'] ?> van <?= htmlspecialchars($order['bedrijfsnaam']) ?> definitief verwijderen?')">
+                                <form method="POST" style="display:inline;" onsubmit="return handleDeleteConfirm(event, '<?= $order['id'] ?>', '<?= htmlspecialchars($order['bedrijfsnaam'], ENT_QUOTES) ?>')">
                                     <input type="hidden" name="delete_order" value="1">
                                     <input type="hidden" name="order_id" value="<?= $order['id'] ?>">
                                     <button type="submit" class="btn-delete-order"><i class="bi bi-trash"></i> Verwijderen</button>
@@ -1120,7 +1146,7 @@ $adminBasePath = '../';
                                     <?php endif; ?>
                                 </div>
                                 <div style="margin-top: 0.75rem; padding-top: 0.75rem; border-top: 1px solid #eee;">
-                                    <form method="POST" style="display:inline;" onsubmit="return confirm('Bestelling #<?= $order['id'] ?> van <?= htmlspecialchars($order['bedrijfsnaam']) ?> definitief verwijderen?')">
+                                    <form method="POST" style="display:inline;" onsubmit="return handleDeleteConfirm(event, '<?= $order['id'] ?>', '<?= htmlspecialchars($order['bedrijfsnaam'], ENT_QUOTES) ?>')">
                                         <input type="hidden" name="delete_order" value="1">
                                         <input type="hidden" name="order_id" value="<?= $order['id'] ?>">
                                         <button type="submit" class="btn-delete-order"><i class="bi bi-trash"></i> Verwijderen</button>
@@ -1135,6 +1161,17 @@ $adminBasePath = '../';
         <button class="fab" onclick="openNewOrderModal()" title="Nieuwe bestelling">
             <i class="bi bi-plus-lg"></i>
         </button>
+        </div>
+    </div>
+
+    <!-- Batch action bar -->
+    <div class="batch-bar" id="batchBar">
+        <span class="batch-bar-info"><span id="batchCount">0</span> bestelling(en) geselecteerd</span>
+        <div class="batch-bar-actions">
+            <button class="batch-btn batch-btn-deselect" onclick="deselectAllOrders()"><i class="bi bi-x"></i> Deselecteer</button>
+            <button class="batch-btn batch-btn-paid" onclick="batchMarkPaid()"><i class="bi bi-check-circle"></i> Betaald</button>
+            <button class="batch-btn batch-btn-cancel" onclick="batchCancelOrders()"><i class="bi bi-slash-circle"></i> Annuleren</button>
+            <button class="batch-btn batch-btn-delete" onclick="batchDeleteOrders()"><i class="bi bi-trash"></i> Verwijderen</button>
         </div>
     </div>
 
@@ -1268,7 +1305,17 @@ $adminBasePath = '../';
         </div>
     </div>
 
+    <script src="../../js/ui-notifications.js?v=1"></script>
     <script>
+    function handleDeleteConfirm(event, orderId, bedrijfsnaam) {
+        event.preventDefault();
+        const form = event.target;
+        showConfirm('Bestelling #' + orderId + ' van ' + bedrijfsnaam + ' definitief verwijderen?', 'Let op!').then(ok => {
+            if (ok) form.submit();
+        });
+        return false;
+    }
+
     let allProducts = [];
     let allCustomers = [];
     let allBakdagen = [];
@@ -1655,9 +1702,9 @@ $adminBasePath = '../';
         const deliveryDate = document.getElementById('newOrderDate').value;
         const notes = document.getElementById('newOrderNotes').value.trim();
 
-        if (!isInternal && !accountId) { alert('Selecteer een klant'); return; }
-        if (isInternal && !accountId) { alert('Intern account niet gevonden. Voer eerst migration 028 uit.'); return; }
-        if (!deliveryDate) { alert('Selecteer een leverdatum'); return; }
+        if (!isInternal && !accountId) { showToast('Selecteer een klant', 'error'); return; }
+        if (isInternal && !accountId) { showToast('Intern account niet gevonden. Voer eerst migration 028 uit.', 'error'); return; }
+        if (!deliveryDate) { showToast('Selecteer een leverdatum', 'error'); return; }
 
         const items = [];
         document.querySelectorAll('#newOrderProducts .product-select-row').forEach(row => {
@@ -1704,8 +1751,12 @@ $adminBasePath = '../';
             });
         });
 
-        if (items.length === 0) { alert('Voeg minimaal \u00e9\u00e9n product toe'); return; }
+        if (items.length === 0) { showToast('Voeg minimaal \u00e9\u00e9n product toe', 'error'); return; }
 
+        await doSubmitOrder(isInternal, accountId, deliveryDate, items, notes, false);
+    }
+
+    async function doSubmitOrder(isInternal, accountId, deliveryDate, items, notes, confirmOverride) {
         const payload = {
             account_id: parseInt(accountId),
             delivery_date: deliveryDate,
@@ -1713,6 +1764,7 @@ $adminBasePath = '../';
             notes: notes
         };
         if (isInternal) payload.is_internal = true;
+        if (confirmOverride) payload.confirm_override = true;
 
         const btn = document.getElementById('btnSubmitOrder');
         btn.disabled = true;
@@ -1728,14 +1780,20 @@ $adminBasePath = '../';
 
             if (data.success) {
                 closeNewOrderModal();
-                alert(data.message);
-                location.reload();
+                showToast(data.message, 'success');
+                setTimeout(() => location.reload(), 1500);
+            } else if (data.needs_confirm) {
+                // Bakeday warning — ask user to confirm
+                const ok = await showConfirm(data.warning, 'Bakdag waarschuwing');
+                if (ok) {
+                    await doSubmitOrder(isInternal, accountId, deliveryDate, items, notes, true);
+                }
             } else {
-                alert('Fout: ' + (data.error || 'Onbekende fout'));
+                showToast(data.error || 'Onbekende fout', 'error');
             }
         } catch (e) {
             console.error('Error:', e);
-            alert('Er ging iets mis bij het plaatsen van de bestelling');
+            showToast('Er ging iets mis bij het plaatsen van de bestelling', 'error');
         } finally {
             btn.disabled = false;
             btn.innerHTML = '<i class="bi bi-check-lg"></i> Bestelling plaatsen';
@@ -1839,23 +1897,23 @@ $adminBasePath = '../';
             const data = await response.json();
 
             if (data.success) {
-                alert(data.message);
+                showToast(data.message, 'success');
                 closeSettleModal();
                 location.reload();
             } else {
-                alert(data.error || 'Er ging iets mis');
+                showToast(data.error || 'Er ging iets mis', 'error');
             }
         } catch (e) {
             console.error('Error:', e);
-            alert('Er ging iets mis bij het opslaan');
+            showToast('Er ging iets mis bij het opslaan', 'error');
         } finally {
             btn.disabled = false;
             btn.textContent = 'Opslaan';
         }
     }
 
-    function settleWriteOff() {
-        if (confirm('Weet je zeker dat je de resterende items wilt afschrijven?')) {
+    async function settleWriteOff() {
+        if (await showConfirm('Weet je zeker dat je de resterende items wilt afschrijven?')) {
             saveSettle();
         }
     }
@@ -1892,11 +1950,11 @@ $adminBasePath = '../';
                 // Open new order modal with remainder items prefilled
                 openNewOrderModal(null, settleRemainderItems);
             } else {
-                alert(data.error || 'Er ging iets mis');
+                showToast(data.error || 'Er ging iets mis', 'error');
             }
         } catch (e) {
             console.error('Error:', e);
-            alert('Er ging iets mis bij het opslaan');
+            showToast('Er ging iets mis bij het opslaan', 'error');
         } finally {
             btn.disabled = false;
         }
@@ -1905,7 +1963,7 @@ $adminBasePath = '../';
     // ===== Internal Invoice Function =====
 
     async function createInternalInvoice(orderId) {
-        if (!confirm('Factuur aanmaken voor interne bestelling #' + orderId + '?\n\nDe factuur wordt gebaseerd op de verkochte aantallen.')) return;
+        if (!await showConfirm('Factuur aanmaken voor interne bestelling #' + orderId + '? De factuur wordt gebaseerd op de verkochte aantallen.')) return;
 
         const btn = event.target.closest('button');
         if (btn) {
@@ -1925,14 +1983,14 @@ $adminBasePath = '../';
             const data = await response.json();
 
             if (data.success) {
-                alert(data.message);
+                showToast(data.message, 'success');
                 location.reload();
             } else {
-                alert(data.error || 'Er ging iets mis bij het aanmaken van de factuur');
+                showToast(data.error || 'Er ging iets mis bij het aanmaken van de factuur', 'error');
             }
         } catch (e) {
             console.error('Error:', e);
-            alert('Er ging iets mis bij het aanmaken van de factuur');
+            showToast('Er ging iets mis bij het aanmaken van de factuur', 'error');
         } finally {
             if (btn) {
                 btn.disabled = false;
@@ -2011,7 +2069,7 @@ $adminBasePath = '../';
     async function saveEditOrder() {
         const items = Object.values(editItems).filter(i => i.quantity > 0);
         if (items.length === 0) {
-            alert('Voeg minimaal \u00e9\u00e9n product toe');
+            showToast('Voeg minimaal \u00e9\u00e9n product toe', 'error');
             return;
         }
 
@@ -2031,14 +2089,14 @@ $adminBasePath = '../';
             });
             const data = await res.json();
             if (data.success) {
-                alert(data.message);
+                showToast(data.message, 'success');
                 closeEditModal();
                 location.reload();
             } else {
-                alert(data.error || 'Kon niet opslaan');
+                showToast(data.error || 'Kon niet opslaan', 'error');
             }
         } catch(e) {
-            alert('Er ging iets mis');
+            showToast('Er ging iets mis', 'error');
         } finally {
             btn.disabled = false;
             btn.textContent = 'Opslaan';
@@ -2109,6 +2167,102 @@ $adminBasePath = '../';
 
     function applySearch() {
         applyFilters();
+    }
+
+    // ===== Multi-select batch operations =====
+    let selectedOrderIds = [];
+
+    function toggleSelectAll(checked) {
+        selectedOrderIds = [];
+        document.querySelectorAll('.order-card[data-order-id]').forEach(card => {
+            if (card.style.display === 'none') return; // skip filtered-out
+            const id = parseInt(card.dataset.orderId);
+            const cb = card.querySelector('.order-select');
+            if (checked) {
+                selectedOrderIds.push(id);
+                card.classList.add('selected');
+                if (cb) cb.checked = true;
+            } else {
+                card.classList.remove('selected');
+                if (cb) cb.checked = false;
+            }
+        });
+        updateBatchBar();
+    }
+
+    function toggleOrderSelect(orderId) {
+        const idx = selectedOrderIds.indexOf(orderId);
+        if (idx >= 0) selectedOrderIds.splice(idx, 1);
+        else selectedOrderIds.push(orderId);
+        const card = document.querySelector('.order-card[data-order-id="' + orderId + '"]');
+        if (card) card.classList.toggle('selected', selectedOrderIds.includes(orderId));
+        updateBatchBar();
+    }
+
+    function updateBatchBar() {
+        const bar = document.getElementById('batchBar');
+        bar.classList.toggle('show', selectedOrderIds.length > 0);
+        document.getElementById('batchCount').textContent = selectedOrderIds.length;
+    }
+
+    function deselectAllOrders() {
+        selectedOrderIds = [];
+        document.querySelectorAll('.order-select').forEach(cb => cb.checked = false);
+        document.querySelectorAll('.order-card.selected').forEach(el => el.classList.remove('selected'));
+        document.getElementById('selectAll').checked = false;
+        updateBatchBar();
+    }
+
+    async function batchMarkPaid() {
+        if (selectedOrderIds.length === 0) return;
+        if (!await showConfirm(selectedOrderIds.length + ' bestelling(en) als betaald markeren?')) return;
+        const form = new FormData();
+        let count = 0;
+        for (const orderId of selectedOrderIds) {
+            try {
+                const fd = new FormData();
+                fd.append('update_status', '1');
+                fd.append('order_id', orderId);
+                fd.append('payment_status', 'paid');
+                await fetch('orders.php', { method: 'POST', body: fd });
+                count++;
+            } catch (e) { console.error('Error updating order ' + orderId, e); }
+        }
+        if (count > 0) window.location.href = 'orders.php?updated=1';
+    }
+
+    async function batchCancelOrders() {
+        if (selectedOrderIds.length === 0) return;
+        if (!await showConfirm(selectedOrderIds.length + ' bestelling(en) annuleren?')) return;
+        let count = 0;
+        for (const orderId of selectedOrderIds) {
+            try {
+                const fd = new FormData();
+                fd.append('update_status', '1');
+                fd.append('order_id', orderId);
+                fd.append('payment_status', 'pending');
+                fd.append('is_cancelled', '1');
+                await fetch('orders.php', { method: 'POST', body: fd });
+                count++;
+            } catch (e) { console.error('Error cancelling order ' + orderId, e); }
+        }
+        if (count > 0) window.location.href = 'orders.php?updated=1';
+    }
+
+    async function batchDeleteOrders() {
+        if (selectedOrderIds.length === 0) return;
+        if (!await showConfirm(selectedOrderIds.length + ' bestelling(en) DEFINITIEF verwijderen? Dit kan niet ongedaan worden!', 'Let op!')) return;
+        let count = 0;
+        for (const orderId of selectedOrderIds) {
+            try {
+                const fd = new FormData();
+                fd.append('delete_order', '1');
+                fd.append('order_id', orderId);
+                await fetch('orders.php', { method: 'POST', body: fd });
+                count++;
+            } catch (e) { console.error('Error deleting order ' + orderId, e); }
+        }
+        if (count > 0) window.location.href = 'orders.php?deleted=1';
     }
     </script>
 </body>

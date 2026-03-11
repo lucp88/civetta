@@ -1,8 +1,7 @@
-const CACHE_NAME = 'civetta-bakker-v4';
+const CACHE_NAME = 'civetta-bakker-v11';
 const PRECACHE_URLS = [
     '/admin/bakker/bakker-dashboard.php',
-    '/admin/bakker/bereiden.php',
-    '/admin/bakker/leveren.php',
+    '/admin/bakker/planning.php',
     '/admin/bakker/bakcalculator.php',
     '/css/admin-bakker.css',
     '/js/bakker-calendar.js',
@@ -74,8 +73,8 @@ self.addEventListener('push', event => {
     event.waitUntil(
         self.registration.showNotification(data.title, {
             body: data.body,
-            icon: '/img/icon-192.png',
-            badge: '/img/icon-192.png',
+            icon: '/img/Logo_transparant.png',
+            badge: '/img/Logo_transparant_white_status_bar_icon.png',
             data: { url: data.url || '/admin/bakker/bakker-dashboard.php' },
             vibrate: [200, 100, 200],
             tag: 'civetta-order',

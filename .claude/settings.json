@@ -1,0 +1,19 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(python3 -c \"from PIL import Image; img = Image.open\\(''c:/Users/laure/Documents/Civetta/Website/source/repos/Civetta/civetta/img/Logo_transparant.png''\\); print\\(img.size\\)\")",
+      "Bash(python -c \"from PIL import Image; img = Image.open\\(''c:/Users/laure/Documents/Civetta/Website/source/repos/Civetta/civetta/img/Logo_transparant.png''\\); print\\(img.size\\)\")",
+      "Bash(grep -l \"donation\\\\|donate\" /c/Users/laure/Documents/Civetta/Website/source/repos/Civetta/civetta/*.html)",
+      "Bash(grep -l \"editable\\\\|admin\" /c/Users/laure/Documents/Civetta/Website/source/repos/Belayoga/website/*.php)",
+      "Bash(grep -r \"teacher\\\\|instructor\\\\|leraar\\\\|docent\" /c/Users/laure/Documents/Civetta/Website/source/repos/Belayoga/website/admin/migrations/*.php)",
+      "Bash(grep -l \"setCorsHeaders\" /c/Users/laure/Documents/Civetta/Website/source/repos/Civetta/civetta/api/*.php)",
+      "Bash(grep -l \"session_start\" /c/Users/laure/Documents/Civetta/Website/source/repos/Civetta/civetta/api/*.php)",
+      "Bash(grep -h \"auth_logged_in\\\\|business_logged_in\\\\|admin_logged_in\" /c/Users/laure/Documents/Civetta/Website/source/repos/Civetta/civetta/api/*.php)",
+      "Bash(grep -l \"header.*json\\\\|header.*application\" /c/Users/laure/Documents/Civetta/Website/source/repos/Civetta/civetta/api/*.php)",
+      "Bash(xargs wc:*)",
+      "Bash(grep -h \"SELECT.*FROM settings WHERE setting_key\" /c/Users/laure/Documents/Civetta/Website/source/repos/Civetta/civetta/admin/bakker/*.php)",
+      "Bash(grep -h \"SELECT.*FROM settings WHERE setting_key\" /c/Users/laure/Documents/Civetta/Website/source/repos/Civetta/civetta/api/*.php)",
+      "Bash(find admin:*)"
+    ]
+  }
+}

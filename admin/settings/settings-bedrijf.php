@@ -89,7 +89,7 @@ foreach (array_keys($alleVelden) as $key) {
             padding: 2rem;
         }
         .card h2 {
-            color: #5c3d1e;
+            color: #2d4a2d;
             margin-bottom: 1.5rem;
         }
         .form-group {
@@ -98,7 +98,7 @@ foreach (array_keys($alleVelden) as $key) {
         .form-group label {
             display: block;
             margin-bottom: 0.5rem;
-            color: #5c3d1e;
+            color: #2d4a2d;
             font-weight: 500;
         }
         .form-group input {
@@ -110,10 +110,10 @@ foreach (array_keys($alleVelden) as $key) {
         }
         .form-group input:focus {
             outline: none;
-            border-color: #8b5a2b;
+            border-color: #3d6b3d;
         }
         .btn {
-            background: linear-gradient(135deg, #8b5a2b, #5c3d1e);
+            background: linear-gradient(135deg, #3d6b3d, #2d4a2d);
             color: white;
             padding: 0.75rem 1.5rem;
             border: none;
@@ -151,7 +151,7 @@ foreach (array_keys($alleVelden) as $key) {
             margin-bottom: 1.5rem;
         }
         .breadcrumb a {
-            color: #8b5a2b;
+            color: #3d6b3d;
             text-decoration: none;
         }
         .breadcrumb a:hover {

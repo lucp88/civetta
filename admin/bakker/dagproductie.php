@@ -393,7 +393,7 @@ $totalWeight += $noRecipeGroup['total_weight'];
             background: white;
             border-radius: 8px;
             text-decoration: none;
-            color: #8b5a2b;
+            color: #3d6b3d;
             font-weight: 500;
             box-shadow: 0 2px 8px rgba(0,0,0,0.08);
         }
@@ -401,7 +401,7 @@ $totalWeight += $noRecipeGroup['total_weight'];
         .date-nav .current {
             font-size: 1.3rem;
             font-weight: 700;
-            color: #5c3d1e;
+            color: #2d4a2d;
         }
         .summary-bar {
             display: flex;
@@ -435,7 +435,7 @@ $totalWeight += $noRecipeGroup['total_weight'];
             overflow: hidden;
         }
         .recipe-header {
-            background: linear-gradient(135deg, #8b5a2b, #5c3d1e);
+            background: linear-gradient(135deg, #3d6b3d, #2d4a2d);
             color: white;
             padding: 1.25rem 1.5rem;
             display: flex;
@@ -472,7 +472,7 @@ $totalWeight += $noRecipeGroup['total_weight'];
             padding: 0.4rem 0.8rem;
             border-radius: 20px;
             font-size: 0.85rem;
-            color: #5c3d1e;
+            color: #2d4a2d;
         }
         .product-tag strong {
             color: #c8913a;
@@ -490,7 +490,7 @@ $totalWeight += $noRecipeGroup['total_weight'];
         }
         .ingredient-section h3 {
             font-size: 0.85rem;
-            color: #8b5a2b;
+            color: #3d6b3d;
             text-transform: uppercase;
             letter-spacing: 0.05em;
             margin-bottom: 1rem;
@@ -508,7 +508,7 @@ $totalWeight += $noRecipeGroup['total_weight'];
             border-bottom: 1px solid #f0e6d8;
         }
         .ingredient-row:last-child { border-bottom: none; }
-        .ingredient-name { color: #5c3d1e; }
+        .ingredient-name { color: #2d4a2d; }
         .ingredient-weight {
             font-weight: 700;
             color: #c8913a;
@@ -528,7 +528,7 @@ $totalWeight += $noRecipeGroup['total_weight'];
             justify-content: space-between;
             font-weight: 700;
         }
-        .total-row .label { color: #5c3d1e; }
+        .total-row .label { color: #2d4a2d; }
         .total-row .value { color: #c8913a; font-size: 1.2rem; }
         .no-recipe {
             background: #fff3cd;
@@ -571,13 +571,13 @@ $totalWeight += $noRecipeGroup['total_weight'];
             background: linear-gradient(135deg, #c8913a, #a0722e);
             color: white;
         }
-        .btn-primary:hover { background: linear-gradient(135deg, #a0722e, #8b5a2b); }
+        .btn-primary:hover { background: linear-gradient(135deg, #a0722e, #3d6b3d); }
         .btn-secondary {
             background: white;
-            color: #8b5a2b;
+            color: #3d6b3d;
             border: 2px solid #e0d5c7;
         }
-        .btn-secondary:hover { border-color: #8b5a2b; background: #faf6f1; }
+        .btn-secondary:hover { border-color: #3d6b3d; background: #faf6f1; }
         .empty-state {
             text-align: center;
             padding: 4rem 2rem;
@@ -620,7 +620,7 @@ $totalWeight += $noRecipeGroup['total_weight'];
             .header, .date-nav, .print-section { display: none !important; }
             .container { max-width: 100%; padding: 0; }
             .recipe-card { break-inside: avoid; box-shadow: none; border: 1px solid #ddd; }
-            .recipe-header { background: #8b5a2b !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+            .recipe-header { background: #3d6b3d !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
             .ingredient-section { background: #f5f5f5 !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
         }
         @media (max-width: 768px) {
@@ -641,7 +641,7 @@ $totalWeight += $noRecipeGroup['total_weight'];
             <?php if ($filterDoughType): ?>
                 <a href="dagproductie.php?date=<?= $date ?>"><i class="bi bi-list"></i> Alle deegsoorten</a>
             <?php endif; ?>
-            <a href="bereiden.php?date=<?= $date ?>&mode=day"><i class="bi bi-fire"></i> Bereiden</a>
+            <a href="planning.php?filter=bakken&date=<?= $date ?>&mode=day"><i class="bi bi-fire"></i> Bereiden</a>
             <a href="bakker-dashboard.php"><i class="bi bi-grid"></i> Overzicht</a>
             <a href="../index.php"><i class="bi bi-house"></i> Admin</a>
         </div>
@@ -858,7 +858,7 @@ $totalWeight += $noRecipeGroup['total_weight'];
                                 $prepStartDt->modify('-' . (count($methodDays) - 1) . ' days');
                             ?>
                             <div style="margin-top:1.5rem;padding-top:1.5rem;border-top:2px solid #f0e6d8">
-                                <h3 style="font-size:0.95rem;color:#5c3d1e;margin-bottom:1rem"><i class="bi bi-calendar-week"></i> Bakproces <span style="font-weight:400;color:#888;font-size:0.85rem">(<?= count($methodDays) ?> dagen, levering <?= formatDutchDate($deliveryDt) ?>)</span></h3>
+                                <h3 style="font-size:0.95rem;color:#2d4a2d;margin-bottom:1rem"><i class="bi bi-calendar-week"></i> Bakproces <span style="font-weight:400;color:#888;font-size:0.85rem">(<?= count($methodDays) ?> dagen, levering <?= formatDutchDate($deliveryDt) ?>)</span></h3>
                                 <?php
                                 $today = new DateTime(date('Y-m-d'));
                                 foreach ($methodDays as $di => $day):
@@ -882,7 +882,7 @@ $totalWeight += $noRecipeGroup['total_weight'];
                                     }
                                 ?>
                                     <div style="margin-bottom:0.75rem;padding:0.75rem;border-radius:8px;<?= $isToday ? 'background:#fff5f0;border:2px solid #ff6b35;' : ($isPast ? 'background:#f5f5f5;border:1px solid #e0e0e0;opacity:0.7;' : 'background:#faf8f4;border:1px solid #e8e0d5;') ?>">
-                                        <div style="font-weight:700;color:<?= $isToday ? '#ff6b35' : ($isPast ? '#999' : '#5c3d1e') ?>;margin-bottom:0.3rem;display:flex;align-items:center;gap:0.5rem">
+                                        <div style="font-weight:700;color:<?= $isToday ? '#ff6b35' : ($isPast ? '#999' : '#2d4a2d') ?>;margin-bottom:0.3rem;display:flex;align-items:center;gap:0.5rem">
                                             <?php if ($isToday): ?><i class="bi bi-arrow-right-circle-fill" style="color:#ff6b35"></i><?php endif; ?>
                                             <?= htmlspecialchars($dayLabel) ?> — <?= getDutchDayName($dayDt) ?> <?= $dayDt->format('j') ?> <?= getDutchMonthName($dayDt) ?>
                                             <?= $statusBadge ?>
@@ -900,10 +900,10 @@ $totalWeight += $noRecipeGroup['total_weight'];
                             <?php endif; ?>
 
                             <div style="margin-top:1.5rem;padding-top:1.5rem;border-top:2px solid #f0e6d8">
-                                <h3 style="font-size:0.95rem;color:#5c3d1e;margin-bottom:1rem"><i class="bi bi-box-seam"></i> Broden uit dit deeg</h3>
+                                <h3 style="font-size:0.95rem;color:#2d4a2d;margin-bottom:1rem"><i class="bi bi-box-seam"></i> Broden uit dit deeg</h3>
                                 <?php foreach ($doughGroup['recipes'] as $recipeName => $recipeInfo): ?>
                                     <div style="margin-bottom:0.75rem">
-                                        <div style="font-weight:600;color:#8b5a2b;margin-bottom:0.3rem"><i class="bi bi-journal-bookmark" style="color:#c8913a"></i> <?= htmlspecialchars($recipeName) ?></div>
+                                        <div style="font-weight:600;color:#3d6b3d;margin-bottom:0.3rem"><i class="bi bi-journal-bookmark" style="color:#c8913a"></i> <?= htmlspecialchars($recipeName) ?></div>
                                         <div class="products-used" style="margin-bottom:0">
                                             <?php foreach ($recipeInfo['products'] as $name => $data): ?>
                                                 <span class="product-tag"><strong><?= $data['qty'] ?>x</strong> <?= htmlspecialchars($name) ?> (<?= $data['weight'] ?>g)</span>
@@ -914,11 +914,11 @@ $totalWeight += $noRecipeGroup['total_weight'];
                             </div>
 
                             <div style="margin-top:1.5rem;padding-top:1.5rem;border-top:2px solid #f0e6d8">
-                                <h3 style="font-size:0.95rem;color:#5c3d1e;margin-bottom:1rem"><i class="bi bi-people"></i> Per bestelling</h3>
+                                <h3 style="font-size:0.95rem;color:#2d4a2d;margin-bottom:1rem"><i class="bi bi-people"></i> Per bestelling</h3>
                                 <?php foreach ($doughGroup['orders'] as $orderId => $orderInfo): ?>
                                     <div style="margin-bottom:0.5rem;padding:0.6rem 0.8rem;background:#faf8f4;border-radius:8px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:0.5rem">
                                         <div>
-                                            <span style="font-weight:600;color:#5c3d1e"><?= htmlspecialchars($orderInfo['bedrijfsnaam']) ?></span>
+                                            <span style="font-weight:600;color:#2d4a2d"><?= htmlspecialchars($orderInfo['bedrijfsnaam']) ?></span>
                                             <span style="color:#999;font-size:0.8rem;margin-left:0.5rem">#<?= $orderId ?></span>
                                         </div>
                                         <div class="products-used" style="margin-bottom:0;gap:0.3rem">

@@ -27,6 +27,14 @@ switch ($method) {
             exit;
         }
 
+        if ($action === 'test') {
+            $stmt = $pdo->query("SELECT id, LEFT(endpoint, 80) as endpoint_short FROM push_subscriptions");
+            $subs = $stmt->fetchAll();
+            $sent = sendPushNotification($pdo, 'Test notificatie', 'Als je dit ziet werkt push!');
+            echo json_encode(['success' => true, 'subscriptions' => count($subs), 'sent' => $sent, 'details' => $subs]);
+            exit;
+        }
+
         http_response_code(400);
         echo json_encode(['success' => false, 'error' => 'Onbekende actie']);
         break;

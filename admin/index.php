@@ -96,7 +96,7 @@ $sidebarUnprocessedOrders = $todayUnprocessed;
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Dashboard | Civetta Admin</title>
     <link rel="manifest" href="manifest.json">
-    <meta name="theme-color" content="#5c3d1e">
+    <meta name="theme-color" content="#2d4a2d">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
     <style>
         *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
@@ -550,7 +550,7 @@ $sidebarUnprocessedOrders = $todayUnprocessed;
                     </div>
 
                     <div class="stat-card">
-                        <div class="stat-card-icon" style="background: #f5ece3; color: #8b5a2b;">
+                        <div class="stat-card-icon" style="background: #f5ece3; color: #3d6b3d;">
                             <i class="bi bi-layers"></i>
                         </div>
                         <div class="stat-card-label">Totaal broden deze maand</div>
