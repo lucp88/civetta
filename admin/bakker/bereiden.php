@@ -135,6 +135,20 @@ foreach ($allOrders as $order) {
     $ordersByBereidingDate[$date][] = $order;
 }
 
+// Load appointments for the date range
+$stmtAppt = $pdo->prepare("SELECT * FROM appointments WHERE appointment_date BETWEEN ? AND ? ORDER BY appointment_date, start_time");
+$stmtAppt->execute([$startDate->format('Y-m-d'), $endDate->format('Y-m-d')]);
+$allAppointments = $stmtAppt->fetchAll();
+
+$appointmentsByDate = [];
+foreach ($allAppointments as $appt) {
+    $date = $appt['appointment_date'];
+    if (!isset($appointmentsByDate[$date])) {
+        $appointmentsByDate[$date] = [];
+    }
+    $appointmentsByDate[$date][] = $appt;
+}
+
 // Build per-dough-type bars data for week view
 $recipeBarsByBakdag = [];
 foreach ($bakdagen as $bakdag) {
@@ -461,6 +475,171 @@ function formatDutchDate($date) {
             transform: translateY(-1px);
         }
 
+        /* Appointments */
+        .appointment-item {
+            display: flex;
+            align-items: center;
+            gap: 0.35rem;
+            font-size: 0.75rem;
+            padding: 0.2rem 0.4rem;
+            border-radius: 4px;
+            color: white;
+            font-weight: 600;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            margin-top: 0.15rem;
+        }
+        .appointment-item i { font-size: 0.65rem; flex-shrink: 0; }
+        .appointment-time { font-weight: 400; opacity: 0.85; font-size: 0.65rem; }
+        .appointments-section {
+            margin-top: 0.75rem;
+            padding-top: 0.75rem;
+            border-top: 1px solid #eee;
+        }
+        .appointments-section h4 {
+            font-size: 0.9rem;
+            color: #5c3d1e;
+            margin-bottom: 0.5rem;
+            display: flex;
+            align-items: center;
+            gap: 0.4rem;
+        }
+        .appointment-card {
+            display: flex;
+            align-items: flex-start;
+            gap: 0.75rem;
+            padding: 0.6rem 0.75rem;
+            border-radius: 8px;
+            background: #f8f6f3;
+            margin-bottom: 0.4rem;
+            cursor: pointer;
+            transition: background 0.15s;
+        }
+        .appointment-card:hover { background: #f0ede8; }
+        .appointment-card .appt-color {
+            width: 4px;
+            min-height: 32px;
+            border-radius: 2px;
+            flex-shrink: 0;
+        }
+        .appointment-card .appt-info { flex: 1; min-width: 0; }
+        .appointment-card .appt-title {
+            font-weight: 600;
+            font-size: 0.9rem;
+            color: #333;
+        }
+        .appointment-card .appt-time {
+            font-size: 0.8rem;
+            color: #888;
+        }
+        .appointment-card .appt-desc {
+            font-size: 0.8rem;
+            color: #666;
+            margin-top: 0.2rem;
+        }
+        .appointment-card .appt-actions {
+            display: flex;
+            gap: 0.3rem;
+            flex-shrink: 0;
+        }
+        .appointment-card .appt-actions button {
+            background: none;
+            border: none;
+            cursor: pointer;
+            padding: 0.25rem;
+            font-size: 0.85rem;
+            color: #999;
+            border-radius: 4px;
+        }
+        .appointment-card .appt-actions button:hover { color: #333; background: #e8e5e0; }
+        .appointment-card .appt-actions button.delete:hover { color: #dc3545; }
+
+        /* Appointment modal form */
+        .appt-form .form-group { margin-bottom: 0.75rem; }
+        .appt-form .form-group label {
+            display: block;
+            font-size: 0.8rem;
+            font-weight: 600;
+            color: #5c3d1e;
+            margin-bottom: 0.3rem;
+        }
+        .appt-form .form-control {
+            width: 100%;
+            padding: 0.5rem 0.7rem;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            font-size: 0.9rem;
+            box-sizing: border-box;
+        }
+        .appt-form .form-control:focus {
+            outline: none;
+            border-color: var(--accent);
+        }
+        .appt-form .form-row {
+            display: flex;
+            gap: 0.5rem;
+        }
+        .appt-form .form-row .form-group { flex: 1; }
+        .appt-form .color-options {
+            display: flex;
+            gap: 0.4rem;
+            flex-wrap: wrap;
+        }
+        .appt-form .color-option {
+            width: 28px;
+            height: 28px;
+            border-radius: 50%;
+            border: 2px solid transparent;
+            cursor: pointer;
+            transition: all 0.15s;
+        }
+        .appt-form .color-option:hover { transform: scale(1.15); }
+        .appt-form .color-option.selected { border-color: #333; box-shadow: 0 0 0 2px white, 0 0 0 4px #333; }
+        .btn-save-appt {
+            width: 100%;
+            padding: 0.75rem;
+            background: linear-gradient(135deg, var(--accent), var(--accent-dark));
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-weight: 600;
+            font-size: 0.9rem;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .btn-save-appt:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+        }
+        .btn-delete-appt {
+            width: 100%;
+            padding: 0.5rem;
+            background: none;
+            color: #dc3545;
+            border: 1px solid #dc3545;
+            border-radius: 8px;
+            font-weight: 600;
+            font-size: 0.8rem;
+            cursor: pointer;
+            margin-top: 0.5rem;
+        }
+        .btn-delete-appt:hover { background: #dc3545; color: white; }
+        .btn-add-appt {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.3rem;
+            padding: 0.4rem 0.7rem;
+            background: var(--accent);
+            color: white;
+            border: none;
+            border-radius: 6px;
+            font-size: 0.8rem;
+            font-weight: 600;
+            cursor: pointer;
+        }
+        .btn-add-appt:hover { background: var(--accent-dark); }
+
         /* Click-to-add overlay */
         .add-bakdag-hint {
             position: absolute;
@@ -547,6 +726,7 @@ function formatDutchDate($date) {
                 $isToday = $dateKey === date('Y-m-d');
                 $isBakdag = in_array($dateKey, $bakdagen);
                 ?>
+                <?php $dayAppointments = $appointmentsByDate[$dateKey] ?? []; ?>
                 <div class="calendar-grid day-view">
                     <div class="calendar-cell day-view-cell <?= $isToday ? 'today' : '' ?> <?= $isBakdag ? 'bakdag' : 'non-bakdag' ?>">
                         <div class="calendar-date">
@@ -560,11 +740,38 @@ function formatDutchDate($date) {
                                 <?= count($orders) ?> bestelling<?= count($orders) !== 1 ? 'en' : '' ?>
                             </span>
                         </div>
+                        <?php if (!empty($dayAppointments)): ?>
+                            <div class="appointments-section">
+                                <h4><i class="bi bi-calendar-event"></i> Afspraken (<?= count($dayAppointments) ?>)
+                                    <button class="btn-add-appt" onclick="openAppointmentModal('<?= $dateKey ?>')" style="margin-left:auto"><i class="bi bi-plus"></i> Nieuw</button>
+                                </h4>
+                                <?php foreach ($dayAppointments as $appt): ?>
+                                    <div class="appointment-card" onclick='openEditAppointment(<?= json_encode($appt) ?>)'>
+                                        <div class="appt-color" style="background:<?= htmlspecialchars($appt['color']) ?>"></div>
+                                        <div class="appt-info">
+                                            <div class="appt-title"><?= htmlspecialchars($appt['title']) ?></div>
+                                            <?php if ($appt['start_time']): ?>
+                                                <div class="appt-time"><i class="bi bi-clock"></i> <?= substr($appt['start_time'], 0, 5) ?><?= $appt['end_time'] ? ' - ' . substr($appt['end_time'], 0, 5) : '' ?></div>
+                                            <?php endif; ?>
+                                            <?php if ($appt['description']): ?>
+                                                <div class="appt-desc"><?= htmlspecialchars($appt['description']) ?></div>
+                                            <?php endif; ?>
+                                        </div>
+                                    </div>
+                                <?php endforeach; ?>
+                            </div>
+                        <?php else: ?>
+                            <div style="margin-top:0.5rem">
+                                <button class="btn-add-appt" onclick="openAppointmentModal('<?= $dateKey ?>')"><i class="bi bi-plus"></i> Afspraak</button>
+                            </div>
+                        <?php endif; ?>
                         <?php if (empty($orders)): ?>
+                            <?php if (empty($dayAppointments)): ?>
                             <div class="empty-state">
                                 <i class="bi bi-emoji-smile"></i>
                                 <p>Geen bestellingen om te bereiden</p>
                             </div>
+                            <?php endif; ?>
                         <?php else: ?>
                             <?php
                             $productTotals = [];
@@ -741,11 +948,12 @@ function formatDutchDate($date) {
                     for ($i = 0; $i < 7; $i++):
                         $dateKey = $current->format('Y-m-d');
                         $orders = $ordersByBereidingDate[$dateKey] ?? [];
+                        $dayAppts = $appointmentsByDate[$dateKey] ?? [];
                         $isToday = $dateKey === date('Y-m-d');
                         $isBakdag = in_array($dateKey, $bakdagen);
                     ?>
                         <div class="calendar-cell <?= $isToday ? 'today' : '' ?> <?= $isBakdag ? 'bakdag' : 'non-bakdag' ?>"
-                             onclick="<?= $isBakdag ? "openDayModal('{$dateKey}', '" . formatDutchDate($current) . "')" : "addImpromptuBakdag('{$dateKey}', '" . formatDutchDate($current) . "')" ?>">
+                             onclick="openDayModal('<?= $dateKey ?>', '<?= formatDutchDate($current) ?>')">
                             <div class="calendar-date">
                                 <span>
                                     <?= $current->format('j') ?>
@@ -755,6 +963,13 @@ function formatDutchDate($date) {
                                 </span>
                                 <span class="calendar-count <?= count($orders) === 0 ? 'empty' : '' ?>"><?= count($orders) ?></span>
                             </div>
+                            <?php foreach ($dayAppts as $appt): ?>
+                                <div class="appointment-item" style="background:<?= htmlspecialchars($appt['color']) ?>" onclick="event.stopPropagation();openEditAppointment(<?= htmlspecialchars(json_encode($appt), ENT_QUOTES) ?>)">
+                                    <i class="bi bi-calendar-event"></i>
+                                    <?php if ($appt['start_time']): ?><span class="appointment-time"><?= substr($appt['start_time'], 0, 5) ?></span><?php endif; ?>
+                                    <?= htmlspecialchars($appt['title']) ?>
+                                </div>
+                            <?php endforeach; ?>
                             <div class="calendar-preview">
                                 <?php foreach (array_slice($orders, 0, 3) as $order): ?>
                                     <div class="calendar-preview-item"><?= htmlspecialchars($order['bedrijfsnaam']) ?></div>
@@ -802,12 +1017,13 @@ function formatDutchDate($date) {
                         foreach ($weekDates as $date):
                             $dateKey = $date->format('Y-m-d');
                             $orders = $ordersByBereidingDate[$dateKey] ?? [];
+                            $dayAppts = $appointmentsByDate[$dateKey] ?? [];
                             $isToday = $dateKey === date('Y-m-d');
                             $isOtherMonth = $date->format('m') !== $currentMonth;
                             $isBakdag = in_array($dateKey, $bakdagen);
                     ?>
                         <div class="calendar-cell <?= $isToday ? 'today' : '' ?> <?= $isOtherMonth ? 'other-month' : '' ?> <?= !$isOtherMonth ? ($isBakdag ? 'bakdag' : 'non-bakdag') : '' ?>"
-                             onclick="<?= $isBakdag ? "openDayModal('{$dateKey}', '" . formatDutchDate($date) . "')" : (!$isOtherMonth ? "addImpromptuBakdag('{$dateKey}', '" . formatDutchDate($date) . "')" : "openDayModal('{$dateKey}', '" . formatDutchDate($date) . "')") ?>">
+                             onclick="openDayModal('<?= $dateKey ?>', '<?= formatDutchDate($date) ?>')">
                             <div class="calendar-date">
                                 <span>
                                     <?= $date->format('j') ?>
@@ -819,12 +1035,19 @@ function formatDutchDate($date) {
                                     <span class="calendar-count"><?= count($orders) ?></span>
                                 <?php endif; ?>
                             </div>
-                            <?php if (!$isOtherMonth && count($orders) > 0): ?>
+                            <?php if (!$isOtherMonth): ?>
+                                <?php foreach (array_slice($dayAppts, 0, 2) as $appt): ?>
+                                    <div class="appointment-item" style="background:<?= htmlspecialchars($appt['color']) ?>;font-size:0.65rem;" onclick="event.stopPropagation();openEditAppointment(<?= htmlspecialchars(json_encode($appt), ENT_QUOTES) ?>)">
+                                        <i class="bi bi-calendar-event"></i> <?= htmlspecialchars($appt['title']) ?>
+                                    </div>
+                                <?php endforeach; ?>
+                                <?php if (count($orders) > 0): ?>
                                 <div class="calendar-preview">
                                     <?php foreach (array_slice($orders, 0, 2) as $order): ?>
                                         <div class="calendar-preview-item"><?= htmlspecialchars($order['bedrijfsnaam']) ?></div>
                                     <?php endforeach; ?>
                                 </div>
+                                <?php endif; ?>
                             <?php endif; ?>
                         </div>
                     <?php
@@ -893,12 +1116,65 @@ function formatDutchDate($date) {
         </div>
     </div>
 
+    <!-- Appointment modal -->
+    <div class="modal-overlay" id="appointmentModal">
+        <div class="modal" style="max-width:450px;">
+            <div class="modal-header">
+                <h3><i class="bi bi-calendar-event"></i> <span id="apptModalTitle">Afspraak toevoegen</span></h3>
+                <button class="modal-close" onclick="closeAppointmentModal()">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="appt-form">
+                    <input type="hidden" id="apptId" value="">
+                    <div class="form-group">
+                        <label>Titel *</label>
+                        <input type="text" class="form-control" id="apptTitle" placeholder="bijv. Overleg leverancier">
+                    </div>
+                    <div class="form-group">
+                        <label>Datum *</label>
+                        <input type="date" class="form-control" id="apptDate">
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>Starttijd</label>
+                            <input type="time" class="form-control" id="apptStartTime">
+                        </div>
+                        <div class="form-group">
+                            <label>Eindtijd</label>
+                            <input type="time" class="form-control" id="apptEndTime">
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label>Omschrijving</label>
+                        <textarea class="form-control" id="apptDescription" rows="2" placeholder="Optioneel..."></textarea>
+                    </div>
+                    <div class="form-group">
+                        <label>Kleur</label>
+                        <div class="color-options" id="apptColorOptions">
+                            <div class="color-option selected" style="background:#8b5a2b" data-color="#8b5a2b" onclick="selectApptColor(this)"></div>
+                            <div class="color-option" style="background:#ff6b35" data-color="#ff6b35" onclick="selectApptColor(this)"></div>
+                            <div class="color-option" style="background:#2196f3" data-color="#2196f3" onclick="selectApptColor(this)"></div>
+                            <div class="color-option" style="background:#4caf50" data-color="#4caf50" onclick="selectApptColor(this)"></div>
+                            <div class="color-option" style="background:#9c27b0" data-color="#9c27b0" onclick="selectApptColor(this)"></div>
+                            <div class="color-option" style="background:#e91e63" data-color="#e91e63" onclick="selectApptColor(this)"></div>
+                            <div class="color-option" style="background:#795548" data-color="#795548" onclick="selectApptColor(this)"></div>
+                            <div class="color-option" style="background:#607d8b" data-color="#607d8b" onclick="selectApptColor(this)"></div>
+                        </div>
+                    </div>
+                    <button class="btn-save-appt" onclick="saveAppointment()"><i class="bi bi-check-lg"></i> Opslaan</button>
+                    <button class="btn-delete-appt" id="btnDeleteAppt" style="display:none" onclick="deleteAppointment()"><i class="bi bi-trash"></i> Verwijderen</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <?php $detailAccentColor = '#8b5a2b'; $detailAccentColorDark = '#5c3d1e'; include 'order-detail-modal.php'; ?>
 
     <script>
     const currentDate = '<?= $viewDate ?>';
     const currentMode = '<?= $viewMode ?>';
     const ordersByDate = <?= json_encode($ordersByBereidingDate) ?>;
+    const appointmentsByDate = <?= json_encode($appointmentsByDate) ?>;
     const bakdagen = <?= json_encode($bakdagen) ?>;
     const voorbereidingDagen = <?= $voorbereidingDagen ?>;
     </script>
@@ -924,14 +1200,14 @@ function formatDutchDate($date) {
             if (data.success) {
                 window.location.reload();
             } else {
-                alert('Fout bij opslaan: ' + (data.error || 'Onbekende fout'));
+                showToast('Fout bij opslaan: ' + (data.error || 'Onbekende fout'), 'error');
             }
         });
     }
     function addExtraBakdagFromModal() {
         const datum = document.getElementById('extraBakdagDate').value;
         const notitie = document.getElementById('extraBakdagNotitie').value;
-        if (!datum) { alert('Kies een datum'); return; }
+        if (!datum) { showToast('Kies een datum', 'warning'); return; }
         fetch('/api/bakdagen.php', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -942,28 +1218,31 @@ function formatDutchDate($date) {
             if (data.success) {
                 window.location.reload();
             } else {
-                alert(data.error || 'Fout bij toevoegen');
+                showToast(data.error || 'Fout bij toevoegen', 'error');
             }
         });
     }
     function removeExtraBakdag(datum) {
-        if (!confirm('Extra bakdag verwijderen?')) return;
-        fetch('/api/bakdagen.php', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ action: 'remove_extra', datum: datum })
-        })
-        .then(r => r.json())
-        .then(data => {
-            if (data.success) {
-                window.location.reload();
-            } else {
-                alert(data.error || 'Fout bij verwijderen');
-            }
+        showConfirm('Extra bakdag verwijderen?').then(function(ok) {
+            if (!ok) return;
+            fetch('/api/bakdagen.php', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ action: 'remove_extra', datum: datum })
+            })
+            .then(r => r.json())
+            .then(data => {
+                if (data.success) {
+                    window.location.reload();
+                } else {
+                    showToast(data.error || 'Fout bij verwijderen', 'error');
+                }
+            });
         });
     }
     function addImpromptuBakdag(date, dateLabel) {
-        if (confirm('Bakdag toevoegen op ' + dateLabel + '?')) {
+        showConfirm('Bakdag toevoegen op ' + dateLabel + '?').then(function(ok) {
+            if (!ok) return;
             fetch('/api/bakdagen.php', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -974,16 +1253,119 @@ function formatDutchDate($date) {
                 if (data.success) {
                     window.location.reload();
                 } else {
-                    alert(data.error || 'Fout bij toevoegen');
+                    showToast(data.error || 'Fout bij toevoegen', 'error');
                 }
             });
-        }
+        });
     }
 
     // Auto-open settings if requested via URL
     if (new URLSearchParams(window.location.search).get('settings') === 'bakdagen') {
         openBakdagenModal();
     }
+
+    // Appointment functions
+    let selectedApptColor = '#8b5a2b';
+
+    function openAppointmentModal(date) {
+        document.getElementById('apptModalTitle').textContent = 'Afspraak toevoegen';
+        document.getElementById('apptId').value = '';
+        document.getElementById('apptTitle').value = '';
+        document.getElementById('apptDate').value = date || '';
+        document.getElementById('apptStartTime').value = '';
+        document.getElementById('apptEndTime').value = '';
+        document.getElementById('apptDescription').value = '';
+        document.getElementById('btnDeleteAppt').style.display = 'none';
+        selectApptColorByValue('#8b5a2b');
+        document.getElementById('appointmentModal').classList.add('active');
+    }
+
+    function openEditAppointment(appt) {
+        document.getElementById('apptModalTitle').textContent = 'Afspraak bewerken';
+        document.getElementById('apptId').value = appt.id;
+        document.getElementById('apptTitle').value = appt.title;
+        document.getElementById('apptDate').value = appt.appointment_date;
+        document.getElementById('apptStartTime').value = appt.start_time ? appt.start_time.substring(0, 5) : '';
+        document.getElementById('apptEndTime').value = appt.end_time ? appt.end_time.substring(0, 5) : '';
+        document.getElementById('apptDescription').value = appt.description || '';
+        document.getElementById('btnDeleteAppt').style.display = '';
+        selectApptColorByValue(appt.color || '#8b5a2b');
+        document.getElementById('appointmentModal').classList.add('active');
+    }
+
+    function closeAppointmentModal() {
+        document.getElementById('appointmentModal').classList.remove('active');
+    }
+
+    function selectApptColor(el) {
+        document.querySelectorAll('#apptColorOptions .color-option').forEach(o => o.classList.remove('selected'));
+        el.classList.add('selected');
+        selectedApptColor = el.dataset.color;
+    }
+
+    function selectApptColorByValue(color) {
+        selectedApptColor = color;
+        document.querySelectorAll('#apptColorOptions .color-option').forEach(o => {
+            o.classList.toggle('selected', o.dataset.color === color);
+        });
+    }
+
+    function saveAppointment() {
+        const id = document.getElementById('apptId').value;
+        const title = document.getElementById('apptTitle').value.trim();
+        const date = document.getElementById('apptDate').value;
+        const startTime = document.getElementById('apptStartTime').value || null;
+        const endTime = document.getElementById('apptEndTime').value || null;
+        const description = document.getElementById('apptDescription').value.trim();
+
+        if (!title || !date) { showToast('Vul titel en datum in', 'warning'); return; }
+
+        const payload = {
+            action: id ? 'update' : 'create',
+            title, appointment_date: date, start_time: startTime, end_time: endTime,
+            description, color: selectedApptColor
+        };
+        if (id) payload.id = parseInt(id);
+
+        fetch('../../api/appointments.php', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+        })
+        .then(r => r.json())
+        .then(data => {
+            if (data.success) {
+                window.location.reload();
+            } else {
+                showToast('Fout: ' + (data.error || 'Onbekende fout'), 'error');
+            }
+        });
+    }
+
+    function deleteAppointment() {
+        const id = document.getElementById('apptId').value;
+        if (!id) return;
+        showConfirm('Afspraak verwijderen?').then(function(ok) {
+            if (!ok) return;
+            fetch('../../api/appointments.php', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ action: 'delete', id: parseInt(id) })
+            })
+            .then(r => r.json())
+            .then(data => {
+                if (data.success) {
+                    window.location.reload();
+                } else {
+                    showToast('Fout: ' + (data.error || 'Onbekende fout'), 'error');
+                }
+            });
+        });
+    }
+
+    document.getElementById('appointmentModal').addEventListener('click', function(e) {
+        if (e.target === this) closeAppointmentModal();
+    });
 
     function openDayModal(date, dateLabel, filterDoughType) {
         const isBakdagDay = bakdagen.includes(date);
@@ -1094,8 +1476,33 @@ function formatDutchDate($date) {
             html += '</div>';
         }
         
+        // Appointments section in modal
+        const dayAppts = appointmentsByDate[date] || [];
+        html += `<div class="appointments-section" style="${dayAppts.length === 0 ? '' : ''}">`;
+        html += `<h4><i class="bi bi-calendar-event"></i> Afspraken (${dayAppts.length}) <button class="btn-add-appt" onclick="closeAllModals();openAppointmentModal('${date}')" style="margin-left:auto"><i class="bi bi-plus"></i> Nieuw</button></h4>`;
+        if (dayAppts.length > 0) {
+            dayAppts.forEach(appt => {
+                const timeStr = appt.start_time ? `<div class="appt-time"><i class="bi bi-clock"></i> ${appt.start_time.substring(0,5)}${appt.end_time ? ' - ' + appt.end_time.substring(0,5) : ''}</div>` : '';
+                const descStr = appt.description ? `<div class="appt-desc">${escapeHtml(appt.description)}</div>` : '';
+                html += `<div class="appointment-card" onclick='closeAllModals();openEditAppointment(${JSON.stringify(appt).replace(/'/g, "&#39;")})'>
+                    <div class="appt-color" style="background:${appt.color || '#8b5a2b'}"></div>
+                    <div class="appt-info">
+                        <div class="appt-title">${escapeHtml(appt.title)}</div>
+                        ${timeStr}${descStr}
+                    </div>
+                </div>`;
+            });
+        } else {
+            html += '<div style="color:#bbb;font-size:0.85rem;padding:0.3rem 0;">Geen afspraken</div>';
+        }
+        html += '</div>';
+
         document.getElementById('dayModalBody').innerHTML = html;
         document.getElementById('dayModal').classList.add('active');
+    }
+
+    function closeAllModals() {
+        document.querySelectorAll('.modal-overlay').forEach(m => m.classList.remove('active'));
     }
     </script>
     <script>
