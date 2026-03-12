@@ -1,0 +1,807 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mijn Bestellingen | Bakkerij Civetta</title>
+    <meta name="description" content="Bakkerij Civetta - Ambachtelijk zuurdesem brood uit Leersum.">
+    <meta property="og:title" content="Mijn Bestellingen | Bakkerij Civetta">
+    <meta property="og:description" content="Bakkerij Civetta - Ambachtelijk zuurdesem brood uit Leersum.">
+    <meta property="og:image" content="https://www.bakkerij-civetta.nl/img/logo.jpeg">
+    <meta property="og:url" content="https://www.bakkerij-civetta.nl/mijn-bestellingen.html">
+    <meta property="og:type" content="website">
+    <meta property="og:site_name" content="Bakkerij Civetta">
+    <link rel="icon" type="image/png" sizes="192x192" href="img/icon-192.png">
+    <link rel="icon" type="image/png" sizes="512x512" href="img/icon-512.png">
+    <link rel="apple-touch-icon" href="img/icon-192.png">
+    <link rel="stylesheet" href="css/style.css">
+    <link rel="stylesheet" href="css/mijn-bestellingen.css?v=8">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+    
+    <link rel="stylesheet" href="css/fonts.css">
+</head>
+<body>
+    <header>
+        <nav>
+            <div class="logo">
+                <a href="index.html">Civetta</a>
+            </div>
+            <ul class="nav-links">
+                <li><a href="index.html">Home</a></li>
+                <li><a href="ons-verhaal.html">Ons Verhaal</a></li>
+                <li><a href="producten.html">Producten</a></li>
+                <li><a href="galerij.html">Galerij</a></li>
+                <li><a href="leveranciers.html">Leveranciers</a></li>
+                <li><a href="financiering.html">Crowdfunding</a></li>
+                <li><a href="contact.html">Contact</a></li>
+                <li class="nav-login">
+                    <a href="zakelijk-dashboard.html" class="login-trigger active">Dashboard</a>
+                </li>
+            </ul>
+            <button class="mobile-menu-btn" aria-label="Menu">
+                <span></span>
+                <span></span>
+                <span></span>
+            </button>
+        </nav>
+    </header>
+
+    <main>
+        <section class="page-header">
+            <h1>Mijn Bestellingen</h1>
+        </section>
+
+        <section class="orders-page">
+            <div class="container">
+                <div id="orders-app" v-cloak>
+                    <div class="page-header-bar">
+                        <a href="zakelijk-dashboard.html" class="back-link">
+                            <span>&larr;</span> Terug naar Dashboard
+                        </a>
+                    </div>
+
+                    <div v-if="loading" class="loading">Gegevens laden...</div>
+                    
+                    <template v-else>
+                        <div class="content-section">
+                            <h3>
+                                Bestellingen
+                                <a href="bestelling-plaatsen.html" class="btn-action btn-new-order btn-small">
+                                    <span>+</span> Nieuwe Bestelling
+                                </a>
+                            </h3>
+                            <div class="filter-bar">
+                                <div class="filter-group">
+                                    <button :class="['filter-btn', { active: filters.paid }]" data-filter="paid" @click="toggleFilter('paid')">
+                                        <i class="bi bi-check-circle"></i> Betaald
+                                    </button>
+                                    <button :class="['filter-btn', { active: filters.pending }]" data-filter="pending" @click="toggleFilter('pending')">
+                                        <i class="bi bi-clock"></i> Openstaand
+                                    </button>
+                                </div>
+                                <span class="filter-separator"></span>
+                                <div class="filter-group">
+                                    <button :class="['filter-btn', { active: filters.factuur }]" data-filter="factuur" @click="toggleFilter('factuur')">
+                                        <i class="bi bi-file-earmark-text"></i> Factuur
+                                    </button>
+                                    <button :class="['filter-btn', { active: filters.ideal }]" data-filter="ideal" @click="toggleFilter('ideal')">
+                                        <i class="bi bi-credit-card"></i> iDEAL
+                                    </button>
+                                    <button :class="['filter-btn', { active: filters.saldo }]" data-filter="saldo" @click="toggleFilter('saldo')">
+                                        <i class="bi bi-wallet2"></i> Saldo
+                                    </button>
+                                </div>
+                            </div>
+                            
+                            <div class="orders-grid">
+                                <div class="orders-column">
+                                    <h4>Lopend ({{ filteredLopendeBestellingen.length }})</h4>
+                                    <div class="orders-scroll">
+                                        <div v-if="filteredLopendeBestellingen.length === 0" class="empty-state">
+                                            <p>Geen lopende bestellingen</p>
+                                        </div>
+                                        <div v-for="order in filteredLopendeBestellingen" :key="order.id" 
+                                             :class="['order-row', { 'is-recurring': order.is_recurring, 'is-paused': Number(order.is_paused) === 1 }]" @click="showOrderDetail(order)">
+                                            <span v-if="Number(order.is_paused) === 1" class="delivery-status-badge paused">
+                                                <i class="bi bi-pause-fill"></i>
+                                            </span>
+                                            <span v-else-if="order.delivery_status === 'onderweg'" class="delivery-status-badge onderweg">
+                                                <i class="bi bi-truck"></i>
+                                            </span>
+                                            <span v-else-if="order.delivery_status === 'afgeleverd'" class="delivery-status-badge afgeleverd">
+                                                <i class="bi bi-house-check"></i>
+                                            </span>
+                                            <div class="order-row-info">
+                                                <span v-if="order.is_recurring" class="recurring-icon">&#x21bb;</span>
+                                                <span class="order-row-id">#{{ order.id }}</span>
+                                                <span class="order-row-date">{{ formatDateShort(order.delivery_date) }}</span>
+                                                <span class="order-row-price">{{ formatPrice(order.total_amount) }}</span>
+                                            </div>
+                                            <div class="order-row-status">
+                                                <span :class="'order-status ' + getDisplayStatus(order)">{{ getStatusLabel(order) }}</span>
+                                                <i :class="getPaymentTypeIcon(order)" class="status-icon"></i>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                <div class="orders-column">
+                                    <h4>Afgerond ({{ filteredAfgerondeBestellingen.length }})</h4>
+                                    <div class="cancelled-toggle">
+                                        <label class="toggle-switch">
+                                            <input type="checkbox" v-model="showCancelledOrders">
+                                            <span class="toggle-slider"></span>
+                                        </label>
+                                        <span class="toggle-label">Toon geannuleerd ({{ cancelledOrdersCount }})</span>
+                                    </div>
+                                    <div class="orders-scroll">
+                                        <div v-if="filteredAfgerondeBestellingen.length === 0" class="empty-state">
+                                            <p>Nog geen afgeronde bestellingen</p>
+                                        </div>
+                                        <div v-for="order in filteredAfgerondeBestellingen" :key="order.id" 
+                                             :class="['order-row', { 'is-recurring': order.is_recurring, 'is-cancelled': Number(order.is_cancelled) === 1, 'is-missed': isOrderMissed(order) }]" @click="showOrderDetail(order)">
+                                            <span v-if="isOrderMissed(order)" class="delivery-status-badge paused">
+                                                <i class="bi bi-calendar-x"></i>
+                                            </span>
+                                            <span v-else-if="order.delivery_status === 'onderweg'" class="delivery-status-badge onderweg">
+                                                <i class="bi bi-truck"></i>
+                                            </span>
+                                            <span v-else-if="order.delivery_status === 'afgeleverd'" class="delivery-status-badge afgeleverd">
+                                                <i class="bi bi-house-check"></i>
+                                            </span>
+                                            <div class="order-row-info">
+                                                <span v-if="order.is_recurring" class="recurring-icon">&#x21bb;</span>
+                                                <span class="order-row-id">#{{ order.id }}</span>
+                                                <span class="order-row-date">{{ formatDateShort(order.delivery_date) }}</span>
+                                                <span class="order-row-price">{{ formatPrice(order.total_amount) }}</span>
+                                            </div>
+                                            <div class="order-row-status">
+                                                <span :class="'order-status ' + getDisplayStatus(order)">{{ getStatusLabel(order) }}</span>
+                                                <i :class="getPaymentTypeIcon(order)" class="status-icon"></i>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="content-section">
+                            <h3>Terugkerende Bestellingen</h3>
+                            <div v-if="recurringGroups.length === 0" class="empty-state">
+                                <p>Je hebt nog geen terugkerende bestellingen</p>
+                                <p style="font-size: 0.85rem; margin-top: 0.5rem;">Tip: maak een terugkerende bestelling bij het afrekenen</p>
+                            </div>
+                            <div v-else class="recurring-list">
+                                <div v-for="group in recurringGroups" :key="group.recurring_group_id" class="recurring-card">
+                                    <div class="recurring-type-badge" :class="group.end_date ? 'type-fixed' : 'type-rolling'">
+                                        {{ group.end_date ? 'Vaste einddatum' : 'Doorlopend' }}
+                                    </div>
+                                    <div class="recurring-info">
+                                        <h4>{{ group.name || 'Terugkerende bestelling' }}</h4>
+                                        <div class="recurring-meta">
+                                            <span>{{ getFrequencyLabel(group.frequency) }} op {{ getDayLabel(group.delivery_day) }}</span>
+                                            <span>{{ group.upcoming_orders }} leveringen gepland</span>
+                                            <span>{{ formatPrice(group.amount_per_delivery) }} / levering</span>
+                                        </div>
+                                        <div class="recurring-meta" style="margin-top: 0.5rem;">
+                                            <span v-if="group.upcoming_deliveries && group.upcoming_deliveries.length > 0">
+                                                Volgende: {{ formatDateShort(group.upcoming_deliveries[0].delivery_date) }}
+                                            </span>
+                                            <span v-if="group.end_date">Eindigt op: {{ formatDateShort(group.end_date) }}</span>
+                                            <span v-else>Bevestigd tot: {{ formatDateShort(group.confirmed_until) }}</span>
+                                        </div>
+                                        <div v-if="group.needs_renewal && !group.end_date" class="renewal-warning" style="margin-top: 0.5rem; padding: 0.5rem; background: #fff3cd; border-radius: 4px; font-size: 0.85rem; color: #856404;">
+                                            &#x1F504; Verlenging nodig - bevestig om door te gaan met leveringen
+                                        </div>
+                                    </div>
+                                    <span :class="'recurring-status ' + getRecurringStatusClass(group)">
+                                        {{ getRecurringStatusLabel(group) }}
+                                    </span>
+                                    <div class="recurring-dropdown" :class="{ open: openDropdownId && openDropdownId === group.recurring_group_id }">
+                                        <button class="recurring-dropdown-toggle" @click.stop="toggleDropdown(group.recurring_group_id)">
+                                            Acties <span class="chevron">&#9660;</span>
+                                        </button>
+                                        <div class="recurring-dropdown-menu">
+                                            <button v-if="group.needs_renewal" class="recurring-dropdown-item extend" @click="extendRecurring(group)">Verlengen</button>
+                                            <button v-if="group.is_active && !group.is_paused" class="recurring-dropdown-item pause" @click="pauseRecurring(group)">Pauzeren</button>
+                                            <button v-if="group.is_paused" class="recurring-dropdown-item resume" @click="resumeRecurring(group)">Hervatten</button>
+                                            <button v-if="group.is_active && !group.is_paused" class="recurring-dropdown-item stop" @click="stopRecurring(group)">Stoppen</button>
+                                            <button class="recurring-dropdown-item details" @click="showRecurringDetail(group)">Inzien / Aanpassen</button>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="content-section">
+                            <h3>
+                                Mijn Favorieten
+                                <a href="bestelling-plaatsen.html?mode=favorite" class="btn-action btn-new-favorite btn-small">
+                                    <span>&#9733;</span> Favoriet Samenstellen
+                                </a>
+                            </h3>
+                            <div v-if="favorites.length === 0" class="empty-state">
+                                <p>Je hebt nog geen favorieten opgeslagen</p>
+                            </div>
+                            <div v-else class="favorites-list">
+                                <div v-for="fav in favorites" :key="fav.id" class="favorite-card">
+                                    <div class="favorite-info">
+                                        <h4>{{ fav.naam }}</h4>
+                                        <p>{{ fav.items.length }} product(en)</p>
+                                    </div>
+                                    <div class="favorite-actions">
+                                        <button class="btn-icon use" @click="useFavorite(fav)" title="Bestelling plaatsen">&#10148;</button>
+                                        <button class="btn-icon delete" @click="deleteFavorite(fav.id)" title="Verwijderen">&times;</button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </template>
+
+                    <!-- Recurring Detail Modal -->
+                    <div class="modal-overlay recurring-detail-modal" :class="{ active: selectedRecurringGroup }" @click.self="closeDetailModal">
+                        <div class="modal" v-if="selectedRecurringGroup">
+                            <div class="recurring-detail-header">
+                                <div class="recurring-detail-header-left">
+                                    <h3>
+                                        <span v-if="!editingName" @click="selectedRecurringGroup.is_active && startEditName()" :class="{ 'editable-text': selectedRecurringGroup.is_active }">
+                                            {{ detailForm.name || 'Terugkerende bestelling' }}
+                                            <span v-if="selectedRecurringGroup.is_active" class="edit-icon-inline" title="Naam aanpassen">&#9998;</span>
+                                        </span>
+                                        <input v-else type="text" v-model="detailForm.name" @blur="stopEditName" @keyup.enter="stopEditName" class="inline-edit-input title-input" placeholder="Naam bestelling" ref="nameInput">
+                                    </h3>
+                                </div>
+                                <div class="recurring-detail-header-right">
+                                    <a v-if="selectedRecurringGroup.recurring_group_id" :href="'api/bestelbon.php?recurring_group_id=' + selectedRecurringGroup.recurring_group_id" target="_blank" class="btn btn-bestelbon-header" title="Bestelbon bekijken">
+                                        <i class="bi bi-file-earmark-text"></i> Bestelbon
+                                    </a>
+                                    <button class="modal-close" @click="closeDetailModal">&times;</button>
+                                </div>
+                            </div>
+                            
+                            <div class="recurring-detail-section">
+                                <h4>Instellingen</h4>
+                                <div class="recurring-detail-grid">
+                                    <div class="recurring-detail-item">
+                                        <span class="label">Frequentie</span>
+                                        <span class="value">{{ getFrequencyLabel(selectedRecurringGroup.frequency) }}</span>
+                                    </div>
+                                    <div class="recurring-detail-item">
+                                        <span class="label">Bezorgdag</span>
+                                        <span class="value">{{ getDayLabelFull(selectedRecurringGroup.delivery_day) }}</span>
+                                    </div>
+                                    <div class="recurring-detail-item">
+                                        <span class="label">Bedrag per levering</span>
+                                        <span class="value">{{ formatPrice(calculateDetailTotal()) }}</span>
+                                    </div>
+                                    <div class="recurring-detail-item">
+                                        <span class="label">Actief tot</span>
+                                        <span class="value">{{ formatDateShort(selectedRecurringGroup.confirmed_until) }}</span>
+                                    </div>
+                                    <div class="recurring-detail-item">
+                                        <span class="label">Status</span>
+                                        <span :class="'recurring-status ' + getRecurringStatusClass(selectedRecurringGroup)">
+                                            {{ getRecurringStatusLabel(selectedRecurringGroup) }}
+                                        </span>
+                                    </div>
+                                    <div class="recurring-detail-item">
+                                        <span class="label">Nog te leveren</span>
+                                        <span class="value">{{ selectedRecurringGroup.upcoming_orders }} leveringen</span>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div class="recurring-detail-section">
+                                <h4>
+                                    Opmerkingen
+                                    <span v-if="selectedRecurringGroup.is_active && !editingNotes" class="section-edit-btn" @click="startEditNotes" title="Aanpassen">&#9998;</span>
+                                </h4>
+                                <div v-if="!editingNotes" class="notes-display" :class="{ 'editable-section': selectedRecurringGroup.is_active }" @click="selectedRecurringGroup.is_active && startEditNotes()">
+                                    <p v-if="detailForm.notes">{{ detailForm.notes }}</p>
+                                    <p v-else class="no-notes">Geen opmerkingen</p>
+                                </div>
+                                <div v-else class="notes-edit">
+                                    <textarea v-model="detailForm.notes" placeholder="Speciale wensen, leverinstructies..." ref="notesInput"></textarea>
+                                    <div class="inline-edit-actions">
+                                        <button class="btn-inline-cancel" @click="cancelEditNotes">Annuleren</button>
+                                        <button class="btn-inline-save" @click="stopEditNotes">OK</button>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div class="recurring-detail-section" v-if="selectedRecurringGroup.is_active">
+                                <h4>Producten per levering</h4>
+                                <div v-if="hasUnavailableProducts()" class="unavailable-warning">
+                                    <i class="bi bi-exclamation-triangle"></i>
+                                    <span>De volgende producten zijn niet meer leverbaar en worden uit de bestelling gehaald: <strong>{{ getUnavailableProducts().join(', ') }}</strong></span>
+                                </div>
+                                <div class="edit-order-section">
+                                    <div v-for="product in detailProductsList" :key="product.key" 
+                                         :class="['edit-product-row', { 'in-order': getDetailQtyByKey(product.key) > 0 }]">
+                                        <div class="edit-product-info">
+                                            <div class="edit-product-name">{{ product.naam }}</div>
+                                            <div class="edit-product-price">{{ formatPrice(product.prijs) }}</div>
+                                        </div>
+                                        <div class="edit-product-controls">
+                                            <button class="qty-btn minus" @click="decreaseDetailQtyByKey(product)">-</button>
+                                            <span class="qty-display">{{ getDetailQtyByKey(product.key) }}</span>
+                                            <button class="qty-btn plus" @click="increaseDetailQtyByKey(product)">+</button>
+                                        </div>
+                                    </div>
+                                    <div class="edit-total-row">
+                                        <span>Totaal per levering</span>
+                                        <span class="amount">{{ formatPrice(calculateDetailTotal()) }}</span>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div class="recurring-detail-section" v-else-if="Object.keys(detailForm.items).length">
+                                <h4>Producten per levering</h4>
+                                <div class="recurring-products-grid">
+                                    <div v-for="product in detailProductsList.filter(p => getDetailQtyByKey(p.key) > 0)" :key="product.key" class="product-card-mini">
+                                        <div class="product-card-mini-info">
+                                            <span class="product-card-mini-name">{{ product.naam }}</span>
+                                            <span class="product-card-mini-price">{{ formatPrice(product.prijs) }} / stuk</span>
+                                        </div>
+                                        <div class="product-card-mini-qty">{{ getDetailQtyByKey(product.key) }}x</div>
+                                        <div class="product-card-mini-subtotal">{{ formatPrice(getDetailQtyByKey(product.key) * product.prijs) }}</div>
+                                    </div>
+                                    <div class="products-total-row">
+                                        <span>Totaal per levering:</span>
+                                        <strong>{{ formatPrice(calculateDetailTotal()) }}</strong>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div class="recurring-detail-section" v-if="selectedRecurringGroup.upcoming_deliveries && selectedRecurringGroup.upcoming_deliveries.length">
+                                <h4>Geplande leveringen</h4>
+                                <div class="recurring-deliveries-list">
+                                    <div v-for="delivery in selectedRecurringGroup.upcoming_deliveries" :key="delivery.id" :class="['recurring-delivery-item', { 'is-paused': Number(delivery.is_paused) === 1 }]">
+                                        <span class="date">{{ formatDateShort(delivery.delivery_date) }}</span>
+                                        <span class="delivery-price">{{ formatPrice(delivery.total_amount) }}</span>
+                                        <div class="actions" v-if="Number(delivery.is_cancelled) === 0 && Number(delivery.is_paused) === 0">
+                                            <button class="btn-edit-delivery" @click="openEditSingleDelivery(delivery, selectedRecurringGroup)" title="Aanpassen">&#9998;</button>
+                                            <button class="btn-skip-delivery" @click="skipDelivery(delivery, selectedRecurringGroup)" title="Overslaan">&times;</button>
+                                        </div>
+                                        <span v-if="Number(delivery.is_paused) === 1" class="order-status paused">Gepauzeerd</span>
+                                        <span v-else :class="'order-status ' + getDisplayStatus(delivery)">{{ getStatusLabel(delivery) }}</span>
+                                        <a v-if="delivery.invoice_status === 'gefactureerd' && (delivery.factuur_url || delivery.eboekhouden_pdf_url)" 
+                                           :href="delivery.factuur_url || delivery.eboekhouden_pdf_url" 
+                                           target="_blank" 
+                                           class="delivery-invoice-btn active" 
+                                           title="Factuur bekijken">
+                                            <i class="bi bi-receipt"></i> Factuur
+                                        </a>
+                                        <span v-else-if="delivery.payment_type === 'factuur' || delivery.payment_type === 'invoice'" 
+                                              class="delivery-invoice-btn inactive" 
+                                              title="Factuur volgt">
+                                            <i class="bi bi-receipt"></i> Factuur
+                                        </span>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div v-if="detailFormChanged" class="unsaved-changes-bar">
+                                <span>Je hebt onopgeslagen wijzigingen</span>
+                                <button class="btn" @click="saveDetailChanges" :disabled="savingEdit">
+                                    {{ savingEdit ? 'Opslaan...' : 'Wijzigingen opslaan' }}
+                                </button>
+                            </div>
+                            
+                            <div class="modal-actions">
+                                <button v-if="selectedRecurringGroup.needs_renewal" class="btn btn-reorder" @click="extendRecurring(selectedRecurringGroup); closeDetailModal();">Verlengen</button>
+                                <button v-if="selectedRecurringGroup.is_active && !selectedRecurringGroup.is_paused" class="btn btn-outline btn-pause" @click="pauseRecurring(selectedRecurringGroup); closeDetailModal();">Pauzeren</button>
+                                <button v-if="selectedRecurringGroup.is_paused" class="btn btn-resume" @click="resumeRecurring(selectedRecurringGroup); closeDetailModal();">Hervatten</button>
+                                <button v-if="selectedRecurringGroup.is_active && !selectedRecurringGroup.is_paused" class="btn btn-outline" style="color: #dc3545; border-color: #dc3545;" @click="stopRecurring(selectedRecurringGroup); closeDetailModal();">Stoppen</button>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Edit Single Delivery Modal -->
+                    <div class="modal-overlay edit-single-modal" :class="{ active: editSingleDelivery }" @click.self="editSingleDelivery = null">
+                        <div class="modal" v-if="editSingleDelivery">
+                            <h3>
+                                Levering {{ formatDateShort(editSingleDelivery.delivery_date) }}
+                                <button class="modal-close" @click="editSingleDelivery = null">&times;</button>
+                            </h3>
+                            
+                            <div class="single-edit-info-bar">
+                                <span>Wijzigingen gelden alleen voor deze levering</span>
+                            </div>
+                            
+                            <div class="edit-order-section">
+                                <label>Opmerkingen</label>
+                                <textarea v-model="editSingleForm.notes" placeholder="Speciale wensen voor deze levering..."></textarea>
+                            </div>
+                            
+                            <div class="edit-order-section">
+                                <label>Producten</label>
+                                <div v-for="product in singleProductsList" :key="product.key" 
+                                     :class="['edit-product-row', { 'in-order': getSingleQtyByKey(product.key) > 0 }]">
+                                    <div class="edit-product-info">
+                                        <div class="edit-product-name">{{ product.naam }}</div>
+                                        <div class="edit-product-price">{{ formatPrice(product.prijs) }}</div>
+                                    </div>
+                                    <div class="edit-product-controls">
+                                        <button class="qty-btn minus" @click="decreaseSingleQtyByKey(product)">-</button>
+                                        <span class="qty-display">{{ getSingleQtyByKey(product.key) }}</span>
+                                        <button class="qty-btn plus" @click="increaseSingleQtyByKey(product)">+</button>
+                                    </div>
+                                </div>
+                                <div class="edit-total-row">
+                                    <span>Totaal</span>
+                                    <span class="amount">{{ formatPrice(calculateSingleTotal()) }}</span>
+                                </div>
+                            </div>
+                            
+                            <div class="modal-actions">
+                                <button class="btn btn-outline" @click="editSingleDelivery = null">Annuleren</button>
+                                <button class="btn" @click="saveEditSingle" :disabled="savingEdit">
+                                    {{ savingEdit ? 'Opslaan...' : 'Opslaan' }}
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Order Detail Modal -->
+                    <div class="modal-overlay" :class="{ active: selectedOrder }" @click.self="closeOrderModal">
+                        <div class="modal" v-if="selectedOrder">
+                            <div class="order-detail-header">
+                                <div class="order-detail-header-left">
+                                    <h3>Bestelling #{{ selectedOrder.id }}</h3>
+                                    <div class="order-detail-badges">
+                                        <span :class="'order-status ' + getDisplayStatus(selectedOrder)">{{ getStatusLabel(selectedOrder) }}</span>
+                                        <i :class="getPaymentTypeIcon(selectedOrder)" class="status-icon-large"></i>
+                                    </div>
+                                </div>
+                                <button class="modal-close" @click="closeOrderModal">&times;</button>
+                            </div>
+                            
+                            <template v-if="!editingOrder">
+                                <div class="order-summary-card">
+                                    <div v-if="selectedOrder.is_recurring" class="order-recurring-badge">
+                                        <i class="bi bi-arrow-repeat"></i>
+                                        <span>{{ selectedOrder.recurring_name || 'Terugkerend' }}</span>
+                                        <span class="recurring-freq">{{ getFrequencyLabel(selectedOrder.recurring_frequency) }}</span>
+                                    </div>
+                                    
+                                    <div class="order-summary-header">
+                                        <div class="order-summary-meta">
+                                            <div class="order-meta-item">
+                                                <i class="bi bi-calendar3"></i>
+                                                <span>{{ formatDateShort(selectedOrder.delivery_date) }}</span>
+                                            </div>
+                                            <div class="order-meta-item" v-if="selectedOrder.delivery_address">
+                                                <i class="bi bi-geo-alt"></i>
+                                                <span>{{ selectedOrder.delivery_address }}</span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    
+                                    <div class="order-items-list">
+                                        <div v-for="(item, idx) in selectedOrder.items" :key="idx" class="order-item-row">
+                                            <span class="item-qty">{{ item.quantity }}x</span>
+                                            <span class="item-name">{{ item.product_name }}</span>
+                                            <span class="item-price">{{ formatPrice(item.subtotal) }}</span>
+                                        </div>
+                                    </div>
+                                    
+                                    <div class="order-summary-total">
+                                        <span>Totaal incl. BTW</span>
+                                        <strong>{{ formatPrice(selectedOrder.total_amount) }}</strong>
+                                    </div>
+                                    
+                                    <div v-if="selectedOrder.notes" class="order-summary-notes">
+                                        <i class="bi bi-chat-left-text"></i>
+                                        <span>{{ selectedOrder.notes }}</span>
+                                    </div>
+                                </div>
+                                
+                                <div class="order-detail-status-flows">
+                                    <div class="status-flow-section">
+                                        <span class="flow-label">Betaling</span>
+                                        <div class="payment-flow-track">
+                                            <div :class="['payment-flow-method', selectedOrder.payment_type === 'ideal' ? 'method-ideal' : (selectedOrder.payment_type === 'saldo' ? 'method-saldo' : 'method-factuur')]">
+                                                <i :class="selectedOrder.payment_type === 'ideal' ? 'bi bi-credit-card' : (selectedOrder.payment_type === 'saldo' ? 'bi bi-wallet2' : 'bi bi-receipt')"></i>
+                                                <span>{{ selectedOrder.payment_type === 'ideal' ? 'iDEAL' : (selectedOrder.payment_type === 'saldo' ? 'Saldo' : 'Factuur') }}</span>
+                                            </div>
+                                            <div class="payment-flow-steps">
+                                                <div v-if="selectedOrder.payment_type === 'factuur'" :class="['payment-step', selectedOrder.invoice_status === 'gefactureerd' ? 'completed' : 'active']">
+                                                    <span class="payment-step-dot"></span>
+                                                    <span class="payment-step-label">{{ selectedOrder.invoice_status === 'gefactureerd' ? 'Verstuurd' : 'In afwachting' }}</span>
+                                                </div>
+                                                <div :class="['payment-step', selectedOrder.payment_status === 'paid' ? 'completed' : (selectedOrder.invoice_status === 'gefactureerd' || selectedOrder.payment_type === 'ideal' || selectedOrder.payment_type === 'saldo' ? 'active' : 'pending')]">
+                                                    <span class="payment-step-dot"></span>
+                                                    <span class="payment-step-label">{{ selectedOrder.payment_status === 'paid' ? 'Betaald' : 'Openstaand' }}</span>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="status-flow-section">
+                                        <span class="flow-label">Levering</span>
+                                        <div class="delivery-flow-track">
+                                            <div :class="['delivery-step', getDeliveryFlowClass(selectedOrder, 'geplaatst')]">
+                                                <span class="delivery-step-icon"><i class="bi bi-check2-circle"></i></span>
+                                                <span class="delivery-step-label">Geplaatst</span>
+                                            </div>
+                                            <div class="delivery-step-connector" :class="{ active: ['wordt_bereid', 'onderweg', 'afgeleverd'].includes(selectedOrder.delivery_status) }"></div>
+                                            <div :class="['delivery-step', getDeliveryFlowClass(selectedOrder, 'wordt_bereid')]">
+                                                <span class="delivery-step-icon"><i class="bi bi-fire"></i></span>
+                                                <span class="delivery-step-label">Wordt bereid</span>
+                                            </div>
+                                            <div class="delivery-step-connector" :class="{ active: ['onderweg', 'afgeleverd'].includes(selectedOrder.delivery_status) }"></div>
+                                            <div :class="['delivery-step', getDeliveryFlowClass(selectedOrder, 'onderweg')]">
+                                                <span class="delivery-step-icon"><i class="bi bi-truck"></i></span>
+                                                <span class="delivery-step-label">Onderweg</span>
+                                            </div>
+                                            <div class="delivery-step-connector" :class="{ active: selectedOrder.delivery_status === 'afgeleverd' }"></div>
+                                            <div :class="['delivery-step', getDeliveryFlowClass(selectedOrder, 'afgeleverd')]">
+                                                <span class="delivery-step-icon"><i class="bi bi-house-check"></i></span>
+                                                <span class="delivery-step-label">Afgeleverd</span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                <div v-if="Number(selectedOrder.is_cancelled) === 1 && selectedOrder.mollie_refund_id" class="refund-status-section">
+                                    <div class="refund-status-header">
+                                        <i class="bi bi-arrow-counterclockwise"></i>
+                                        <span>Terugbetaling</span>
+                                    </div>
+                                    <div class="refund-status-content">
+                                        <div class="refund-status-badge" :class="getRefundStatusClass(selectedOrder.mollie_refund_status)">
+                                            <i :class="getRefundStatusIcon(selectedOrder.mollie_refund_status)"></i>
+                                            <span>{{ getRefundStatusLabel(selectedOrder.mollie_refund_status) }}</span>
+                                        </div>
+                                        <div class="refund-status-details">
+                                            <div class="refund-detail-row">
+                                                <span class="label">Bedrag</span>
+                                                <span class="value">{{ formatPrice(selectedOrder.total_amount) }}</span>
+                                            </div>
+                                            <div class="refund-detail-row">
+                                                <span class="label">Referentie</span>
+                                                <span class="value refund-id">{{ selectedOrder.mollie_refund_id }}</span>
+                                            </div>
+                                        </div>
+                                        <p class="refund-note">De terugbetaling wordt verwerkt door Mollie en is meestal binnen 5-10 werkdagen op uw rekening.</p>
+                                    </div>
+                                </div>
+                                
+                                <div class="modal-actions-improved">
+                                    <button v-if="selectedOrder.payment_status === 'pending' && Number(selectedOrder.is_cancelled) !== 1 && selectedOrder.invoice_status === 'gefactureerd'" @click="openPaymentPanel" class="btn btn-pay">Betalen</button>
+                                    <a v-if="canDownloadInvoice(selectedOrder)" :href="selectedOrder.factuur_url || selectedOrder.eboekhouden_pdf_url" target="_blank" class="btn btn-invoice">Factuur</a>
+                                    <a v-else-if="canDownloadBestelbon(selectedOrder)" :href="selectedOrder.bestelbon_url" target="_blank" class="btn btn-bestelbon">Bestelbon</a>
+                                    <button @click="reorder(selectedOrder)" class="btn btn-reorder-improved">Opnieuw</button>
+                                    <div v-if="canEditOrder(selectedOrder) || canCancelOrder(selectedOrder)" class="order-actions-dropdown">
+                                        <button class="btn btn-more" @click="toggleOrderActionsDropdown($event)">
+                                            <span class="dots">&#8943;</span>
+                                        </button>
+                                        <div class="order-actions-dropdown-menu" v-if="orderActionsDropdownOpen">
+                                            <button v-if="canEditOrder(selectedOrder)" @click="startEditOrder" class="order-actions-dropdown-item">Aanpassen</button>
+                                            <button v-if="canCancelOrder(selectedOrder)" @click="cancelOrder" class="order-actions-dropdown-item danger">Annuleren</button>
+                                        </div>
+                                    </div>
+                                </div>
+                            </template>
+                            
+                            <template v-else>
+                                <div class="edit-order-section">
+                                    <label>Leveradres</label>
+                                    <input type="text" v-model="orderEditForm.delivery_address" placeholder="Adres voor deze levering">
+                                </div>
+                                
+                                <div class="edit-order-section">
+                                    <label>Opmerkingen</label>
+                                    <textarea v-model="orderEditForm.notes" placeholder="Opmerkingen voor deze bestelling"></textarea>
+                                </div>
+                                
+                                <div class="edit-order-section">
+                                    <label>Producten</label>
+                                    <div v-for="product in editProductsList" :key="product.key" 
+                                         :class="['edit-product-row', { 'in-order': getEditQtyByKey(product.key) > 0 }]">
+                                        <div class="edit-product-info">
+                                            <div class="edit-product-name">{{ product.naam }}</div>
+                                            <div class="edit-product-price">{{ formatPrice(product.prijs) }}</div>
+                                        </div>
+                                        <div class="edit-product-controls">
+                                            <button class="qty-btn minus" @click="decreaseEditQtyByKey(product)">-</button>
+                                            <span class="qty-display">{{ getEditQtyByKey(product.key) }}</span>
+                                            <button class="qty-btn plus" @click="increaseEditQtyByKey(product)">+</button>
+                                        </div>
+                                    </div>
+                                    <div class="edit-total-row">
+                                        <span>Totaal</span>
+                                        <span class="amount">{{ formatPrice(calculateEditTotal()) }}</span>
+                                    </div>
+                                </div>
+                                
+                                <div class="edit-actions">
+                                    <button class="btn btn-cancel-edit" @click="cancelEditOrder">Annuleren</button>
+                                    <button class="btn btn-save-edit" @click="saveEditOrder" :disabled="savingOrder">
+                                        {{ savingOrder ? 'Opslaan...' : 'Opslaan' }}
+                                    </button>
+                                </div>
+                            </template>
+                        </div>
+                    </div>
+                    
+                    <!-- Payment Panel Modal -->
+                    <div class="modal-overlay payment-panel-modal" :class="{ active: showPaymentPanel }" @click="closePaymentPanelOverlay($event)">
+                        <div class="modal" v-if="showPaymentPanel && selectedOrder">
+                            <template v-if="!paymentConfirmed">
+                                <h3>
+                                    Betalen
+                                    <button class="modal-close" @click="closePaymentPanel">&times;</button>
+                                </h3>
+                                
+                                <div class="payment-order-summary">
+                                    <div class="payment-order-header">
+                                        <span class="order-id">Bestelling #{{ selectedOrder.id }}</span>
+                                        <span class="order-date">{{ formatDateShort(selectedOrder.delivery_date) }}</span>
+                                    </div>
+                                    <div class="payment-order-items">
+                                        <div v-for="item in selectedOrder.items" :key="item.product_name" class="payment-item">
+                                            <span>{{ item.quantity }}x {{ item.product_name }}</span>
+                                            <span>{{ formatPrice(item.subtotal) }}</span>
+                                        </div>
+                                    </div>
+                                    <div class="payment-order-total">
+                                        <span>Totaal</span>
+                                        <strong>{{ formatPrice(selectedOrder.total_amount) }}</strong>
+                                    </div>
+                                </div>
+                                
+                                <div class="payment-bank-select" v-if="!selectedBank">
+                                    <p class="payment-instruction">Selecteer je bank:</p>
+                                    <div class="bank-options">
+                                        <button v-for="bank in bankOptions" :key="bank.id" 
+                                                @click="selectBank(bank)" 
+                                                class="bank-option">
+                                            {{ bank.name }}
+                                        </button>
+                                    </div>
+                                </div>
+                                
+                                <div class="payment-qr-section" v-else-if="selectedBank">
+                                    <button class="btn-change-bank" @click="selectedBank = null">&larr; Andere bank</button>
+                                    
+                                    <div v-if="selectedBank.useEpc && bankgegevens">
+                                        <p class="payment-instruction">Scan de QR code met je {{ selectedBank.name }} app:</p>
+                                        <div class="qr-code-container" ref="qrContainer"></div>
+                                        <div class="payment-details">
+                                            <div class="payment-detail-row">
+                                                <span class="label">IBAN</span>
+                                                <span class="value">{{ bankgegevens.iban }}</span>
+                                            </div>
+                                            <div class="payment-detail-row">
+                                                <span class="label">T.n.v.</span>
+                                                <span class="value">{{ bankgegevens.naam }}</span>
+                                            </div>
+                                            <div class="payment-detail-row">
+                                                <span class="label">Bedrag</span>
+                                                <span class="value">{{ formatPrice(selectedOrder.total_amount) }}</span>
+                                            </div>
+                                            <div class="payment-detail-row">
+                                                <span class="label">Kenmerk</span>
+                                                <span class="value">{{ getPaymentReference(selectedOrder) }}</span>
+                                            </div>
+                                        </div>
+                                        <div class="payment-actions">
+                                            <button class="btn btn-outline" @click="closePaymentPanel">Annuleren</button>
+                                            <button class="btn btn-confirm-payment" @click="confirmPayment">Ik heb betaald</button>
+                                        </div>
+                                    </div>
+                                    
+                                    <div v-else>
+                                        <div v-if="mollieQrLoading" class="qr-loading">Betaallink aanmaken...</div>
+                                        <div v-else-if="mollieQrError" class="qr-error">{{ mollieQrError }}</div>
+                                        <div v-else-if="mollieCheckoutUrl" class="mollie-payment-section">
+                                            <p class="payment-instruction">Klik om te betalen via iDEAL:</p>
+                                            <a :href="mollieCheckoutUrl" class="btn btn-ideal-large" target="_blank">Betalen via iDEAL</a>
+                                            <div class="payment-details">
+                                                <div class="payment-detail-row">
+                                                    <span class="label">IBAN</span>
+                                                    <span class="value">{{ bankgegevens?.iban || '-' }}</span>
+                                                </div>
+                                                <div class="payment-detail-row">
+                                                    <span class="label">T.n.v.</span>
+                                                    <span class="value">{{ bankgegevens?.naam || 'Civetta' }}</span>
+                                                </div>
+                                                <div class="payment-detail-row">
+                                                    <span class="label">Bedrag</span>
+                                                    <span class="value">{{ formatPrice(selectedOrder.total_amount) }}</span>
+                                                </div>
+                                                <div class="payment-detail-row">
+                                                    <span class="label">Kenmerk</span>
+                                                    <span class="value">{{ getPaymentReference(selectedOrder) }}</span>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <div class="payment-actions">
+                                            <button class="btn btn-outline" @click="closePaymentPanel">Annuleren</button>
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                <div class="payment-no-bank" v-else>
+                                    <p>Bankgegevens zijn nog niet geconfigureerd. Neem contact op met de bakkerij.</p>
+                                </div>
+                            </template>
+                            
+                            <template v-else>
+                                <div class="payment-confirmed">
+                                    <div class="payment-confirmed-icon">&#10003;</div>
+                                    <h3>Bedankt voor je betaling!</h3>
+                                    <p>Het kan even duren voordat we de betaling verwerkt hebben en het hier terug te zien is.</p>
+                                    <button class="btn" @click="closePaymentPanelAndReturn">Terug naar bestellingen</button>
+                                </div>
+                            </template>
+                        </div>
+                    </div>
+                    
+                    <!-- Cancel Order Dialog -->
+                    <div class="modal-overlay cancel-dialog-modal" :class="{ active: showCancelDialog }" @click.self="closeCancelDialog">
+                        <div class="modal cancel-dialog" v-if="showCancelDialog && selectedOrder">
+                            <div class="cancel-dialog-icon">
+                                <i class="bi bi-exclamation-triangle"></i>
+                            </div>
+                            <h3>Bestelling annuleren</h3>
+                            
+                            <div class="cancel-dialog-content">
+                                <p class="cancel-warning">Weet je zeker dat je bestelling <strong>#{{ selectedOrder.id }}</strong> wilt annuleren?</p>
+                                
+                                <div class="cancel-info-box">
+                                    <div class="cancel-info-row">
+                                        <i class="bi bi-x-circle"></i>
+                                        <span>Deze actie kan niet ongedaan worden gemaakt</span>
+                                    </div>
+                                    <div class="cancel-info-row refund-info">
+                                        <i class="bi bi-arrow-counterclockwise"></i>
+                                        <span>Het bedrag van <strong>{{ formatPrice(selectedOrder.total_amount) }}</strong> wordt teruggestort</span>
+                                    </div>
+                                    <div class="cancel-info-row">
+                                        <i class="bi bi-clock"></i>
+                                        <span>De terugbetaling kan enkele werkdagen duren</span>
+                                    </div>
+                                </div>
+                                
+                                <p class="cancel-note">Je ontvangt een bevestiging per e-mail zodra de annulering is verwerkt.</p>
+                            </div>
+                            
+                            <div class="cancel-dialog-actions">
+                                <button class="btn btn-outline" @click="closeCancelDialog" :disabled="cancellingOrder">Terug</button>
+                                <button class="btn btn-danger" @click="confirmCancelOrder" :disabled="cancellingOrder">
+                                    <span v-if="cancellingOrder">Bezig...</span>
+                                    <span v-else>Ja, annuleren</span>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <footer>
+        <div class="container">
+            <div class="footer-content">
+                <div class="footer-info">
+                    <p><strong>Bakkerij Civetta</strong></p>
+                    <p>Leersum, Utrecht</p>
+                </div>
+                <img src="img/logo.jpeg" alt="Civetta" class="footer-logo">
+                <div class="footer-contact">
+                    <p><a href="mailto:info@bakkerij-civetta.nl">info@bakkerij-civetta.nl</a></p>
+                    <p><a href="privacy.html">Privacybeleid</a></p>
+                </div>
+            </div>
+        </div>
+    </footer>
+
+    <script src="https://unpkg.com/vue@3/dist/vue.global.prod.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+    <script src="js/main.js"></script>
+    <script src="js/ui-notifications.js?v=1"></script>
+    <script src="js/mijn-bestellingen-app.js?v=10"></script>
+</body>
+</html>

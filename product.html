@@ -1,0 +1,382 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Product | Bakkerij Civetta</title>
+    <meta name="description" content="Bakkerij Civetta - Ambachtelijk zuurdesem brood uit Leersum.">
+    <meta property="og:title" content="Product | Bakkerij Civetta">
+    <meta property="og:description" content="Bakkerij Civetta - Ambachtelijk zuurdesem brood uit Leersum.">
+    <meta property="og:image" content="https://www.bakkerij-civetta.nl/img/logo.jpeg">
+    <meta property="og:url" content="https://www.bakkerij-civetta.nl/product.html">
+    <meta property="og:type" content="website">
+    <meta property="og:site_name" content="Bakkerij Civetta">
+    <link rel="icon" type="image/png" sizes="192x192" href="img/icon-192.png">
+    <link rel="icon" type="image/png" sizes="512x512" href="img/icon-512.png">
+    <link rel="apple-touch-icon" href="img/icon-192.png">
+    <link rel="stylesheet" href="css/style.css">
+    
+    <link rel="stylesheet" href="css/fonts.css">
+    <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
+    <style>
+        .product-detail-loading,
+        .product-detail-error {
+            text-align: center;
+            padding: var(--spacing-lg);
+            color: var(--color-stone);
+        }
+        .product-detail-error a {
+            color: var(--color-crust);
+        }
+        .product-breadcrumb {
+            font-size: 0.9rem;
+            color: var(--color-stone);
+            margin-bottom: var(--spacing-md);
+        }
+        .product-breadcrumb a {
+            color: var(--color-crust);
+            text-decoration: none;
+        }
+        .product-breadcrumb a:hover {
+            text-decoration: underline;
+        }
+        .product-breadcrumb span {
+            margin: 0 0.4rem;
+            color: var(--color-wheat);
+        }
+        .product-detail-layout {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: var(--spacing-lg);
+            align-items: start;
+        }
+        @media (max-width: 700px) {
+            .product-detail-layout {
+                grid-template-columns: 1fr;
+            }
+        }
+        .product-detail-image {
+            border-radius: 16px;
+            overflow: hidden;
+            background: var(--color-parchment);
+            aspect-ratio: 4/3;
+        }
+        .product-detail-image img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            display: block;
+        }
+        .product-detail-image-placeholder {
+            width: 100%;
+            height: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .product-detail-image-placeholder svg {
+            width: 80px;
+            height: 80px;
+            opacity: 0.3;
+        }
+        .product-detail-info {
+            display: flex;
+            flex-direction: column;
+            gap: var(--spacing-sm);
+        }
+        .product-detail-name {
+            font-family: var(--font-display);
+            font-size: 2rem;
+            color: var(--color-crust-dark);
+            margin: 0;
+        }
+        .product-detail-description {
+            color: var(--color-stone);
+            font-size: 1rem;
+            line-height: 1.7;
+        }
+        .product-detail-section-label {
+            font-size: 0.8rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+            color: var(--color-wheat);
+            margin-bottom: 0.25rem;
+        }
+        .product-detail-ingredients {
+            font-size: 0.95rem;
+            color: var(--color-stone);
+            line-height: 1.6;
+        }
+        .product-detail-biologisch {
+            font-size: 0.8rem;
+            color: var(--color-sage);
+            margin-top: 0.3rem;
+            font-style: italic;
+        }
+        .product-detail-variants {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.5rem;
+        }
+        .product-detail-variant {
+            background: var(--color-parchment);
+            border-radius: 8px;
+            padding: 0.4rem 0.9rem;
+            font-size: 0.95rem;
+            color: var(--color-crust-dark);
+        }
+        .product-detail-variant strong {
+            font-family: var(--font-display);
+            color: var(--color-crust);
+        }
+        .variant-select {
+            width: 100%;
+            padding: 0.75rem 1rem;
+            border: 2px solid var(--color-parchment);
+            border-radius: 10px;
+            font-size: 1rem;
+            font-family: var(--font-body);
+            color: var(--color-crust-dark);
+            background: var(--color-warm-white);
+            cursor: pointer;
+            appearance: none;
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%238b5a2b' stroke-width='2' fill='none'/%3E%3C/svg%3E");
+            background-repeat: no-repeat;
+            background-position: right 1rem center;
+        }
+        .variant-select:focus {
+            outline: none;
+            border-color: var(--color-crust);
+        }
+        .product-detail-divider {
+            border: none;
+            border-top: 1px solid var(--color-parchment);
+            margin: 0;
+        }
+        /* Collapsible samenstelling */
+        .samenstelling-toggle {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            background: none;
+            border: 1px solid var(--color-parchment);
+            border-radius: 8px;
+            padding: 0.6rem 0.9rem;
+            width: 100%;
+            cursor: pointer;
+            font-family: var(--font-display);
+            font-size: 0.95rem;
+            color: var(--color-crust-dark);
+            transition: background 0.2s;
+        }
+        .samenstelling-toggle:hover {
+            background: var(--color-parchment);
+        }
+        .samenstelling-arrow {
+            font-size: 0.75rem;
+            transition: transform 0.2s;
+        }
+        .samenstelling-arrow.open {
+            transform: rotate(180deg);
+        }
+        .samenstelling-content {
+            background: var(--color-warm-white);
+            border: 1px solid var(--color-parchment);
+            border-top: none;
+            border-radius: 0 0 8px 8px;
+            padding: 0.75rem 0.9rem;
+            display: flex;
+            flex-direction: column;
+            gap: 0.35rem;
+        }
+        .samenstelling-volkoren {
+            font-size: 0.9rem;
+            color: var(--color-sage);
+            font-weight: 600;
+            margin-bottom: 0.25rem;
+        }
+        .samenstelling-subtitle {
+            font-size: 0.75rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.07em;
+            color: var(--color-wheat);
+            margin-bottom: 0.1rem;
+        }
+        .samenstelling-row {
+            display: flex;
+            justify-content: space-between;
+            font-size: 0.9rem;
+            color: var(--color-stone);
+            padding: 0.15rem 0;
+        }
+        .samenstelling-row strong {
+            color: var(--color-crust);
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <nav>
+            <div class="logo">
+                <a href="index.html">Civetta</a>
+            </div>
+            <ul class="nav-links">
+                <li><a href="index.html">Home</a></li>
+                <li><a href="ons-verhaal.html">Ons Verhaal</a></li>
+                <li><a href="producten.html" class="active">Producten</a></li>
+                <li><a href="galerij.html">Galerij</a></li>
+                <li><a href="leveranciers.html">Leveranciers</a></li>
+                <li><a href="financiering.html">Crowdfunding</a></li>
+                <li><a href="contact.html">Contact</a></li>
+                <li class="nav-login">
+                    <a href="login.html" class="login-trigger">Inloggen</a>
+                </li>
+            </ul>
+            <button class="mobile-menu-btn" aria-label="Menu">
+                <span></span>
+                <span></span>
+                <span></span>
+            </button>
+        </nav>
+    </header>
+
+    <main id="product-detail-app">
+        <div v-if="loading" class="products">
+            <div class="container">
+                <div class="product-detail-loading">Product laden...</div>
+            </div>
+        </div>
+
+        <div v-else-if="error" class="products">
+            <div class="container">
+                <div class="product-detail-error">
+                    <p>{{ error }}</p>
+                    <p><a href="producten.html">← Terug naar producten</a></p>
+                </div>
+            </div>
+        </div>
+
+        <template v-else-if="product">
+            <section class="page-header">
+                <div class="container" style="text-align:left;">
+                    <div class="product-breadcrumb">
+                        <a href="producten.html">Producten</a>
+                        <span>›</span>
+                        <span>{{ product.naam }}</span>
+                    </div>
+                    <h1 style="font-size:2.5rem; margin:0;">{{ product.naam }}</h1>
+                </div>
+            </section>
+
+            <section class="products">
+                <div class="container">
+                    <div class="product-detail-layout">
+                        <!-- Image -->
+                        <div class="product-detail-image">
+                            <img v-if="displayFoto" :src="displayFoto" :alt="product.naam">
+                            <div v-else class="product-detail-image-placeholder">
+                                <svg viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                    <ellipse cx="50" cy="58" rx="35" ry="22" fill="#d4a574" opacity="0.6"/>
+                                    <ellipse cx="50" cy="52" rx="30" ry="18" fill="#c67b4e" opacity="0.7"/>
+                                    <ellipse cx="50" cy="47" rx="22" ry="12" fill="#8b5a2b" opacity="0.5"/>
+                                </svg>
+                            </div>
+                        </div>
+
+                        <!-- Info -->
+                        <div class="product-detail-info">
+                            <p v-if="product.beschrijving" class="product-detail-description">
+                                {{ product.beschrijving }}
+                            </p>
+
+                            <!-- Variant selector -->
+                            <div v-if="selectableVariants.length > 1">
+                                <div class="product-detail-section-label">Variant</div>
+                                <select class="variant-select" v-model="selectedVariantId" @change="showDetails = false">
+                                    <option v-for="v in selectableVariants" :key="v.id" :value="v.id">
+                                        {{ variantLabel(v) }}
+                                    </option>
+                                </select>
+                            </div>
+
+                            <hr class="product-detail-divider">
+
+                            <!-- Ingredients -->
+                            <div v-if="displayIngredients">
+                                <div class="product-detail-section-label">Ingrediënten</div>
+                                <div class="product-detail-ingredients">
+                                    <template v-if="displayIngredientItems">
+                                        <template v-for="(item, idx) in displayIngredientItems"><strong v-if="item.allergeen">{{ item.name }}</strong><template v-else>{{ item.name }}</template><template v-if="idx < displayIngredientItems.length - 1">, </template></template>
+                                    </template>
+                                    <template v-else>{{ displayIngredients }}</template>
+                                </div>
+                                <div v-if="hasBiologisch" class="product-detail-biologisch">* Biologisch product</div>
+                                <div v-if="allergenList.length > 0" class="product-detail-biologisch">Vetgedrukt = allergeen</div>
+                            </div>
+
+                            <!-- Allergenen (collapsible, default open) -->
+                            <div v-if="allergenList.length > 0 || traceAllergens.length > 0">
+                                <button class="samenstelling-toggle" @click="showAllergens = !showAllergens">
+                                    <span>Allergenen</span>
+                                    <span class="samenstelling-arrow" :class="{ open: showAllergens }">▼</span>
+                                </button>
+                                <div v-if="showAllergens" class="samenstelling-content">
+                                    <div v-for="name in allergenList" :key="name" class="samenstelling-row">
+                                        <span><strong>{{ name }}</strong></span>
+                                    </div>
+                                    <div v-if="traceAllergens.length > 0" class="samenstelling-row" style="margin-top: 0.5rem; font-style: italic; font-size: 0.85rem;">
+                                        Kan sporen bevatten van: {{ traceAllergens.join(', ').toLowerCase() }}
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Specificaties (collapsible, default closed) -->
+                            <div v-if="displayRecipeDetails">
+                                <button class="samenstelling-toggle" @click="showDetails = !showDetails">
+                                    <span>Specificaties</span>
+                                    <span class="samenstelling-arrow" :class="{ open: showDetails }">▼</span>
+                                </button>
+                                <div v-if="showDetails" class="samenstelling-content">
+                                    <div v-if="displayRecipeDetails.volkoren_pct > 0" class="samenstelling-volkoren">
+                                        {{ displayRecipeDetails.volkoren_pct }}% volkoren
+                                    </div>
+                                    <div v-if="displayRecipeDetails.grains && displayRecipeDetails.grains.length > 0">
+                                        <div class="samenstelling-subtitle">Meelsoorten</div>
+                                        <div v-for="grain in displayRecipeDetails.grains" :key="grain.name" class="samenstelling-row">
+                                            <span>{{ grain.name }}</span>
+                                            <strong>{{ grain.pct }}%</strong>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <hr class="product-detail-divider">
+                        </div>
+                    </div>
+                </div>
+            </section>
+        </template>
+    </main>
+
+    <footer>
+        <div class="container">
+            <div class="footer-content">
+                <div class="footer-info">
+                    <p><strong>Bakkerij Civetta</strong></p>
+                    <p>Leersum, Utrecht</p>
+                </div>
+                <img src="img/logo.jpeg" alt="Civetta" class="footer-logo">
+                <div class="footer-contact">
+                    <p><a href="mailto:info@bakkerij-civetta.nl">info@bakkerij-civetta.nl</a></p>
+                    <p><a href="privacy.html">Privacybeleid</a></p>
+                </div>
+            </div>
+        </div>
+    </footer>
+
+    <script src="js/main.js"></script>
+    <script src="js/product-detail-app.js?v=4"></script>
+</body>
+</html>

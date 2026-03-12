@@ -1,0 +1,174 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Bakkerij Civetta | Ambachtelijk Brood uit Leersum</title>
+    <meta name="description" content="Ambachtelijk zuurdesem brood uit Leersum. Gebakken met geduld, goede ingrediënten en zonder onnodige toevoegingen.">
+    <meta property="og:title" content="Bakkerij Civetta | Ambachtelijk Brood uit Leersum">
+    <meta property="og:description" content="Ambachtelijk zuurdesem brood uit Leersum. Gebakken met geduld, goede ingrediënten en zonder onnodige toevoegingen.">
+    <meta property="og:image" content="https://www.bakkerij-civetta.nl/img/logo.jpeg">
+    <meta property="og:url" content="https://www.bakkerij-civetta.nl/">
+    <meta property="og:type" content="website">
+    <meta property="og:site_name" content="Bakkerij Civetta">
+    <link rel="icon" type="image/png" sizes="192x192" href="img/icon-192.png">
+    <link rel="icon" type="image/png" sizes="512x512" href="img/icon-512.png">
+    <link rel="apple-touch-icon" href="img/icon-192.png">
+    <link rel="stylesheet" href="css/style.css">
+    <style>[v-cloak] { display: none; }</style>
+    
+    <link rel="stylesheet" href="css/fonts.css">
+</head>
+<body>
+    <header>
+        <nav>
+            <div class="logo">
+                <a href="index.html">Civetta</a>
+            </div>
+            <ul class="nav-links">
+                <li><a href="index.html" class="active">Home</a></li>
+                <li><a href="ons-verhaal.html">Ons Verhaal</a></li>
+                <li><a href="producten.html">Producten</a></li>
+                <li><a href="galerij.html">Galerij</a></li>
+                <li><a href="leveranciers.html">Leveranciers</a></li>
+                <li><a href="financiering.html">Crowdfunding</a></li>
+                <li><a href="contact.html">Contact</a></li>
+                <li class="nav-login">
+                    <a href="login.html" class="login-trigger">Inloggen</a>
+                </li>
+            </ul>
+            <button class="mobile-menu-btn" aria-label="Menu">
+                <span></span>
+                <span></span>
+                <span></span>
+            </button>
+        </nav>
+    </header>
+
+    <main>
+        <section class="hero">
+            <div class="hero-content">
+                <img src="img/logo.jpeg" alt="Civetta" class="hero-logo">
+                <h1>Bakkerij Civetta</h1>
+                <p class="tagline">Ambachtelijk brood uit Leersum</p>
+            </div>
+        </section>
+
+        <section class="intro">
+            <div class="container">
+                <h2>Welkom</h2>
+                <p>
+                    Bakkerij Civetta is een ambachtelijke bakkerij in Leersum die binnenkort gaat beginnen. 
+                    Hier wordt zuurdesem brood gebakken zoals het hoort: met geduld, goede ingrediënten 
+                    en zonder onnodige toevoegingen.
+                </p>
+                <div class="intro-contact">
+                    <h3>Ga direct naar:</h3>
+                    <a href="contact.html" class="btn">Contact & locatie</a>
+                    <a href="financiering.html" class="btn">Doneren</a>
+                </div>
+            </div>
+        </section>
+
+        <section class="blog">
+            <div class="container">
+                <h2>Nieuws uit de bakkerij</h2>
+                <div id="blog-app" v-cloak>
+                    <div class="admin-bar" v-if="isAuthenticated">
+                        <button @click="showEditor = true; editingPost = null" class="btn-small">+ Nieuwe post</button>
+                    </div>
+
+                    <div v-if="showPasswordChange" class="modal-overlay" @click.self="showPasswordChange = false">
+                        <div class="modal">
+                            <h3>Wachtwoord wijzigen</h3>
+                            <div v-if="passwordError" class="error-msg">{{ passwordError }}</div>
+                            <div v-if="passwordSuccess" class="success-msg">{{ passwordSuccess }}</div>
+                            <form @submit.prevent="changePassword">
+                                <div class="form-group">
+                                    <label>Huidig wachtwoord</label>
+                                    <input v-model="passwordForm.current" type="password" required>
+                                </div>
+                                <div class="form-group">
+                                    <label>Nieuw wachtwoord</label>
+                                    <input v-model="passwordForm.new_password" type="password" required minlength="8">
+                                </div>
+                                <div class="form-group">
+                                    <label>Bevestig nieuw wachtwoord</label>
+                                    <input v-model="passwordForm.confirm" type="password" required minlength="8">
+                                </div>
+                                <div class="modal-buttons">
+                                    <button type="submit" class="btn">Wijzigen</button>
+                                    <button type="button" @click="showPasswordChange = false" class="btn btn-outline">Annuleren</button>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
+
+                    <div v-if="showEditor" class="modal-overlay" @click.self="showEditor = false">
+                        <div class="modal modal-large">
+                            <h3>{{ editingPost ? 'Post bewerken' : 'Nieuwe post' }}</h3>
+                            <form @submit.prevent="savePost">
+                                <div class="form-group">
+                                    <label>Titel</label>
+                                    <input v-model="postForm.title" type="text" required>
+                                </div>
+                                <div class="form-group">
+                                    <label>Datum</label>
+                                    <input v-model="postForm.post_date" type="date" required>
+                                </div>
+                                <div class="form-group">
+                                    <label>Inhoud</label>
+                                    <textarea v-model="postForm.content" rows="10" required></textarea>
+                                </div>
+                                <div class="modal-buttons">
+                                    <button type="submit" class="btn">Opslaan</button>
+                                    <button type="button" @click="showEditor = false" class="btn btn-outline">Annuleren</button>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
+
+                    <div v-if="loading" class="placeholder-text">Posts worden geladen...</div>
+                    <div v-else-if="posts.length === 0" class="placeholder-text">Nog geen nieuws. Kom binnenkort terug!</div>
+                    <template v-else>
+                        <article v-for="(post, index) in posts" :key="post.id" class="blog-post">
+                            <div class="post-header">
+                                <div class="post-date">{{ formatDate(post.post_date) }}</div>
+                                <div v-if="isAuthenticated" class="post-actions">
+                                    <button @click="editPost(post)" class="btn-icon" title="Bewerken">✏️</button>
+                                    <button @click="deletePost(post)" class="btn-icon" title="Verwijderen">🗑️</button>
+                                </div>
+                            </div>
+                            <h3>{{ post.title }}</h3>
+                            <div v-html="formatContent(post.content)"></div>
+                            <a v-if="index === 1" href="financiering.html" class="btn" style="margin-top: 1.5rem; display: inline-block;">Doneren</a>
+                        </article>
+                    </template>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <footer>
+        <div class="container">
+            <div class="footer-content">
+                <div class="footer-info">
+                    <p><strong>Bakkerij Civetta</strong></p>
+                    <p>Leersum, Utrecht</p>
+                </div>
+                <img src="img/logo.jpeg" alt="Civetta" class="footer-logo">
+                <div class="footer-contact">
+                    <p><a href="mailto:info@bakkerij-civetta.nl">info@bakkerij-civetta.nl</a></p>
+                    <p><a href="privacy.html">Privacybeleid</a></p>
+                </div>
+            </div>
+        </div>
+    </footer>
+
+    <script src="https://unpkg.com/vue@3/dist/vue.global.prod.js"></script>
+    <script src="js/main.js"></script>
+    <script src="js/admin-auth.js?v=1"></script>
+    <script src="js/ui-notifications.js?v=1"></script>
+    <script src="js/blog-app.js?v=3"></script>
+</body>
+</html>

@@ -1,0 +1,28 @@
+# Credentials & secrets
+.env
+.htaccess
+admin/secrets.php
+
+# Dependencies
+vendor/
+
+# Generated PDFs (contain customer data)
+facturen/
+bestelbonnen/
+
+# Uploaded images (large, served from server)
+img/producten/
+img/uploads/
+img/galerij/
+
+# Logs
+*.log
+cron/*.log
+
+# OS / editor
+.DS_Store
+Thumbs.db
+.vscode/
+
+# Claude Code
+.claude/

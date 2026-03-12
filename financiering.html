@@ -1,0 +1,376 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Financiering | Bakkerij Civetta</title>
+    <meta name="description" content="Steun Bakkerij Civetta via crowdfunding en help ons groeien.">
+    <meta property="og:title" content="Financiering | Bakkerij Civetta">
+    <meta property="og:description" content="Steun Bakkerij Civetta via crowdfunding en help ons groeien.">
+    <meta property="og:image" content="https://www.bakkerij-civetta.nl/img/logo.jpeg">
+    <meta property="og:url" content="https://www.bakkerij-civetta.nl/financiering.html">
+    <meta property="og:type" content="website">
+    <meta property="og:site_name" content="Bakkerij Civetta">
+    <link rel="icon" type="image/png" sizes="192x192" href="img/icon-192.png">
+    <link rel="icon" type="image/png" sizes="512x512" href="img/icon-512.png">
+    <link rel="apple-touch-icon" href="img/icon-192.png">
+    <link rel="stylesheet" href="css/style.css">
+    <style>
+        .purchased td { text-decoration: line-through; color: #999; }
+        .purchased td:last-child { text-decoration: none; color: #2e7d32; }
+    </style>
+    
+    <link rel="stylesheet" href="css/fonts.css">
+</head>
+<body>
+    <header>
+        <nav>
+            <div class="logo">
+                <a href="index.html">Civetta</a>
+            </div>
+            <ul class="nav-links">
+                <li><a href="index.html">Home</a></li>
+                <li><a href="ons-verhaal.html">Ons Verhaal</a></li>
+                <li><a href="producten.html">Producten</a></li>
+                <li><a href="galerij.html">Galerij</a></li>
+                <li><a href="leveranciers.html">Leveranciers</a></li>
+                <li><a href="financiering.html" class="active">Crowdfunding</a></li>
+                <li><a href="contact.html">Contact</a></li>
+                <li class="nav-login">
+                    <a href="login.html" class="login-trigger">Inloggen</a>
+                </li>
+            </ul>
+            <button class="mobile-menu-btn" aria-label="Menu">
+                <span></span>
+                <span></span>
+                <span></span>
+            </button>
+        </nav>
+    </header>
+
+    <main>
+        <section class="page-header">
+            <div class="container">
+                <h1>Financiering van Civetta</h1>
+            </div>
+        </section>
+
+        <!--
+        <section class="fundraiser">
+            <div class="container">
+                <div class="fundraiser-box">
+                    <h2>Help de oven aan!</h2>
+                    <p class="fundraiser-subtitle">We zijn bijna op temperatuur... maar nog niet helemaal.</p>
+                    <div class="fundraiser-progress">
+                        <div class="progress-bar">
+                            <div class="progress-fill" style="width: 35.5%">
+                                <span class="progress-bread">🥖</span>
+                            </div>
+                        </div>
+                        <div class="progress-labels">
+                            <span>€0</span>
+                            <span>€19.000</span>
+                        </div>
+                    </div>
+                    <div class="fundraiser-stats">
+                        <div class="stat">
+                            <span class="stat-number">€8.000</span>
+                            <span class="stat-label">opgehaald</span>
+                        </div>
+                        <div class="stat">
+                            <span class="stat-number">€14.500</span>
+                            <span class="stat-label">te gaan</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+        -->
+
+        <section class="funding-content">
+            <div class="container">
+                <div class="funding-intro">
+                    <p>Om Civetta goed te kunnen starten zijn een aantal essentiële investeringen nodig, zoals een oven, menger en andere bakkerijapparatuur. In totaal gaat het om een bedrag van ongeveer <strong>€19.000</strong>.</p>
+                    <p>Een deel hiervan heb ik al zelf geïnvesteerd, maar ik heb ook besloten om een crowdfundingsactie te starten zodat mensen die dat willen een gepaste bijdrage kunnen leveren.</p>
+                    
+                    <div class="fundraiser-box" id="progress-box">
+                        <div class="fundraiser-progress">
+                            <div class="progress-bar">
+                                <div class="progress-fill" id="progress-fill" style="width: 0%">
+                                    <span class="progress-bread">🥖</span>
+                                </div>
+                            </div>
+                            <div class="progress-labels">
+                                <span>€0</span>
+                                <span>€19.000</span>
+                            </div>
+                        </div>
+                        <div class="fundraiser-stats">
+                            <div class="stat">
+                                <span class="stat-number" id="amount-raised">€0</span>
+                                <span class="stat-label">opgehaald</span>
+                            </div>
+                            <div class="stat">
+                                <span class="stat-number" id="amount-remaining">€19.000</span>
+                                <span class="stat-label">te gaan</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="funding-section">
+                    <h2>Waar wordt het geld voor gebruikt?</h2>
+                    <table class="equipment-table">
+                        <thead>
+                            <tr>
+                                <th>Wat</th>
+                                <th>Prijs</th>
+                                <th>Aangekocht</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr class="purchased">
+                                <td>Oven</td>
+                                <td>€5.000</td>
+                                <td>✓</td>
+                            </tr>
+                            <tr>
+                                <td>Spiraalmenger</td>
+                                <td>€5.000</td>
+                                <td></td>
+                            </tr>
+                            <tr class="purchased">
+                                <td>Diviseuse</td>
+                                <td>€3.000</td>
+                                <td>✓</td>
+                            </tr>
+                            <tr class="purchased">
+                                <td>Koelkast & vriezer</td>
+                                <td>€2.000</td>
+                                <td>✓</td>
+                            </tr>
+                            <tr>
+                                <td>Overig materieel</td>
+                                <td>€2.000</td>
+                                <td></td>
+                            </tr>
+                            <tr>
+                                <td>Initiële voorraad & eerste operationele kosten</td>
+                                <td>€2.000</td>
+                                <td></td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <div class="funding-section">
+                    <h2>Hoe kun je meedoen?</h2>
+                    <p>Er zijn drie manieren om bij te dragen, optie 1 is voor kleinere bijdrages terwijl twee en drie voor grotere giften zijn. Opties twee en drie zijn ook te combineren.</p>
+                    
+                    <div class="funding-option">
+                        <h3>1. Crowdfunding</h3>
+                        <p>Wil je Civetta steunen met een kleiner bedrag? Dat kan heel eenvoudig via iDEAL:</p>
+                        <div class="ideal-details">
+                            <div class="mollie-fields">
+                                <div class="mollie-field">
+                                    <input type="text" id="donate-name" placeholder="Je naam (optioneel)">
+                                </div>
+                                <div class="mollie-field">
+                                    <input type="text" id="donate-message" placeholder="Een persoonlijk bericht (optioneel)">
+                                </div>
+                            </div>
+                            <div class="mollie-section">
+                                <div class="mollie-options">
+                                    <button type="button" class="mollie-amount-btn" data-amount="10">€10</button>
+                                    <button type="button" class="mollie-amount-btn" data-amount="25">€25</button>
+                                    <button type="button" class="mollie-amount-btn" data-amount="50">€50</button>
+                                    <span class="mollie-custom">
+                                        <label>of</label>
+                                        <span class="custom-amount-input">
+                                            <span class="currency-symbol">€</span>
+                                            <input type="number" id="custom-amount" min="1" placeholder="...">
+                                        </span>
+                                    </span>
+                                </div>
+                                <div class="mollie-submit">
+                                    <button type="button" class="btn mollie-submit-btn" id="mollie-donate-btn">Doneer</button>
+                                </div>
+                            </div>
+                        </div>
+                        <p style="margin-top: 1.5em;">of een directe overboeking naar:</p>
+                        <div class="bank-details">
+                            <p><strong>Ten name van:</strong> Civetta</p>
+                            <p><strong>IBAN:</strong> NL62TRIO0321131584</p>
+                            <p><strong>Omschrijving:</strong> Crowdfunding – [je naam]</p>
+                        </div>
+                        <p style="margin-top: 1.5em;">Elke bijdrage, groot of klein, wordt enorm gewaardeerd!</p>
+                    </div>
+
+                    <div class="funding-option">
+                        <h3>2. Gift of Investering</h3>
+                        <p>Je kunt er ook voor kiezen om Civetta te steunen via een gift. Binnen deze optie zijn er verschillende mogelijkheden:</p>
+                        <ul>
+                            <li>Gift (belastingvrij tot €2.769 in 2026)</li>
+                            <li>Terug te schenken bij winst (vrijblijvend, zonder verplichting)</li>
+                            <li>Omzetting naar investering mocht Civetta later een BV worden</li>
+                        </ul>
+                    </div>
+
+                    <div class="funding-option">
+                        <h3>3. Voorverkoop (broodtegoed)</h3>
+                        <p>Of kies voor voorverkoop: je legt nu een bedrag in en koopt daar later brood mee.</p>
+                        <ul>
+                            <li>Richtprijs brood: ± €6 (800–1000 g)</li>
+                            <li>Voorbeeld: €1.000 = ca. 167 broden (± 3 jaar, 1 brood per week)</li>
+                            <li>Woon je verder weg? Dan kan ik meerdere ongesneden broden opsturen voor de vriezer</li>
+                        </ul>
+                        <p>Dit tegoed wordt netjes bijgehouden in mijn administratie.</p>
+                        <p>Mocht Civetta onverhoopt stoppen en staat er nog tegoed open, dan wordt dit terugbetaald (of omgezet in een gift, als je dat wilt).</p>
+                    </div>
+
+                    <div class="funding-option highlight compact">
+                        <h3>Combineren mag</h3>
+                        <p>Een combinatie van optie 2 en 3 is ook mogelijk, bijvoorbeeld: €500 gift + €500 broodtegoed. Desgewenst leggen we dit vast in een eenvoudige overeenkomst.</p>
+                    </div>
+                </div>
+
+                <div class="funding-section">
+                    <h2>Interesse?</h2>
+                    <p>Heb je interesse om mee te doen? Stuur me gerust een bericht met je idee of voorstel. Ik zorg dan voor:</p>
+                    <ul>
+                        <li>een betaalverzoek</li>
+                        <li>een helder overzicht</li>
+                        <li>en indien nodig een passende overeenkomst</li>
+                    </ul>
+                    <p>Ken je anderen die dit misschien leuk zouden vinden? Laat het me weten.</p>
+                    <p class="transparency-note">Ik vind transparantie belangrijk: iedereen die meedoet krijgt inzicht in hoeveel er is opgehaald en waar het aan besteed wordt.</p>
+                    <p>Je bent altijd welkom om langs te komen of even te bellen als je vragen hebt.</p>
+                    <div class="funding-cta">
+                        <a href="contact.html" class="btn">Neem contact op</a>
+                    </div>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <footer>
+        <div class="container">
+            <div class="footer-content">
+                <div class="footer-info">
+                    <p><strong>Bakkerij Civetta</strong></p>
+                    <p>Leersum, Utrecht</p>
+                </div>
+                <img src="img/logo.jpeg" alt="Civetta" class="footer-logo">
+                <div class="footer-contact">
+                    <p><a href="mailto:info@bakkerij-civetta.nl">info@bakkerij-civetta.nl</a></p>
+                    <p><a href="privacy.html">Privacybeleid</a></p>
+                </div>
+            </div>
+        </div>
+    </footer>
+
+    <script src="js/ui-notifications.js?v=1"></script>
+    <script src="js/main.js"></script>
+    <script>
+        (async function loadProgress() {
+            const goal = 19000;
+            try {
+                const response = await fetch('api/donations-total.php');
+                const data = await response.json();
+                if (data.success) {
+                    const raised = data.total;
+                    const remaining = Math.max(0, goal - raised);
+                    const percentage = Math.min(100, (raised / goal) * 100);
+                    
+                    document.getElementById('progress-fill').style.width = percentage + '%';
+                    document.getElementById('amount-raised').textContent = '€' + raised.toLocaleString('nl-NL', {minimumFractionDigits: 0, maximumFractionDigits: 0});
+                    document.getElementById('amount-remaining').textContent = '€' + remaining.toLocaleString('nl-NL', {minimumFractionDigits: 0, maximumFractionDigits: 0});
+                }
+            } catch (e) {}
+        })();
+    </script>
+    <script>
+        (function() {
+            const amountBtns = document.querySelectorAll('.mollie-amount-btn');
+            const customInput = document.getElementById('custom-amount');
+            const nameInput = document.getElementById('donate-name');
+            const messageInput = document.getElementById('donate-message');
+            const donateBtn = document.getElementById('mollie-donate-btn');
+            let selectedAmount = null;
+
+            function updateButton() {
+                if (selectedAmount) {
+                    donateBtn.textContent = 'Doneer €' + selectedAmount;
+                    donateBtn.title = 'Betaal €' + selectedAmount + ' via iDEAL (Mollie)';
+                } else {
+                    donateBtn.textContent = 'Doneer';
+                    donateBtn.title = '';
+                }
+            }
+
+            amountBtns.forEach(btn => {
+                btn.addEventListener('click', function() {
+                    amountBtns.forEach(b => b.classList.remove('selected'));
+                    customInput.classList.remove('selected');
+                    customInput.value = '';
+                    this.classList.add('selected');
+                    selectedAmount = this.dataset.amount;
+                    updateButton();
+                });
+            });
+
+            customInput.addEventListener('focus', function() {
+                amountBtns.forEach(b => b.classList.remove('selected'));
+                this.classList.add('selected');
+            });
+
+            customInput.addEventListener('input', function() {
+                amountBtns.forEach(b => b.classList.remove('selected'));
+                this.classList.add('selected');
+                selectedAmount = this.value || null;
+                updateButton();
+            });
+
+            donateBtn.addEventListener('click', async function() {
+                const amount = customInput.value || selectedAmount;
+                if (!amount || amount < 1) {
+                    showToast('Selecteer of vul een bedrag in van minimaal €1', 'warning');
+                    return;
+                }
+                
+                const name = nameInput.value.trim();
+                const message = messageInput.value.trim();
+                
+                this.textContent = 'Even geduld...';
+                this.style.pointerEvents = 'none';
+                
+                try {
+                    const recaptchaToken = await getRecaptchaToken('donate');
+                    const response = await fetch('api/mollie.php', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            amount: parseFloat(amount),
+                            name: name,
+                            message: message,
+                            recaptcha_token: recaptchaToken
+                        })
+                    });
+                    const data = await response.json();
+                    if (data.success && data.checkoutUrl) {
+                        window.location.href = data.checkoutUrl;
+                    } else {
+                        showToast(data.error || 'Er ging iets mis', 'error');
+                        updateButton();
+                        this.style.pointerEvents = 'auto';
+                    }
+                } catch (error) {
+                    showToast('Er ging iets mis', 'error');
+                    updateButton();
+                    this.style.pointerEvents = 'auto';
+                }
+            });
+        })();
+    </script>
+</body>
+</html>

@@ -1,0 +1,770 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Nieuwe Bestelling | Bakkerij Civetta</title>
+    <link rel="stylesheet" href="css/style.css">
+    <style>
+        [v-cloak] { display: none; }
+        .order-page {
+            padding: var(--spacing-lg) 0;
+            min-height: calc(100vh - 300px);
+        }
+        .order-container {
+            max-width: 900px;
+            margin: 0 auto;
+        }
+        .order-header {
+            margin-bottom: var(--spacing-lg);
+        }
+        .order-header h2 {
+            margin-bottom: var(--spacing-xs);
+        }
+        .order-header h2::after {
+            display: none;
+        }
+        .order-header p {
+            color: var(--color-stone);
+        }
+        .back-link {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            color: var(--color-crust);
+            text-decoration: none;
+            margin-bottom: var(--spacing-md);
+            font-weight: 500;
+        }
+        .back-link:hover {
+            color: var(--color-terracotta);
+        }
+        .order-grid {
+            display: grid;
+            grid-template-columns: 1fr 350px;
+            gap: var(--spacing-md);
+            align-items: start;
+        }
+        @media (max-width: 900px) {
+            .order-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+        .order-card {
+            background: var(--color-warm-white);
+            border-radius: 16px;
+            padding: var(--spacing-md);
+            box-shadow: 0 4px 20px rgba(139, 90, 43, 0.08);
+        }
+        .order-card h3 {
+            color: var(--color-crust-dark);
+            margin-bottom: var(--spacing-sm);
+            font-size: 1.1rem;
+        }
+        .products-grid {
+            display: grid;
+            gap: var(--spacing-sm);
+            max-height: 600px;
+            overflow-y: auto;
+            padding-right: var(--spacing-xs);
+        }
+        .order-summary {
+            position: sticky;
+            top: var(--spacing-md);
+        }
+        .form-group {
+            margin-bottom: var(--spacing-sm);
+        }
+        .form-group label {
+            display: block;
+            margin-bottom: 0.25rem;
+            color: var(--color-stone);
+            font-weight: 500;
+            font-size: 0.9rem;
+        }
+        .form-group input,
+        .form-group textarea {
+            width: 100%;
+            padding: 0.75rem;
+            border: 2px solid var(--color-parchment);
+            border-radius: 8px;
+            font-size: 1rem;
+            font-family: var(--font-body);
+        }
+        .form-group input:focus,
+        .form-group textarea:focus {
+            outline: none;
+            border-color: var(--color-wheat);
+        }
+        .form-group textarea {
+            resize: vertical;
+            min-height: 80px;
+        }
+        .summary-items {
+            margin: var(--spacing-sm) 0;
+            padding: var(--spacing-sm) 0;
+            border-top: 1px solid var(--color-parchment);
+            border-bottom: 1px solid var(--color-parchment);
+        }
+        .summary-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 0.5rem 0;
+            font-size: 0.95rem;
+            gap: 0.5rem;
+        }
+        .summary-item .item-info {
+            flex: 1;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .summary-item .name {
+            color: var(--color-stone);
+        }
+        .summary-item .name .gewicht {
+            font-size: 0.85rem;
+            color: var(--color-sage);
+        }
+        .summary-item .price {
+            font-weight: 500;
+        }
+        .summary-item .item-controls {
+            display: flex;
+            gap: 0.25rem;
+        }
+        .qty-btn-mini {
+            width: 22px;
+            height: 22px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            background: white;
+            color: #666;
+            font-size: 0.9rem;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .qty-btn-mini:hover {
+            background: var(--color-parchment);
+            border-color: var(--color-crust);
+        }
+        .remove-btn {
+            width: 22px;
+            height: 22px;
+            border: none;
+            border-radius: 4px;
+            background: #f5f5f5;
+            color: #999;
+            font-size: 1rem;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .remove-btn:hover {
+            background: #fee;
+            color: #c00;
+        }
+        .summary-subtotal {
+            display: flex;
+            justify-content: space-between;
+            padding: 0.25rem 0;
+            font-size: 0.9rem;
+            color: var(--color-stone);
+        }
+        .summary-total {
+            display: flex;
+            justify-content: space-between;
+            font-size: 1.25rem;
+            font-weight: 600;
+            margin: var(--spacing-sm) 0;
+            color: var(--color-crust-dark);
+        }
+        .order-buttons {
+            display: flex;
+            flex-direction: column;
+            gap: 0.75rem;
+            margin-top: var(--spacing-sm);
+        }
+        .btn-pay, .btn-pay-later {
+            width: 100%;
+            padding: 1rem;
+            font-size: 1.1rem;
+        }
+        .btn-pay:disabled, .btn-pay-later:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+        }
+        .btn-pay-later {
+            background: transparent;
+            border: 2px solid var(--color-crust);
+            color: var(--color-crust);
+        }
+        .btn-pay-later:hover:not(:disabled) {
+            background: var(--color-crust);
+            color: white;
+        }
+        .error-msg {
+            background: #fee;
+            color: #c00;
+            padding: 0.75rem;
+            border-radius: 8px;
+            margin-bottom: var(--spacing-sm);
+            font-size: 0.9rem;
+        }
+        .empty-cart {
+            text-align: center;
+            padding: var(--spacing-md);
+            color: var(--color-stone);
+        }
+        .loading {
+            text-align: center;
+            padding: var(--spacing-lg);
+            color: var(--color-stone);
+        }
+        .min-date-hint {
+            font-size: 0.8rem;
+            color: var(--color-stone);
+            margin-top: 0.25rem;
+        }
+        .btn-save-favorite {
+            background: #fff3cd;
+            color: #856404;
+            border: none;
+            width: 100%;
+            padding: 1rem;
+            font-size: 1.1rem;
+        }
+        .btn-save-favorite:hover {
+            background: #ffe69c;
+        }
+        .btn-save-favorite:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+        }
+        .load-favorite-dropdown {
+            margin-bottom: var(--spacing-md);
+        }
+        .load-favorite-dropdown label {
+            display: block;
+            margin-bottom: 0.5rem;
+            font-weight: 600;
+            color: var(--color-crust-dark);
+        }
+        .favorite-select-wrapper {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+        .favorite-select-wrapper select {
+            flex: 1;
+            padding: 0.75rem;
+            border: 2px solid var(--color-parchment);
+            border-radius: 8px;
+            font-size: 1rem;
+            font-family: var(--font-body);
+            background: white;
+        }
+        .favorite-select-wrapper select:focus {
+            outline: none;
+            border-color: var(--color-wheat);
+        }
+        .btn-clear-favorite {
+            width: 38px;
+            height: 38px;
+            border: 2px solid var(--color-parchment);
+            border-radius: 8px;
+            background: white;
+            color: #999;
+            font-size: 1.2rem;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s ease;
+        }
+        .btn-clear-favorite:hover {
+            border-color: #dc3545;
+            color: #dc3545;
+            background: #fff5f5;
+        }
+        .empty-hint {
+            color: var(--color-stone);
+            font-size: 0.9rem;
+        }
+        .empty-hint a {
+            color: var(--color-crust);
+            text-decoration: underline;
+        }
+        .checkbox-group {
+            margin: var(--spacing-sm) 0;
+        }
+        .checkbox-label {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            cursor: pointer;
+            font-weight: 500;
+            color: var(--color-crust-dark);
+        }
+        .checkbox-label input[type="checkbox"] {
+            width: 18px;
+            height: 18px;
+            accent-color: var(--color-crust);
+        }
+        .order-type-section {
+            margin: var(--spacing-sm) 0;
+            padding-top: var(--spacing-sm);
+            border-top: 1px solid var(--color-parchment);
+        }
+        .order-type-section .form-label {
+            display: block;
+            margin-bottom: 0.5rem;
+            font-weight: 600;
+            color: var(--color-crust-dark);
+            font-size: 0.9rem;
+        }
+        .order-type-toggle {
+            display: flex;
+            gap: 0.75rem;
+        }
+        .order-type-option {
+            flex: 1;
+            padding: 0.75rem;
+            border: 2px solid var(--color-parchment);
+            border-radius: 8px;
+            cursor: pointer;
+            text-align: center;
+            transition: all 0.2s ease;
+            font-size: 0.9rem;
+            font-weight: 500;
+        }
+        .order-type-option:hover {
+            border-color: var(--color-wheat);
+        }
+        .order-type-option.selected {
+            border-color: var(--color-crust);
+            background: var(--color-wheat-light);
+        }
+        .order-type-option input {
+            display: none;
+        }
+        .recurring-summary {
+            margin-top: 0.75rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            flex-wrap: wrap;
+        }
+        .recurring-badge {
+            background: var(--color-crust);
+            color: white;
+            padding: 0.25rem 0.5rem;
+            border-radius: 4px;
+            font-size: 0.8rem;
+            font-weight: 600;
+        }
+        .recurring-end {
+            font-size: 0.85rem;
+            color: var(--color-stone);
+        }
+        .btn-edit-recurring {
+            background: none;
+            border: none;
+            color: var(--color-crust);
+            font-size: 0.85rem;
+            cursor: pointer;
+            text-decoration: underline;
+            padding: 0;
+        }
+        .btn-edit-recurring:hover {
+            color: var(--color-crust-dark);
+        }
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0,0,0,0.5);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+            padding: 1rem;
+        }
+        .recurring-modal {
+            background: white;
+            border-radius: 12px;
+            max-width: 420px;
+            width: 100%;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.2);
+        }
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 1rem 1.25rem;
+            border-bottom: 1px solid var(--color-parchment);
+        }
+        .modal-header h3 {
+            margin: 0;
+            font-size: 1.1rem;
+            color: var(--color-crust-dark);
+        }
+        .modal-close {
+            background: none;
+            border: none;
+            font-size: 1.5rem;
+            cursor: pointer;
+            color: var(--color-stone);
+            line-height: 1;
+        }
+        .modal-body {
+            padding: 1.25rem;
+        }
+        .modal-body .form-group {
+            margin-bottom: 1rem;
+        }
+        .modal-body .form-group:last-child {
+            margin-bottom: 0;
+        }
+        .modal-body select,
+        .modal-body input[type="text"],
+        .modal-body input[type="date"] {
+            width: 100%;
+            padding: 0.6rem;
+            border: 1px solid var(--color-parchment);
+            border-radius: 6px;
+            font-size: 0.95rem;
+        }
+        .modal-footer {
+            display: flex;
+            gap: 0.75rem;
+            padding: 1rem 1.25rem;
+            border-top: 1px solid var(--color-parchment);
+            justify-content: flex-end;
+        }
+        .btn-secondary {
+            background: var(--color-parchment);
+            color: var(--color-crust-dark);
+            border: none;
+            padding: 0.6rem 1.25rem;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: 500;
+        }
+        .btn-primary {
+            background: var(--color-crust);
+            color: white;
+            border: none;
+            padding: 0.6rem 1.25rem;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: 500;
+        }
+        .btn-primary:hover {
+            background: var(--color-crust-dark);
+        }
+        .field-hint {
+            font-size: 0.75rem;
+            color: var(--color-stone);
+            margin-top: 0.25rem;
+        }
+        .recurring-info {
+            margin-top: 0.75rem;
+            padding: 0.75rem;
+            background: #e8f4ea;
+            border-radius: 8px;
+            font-size: 0.85rem;
+            color: #2d5a3d;
+        }
+        .recurring-info p {
+            margin: 0;
+        }
+        .recurring-info strong {
+            color: #1a3d24;
+        }
+        .recurring-inline-fields {
+            margin-top: 0.75rem;
+            padding: 1rem;
+            background: var(--color-parchment);
+            border-radius: 8px;
+        }
+        .recurring-inline-fields .form-group {
+            margin-bottom: 0.75rem;
+        }
+        .recurring-inline-fields .form-group:last-of-type {
+            margin-bottom: 0.5rem;
+        }
+        .recurring-inline-fields select {
+            width: 100%;
+            padding: 0.6rem;
+            border: 2px solid white;
+            border-radius: 6px;
+            font-size: 0.95rem;
+            font-family: var(--font-body);
+            background: white;
+        }
+        .recurring-inline-fields select:focus {
+            outline: none;
+            border-color: var(--color-wheat);
+        }
+        .recurring-inline-fields input[type="text"],
+        .recurring-inline-fields input[type="date"] {
+            background: white;
+            border: 2px solid white;
+        }
+        .recurring-inline-fields input:focus {
+            border-color: var(--color-wheat);
+        }
+    </style>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Libre+Baskerville:ital,wght@0,400;0,700;1,400&family=Source+Sans+Pro:wght@400;600&display=swap" rel="stylesheet">
+</head>
+<body>
+    <header>
+        <nav>
+            <div class="logo">
+                <a href="index.html">Civetta</a>
+            </div>
+            <ul class="nav-links">
+                <li><a href="index.html">Home</a></li>
+                <li><a href="ons-verhaal.html">Ons Verhaal</a></li>
+                <li><a href="producten.html">Producten</a></li>
+                <li><a href="galerij.html">Galerij</a></li>
+                <li><a href="leveranciers.html">Leveranciers</a></li>
+                <li><a href="financiering.html">Crowdfunding</a></li>
+                <li><a href="contact.html">Contact</a></li>
+                <li class="nav-login">
+                    <a href="zakelijk-dashboard.html" class="login-trigger active">Dashboard</a>
+                </li>
+            </ul>
+            <button class="mobile-menu-btn" aria-label="Menu">
+                <span></span>
+                <span></span>
+                <span></span>
+            </button>
+        </nav>
+    </header>
+
+    <main>
+        <section class="order-page">
+            <div class="container">
+                <div id="order-app" v-cloak class="order-container">
+                    <section class="page-header">
+                        <h1>{{ isFavoriteMode ? 'Favoriet Samenstellen' : 'Nieuwe Bestelling' }}</h1>
+                    </section>
+                    <a href="mijn-bestellingen.html" class="back-link">
+                        <span>&larr;</span> Terug naar Bestellingen
+                    </a>
+
+                    <div v-if="loading" class="loading">Producten laden...</div>
+                    
+                    <template v-else>
+                        <div class="order-header">
+                            <h2>Selecteer uw producten</h2>
+                            <p v-if="isFavoriteMode">Stel uw favoriete bestelling samen en sla deze op</p>
+                            <p v-else>Kies de producten en hoeveelheden voor uw bestelling</p>
+                        </div>
+
+                        <div v-if="!isFavoriteMode" class="load-favorite-dropdown">
+                            <label>Laad een favoriet</label>
+                            <div class="favorite-select-wrapper">
+                                <select v-model="selectedFavoriteId" @change="loadFavoriteFromSelect($event)">
+                                    <option value="">Selecteer een favoriet...</option>
+                                    <option v-if="favorites.length === 0" value="" disabled>Je hebt nog geen favorieten</option>
+                                    <option v-for="fav in favorites" :key="fav.id" :value="fav.id">
+                                        {{ fav.naam }} ({{ fav.items.length }} producten)
+                                    </option>
+                                </select>
+                                <button v-if="selectedFavoriteId" type="button" class="btn-clear-favorite" @click="clearLoaded" title="Selectie wissen">&times;</button>
+                            </div>
+                        </div>
+
+                        <div class="order-grid">
+                            <div class="order-card">
+                                <h3>Beschikbare Producten</h3>
+                                <div class="products-grid">
+                                    <product-card
+                                        v-for="product in products"
+                                        :key="product.id"
+                                        :product="product"
+                                        :show-quantity="true"
+                                        :quantity="getQuantity(product.id)"
+                                        @update:quantity="setQuantityDirect(product, $event)"
+                                        @add-to-cart="addVariantToCart"
+                                        @show-detail="showProductDetail">
+                                    </product-card>
+                                </div>
+                                
+                                <product-detail-modal
+                                    :product="selectedProduct"
+                                    @close="selectedProduct = null">
+                                </product-detail-modal>
+                            </div>
+
+                            <div class="order-card order-summary">
+                                <h3>{{ isFavoriteMode ? 'Uw Favoriet' : 'Uw Bestelling' }}</h3>
+                                
+                                <div v-if="error" class="error-msg">{{ error }}</div>
+                                
+                                <div v-if="cartItems.length === 0" class="empty-cart">
+                                    <p>Selecteer producten om te bestellen</p>
+                                </div>
+                                
+                                <template v-else>
+                                    <div class="summary-items">
+                                        <div v-for="item in cartItems" :key="item.key" class="summary-item">
+                                            <div class="item-info">
+                                                <span class="name">{{ item.quantity }}x {{ item.product.naam }}<span v-if="item.gewicht" class="gewicht"> ({{ item.gewicht }}g)</span></span>
+                                                <span class="price">{{ formatPrice(item.subtotal) }}</span>
+                                            </div>
+                                            <div class="item-controls">
+                                                <button class="qty-btn-mini" @click="updateCartItemQty(item, item.quantity - 1)">-</button>
+                                                <button class="qty-btn-mini" @click="updateCartItemQty(item, item.quantity + 1)">+</button>
+                                                <button class="remove-btn" @click="removeCartItem(item)">&times;</button>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    
+                                    <div class="summary-subtotal">
+                                        <span>Excl. BTW</span>
+                                        <span>{{ formatPrice(exclBtw) }}</span>
+                                    </div>
+                                    <div class="summary-subtotal">
+                                        <span>BTW ({{ btwTarief }}%)</span>
+                                        <span>{{ formatPrice(btwBedrag) }}</span>
+                                    </div>
+                                    <div class="summary-total">
+                                        <span>Totaal incl. BTW</span>
+                                        <span>{{ formatPrice(totalAmount) }}</span>
+                                    </div>
+                                </template>
+
+                                <template v-if="isFavoriteMode">
+                                    <div class="form-group">
+                                        <label for="favorite_name">Naam voor deze favoriet *</label>
+                                        <input type="text" 
+                                               id="favorite_name" 
+                                               v-model="favoriteName" 
+                                               placeholder="Bijv. Weekbestelling, Maandaglevering"
+                                               required>
+                                    </div>
+
+                                    <div class="order-buttons">
+                                        <button class="btn btn-save-favorite" 
+                                                @click="saveFavorite"
+                                                :disabled="!canSaveFavorite || submitting">
+                                            {{ submitting ? 'Opslaan...' : 'Favoriet Opslaan' }}
+                                        </button>
+                                    </div>
+                                </template>
+
+                                <template v-else>
+                                    <div class="form-group">
+                                        <label for="delivery_date">Gewenste leverdatum *</label>
+                                        <input type="date" 
+                                               id="delivery_date" 
+                                               v-model="deliveryDate" 
+                                               :min="minDeliveryDate"
+                                               required>
+                                        <p class="min-date-hint">Minimaal 2 dagen van tevoren bestellen</p>
+                                    </div>
+
+                                    <div class="form-group">
+                                        <label for="notes">Opmerkingen (optioneel)</label>
+                                        <textarea id="notes" 
+                                                  v-model="notes" 
+                                                  placeholder="Speciale wensen, leverinstructies, etc."></textarea>
+                                    </div>
+
+                                    <div class="form-group checkbox-group">
+                                        <label class="checkbox-label">
+                                            <input type="checkbox" v-model="saveAsFavorite">
+                                            <span>Ook opslaan als favoriet</span>
+                                        </label>
+                                    </div>
+
+                                    <div v-if="saveAsFavorite" class="form-group">
+                                        <label for="favorite_name_order">Naam voor favoriet</label>
+                                        <input type="text" 
+                                               id="favorite_name_order" 
+                                               v-model="favoriteName" 
+                                               placeholder="Bijv. Weekbestelling, Maandaglevering">
+                                    </div>
+
+                                    <div class="order-type-section">
+                                        <label class="form-label">Type bestelling</label>
+                                        <div class="order-type-toggle">
+                                            <label class="order-type-option" :class="{ selected: !isRecurring }">
+                                                <input type="radio" v-model="isRecurring" :value="false">
+                                                Eenmalig
+                                            </label>
+                                            <label class="order-type-option" :class="{ selected: isRecurring }">
+                                                <input type="radio" v-model="isRecurring" :value="true">
+                                                Terugkerend
+                                            </label>
+                                        </div>
+                                        
+                                        <div v-if="isRecurring" class="recurring-inline-fields">
+                                            <div class="form-group">
+                                                <label for="recurring_name">Naam (optioneel)</label>
+                                                <input type="text" id="recurring_name" v-model="recurringName" placeholder="Bijv. Weekbestelling kantoor">
+                                            </div>
+                                            <div class="form-group">
+                                                <label for="recurring_frequency">Frequentie *</label>
+                                                <select id="recurring_frequency" v-model="recurringFrequency">
+                                                    <option value="weekly">Wekelijks</option>
+                                                    <option value="biweekly">Tweewekelijks</option>
+                                                    <option value="monthly">Maandelijks</option>
+                                                </select>
+                                            </div>
+                                            <div class="form-group">
+                                                <label for="recurring_end_date">Einddatum (optioneel)</label>
+                                                <input type="date" id="recurring_end_date" v-model="recurringEndDate" :min="minEndDate">
+                                                <p class="field-hint">Laat leeg voor doorlopende bestelling (max 3 maanden)</p>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <div class="order-buttons">
+                                        <button class="btn btn-pay" 
+                                                @click="goToCheckout"
+                                                :disabled="!canOrder">
+                                            Naar Afrekenen
+                                        </button>
+                                    </div>
+                                </template>
+                            </div>
+                        </div>
+                    </template>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <footer>
+        <div class="container">
+            <div class="footer-content">
+                <div class="footer-info">
+                    <p><strong>Bakkerij Civetta</strong></p>
+                    <p>Leersum, Utrecht</p>
+                </div>
+                <img src="img/logo.jpeg" alt="Civetta" class="footer-logo">
+                <div class="footer-contact">
+                    <p><a href="mailto:info@bakkerij-civetta.nl">info@bakkerij-civetta.nl</a></p>
+                </div>
+            </div>
+        </div>
+    </footer>
+
+    <script src="https://unpkg.com/vue@3/dist/vue.global.prod.js"></script>
+    <script src="js/main.js"></script>
+    <script src="js/product-card.js?v=5"></script>
+    <script src="js/order-app.js?v=3"></script>
+</body>
+</html>

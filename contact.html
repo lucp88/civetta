@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Contact | Bakkerij Civetta</title>
+    <meta name="description" content="Neem contact op met Bakkerij Civetta in Leersum.">
+    <meta property="og:title" content="Contact | Bakkerij Civetta">
+    <meta property="og:description" content="Neem contact op met Bakkerij Civetta in Leersum.">
+    <meta property="og:image" content="https://www.bakkerij-civetta.nl/img/logo.jpeg">
+    <meta property="og:url" content="https://www.bakkerij-civetta.nl/contact.html">
+    <meta property="og:type" content="website">
+    <meta property="og:site_name" content="Bakkerij Civetta">
+    <link rel="icon" type="image/png" sizes="192x192" href="img/icon-192.png">
+    <link rel="icon" type="image/png" sizes="512x512" href="img/icon-512.png">
+    <link rel="apple-touch-icon" href="img/icon-192.png">
+    <link rel="stylesheet" href="css/style.css">
+    
+    <link rel="stylesheet" href="css/fonts.css">
+</head>
+<body>
+    <header>
+        <nav>
+            <div class="logo">
+                <a href="index.html">Civetta</a>
+            </div>
+            <ul class="nav-links">
+                <li><a href="index.html">Home</a></li>
+                <li><a href="ons-verhaal.html">Ons Verhaal</a></li>
+                <li><a href="producten.html">Producten</a></li>
+                <li><a href="galerij.html">Galerij</a></li>
+                <li><a href="leveranciers.html">Leveranciers</a></li>
+                <li><a href="financiering.html">Crowdfunding</a></li>
+                <li><a href="contact.html" class="active">Contact</a></li>
+                <li class="nav-login">
+                    <a href="login.html" class="login-trigger">Inloggen</a>
+                </li>
+            </ul>
+            <button class="mobile-menu-btn" aria-label="Menu">
+                <span></span>
+                <span></span>
+                <span></span>
+            </button>
+        </nav>
+    </header>
+
+    <main>
+        <section class="page-header">
+            <div class="container">
+                <h1>Contact</h1>
+            </div>
+        </section>
+
+        <section class="contact">
+            <div class="container">
+                <div class="contact-grid">
+                    <div class="contact-info">
+                        <h2>Gegevens</h2>
+                        <address id="bedrijfsgegevens">
+                            <p><strong id="bedrijf-naam">Bakkerij Civetta</strong></p>
+                            <p id="bedrijf-contactpersoon">Laurens Peek</p>
+                            <p id="bedrijf-plaats">Leersum, Utrecht</p>
+                            <p><a href="tel:+31642210308" id="bedrijf-telefoon-link">+31 (0)6 42210308</a></p>
+                            <p><a href="mailto:info@bakkerij-civetta.nl" id="bedrijf-email-link">info@bakkerij-civetta.nl</a></p>
+                            <p class="kvk" style="margin-bottom: 0;" id="bedrijf-kvk">KvK: 98365533</p>
+                            <p class="kvk" style="margin-top: 0;" id="bedrijf-btw">btw-id: NL005329494B60</p>
+                        </address>
+                        
+                        <h2 class="opening-hours-title">Openingstijden</h2>
+                        <p><strong>Afhalen op afspraak</strong></p>
+                        <!--
+                        <dl class="opening-hours">
+                            <dt>Dinsdag t/m vrijdag</dt>
+                            <dd>9:00 - 17:00</dd>
+                            
+                            <dt>Zaterdag</dt>
+                            <dd>8:30 - 17:00</dd>
+                            
+                            <dt>Zondag & maandag</dt>
+                            <dd>Gesloten</dd>
+                        </dl>
+                        -->
+                    </div>
+                    
+                    <div class="contact-form-wrapper">
+                        <h2>Stuur een bericht</h2>
+                        <form class="contact-form" action="send-mail.php" method="POST">
+                            <input type="hidden" name="recaptcha_token" id="recaptchaContact">
+
+                            <div class="form-group">
+                                <label for="name">Naam</label>
+                                <input type="text" id="name" name="name" required>
+                            </div>
+
+                            <div class="form-group">
+                                <label for="email">E-mailadres</label>
+                                <input type="email" id="email" name="email" required>
+                            </div>
+
+                            <div class="form-group">
+                                <label for="message">Bericht</label>
+                                <textarea id="message" name="message" rows="6" required></textarea>
+                            </div>
+
+                            <button type="submit" class="btn">Versturen</button>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <footer>
+        <div class="container">
+            <div class="footer-content">
+                <div class="footer-info">
+                    <p><strong>Bakkerij Civetta</strong></p>
+                    <p>Leersum, Utrecht</p>
+                </div>
+                <img src="img/logo.jpeg" alt="Civetta" class="footer-logo">
+                <div class="footer-contact">
+                    <p><a href="mailto:info@bakkerij-civetta.nl">info@bakkerij-civetta.nl</a></p>
+                    <p><a href="privacy.html">Privacybeleid</a></p>
+                </div>
+            </div>
+        </div>
+    </footer>
+
+    <script src="js/main.js"></script>
+    <script>
+        document.querySelector('.contact-form')?.addEventListener('submit', function(e) {
+            e.preventDefault();
+            var form = this;
+            getRecaptchaToken('contact').then(function(token) {
+                document.getElementById('recaptchaContact').value = token;
+                form.submit();
+            });
+        });
+    </script>
+    <script>
+        fetch('api/bedrijfsgegevens.php')
+            .then(r => r.json())
+            .then(data => {
+                if (data.naam) document.getElementById('bedrijf-naam').textContent = data.naam;
+                if (data.contactpersoon) document.getElementById('bedrijf-contactpersoon').textContent = data.contactpersoon;
+                if (data.plaats) document.getElementById('bedrijf-plaats').textContent = data.plaats;
+                if (data.telefoon) {
+                    const telLink = document.getElementById('bedrijf-telefoon-link');
+                    telLink.textContent = data.telefoon;
+                    telLink.href = 'tel:' + data.telefoon.replace(/[^+\d]/g, '');
+                }
+                if (data.email) {
+                    const emailLink = document.getElementById('bedrijf-email-link');
+                    emailLink.textContent = data.email;
+                    emailLink.href = 'mailto:' + data.email;
+                }
+                if (data.kvk) document.getElementById('bedrijf-kvk').textContent = 'KvK: ' + data.kvk;
+                if (data.btw_id) document.getElementById('bedrijf-btw').textContent = 'btw-id: ' + data.btw_id;
+            })
+            .catch(() => {});
+    </script>
+</body>
+</html>

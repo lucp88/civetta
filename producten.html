@@ -1,0 +1,210 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Producten | Bakkerij Civetta</title>
+    <meta name="description" content="Ontdek ons assortiment ambachtelijk zuurdesem brood en meer bij Bakkerij Civetta in Leersum.">
+    <meta property="og:title" content="Producten | Bakkerij Civetta">
+    <meta property="og:description" content="Ontdek ons assortiment ambachtelijk zuurdesem brood en meer bij Bakkerij Civetta in Leersum.">
+    <meta property="og:image" content="https://www.bakkerij-civetta.nl/img/logo.jpeg">
+    <meta property="og:url" content="https://www.bakkerij-civetta.nl/producten.html">
+    <meta property="og:type" content="website">
+    <meta property="og:site_name" content="Bakkerij Civetta">
+    <link rel="icon" type="image/png" sizes="192x192" href="img/icon-192.png">
+    <link rel="icon" type="image/png" sizes="512x512" href="img/icon-512.png">
+    <link rel="apple-touch-icon" href="img/icon-192.png">
+    <link rel="stylesheet" href="css/style.css">
+    
+    <link rel="stylesheet" href="css/fonts.css">
+    <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
+    <style>
+        .products-loading {
+            text-align: center;
+            padding: var(--spacing-lg);
+            color: var(--color-stone);
+        }
+        .products-empty {
+            text-align: center;
+            padding: var(--spacing-lg);
+            color: var(--color-stone);
+            font-style: italic;
+        }
+        .products-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+            gap: var(--spacing-md);
+        }
+        .product-card-full {
+            display: flex;
+            flex-direction: column;
+            background: var(--color-warm-white);
+            border-radius: 16px;
+            overflow: hidden;
+            box-shadow: 0 4px 20px rgba(139, 90, 43, 0.08);
+            cursor: pointer;
+            transition: all 0.3s ease;
+            text-decoration: none;
+            color: inherit;
+        }
+        .product-card-full:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 8px 30px rgba(139, 90, 43, 0.15);
+        }
+        .product-card-full .card-image {
+            width: 100%;
+            aspect-ratio: 4/3;
+            overflow: hidden;
+        }
+        .product-card-full .card-image img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            transition: transform 0.3s ease;
+        }
+        .product-card-full:hover .card-image img {
+            transform: scale(1.05);
+        }
+        .product-card-full .card-content {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            padding: var(--spacing-md);
+        }
+        .product-card-full .card-title {
+            font-family: var(--font-display);
+            font-size: 1.35rem;
+            color: var(--color-crust-dark);
+            margin-bottom: var(--spacing-xs);
+        }
+        .product-card-full .card-description {
+            color: var(--color-stone);
+            font-size: 0.95rem;
+            line-height: 1.6;
+            margin-bottom: var(--spacing-sm);
+            display: -webkit-box;
+            -webkit-line-clamp: 3;
+            -webkit-box-orient: vertical;
+            overflow: hidden;
+        }
+        .product-card-full .card-footer {
+            margin-top: auto;
+            padding-top: var(--spacing-sm);
+            border-top: 1px solid var(--color-parchment);
+        }
+        .product-card-full .card-price {
+            font-family: var(--font-display);
+            font-size: 1.25rem;
+            font-weight: 700;
+            color: var(--color-crust);
+        }
+        .product-card-full .card-variants {
+            display: flex;
+            align-items: baseline;
+            gap: 0.75rem;
+            flex-wrap: wrap;
+        }
+        .product-card-full .card-variants .card-price {
+            margin-right: 0;
+        }
+        .product-card-full .variant-others {
+            font-size: 0.75rem;
+            color: var(--color-stone);
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <nav>
+            <div class="logo">
+                <a href="index.html">Civetta</a>
+            </div>
+            <ul class="nav-links">
+                <li><a href="index.html">Home</a></li>
+                <li><a href="ons-verhaal.html">Ons Verhaal</a></li>
+                <li><a href="producten.html" class="active">Producten</a></li>
+                <li><a href="galerij.html">Galerij</a></li>
+                <li><a href="leveranciers.html">Leveranciers</a></li>
+                <li><a href="financiering.html">Crowdfunding</a></li>
+                <li><a href="contact.html">Contact</a></li>
+                <li class="nav-login">
+                    <a href="login.html" class="login-trigger">Inloggen</a>
+                </li>
+            </ul>
+            <button class="mobile-menu-btn" aria-label="Menu">
+                <span></span>
+                <span></span>
+                <span></span>
+            </button>
+        </nav>
+    </header>
+
+    <main>
+        <section class="page-header">
+            <div class="container">
+                <h1>Producten</h1>
+            </div>
+        </section>
+
+        <section class="products">
+            <div class="container">
+                <div id="products-app">
+                    <div v-if="loading" class="products-loading">
+                        Producten laden...
+                    </div>
+                    
+                    <div v-else-if="products.length === 0" class="products-empty">
+                        <p>Binnenkort zijn hier onze ambachtelijke producten te vinden.</p>
+                    </div>
+                    
+                    <div v-else class="products-grid">
+                        <a v-for="product in products" :key="product.id" :href="'product.html?id=' + product.id" class="product-card-full">
+                            <div v-if="product.foto" class="card-image">
+                                <img :src="product.foto" :alt="product.naam">
+                            </div>
+                            <div class="card-content">
+                                <h3 class="card-title">{{ product.naam }}</h3>
+
+                                <p v-if="product.beschrijving" class="card-description">
+                                    {{ product.beschrijving }}
+                                </p>
+
+                                <div class="card-footer">
+                                    <div v-if="product.variants && product.variants.length > 0" class="card-variants">
+                                        <span class="card-price">{{ formatPrice(getLowestPrice(product)) }}</span>
+                                        <span v-if="product.variants.length > 1" class="variant-others">
+                                            {{ getOtherVariants(product) }}
+                                        </span>
+                                    </div>
+                                    <span v-else-if="product.prijs" class="card-price">
+                                        {{ formatPrice(product.prijs) }}
+                                    </span>
+                                </div>
+                            </div>
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <footer>
+        <div class="container">
+            <div class="footer-content">
+                <div class="footer-info">
+                    <p><strong>Bakkerij Civetta</strong></p>
+                    <p>Leersum, Utrecht</p>
+                </div>
+                <img src="img/logo.jpeg" alt="Civetta" class="footer-logo">
+                <div class="footer-contact">
+                    <p><a href="mailto:info@bakkerij-civetta.nl">info@bakkerij-civetta.nl</a></p>
+                    <p><a href="privacy.html">Privacybeleid</a></p>
+                </div>
+            </div>
+        </div>
+    </footer>
+
+    <script src="js/main.js"></script>
+    <script src="js/products-app.js?v=5"></script>
+</body>
+</html>
