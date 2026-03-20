@@ -196,20 +196,20 @@ if (!isset($currentPage) || $currentPage === '') {
     }
 
     .nav-section {
-        padding: 0.5rem 1rem 0.25rem;
+        padding: 1rem 1.25rem 0.5rem;
         font-size: 0.65rem;
         text-transform: uppercase;
         letter-spacing: 1.2px;
         color: rgba(255,255,255,0.3);
         font-weight: 600;
-        margin-top: 0.5rem;
+        margin-top: 0;
     }
 
     .nav-item {
         display: flex;
         align-items: center;
         gap: 0.75rem;
-        padding: 0.6rem 0.75rem 0.6rem 0.5rem;
+        padding: 0.6rem 1.25rem;
         color: rgba(255,255,255,0.65);
         text-decoration: none;
         font-size: 0.88rem;
