@@ -351,8 +351,8 @@ require_once '../components/sidebar.php'; ?>
                                         </td>
                                         <td>{{ ing.current_price_per_kg ? '€'+formatNumber(ing.current_price_per_kg)+'/kg' : '-' }}</td>
                                         <td>
-                                            <button class="btn btn-ghost btn-sm" @click="openIngredientModal(ing)"><i class="bi bi-pencil"></i></button>
-                                            <button class="btn btn-success btn-sm" @click="openBatchModal(ing)"><i class="bi bi-plus"></i></button>
+                                            <button class="btn btn-ghost btn-sm" @click="openIngredientModal(ing)"><i class="bi bi-pencil"></i> Bewerken</button>
+                                            <button class="btn btn-success btn-sm" @click="openBatchModal(ing)"><i class="bi bi-plus"></i> Bijvullen</button>
                                         </td>
                                     </tr>
                                     <tr class="ingredient-add-row" v-show="!collapsedGrainTypes[group.grain_type_id]" @click="openIngredientModal(null, 'meel', group.grain_type_id !== '_none' ? group.grain_type_id : null)">
@@ -394,8 +394,8 @@ require_once '../components/sidebar.php'; ?>
                                         </td>
                                         <td>{{ ing.current_price_per_kg ? '€'+formatNumber(ing.current_price_per_kg)+'/kg' : '-' }}</td>
                                         <td>
-                                            <button class="btn btn-ghost btn-sm" @click="openIngredientModal(ing)"><i class="bi bi-pencil"></i></button>
-                                            <button class="btn btn-success btn-sm" @click="openBatchModal(ing)"><i class="bi bi-plus"></i></button>
+                                            <button class="btn btn-ghost btn-sm" @click="openIngredientModal(ing)"><i class="bi bi-pencil"></i> Bewerken</button>
+                                            <button class="btn btn-success btn-sm" @click="openBatchModal(ing)"><i class="bi bi-plus"></i> Bijvullen</button>
                                         </td>
                                     </tr>
                                     <tr class="ingredient-add-row" @click="openIngredientModal(null, 'mixin')">
@@ -441,8 +441,8 @@ require_once '../components/sidebar.php'; ?>
                                         </td>
                                         <td>{{ ing.current_price_per_kg ? '€'+formatNumber(ing.current_price_per_kg)+'/kg' : '-' }}</td>
                                         <td>
-                                            <button class="btn btn-ghost btn-sm" @click="openIngredientModal(ing)"><i class="bi bi-pencil"></i></button>
-                                            <button class="btn btn-success btn-sm" @click="openBatchModal(ing)"><i class="bi bi-plus"></i></button>
+                                            <button class="btn btn-ghost btn-sm" @click="openIngredientModal(ing)"><i class="bi bi-pencil"></i> Bewerken</button>
+                                            <button class="btn btn-success btn-sm" @click="openBatchModal(ing)"><i class="bi bi-plus"></i> Bijvullen</button>
                                         </td>
                                     </tr>
                                     <tr class="ingredient-add-row" @click="openIngredientModal(null, 'overig')">

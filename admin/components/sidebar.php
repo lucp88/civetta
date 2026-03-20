@@ -206,15 +206,12 @@ if (!isset($currentPage) || $currentPage === '') {
     }
 
     .nav-item {
-        display: flex;
-        align-items: center;
-        gap: 0.75rem;
+        display: block;
         padding: 0.6rem 1.25rem;
         color: rgba(255,255,255,0.65);
         text-decoration: none;
-        font-size: 0.88rem;
-        font-weight: 450;
-        transition: all 0.15s;
+        font-size: 0.9rem;
+        transition: all 0.2s;
         border-left: 3px solid transparent;
     }
 
@@ -227,12 +224,6 @@ if (!isset($currentPage) || $currentPage === '') {
         color: white;
         background: rgba(255,255,255,0.08);
         border-left-color: var(--green-light);
-    }
-
-    .nav-item i {
-        font-size: 1.05rem;
-        width: 20px;
-        text-align: center;
     }
 
     .nav-badge {
@@ -399,72 +390,44 @@ if (!isset($currentPage) || $currentPage === '') {
 
     <nav class="sidebar-nav">
         <div class="nav-section">Bedrijf</div>
-        <a href="<?= $adminBasePath ?>index.php" class="nav-item <?= $currentPage === 'index' || $currentPage === 'dashboard' ? 'active' : '' ?>">
-            <i class="bi bi-grid-1x2-fill"></i> Dashboard
-        </a>
-        <a href="<?= $adminBasePath ?>reporting/analytics.php" class="nav-item <?= $currentPage === 'analytics' ? 'active' : '' ?>">
-            <i class="bi bi-bar-chart-line"></i> Analytics
-        </a>
+        <a href="<?= $adminBasePath ?>index.php" class="nav-item <?= $currentPage === 'index' || $currentPage === 'dashboard' ? 'active' : '' ?>">Dashboard</a>
+        <a href="<?= $adminBasePath ?>reporting/analytics.php" class="nav-item <?= $currentPage === 'analytics' ? 'active' : '' ?>">Analytics</a>
 
         <div class="nav-section">Bakkerij</div>
-        <a href="<?= $adminBasePath ?>bakker/bakker-dashboard.php" class="nav-item <?= $currentPage === 'bakker-dashboard' ? 'active' : '' ?>">
-            <i class="bi bi-calendar3"></i> Planning
-        </a>
-        <a href="<?= $adminBasePath ?>bakker/bakcalculator.php" class="nav-item <?= $currentPage === 'bakcalculator' ? 'active' : '' ?>">
-            <i class="bi bi-journal-text"></i> Recepten
-        </a>
-        <a href="<?= $adminBasePath ?>bakker/voorraad.php" class="nav-item <?= $currentPage === 'voorraad' ? 'active' : '' ?>">
-            <i class="bi bi-box-seam-fill"></i> Voorraadbeheer
-        </a>
-        <a href="<?= $adminBasePath ?>bakker/voedselveiligheid.php" class="nav-item <?= $currentPage === 'voedselveiligheid' ? 'active' : '' ?>">
-            <i class="bi bi-check2-square"></i> Voedselveiligheid
-        </a>
+        <a href="<?= $adminBasePath ?>bakker/bakker-dashboard.php" class="nav-item <?= $currentPage === 'bakker-dashboard' ? 'active' : '' ?>">Planning</a>
+        <a href="<?= $adminBasePath ?>bakker/bakcalculator.php" class="nav-item <?= $currentPage === 'bakcalculator' ? 'active' : '' ?>">Recepten</a>
+        <a href="<?= $adminBasePath ?>bakker/voorraad.php" class="nav-item <?= $currentPage === 'voorraad' ? 'active' : '' ?>">Voorraadbeheer</a>
+        <a href="<?= $adminBasePath ?>bakker/voedselveiligheid.php" class="nav-item <?= $currentPage === 'voedselveiligheid' ? 'active' : '' ?>">Voedselveiligheid</a>
 
         <div class="nav-section">Winkel</div>
-        <a href="<?= $adminBasePath ?>bestellingen/orders.php" class="nav-item <?= $currentPage === 'orders' ? 'active' : '' ?>">
-            <i class="bi bi-box-seam"></i> Bestellingen
+        <a href="<?= $adminBasePath ?>bestellingen/orders.php" class="nav-item <?= $currentPage === 'orders' ? 'active' : '' ?>">Bestellingen
             <?php if ($sidebarUnprocessedOrders > 0): ?>
                 <span class="nav-badge"><?= $sidebarUnprocessedOrders ?></span>
             <?php endif; ?>
         </a>
-        <a href="<?= $adminBasePath ?>producten/products.php" class="nav-item <?= $currentPage === 'products' ? 'active' : '' ?>">
-            <i class="bi bi-basket3"></i> Producten
-        </a>
-        <a href="<?= $adminBasePath ?>donaties/donations.php" class="nav-item <?= $currentPage === 'donations' ? 'active' : '' ?>">
-            <i class="bi bi-heart"></i> Donaties
-        </a>
+        <a href="<?= $adminBasePath ?>producten/products.php" class="nav-item <?= $currentPage === 'products' ? 'active' : '' ?>">Producten</a>
+        <a href="<?= $adminBasePath ?>donaties/donations.php" class="nav-item <?= $currentPage === 'donations' ? 'active' : '' ?>">Donaties</a>
 
         <div class="nav-section">Content</div>
-        <a href="<?= $adminBasePath ?>blog/posts.php" class="nav-item <?= $currentPage === 'posts' ? 'active' : '' ?>">
-            <i class="bi bi-pencil-square"></i> Blog Posts
-        </a>
+        <a href="<?= $adminBasePath ?>blog/posts.php" class="nav-item <?= $currentPage === 'posts' ? 'active' : '' ?>">Blog Posts</a>
 
         <div class="nav-section">Beheer</div>
-        <a href="<?= $adminBasePath ?>accounts/accounts.php" class="nav-item <?= $currentPage === 'accounts' ? 'active' : '' ?>">
-            <i class="bi bi-people"></i> Accounts
+        <a href="<?= $adminBasePath ?>accounts/accounts.php" class="nav-item <?= $currentPage === 'accounts' ? 'active' : '' ?>">Accounts
             <?php if ($sidebarPendingAccounts > 0): ?>
                 <span class="nav-badge"><?= $sidebarPendingAccounts ?></span>
             <?php endif; ?>
         </a>
-        <a href="<?= $adminBasePath ?>settings/settings-bedrijf.php" class="nav-item <?= $currentPage === 'settings-bedrijf' ? 'active' : '' ?>">
-            <i class="bi bi-building"></i> Bedrijfsgegevens
-        </a>
-        <a href="<?= $adminBasePath ?>settings/settings-boekhouding.php" class="nav-item <?= $currentPage === 'settings-boekhouding' ? 'active' : '' ?>">
-            <i class="bi bi-receipt"></i> Boekhouding
-        </a>
+        <a href="<?= $adminBasePath ?>settings/settings-bedrijf.php" class="nav-item <?= $currentPage === 'settings-bedrijf' ? 'active' : '' ?>">Bedrijfsgegevens</a>
+        <a href="<?= $adminBasePath ?>settings/settings-boekhouding.php" class="nav-item <?= $currentPage === 'settings-boekhouding' ? 'active' : '' ?>">Boekhouding</a>
 
         <div class="nav-section">Web-Dev</div>
-        <a href="<?= $adminBasePath ?>migrations/index.php" class="nav-item <?= $currentPage === 'migrations' ? 'active' : '' ?>">
-            <i class="bi bi-database-gear"></i> Migraties
-        </a>
-        <button class="nav-item nav-install-btn" id="pwaInstallBtn" onclick="pwaInstall()">
-            <i class="bi bi-download"></i> App installeren
-        </button>
+        <a href="<?= $adminBasePath ?>migrations/index.php" class="nav-item <?= $currentPage === 'migrations' ? 'active' : '' ?>">Migraties</a>
+        <button class="nav-item nav-install-btn" id="pwaInstallBtn" onclick="pwaInstall()">App installeren</button>
     </nav>
 
     <div class="sidebar-footer">
-        <a href="<?= $adminBasePath ?>../index.html" target="_blank"><i class="bi bi-globe2"></i> Bekijk website</a>
-        <a href="<?= $adminBasePath ?>logout.php"><i class="bi bi-box-arrow-left"></i> Uitloggen</a>
+        <a href="<?= $adminBasePath ?>../index.html" target="_blank">Bekijk website</a>
+        <a href="<?= $adminBasePath ?>logout.php">Uitloggen</a>
     </div>
 </aside>
 
