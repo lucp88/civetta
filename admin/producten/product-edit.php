@@ -102,7 +102,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $fileType = $finfo->file($_FILES['foto_upload']['tmp_name']);
 
         if (in_array($fileType, $allowedTypes)) {
-            $ext = pathinfo($_FILES['foto_upload']['name'], PATHINFO_EXTENSION);
+            $mimeToExt = ['image/jpeg' => 'jpg', 'image/png' => 'png', 'image/webp' => 'webp'];
+            $ext = $mimeToExt[$fileType];
             $filename = uniqid('product_') . '.' . $ext;
             $targetPath = $uploadDir . $filename;
             
