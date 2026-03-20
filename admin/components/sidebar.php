@@ -209,7 +209,7 @@ if (!isset($currentPage) || $currentPage === '') {
         display: flex;
         align-items: center;
         gap: 0.75rem;
-        padding: 0.6rem 1rem;
+        padding: 0.6rem 0.75rem 0.6rem 0.5rem;
         color: rgba(255,255,255,0.65);
         text-decoration: none;
         font-size: 0.88rem;
