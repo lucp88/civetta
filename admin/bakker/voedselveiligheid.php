@@ -292,7 +292,6 @@ require_once '../components/sidebar.php'; ?>
             <div class="panel">
                 <div class="panel-header">
                     <div class="panel-title"><i class="bi bi-shield-exclamation"></i> Sporenallergenen Status</div>
-                    <button class="btn btn-ghost btn-sm" onclick="loadAllergenStatus()"><i class="bi bi-arrow-clockwise"></i> Vernieuwen</button>
                 </div>
                 <div id="allergenLoading" class="loading" style="padding:1rem;"><i class="bi bi-arrow-clockwise spin"></i> Laden…</div>
                 <div id="allergenContent" style="display:none;">
