@@ -27,6 +27,7 @@ if ($method === 'POST') {
         $location = $data['location'] ?? 'kast';
         $notes = trim($data['notes'] ?? '');
         $date = $data['production_date'] ?? date('Y-m-d');
+        $variantId = !empty($data['product_variant_id']) ? intval($data['product_variant_id']) : null;
 
         if (!$name || !in_array($location, ['kast', 'koelkast', 'vriezer'])) {
             http_response_code(400);
@@ -34,8 +35,8 @@ if ($method === 'POST') {
             exit;
         }
 
-        $stmt = $pdo->prepare("INSERT INTO finished_products (product_name, quantity, unit, location, status, notes, production_date) VALUES (?, ?, ?, ?, 'beschikbaar', ?, ?)");
-        $stmt->execute([$name, $qty, $unit, $location, $notes ?: null, $date]);
+        $stmt = $pdo->prepare("INSERT INTO finished_products (product_name, product_variant_id, quantity, unit, location, status, notes, production_date) VALUES (?, ?, ?, ?, ?, 'beschikbaar', ?, ?)");
+        $stmt->execute([$name, $variantId, $qty, $unit, $location, $notes ?: null, $date]);
         echo json_encode(['success' => true, 'id' => $pdo->lastInsertId()]);
     } elseif ($action === 'delete') {
         $id = intval($data['id'] ?? 0);

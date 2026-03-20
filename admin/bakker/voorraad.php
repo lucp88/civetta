@@ -188,7 +188,7 @@ require_once '../components/sidebar.php'; ?>
                     <div class="tab" :class="{active: activeTab==='voorraad'}" @click="activeTab='voorraad'">Voorraad</div>
                     <div class="tab" :class="{active: activeTab==='kosten'}" @click="activeTab='kosten'">Vaste Kosten</div>
                     <div class="tab" :class="{active: activeTab==='prognose'}" @click="activeTab='prognose'; loadForecast()">Prognose</div>
-                    <div class="tab" :class="{active: activeTab==='afgemaakt'}" @click="activeTab='afgemaakt'; loadAfgemaakt()"><i class="bi bi-box-seam-fill"></i> Afgemaakt</div>
+                    <div class="tab" :class="{active: activeTab==='afgemaakt'}" @click="activeTab='afgemaakt'; loadAfgemaakt()"><i class="bi bi-box-seam-fill"></i> Producten</div>
                 </div>
 
                 <!-- OVERZICHT TAB -->
@@ -939,8 +939,8 @@ require_once '../components/sidebar.php'; ?>
                 <div v-show="activeTab==='afgemaakt'">
                     <div class="panel">
                         <div class="panel-header">
-                            <div class="panel-title"><i class="bi bi-box-seam-fill"></i> Afgemaakte producten in opslag</div>
-                            <button class="btn btn-primary btn-sm" @click="showAfgemaaktModal=true; afgemaaktForm={product_name:'',quantity:1,unit:'stuks',location:'kast',notes:'',production_date:TODAY}"><i class="bi bi-plus"></i> Toevoegen</button>
+                            <div class="panel-title"><i class="bi bi-box-seam-fill"></i> Producten in opslag</div>
+                            <button class="btn btn-primary btn-sm" @click="showAfgemaaktModal=true; afgemaaktForm={product_variant_id:'',product_name:'',quantity:1,unit:'stuks',location:'kast',notes:'',production_date:TODAY}"><i class="bi bi-plus"></i> Toevoegen</button>
                         </div>
                         <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:1rem;margin-top:1rem">
                             <div v-for="loc in [{key:'kast',label:'Kast',icon:'bi-house-fill'},{key:'koelkast',label:'Koelkast',icon:'bi-snow'},{key:'vriezer',label:'Vriezer',icon:'bi-thermometer-snow'}]" :key="loc.key" style="background:#f9fafb;border-radius:10px;padding:1rem;border:1px solid #e5e7eb">
@@ -962,7 +962,20 @@ require_once '../components/sidebar.php'; ?>
                         <div class="modal" style="max-width:420px">
                             <div class="modal-header"><h3><i class="bi bi-plus-circle"></i> Product toevoegen aan opslag</h3><button class="modal-close" @click="showAfgemaaktModal=false">&times;</button></div>
                             <div class="modal-body">
-                                <div class="form-group"><label class="form-label">Productnaam *</label><input type="text" class="form-input" v-model="afgemaaktForm.product_name" placeholder="bijv. Zuurdesem 750g"></div>
+                                <div class="form-group">
+                                    <label class="form-label">Product koppelen</label>
+                                    <select class="form-select" v-model="afgemaaktForm.product_variant_id" @change="onVariantSelect">
+                                        <option value="">— Vrije invoer —</option>
+                                        <template v-for="cat in productenLijst" :key="cat.id">
+                                            <optgroup :label="cat.naam">
+                                                <template v-for="product in cat.products" :key="product.id">
+                                                    <option v-for="variant in product.variants" :key="variant.id" :value="variant.id">{{ product.naam }}{{ variant.label ? ' — ' + variant.label : '' }}</option>
+                                                </template>
+                                            </optgroup>
+                                        </template>
+                                    </select>
+                                </div>
+                                <div class="form-group"><label class="form-label">Naam *</label><input type="text" class="form-input" v-model="afgemaaktForm.product_name" placeholder="bijv. Zuurdesem 750g"></div>
                                 <div class="form-group" style="display:grid;grid-template-columns:1fr 1fr;gap:0.75rem">
                                     <div><label class="form-label">Aantal *</label><input type="number" class="form-input" v-model.number="afgemaaktForm.quantity" min="0.1" step="0.1"></div>
                                     <div><label class="form-label">Eenheid</label><select class="form-select" v-model="afgemaaktForm.unit"><option>stuks</option><option>kg</option><option>g</option><option>liter</option></select></div>
@@ -1040,10 +1053,11 @@ require_once '../components/sidebar.php'; ?>
                 collapsedGrainTypes: {},
                 collapsedBatchCategories: {},
 
-                // Afgemaakt
+                // Producten in opslag
                 afgemaaktItems: [],
                 showAfgemaaktModal: false,
-                afgemaaktForm: { product_name: "", quantity: 1, unit: "stuks", location: "kast", notes: "", production_date: "" },
+                afgemaaktForm: { product_variant_id: "", product_name: "", quantity: 1, unit: "stuks", location: "kast", notes: "", production_date: "" },
+                productenLijst: [],
             };
         },
 
@@ -1676,12 +1690,47 @@ require_once '../components/sidebar.php'; ?>
                     const d = await r.json();
                     if (d.success) this.afgemaaktItems = d.items;
                 } catch(e) {}
+                if (this.productenLijst.length === 0) this.loadProductenLijst();
+            },
+
+            async loadProductenLijst() {
+                try {
+                    const r = await fetch("../../api/products.php");
+                    const d = await r.json();
+                    if (!d.success) return;
+                    // Group by category using products array
+                    const catMap = {};
+                    for (const p of d.products) {
+                        const catId = p.category_id ?? 0;
+                        if (!catMap[catId]) catMap[catId] = { id: catId, naam: p.category_naam || 'Overig', products: [] };
+                        const variants = (p.variants || []).map(v => ({
+                            id: v.id,
+                            label: [v.naam, v.gewicht ? v.gewicht + 'g' : ''].filter(Boolean).join(' ')
+                        }));
+                        if (variants.length) catMap[catId].products.push({ id: p.id, naam: p.naam, variants });
+                    }
+                    this.productenLijst = Object.values(catMap).filter(c => c.products.length);
+                } catch(e) {}
+            },
+
+            onVariantSelect() {
+                const variantId = parseInt(this.afgemaaktForm.product_variant_id);
+                if (!variantId) return;
+                for (const cat of this.productenLijst) {
+                    for (const product of cat.products) {
+                        const variant = product.variants.find(v => v.id === variantId);
+                        if (variant) {
+                            this.afgemaaktForm.product_name = product.naam + (variant.label ? ' — ' + variant.label : '');
+                            return;
+                        }
+                    }
+                }
             },
 
             async saveAfgemaakt() {
                 const form = this.afgemaaktForm;
                 if (!form.product_name || !form.quantity) { this.showToast("Vul naam en aantal in", "error"); return; }
-                const payload = { action: "create", product_name: form.product_name, quantity: form.quantity, unit: form.unit, location: form.location, notes: form.notes, production_date: form.production_date };
+                const payload = { action: "create", product_name: form.product_name, product_variant_id: form.product_variant_id ? parseInt(form.product_variant_id) : null, quantity: form.quantity, unit: form.unit, location: form.location, notes: form.notes, production_date: form.production_date };
                 const r = await fetch("../../api/voorraad-afgemaakt.php", { method: "POST", headers: {"Content-Type":"application/json"}, body: JSON.stringify(payload) });
                 const d = await r.json();
                 if (d.success) { this.showToast("Opgeslagen"); this.showAfgemaaktModal = false; this.loadAfgemaakt(); }

@@ -2,11 +2,16 @@
 require_once '../config.php';
 requireLogin();
 
+$categories = $pdo->query("SELECT * FROM product_categories ORDER BY sort_order ASC, naam ASC")->fetchAll();
 $products = $pdo->query("SELECT * FROM products ORDER BY sort_order ASC, naam ASC")->fetchAll();
 $variants = $pdo->query("SELECT id, product_id, naam, gewicht, prijs, recipe_id, foto FROM product_variants ORDER BY product_id ASC, sort_order ASC, gewicht ASC")->fetchAll();
 $variantsByProduct = [];
 foreach ($variants as $v) {
     $variantsByProduct[$v['product_id']][] = $v;
+}
+$productsByCategory = [];
+foreach ($products as $p) {
+    $productsByCategory[$p['category_id'] ?? 0][] = $p;
 }
 
 $stmt = $pdo->query("SELECT COUNT(*) as count FROM business_accounts WHERE status = 'pending'");
@@ -164,6 +169,30 @@ ob_start(); ?>
         .ve-actions { display: flex; gap: 0.4rem; align-items: center; margin-top: 0.35rem; width: 100%; }
         .ve-spacer { flex: 1; }
         .variant-foto-thumb { width: 36px; height: 27px; object-fit: cover; border-radius: 3px; opacity: 0.85; }
+
+        /* Category sections */
+        .category-section { margin-bottom: 1.25rem; }
+        .category-header {
+            display: flex; align-items: center; gap: 0.6rem;
+            padding: 0.65rem 1rem; background: white;
+            border-radius: 10px 10px 0 0; border: 1px solid #e8dfd2;
+            border-bottom: 2px solid #c8913a;
+        }
+        .category-section.cat-collapsed .category-header { border-radius: 10px; border-bottom: 1px solid #e8dfd2; }
+        .cat-chevron { color: #888; font-size: 0.75rem; transition: transform 0.15s; cursor: pointer; }
+        .cat-chevron.collapsed { transform: rotate(-90deg); }
+        .cat-naam { font-weight: 700; color: #3d2b1f; font-size: 1rem; flex: 1; }
+        .cat-naam-input { font-weight: 700; color: #3d2b1f; font-size: 1rem; flex: 1; border: 1.5px solid #c8913a; border-radius: 6px; padding: 0.2rem 0.5rem; font-family: inherit; outline: none; }
+        .cat-actions { display: flex; gap: 0.4rem; align-items: center; }
+        .cat-body { border: 1px solid #e8dfd2; border-top: none; border-radius: 0 0 10px 10px; overflow: hidden; }
+        .cat-body.collapsed { display: none; }
+        .cat-card { border-radius: 0; box-shadow: none; margin: 0; padding: 0; }
+        .cat-card table { border-radius: 0; }
+
+        /* Add category form */
+        .add-cat-form { display: flex; align-items: center; gap: 0.5rem; padding: 0.75rem 1rem; background: white; border: 1px dashed #c8bfb5; border-radius: 10px; }
+        .add-cat-form input { padding: 0.4rem 0.7rem; border: 1.5px solid #d4c8b8; border-radius: 6px; font-size: 0.95rem; font-family: inherit; width: 220px; }
+        .add-cat-form input:focus { outline: none; border-color: #c8913a; }
     </style>
 <?php $adminExtraHead = ob_get_clean();
 require_once '../components/sidebar.php'; ?>
@@ -172,103 +201,187 @@ require_once '../components/sidebar.php'; ?>
                 <div class="topbar-left">
                     <span class="topbar-title">Producten</span>
                 </div>
-                <div class="topbar-right"></div>
+                <div class="topbar-right">
+                    <button onclick="startAddCategory()" class="btn btn-small">+ Nieuwe categorie</button>
+                </div>
             </header>
 
             <div class="admin-content">
-                <div class="card">
-                    <h2>
-                        Producten
-                        <a href="product-edit.php" class="btn btn-small">+ Nieuw product</a>
-                    </h2>
 
-                    <?php if (empty($products)): ?>
-                        <div class="empty">Nog geen producten. Voeg je eerste product toe!</div>
-                    <?php else: ?>
-                        <table>
-                            <thead>
-                                <tr>
-                                    <th class="drag-cell"></th>
-                                    <th>Product / Variant</th>
-                                    <th>Beschrijving</th>
-                                    <th>Prijs</th>
-                                    <th>Recept</th>
-                                    <th>Acties</th>
-                                </tr>
-                            </thead>
-                            <?php foreach ($products as $product):
-                                $pv = $variantsByProduct[$product['id']] ?? [];
-                            ?>
-                            <tbody id="product-group-<?= $product['id'] ?>" data-product-id="<?= $product['id'] ?>" data-dough-type-id="<?= $product['dough_type_id'] ?? '' ?>">
-                                <tr class="product-group-row" draggable="true" data-id="<?= $product['id'] ?>"
-                                    onclick="toggleGroup(<?= $product['id'] ?>)">
-                                    <td class="drag-cell" onclick="event.stopPropagation()">
-                                        <span class="drag-handle"><i class="bi bi-grip-vertical"></i></span>
-                                    </td>
-                                    <td>
-                                        <span class="product-chevron" id="chevron-<?= $product['id'] ?>"><i class="bi bi-chevron-down"></i></span>
-                                        <span class="product-naam"><?= htmlspecialchars($product['naam']) ?></span>
-                                        <?php if (!empty($pv)): ?>
-                                            <span class="product-count"><?= count($pv) ?></span>
-                                        <?php endif; ?>
-                                    </td>
-                                    <td class="product-beschrijving"><?= htmlspecialchars(substr($product['beschrijving'] ?? '', 0, 60)) ?><?= strlen($product['beschrijving'] ?? '') > 60 ? '...' : '' ?></td>
-                                    <td></td>
-                                    <td></td>
-                                    <td class="actions" onclick="event.stopPropagation()">
-                                        <a href="product-edit.php?id=<?= $product['id'] ?>" class="btn btn-small">Bewerken</a>
-                                        <a href="product-delete.php?id=<?= $product['id'] ?>" class="btn btn-small btn-danger"
-                                           onclick="return confirmLink(this.href, 'Weet je zeker dat je dit product wilt verwijderen?')">Verwijderen</a>
-                                    </td>
-                                </tr>
-                                <?php foreach ($pv as $v): ?>
-                                <tr class="variant-row" draggable="true"
-                                    data-id="<?= $v['id'] ?>"
-                                    data-product-id="<?= $product['id'] ?>"
-                                    data-naam="<?= htmlspecialchars($v['naam'] ?? '') ?>"
-                                    data-gewicht="<?= intval($v['gewicht']) ?>"
-                                    data-prijs="<?= $v['prijs'] ?>"
-                                    data-recipe-id="<?= $v['recipe_id'] ?? '' ?>"
-                                    data-foto="<?= htmlspecialchars($v['foto'] ?? '') ?>"
-                                    onclick="if(!this._dragged)openInlineEdit(this)"
-                                    title="Klik om te bewerken">
-                                    <td class="drag-cell"><span class="drag-handle"><i class="bi bi-grip-vertical"></i></span></td>
-                                    <td>
-                                        <div class="variant-naam">
-                                            <?php
-                                            $label = $v['naam'] ?? '';
-                                            $weightStr = $v['gewicht'] ? intval($v['gewicht']) . 'g' : '';
-                                            if ($label && $weightStr) {
-                                                echo htmlspecialchars($label) . ' <span class="variant-weight">— ' . $weightStr . '</span>';
-                                            } elseif ($label) {
-                                                echo htmlspecialchars($label);
-                                            } else {
-                                                echo '<span class="variant-weight">' . $weightStr . '</span>';
-                                            }
-                                            ?>
-                                        </div>
-                                    </td>
-                                    <td><?php if (!empty($v['foto'])): ?><img src="../../<?= htmlspecialchars($v['foto']) ?>" class="variant-foto-thumb"><?php endif; ?></td>
-                                    <td class="variant-price">&euro;<?= number_format($v['prijs'], 2, ',', '.') ?></td>
-                                    <td class="variant-recipe-icon">
-                                        <?php if (!empty($v['recipe_id'])): ?>
-                                            <span style="color:#2e7d32;font-size:0.85rem"><i class="bi bi-check-circle-fill"></i></span>
-                                        <?php else: ?>
-                                            <span style="color:#ddd;font-size:0.85rem"><i class="bi bi-dash"></i></span>
-                                        <?php endif; ?>
-                                    </td>
-                                    <td></td>
-                                </tr>
-                                <?php endforeach; ?>
-                                <tr class="variant-add-row" onclick="openInlineEdit(null, <?= $product['id'] ?>)">
-                                    <td class="drag-cell"></td>
-                                    <td colspan="5"><button class="btn-add"><i class="bi bi-plus"></i> Nieuwe variant</button></td>
-                                </tr>
-                            </tbody>
-                            <?php endforeach; ?>
-                        </table>
-                    <?php endif; ?>
+                <?php foreach ($categories as $cat):
+                    $catId = $cat['id'];
+                    $catProducts = $productsByCategory[$catId] ?? [];
+                ?>
+                <div class="category-section" id="cat-section-<?= $catId ?>" data-cat-id="<?= $catId ?>">
+                    <div class="category-header">
+                        <span class="cat-chevron" id="cat-chevron-<?= $catId ?>" onclick="toggleCategory(<?= $catId ?>)"><i class="bi bi-chevron-down"></i></span>
+                        <span class="cat-naam" id="cat-naam-display-<?= $catId ?>"><?= htmlspecialchars($cat['naam']) ?></span>
+                        <div class="cat-actions">
+                            <button class="btn btn-ghost btn-small" onclick="startRenameCategory(<?= $catId ?>)" title="Naam wijzigen"><i class="bi bi-pencil"></i></button>
+                            <?php if (empty($catProducts)): ?>
+                            <button class="btn btn-danger btn-small" onclick="deleteCategory(<?= $catId ?>)" title="Verwijderen"><i class="bi bi-trash"></i></button>
+                            <?php endif; ?>
+                            <a href="product-edit.php?category_id=<?= $catId ?>" class="btn btn-small">+ Nieuw product</a>
+                        </div>
+                    </div>
+                    <div class="cat-body" id="cat-body-<?= $catId ?>">
+                        <div class="card cat-card">
+                            <?php if (empty($catProducts)): ?>
+                                <div class="empty">Geen producten. <a href="product-edit.php?category_id=<?= $catId ?>">Voeg een product toe</a></div>
+                            <?php else: ?>
+                                <table>
+                                    <thead>
+                                        <tr>
+                                            <th class="drag-cell"></th>
+                                            <th>Product / Variant</th>
+                                            <th>Beschrijving</th>
+                                            <th>Prijs</th>
+                                            <th>Recept</th>
+                                            <th>Acties</th>
+                                        </tr>
+                                    </thead>
+                                    <?php foreach ($catProducts as $product):
+                                        $pv = $variantsByProduct[$product['id']] ?? [];
+                                    ?>
+                                    <tbody id="product-group-<?= $product['id'] ?>" data-product-id="<?= $product['id'] ?>" data-dough-type-id="<?= $product['dough_type_id'] ?? '' ?>" data-cat-id="<?= $catId ?>">
+                                        <tr class="product-group-row" draggable="true" data-id="<?= $product['id'] ?>"
+                                            onclick="toggleGroup(<?= $product['id'] ?>)">
+                                            <td class="drag-cell" onclick="event.stopPropagation()">
+                                                <span class="drag-handle"><i class="bi bi-grip-vertical"></i></span>
+                                            </td>
+                                            <td>
+                                                <span class="product-chevron" id="chevron-<?= $product['id'] ?>"><i class="bi bi-chevron-down"></i></span>
+                                                <span class="product-naam"><?= htmlspecialchars($product['naam']) ?></span>
+                                                <?php if (!empty($pv)): ?>
+                                                    <span class="product-count"><?= count($pv) ?></span>
+                                                <?php endif; ?>
+                                            </td>
+                                            <td class="product-beschrijving"><?= htmlspecialchars(substr($product['beschrijving'] ?? '', 0, 60)) ?><?= strlen($product['beschrijving'] ?? '') > 60 ? '...' : '' ?></td>
+                                            <td></td>
+                                            <td></td>
+                                            <td class="actions" onclick="event.stopPropagation()">
+                                                <a href="product-edit.php?id=<?= $product['id'] ?>" class="btn btn-small">Bewerken</a>
+                                                <a href="product-delete.php?id=<?= $product['id'] ?>" class="btn btn-small btn-danger"
+                                                   onclick="return confirmLink(this.href, 'Weet je zeker dat je dit product wilt verwijderen?')">Verwijderen</a>
+                                            </td>
+                                        </tr>
+                                        <?php foreach ($pv as $v): ?>
+                                        <tr class="variant-row" draggable="true"
+                                            data-id="<?= $v['id'] ?>"
+                                            data-product-id="<?= $product['id'] ?>"
+                                            data-naam="<?= htmlspecialchars($v['naam'] ?? '') ?>"
+                                            data-gewicht="<?= intval($v['gewicht']) ?>"
+                                            data-prijs="<?= $v['prijs'] ?>"
+                                            data-recipe-id="<?= $v['recipe_id'] ?? '' ?>"
+                                            data-foto="<?= htmlspecialchars($v['foto'] ?? '') ?>"
+                                            onclick="if(!this._dragged)openInlineEdit(this)"
+                                            title="Klik om te bewerken">
+                                            <td class="drag-cell"><span class="drag-handle"><i class="bi bi-grip-vertical"></i></span></td>
+                                            <td>
+                                                <div class="variant-naam">
+                                                    <?php
+                                                    $label = $v['naam'] ?? '';
+                                                    $weightStr = $v['gewicht'] ? intval($v['gewicht']) . 'g' : '';
+                                                    if ($label && $weightStr) {
+                                                        echo htmlspecialchars($label) . ' <span class="variant-weight">— ' . $weightStr . '</span>';
+                                                    } elseif ($label) {
+                                                        echo htmlspecialchars($label);
+                                                    } else {
+                                                        echo '<span class="variant-weight">' . $weightStr . '</span>';
+                                                    }
+                                                    ?>
+                                                </div>
+                                            </td>
+                                            <td><?php if (!empty($v['foto'])): ?><img src="../../<?= htmlspecialchars($v['foto']) ?>" class="variant-foto-thumb"><?php endif; ?></td>
+                                            <td class="variant-price">&euro;<?= number_format($v['prijs'], 2, ',', '.') ?></td>
+                                            <td class="variant-recipe-icon">
+                                                <?php if (!empty($v['recipe_id'])): ?>
+                                                    <span style="color:#2e7d32;font-size:0.85rem"><i class="bi bi-check-circle-fill"></i></span>
+                                                <?php else: ?>
+                                                    <span style="color:#ddd;font-size:0.85rem"><i class="bi bi-dash"></i></span>
+                                                <?php endif; ?>
+                                            </td>
+                                            <td></td>
+                                        </tr>
+                                        <?php endforeach; ?>
+                                        <tr class="variant-add-row" onclick="openInlineEdit(null, <?= $product['id'] ?>)">
+                                            <td class="drag-cell"></td>
+                                            <td colspan="5"><button class="btn-add"><i class="bi bi-plus"></i> Nieuwe variant</button></td>
+                                        </tr>
+                                    </tbody>
+                                    <?php endforeach; ?>
+                                </table>
+                            <?php endif; ?>
+                        </div>
+                    </div>
                 </div>
+                <?php endforeach; ?>
+
+                <?php if (empty($categories)): ?>
+                    <div class="card"><div class="empty">Nog geen categorieën. Voeg een categorie toe via de knop rechtsboven.</div></div>
+                <?php endif; ?>
+
+                <!-- Uncategorized products -->
+                <?php $uncategorized = $productsByCategory[0] ?? []; if (!empty($uncategorized)): ?>
+                <div class="card" style="margin-top:1rem">
+                    <h2>Overige producten <span style="font-size:0.8rem;color:#888;font-weight:400">(geen categorie)</span></h2>
+                    <table>
+                        <thead>
+                            <tr>
+                                <th class="drag-cell"></th>
+                                <th>Product / Variant</th>
+                                <th>Beschrijving</th>
+                                <th>Prijs</th>
+                                <th>Recept</th>
+                                <th>Acties</th>
+                            </tr>
+                        </thead>
+                        <?php foreach ($uncategorized as $product):
+                            $pv = $variantsByProduct[$product['id']] ?? [];
+                        ?>
+                        <tbody id="product-group-<?= $product['id'] ?>" data-product-id="<?= $product['id'] ?>" data-dough-type-id="<?= $product['dough_type_id'] ?? '' ?>" data-cat-id="0">
+                            <tr class="product-group-row" draggable="true" data-id="<?= $product['id'] ?>" onclick="toggleGroup(<?= $product['id'] ?>)">
+                                <td class="drag-cell" onclick="event.stopPropagation()"><span class="drag-handle"><i class="bi bi-grip-vertical"></i></span></td>
+                                <td>
+                                    <span class="product-chevron" id="chevron-<?= $product['id'] ?>"><i class="bi bi-chevron-down"></i></span>
+                                    <span class="product-naam"><?= htmlspecialchars($product['naam']) ?></span>
+                                    <?php if (!empty($pv)): ?><span class="product-count"><?= count($pv) ?></span><?php endif; ?>
+                                </td>
+                                <td class="product-beschrijving"><?= htmlspecialchars(substr($product['beschrijving'] ?? '', 0, 60)) ?></td>
+                                <td></td><td></td>
+                                <td class="actions" onclick="event.stopPropagation()">
+                                    <a href="product-edit.php?id=<?= $product['id'] ?>" class="btn btn-small">Bewerken</a>
+                                    <a href="product-delete.php?id=<?= $product['id'] ?>" class="btn btn-small btn-danger" onclick="return confirmLink(this.href, 'Weet je zeker dat je dit product wilt verwijderen?')">Verwijderen</a>
+                                </td>
+                            </tr>
+                            <?php foreach ($pv as $v): ?>
+                            <tr class="variant-row" draggable="true" data-id="<?= $v['id'] ?>" data-product-id="<?= $product['id'] ?>" data-naam="<?= htmlspecialchars($v['naam'] ?? '') ?>" data-gewicht="<?= intval($v['gewicht']) ?>" data-prijs="<?= $v['prijs'] ?>" data-recipe-id="<?= $v['recipe_id'] ?? '' ?>" data-foto="<?= htmlspecialchars($v['foto'] ?? '') ?>" onclick="if(!this._dragged)openInlineEdit(this)" title="Klik om te bewerken">
+                                <td class="drag-cell"><span class="drag-handle"><i class="bi bi-grip-vertical"></i></span></td>
+                                <td><div class="variant-naam"><?php $label=$v['naam']??'';$ws=$v['gewicht']?intval($v['gewicht']).'g':'';if($label&&$ws)echo htmlspecialchars($label).' <span class="variant-weight">— '.$ws.'</span>';elseif($label)echo htmlspecialchars($label);else echo'<span class="variant-weight">'.$ws.'</span>'; ?></div></td>
+                                <td><?php if(!empty($v['foto'])):?><img src="../../<?=htmlspecialchars($v['foto'])?>" class="variant-foto-thumb"><?php endif;?></td>
+                                <td class="variant-price">&euro;<?=number_format($v['prijs'],2,',','.')?></td>
+                                <td><?php if(!empty($v['recipe_id'])):?><span style="color:#2e7d32;font-size:0.85rem"><i class="bi bi-check-circle-fill"></i></span><?php else:?><span style="color:#ddd;font-size:0.85rem"><i class="bi bi-dash"></i></span><?php endif;?></td>
+                                <td></td>
+                            </tr>
+                            <?php endforeach; ?>
+                            <tr class="variant-add-row" onclick="openInlineEdit(null, <?= $product['id'] ?>)">
+                                <td class="drag-cell"></td>
+                                <td colspan="5"><button class="btn-add"><i class="bi bi-plus"></i> Nieuwe variant</button></td>
+                            </tr>
+                        </tbody>
+                        <?php endforeach; ?>
+                    </table>
+                </div>
+                <?php endif; ?>
+
+                <!-- Add category form -->
+                <div id="add-cat-form" class="add-cat-form" style="display:none;margin-top:1rem">
+                    <input type="text" id="new-cat-naam" placeholder="Naam nieuwe categorie (bijv. Granola)"
+                           onkeydown="if(event.key==='Enter')addCategory();if(event.key==='Escape')cancelAddCategory()">
+                    <button class="btn btn-small" onclick="addCategory()">Toevoegen</button>
+                    <button class="btn btn-ghost btn-small" onclick="cancelAddCategory()">Annuleren</button>
+                </div>
+
             </div>
         </div>
     </div>
@@ -279,7 +392,101 @@ require_once '../components/sidebar.php'; ?>
 const recipesData = <?= json_encode(array_values($recipes)) ?>;
 
 (function() {
-    // ── Collapse / Expand ──────────────────────────────────────────────
+    // ── Category collapse / expand ─────────────────────────────────────
+    const catCollapsed = new Set();
+
+    window.toggleCategory = function(catId) {
+        const body = document.getElementById('cat-body-' + catId);
+        const chevron = document.getElementById('cat-chevron-' + catId);
+        const section = document.getElementById('cat-section-' + catId);
+        if (catCollapsed.has(catId)) {
+            catCollapsed.delete(catId);
+            body.classList.remove('collapsed');
+            chevron.classList.remove('collapsed');
+            section.classList.remove('cat-collapsed');
+        } else {
+            catCollapsed.add(catId);
+            body.classList.add('collapsed');
+            chevron.classList.add('collapsed');
+            section.classList.add('cat-collapsed');
+        }
+    };
+
+    // ── Category rename ────────────────────────────────────────────────
+    window.startRenameCategory = function(catId) {
+        const span = document.getElementById('cat-naam-display-' + catId);
+        if (!span) return;
+        const current = span.textContent.trim();
+        const input = document.createElement('input');
+        input.type = 'text';
+        input.className = 'cat-naam-input';
+        input.value = current;
+        input.onblur = () => saveRenameCategory(catId, input);
+        input.onkeydown = e => {
+            if (e.key === 'Enter') saveRenameCategory(catId, input);
+            if (e.key === 'Escape') { input.replaceWith(span); }
+        };
+        span.replaceWith(input);
+        input.focus();
+        input.select();
+    };
+
+    window.saveRenameCategory = async function(catId, input) {
+        const naam = input.value.trim();
+        if (!naam) { input.focus(); return; }
+        const res = await fetch('../../api/products.php', {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ action: 'rename_category', id: catId, naam })
+        });
+        const json = await res.json();
+        if (json.success) {
+            const span = document.createElement('span');
+            span.className = 'cat-naam';
+            span.id = 'cat-naam-display-' + catId;
+            span.textContent = json.naam;
+            input.replaceWith(span);
+        }
+    };
+
+    // ── Add category ───────────────────────────────────────────────────
+    window.startAddCategory = function() {
+        const form = document.getElementById('add-cat-form');
+        form.style.display = 'flex';
+        document.getElementById('new-cat-naam').focus();
+    };
+
+    window.cancelAddCategory = function() {
+        document.getElementById('add-cat-form').style.display = 'none';
+        document.getElementById('new-cat-naam').value = '';
+    };
+
+    window.addCategory = async function() {
+        const naam = document.getElementById('new-cat-naam').value.trim();
+        if (!naam) return;
+        const res = await fetch('../../api/products.php', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ action: 'create_category', naam })
+        });
+        const json = await res.json();
+        if (json.success) window.location.reload();
+    };
+
+    // ── Delete category ────────────────────────────────────────────────
+    window.deleteCategory = async function(catId) {
+        if (!confirm('Categorie verwijderen?')) return;
+        const res = await fetch('../../api/products.php', {
+            method: 'DELETE',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ category_id: catId })
+        });
+        const json = await res.json();
+        if (json.success) window.location.reload();
+        else alert(json.error || 'Fout bij verwijderen');
+    };
+
+    // ── Product collapse / expand ──────────────────────────────────────
     const collapsed = new Set();
 
     window.toggleGroup = function(productId) {
@@ -317,8 +524,9 @@ const recipesData = <?= json_encode(array_values($recipes)) ?>;
         });
         tbody.addEventListener('dragover', e => {
             if (!draggingGroup || draggingGroup === tbody) return;
-            // Only handle if the dragged element is a group (not a variant)
             if (!tbody.querySelector('tr.product-group-row')) return;
+            // Only allow drop within same category
+            if (draggingGroup.dataset.catId !== tbody.dataset.catId) return;
             e.preventDefault();
             document.querySelectorAll('tbody').forEach(b => b.classList.remove('group-drag-over'));
             tbody.classList.add('group-drag-over');
@@ -331,6 +539,7 @@ const recipesData = <?= json_encode(array_values($recipes)) ?>;
         tbody.addEventListener('drop', e => {
             e.preventDefault();
             if (!draggingGroup || draggingGroup === tbody) return;
+            if (draggingGroup.dataset.catId !== tbody.dataset.catId) return;
             tbody.classList.remove('group-drag-over');
             const tbodies = [...document.querySelectorAll('tbody[data-product-id]')];
             const fromIdx = tbodies.indexOf(draggingGroup);

@@ -19,7 +19,7 @@ $isAdmin = isset($_SESSION['admin_logged_in']) && $_SESSION['admin_logged_in'] =
 try {
     switch ($method) {
         case 'GET':
-            $stmt = $pdo->query("SELECT id, naam, ingredienten, beschrijving, prijs, foto FROM products ORDER BY sort_order ASC, naam ASC");
+            $stmt = $pdo->query("SELECT p.id, p.naam, p.ingredienten, p.beschrijving, p.prijs, p.foto, p.category_id, pc.naam as category_naam FROM products p LEFT JOIN product_categories pc ON p.category_id = pc.id ORDER BY p.sort_order ASC, p.naam ASC");
             $products = $stmt->fetchAll();
 
             $variantStmt = $pdo->query("SELECT * FROM product_variants ORDER BY product_id ASC, sort_order ASC, gewicht ASC");
@@ -208,6 +208,13 @@ try {
                         !empty($data['recipe_id']) ? (int)$data['recipe_id'] : null
                     ]);
                     echo json_encode(['success' => true, 'id' => (int)$pdo->lastInsertId()]);
+                } elseif (($data['action'] ?? '') === 'create_category') {
+                    $naam = trim($data['naam'] ?? '');
+                    if (!$naam) { echo json_encode(['success' => false, 'error' => 'Naam vereist']); break; }
+                    $maxSort = $pdo->query("SELECT COALESCE(MAX(sort_order)+1, 0) FROM product_categories")->fetchColumn();
+                    $stmt = $pdo->prepare("INSERT INTO product_categories (naam, sort_order) VALUES (?, ?)");
+                    $stmt->execute([$naam, (int)$maxSort]);
+                    echo json_encode(['success' => true, 'id' => (int)$pdo->lastInsertId()]);
                 } else {
                     $stmt = $pdo->prepare("INSERT INTO products (naam, ingredienten, beschrijving, prijs, foto) VALUES (?, ?, ?, ?, ?)");
                     $stmt->execute([
@@ -270,6 +277,18 @@ try {
                     (int)$data['id']
                 ]);
                 echo json_encode(['success' => true]);
+            } elseif (($data['action'] ?? '') === 'reorder_categories' && !empty($data['items'])) {
+                $stmt = $pdo->prepare("UPDATE product_categories SET sort_order = ? WHERE id = ?");
+                foreach ($data['items'] as $item) {
+                    $stmt->execute([$item['sort_order'], $item['id']]);
+                }
+                echo json_encode(['success' => true]);
+            } elseif (($data['action'] ?? '') === 'rename_category' && !empty($data['id'])) {
+                $naam = trim($data['naam'] ?? '');
+                if (!$naam) { echo json_encode(['success' => false, 'error' => 'Naam vereist']); break; }
+                $stmt = $pdo->prepare("UPDATE product_categories SET naam = ? WHERE id = ?");
+                $stmt->execute([$naam, (int)$data['id']]);
+                echo json_encode(['success' => true, 'naam' => htmlspecialchars($naam)]);
             } else {
                 echo json_encode(['success' => false, 'error' => 'Onbekende actie']);
             }
@@ -285,6 +304,16 @@ try {
             if (!empty($data['variant_id'])) {
                 $stmt = $pdo->prepare("DELETE FROM product_variants WHERE id = ?");
                 $stmt->execute([(int)$data['variant_id']]);
+            } elseif (!empty($data['category_id'])) {
+                $catId = (int)$data['category_id'];
+                $count = $pdo->prepare("SELECT COUNT(*) FROM products WHERE category_id = ?");
+                $count->execute([$catId]);
+                if ($count->fetchColumn() > 0) {
+                    echo json_encode(['success' => false, 'error' => 'Categorie heeft nog producten']);
+                    break;
+                }
+                $stmt = $pdo->prepare("DELETE FROM product_categories WHERE id = ?");
+                $stmt->execute([$catId]);
             } else {
                 $stmt = $pdo->prepare("DELETE FROM products WHERE id = ?");
                 $stmt->execute([$data['id']]);

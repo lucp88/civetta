@@ -22,6 +22,8 @@ $id = $_GET['id'] ?? null;
 $product = null;
 $variants = [];
 $doughTypes = $pdo->query("SELECT id, name FROM dough_types ORDER BY name ASC")->fetchAll();
+$productCategories = $pdo->query("SELECT id, naam FROM product_categories ORDER BY sort_order ASC, naam ASC")->fetchAll();
+$defaultCategoryId = isset($_GET['category_id']) ? intval($_GET['category_id']) : null;
 $error = '';
 $success = '';
 
@@ -93,6 +95,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $naam = trim($_POST['naam'] ?? '');
     $beschrijving = trim($_POST['beschrijving'] ?? '');
     $doughTypeId = !empty($_POST['dough_type_id']) ? intval($_POST['dough_type_id']) : null;
+    $categoryId = !empty($_POST['category_id']) ? intval($_POST['category_id']) : null;
     $foto = $product['foto'] ?? '';
     
     $allowedTypes = ['image/jpeg', 'image/png', 'image/webp'];
@@ -120,11 +123,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if ($naam) {
         try {
             if ($id) {
-                $stmt = $pdo->prepare("UPDATE products SET naam = ?, beschrijving = ?, foto = ?, dough_type_id = ? WHERE id = ?");
-                $stmt->execute([$naam, $beschrijving, $foto, $doughTypeId, $id]);
+                $stmt = $pdo->prepare("UPDATE products SET naam = ?, beschrijving = ?, foto = ?, dough_type_id = ?, category_id = ? WHERE id = ?");
+                $stmt->execute([$naam, $beschrijving, $foto, $doughTypeId, $categoryId, $id]);
             } else {
-                $stmt = $pdo->prepare("INSERT INTO products (naam, beschrijving, foto, dough_type_id) VALUES (?, ?, ?, ?)");
-                $stmt->execute([$naam, $beschrijving, $foto, $doughTypeId]);
+                $stmt = $pdo->prepare("INSERT INTO products (naam, beschrijving, foto, dough_type_id, category_id) VALUES (?, ?, ?, ?, ?)");
+                $stmt->execute([$naam, $beschrijving, $foto, $doughTypeId, $categoryId]);
                 $id = $pdo->lastInsertId();
             }
             
@@ -515,6 +518,18 @@ require_once '../components/sidebar.php'; ?>
                             <textarea id="beschrijving" name="beschrijving"><?= htmlspecialchars($product['beschrijving'] ?? '') ?></textarea>
                         </div>
                         
+                        <div class="form-group">
+                            <label for="category_id">Categorie</label>
+                            <select id="category_id" name="category_id">
+                                <option value="">Geen categorie</option>
+                                <?php
+                                $selectedCat = $product['category_id'] ?? $defaultCategoryId;
+                                foreach ($productCategories as $cat): ?>
+                                    <option value="<?= $cat['id'] ?>" <?= $selectedCat == $cat['id'] ? 'selected' : '' ?>><?= htmlspecialchars($cat['naam']) ?></option>
+                                <?php endforeach; ?>
+                            </select>
+                        </div>
+
                         <div class="form-group">
                             <label for="dough_type_id">Deegsoort</label>
                             <select id="dough_type_id" name="dough_type_id" onchange="filterRecipesByDoughType()">
