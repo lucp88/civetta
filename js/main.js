@@ -1,8 +1,10 @@
-// reCAPTCHA v3 - set your site key here (public key, safe to expose)
+// reCAPTCHA v3
 window.RECAPTCHA_SITE_KEY = '6LfXDocsAAAAABbTwZUzQXnYdaRvyWa5cVGulfwd';
 
-// Load reCAPTCHA script if site key is configured
-if (window.RECAPTCHA_SITE_KEY) {
+// Only load reCAPTCHA on pages that actually use it
+const _rcPages = ['login.html', 'zakelijk.html', 'contact.html', 'bestelling-plaatsen.html', 'checkout.html'];
+const _rcPath = window.location.pathname.split('/').pop() || '';
+if (window.RECAPTCHA_SITE_KEY && _rcPages.some(p => _rcPath === p)) {
     const script = document.createElement('script');
     script.src = 'https://www.google.com/recaptcha/api.js?render=' + window.RECAPTCHA_SITE_KEY;
     script.async = true;

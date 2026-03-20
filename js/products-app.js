@@ -1,6 +1,6 @@
 const { createApp } = Vue;
 
-const productsApp = createApp({
+createApp({
     data() {
         return {
             products: [],
@@ -52,6 +52,4 @@ const productsApp = createApp({
             }).join(' · ');
         }
     }
-});
-
-productsApp.mount('#products-app');
+}).mount('#products-app');

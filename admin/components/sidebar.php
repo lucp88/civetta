@@ -191,25 +191,25 @@ if (!isset($currentPage) || $currentPage === '') {
 
     .sidebar-nav {
         flex: 1;
-        padding: 0.75rem 0;
+        padding: 0.5rem 0;
         overflow-y: auto;
     }
 
     .nav-section {
-        padding: 0.5rem 1.5rem 0.25rem;
+        padding: 0.35rem 1.5rem 0.2rem;
         font-size: 0.65rem;
         text-transform: uppercase;
         letter-spacing: 1.2px;
         color: rgba(255,255,255,0.3);
         font-weight: 600;
-        margin-top: 0.5rem;
+        margin-top: 0.25rem;
     }
 
     .nav-item {
         display: flex;
         align-items: center;
         gap: 0.75rem;
-        padding: 0.6rem 1.5rem;
+        padding: 0.45rem 1.5rem;
         color: rgba(255,255,255,0.65);
         text-decoration: none;
         font-size: 0.88rem;
@@ -247,26 +247,6 @@ if (!isset($currentPage) || $currentPage === '') {
         text-align: center;
     }
 
-    .sidebar-footer {
-        padding: 1rem 1.5rem;
-        border-top: 1px solid rgba(255,255,255,0.08);
-        display: flex;
-        flex-direction: column;
-        gap: 0.25rem;
-    }
-
-    .sidebar-footer a {
-        display: flex;
-        align-items: center;
-        gap: 0.5rem;
-        color: rgba(255,255,255,0.5);
-        text-decoration: none;
-        font-size: 0.85rem;
-        padding: 0.35rem 0;
-        transition: color 0.15s;
-    }
-
-    .sidebar-footer a:hover { color: white; }
 
     /* Main content area */
     .admin-main {
@@ -363,7 +343,7 @@ if (!isset($currentPage) || $currentPage === '') {
     }
     </style>
     <link rel="manifest" href="<?= $adminBasePath ?>manifest.json">
-    <meta name="theme-color" content="#5c3d1e">
+    <meta name="theme-color" content="#1a2e1a">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <link rel="apple-touch-icon" href="/img/icon-192.png">
@@ -407,7 +387,7 @@ if (!isset($currentPage) || $currentPage === '') {
         </a>
 
         <div class="nav-section">Bakkerij</div>
-        <a href="<?= $adminBasePath ?>bakker/bakker-dashboard.php" class="nav-item <?= $currentPage === 'bakker-dashboard' ? 'active' : '' ?>">
+        <a href="<?= $adminBasePath ?>bakker/bakker-dashboard.php" class="nav-item <?= in_array($currentPage, ['bakker-dashboard', 'planning']) ? 'active' : '' ?>">
             <i class="bi bi-calendar3"></i> Planning
         </a>
         <a href="<?= $adminBasePath ?>bakker/bakcalculator.php" class="nav-item <?= $currentPage === 'bakcalculator' ? 'active' : '' ?>">
@@ -460,12 +440,15 @@ if (!isset($currentPage) || $currentPage === '') {
         <button class="nav-item nav-install-btn" id="pwaInstallBtn" onclick="pwaInstall()">
             <i class="bi bi-download"></i> App installeren
         </button>
-    </nav>
 
-    <div class="sidebar-footer">
-        <a href="<?= $adminBasePath ?>../index.html" target="_blank"><i class="bi bi-globe2"></i> Bekijk website</a>
-        <a href="<?= $adminBasePath ?>logout.php"><i class="bi bi-box-arrow-left"></i> Uitloggen</a>
-    </div>
+        <div class="nav-section" style="margin-top: 0.5rem;">Account</div>
+        <a href="<?= $adminBasePath ?>../index.html" target="_blank" class="nav-item">
+            <i class="bi bi-globe2"></i> Bekijk website
+        </a>
+        <a href="<?= $adminBasePath ?>logout.php" class="nav-item">
+            <i class="bi bi-box-arrow-left"></i> Uitloggen
+        </a>
+    </nav>
 </aside>
 
 <script>

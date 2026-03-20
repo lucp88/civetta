@@ -15,10 +15,8 @@
     <link rel="icon" type="image/png" sizes="512x512" href="img/icon-512.png">
     <link rel="apple-touch-icon" href="img/icon-192.png">
     <link rel="stylesheet" href="css/style.css">
-    <style>[v-cloak] { display: none; }</style>
-    
-    <link rel="stylesheet" href="css/fonts.css">
     <style>
+        [v-cloak] { display: none; }
         .login-page {
             min-height: calc(100vh - 200px);
             display: flex;
@@ -115,6 +113,8 @@
             color: var(--color-terracotta);
         }
     </style>
+
+    <link rel="stylesheet" href="css/fonts.css">
 </head>
 <body>
     <header>
@@ -145,30 +145,30 @@
     <main>
         <section class="login-page">
             <div class="container">
-                <div id="login-app" v-cloak class="login-container">
-                    <div class="login-card">
+                <div class="login-container">
+                    <div id="login-app" v-cloak class="login-card">
                         <img src="img/logo.jpeg" alt="Civetta" class="login-logo">
                         <h1>Inloggen</h1>
                         <p class="subtitle">Voor klanten van Bakkerij Civetta</p>
-                        
+
                         <form @submit.prevent="login" class="login-form">
                             <div v-if="error" class="login-error">{{ error }}</div>
-                            
+
                             <div class="form-group">
                                 <label for="email">E-mailadres of gebruikersnaam</label>
                                 <input type="text" id="email" v-model="email" required autocomplete="email">
                             </div>
-                            
+
                             <div class="form-group">
                                 <label for="password">Wachtwoord</label>
                                 <input type="password" id="password" v-model="password" required autocomplete="current-password">
                             </div>
-                            
+
                             <button type="submit" class="btn" :disabled="loading">
                                 {{ loading ? 'Bezig met inloggen...' : 'Inloggen' }}
                             </button>
                         </form>
-                        
+
                         <div class="login-links">
                             <p><a href="wachtwoord-vergeten.php">Wachtwoord vergeten?</a></p>
                             <p>Nog geen account?</p>
@@ -196,8 +196,8 @@
         </div>
     </footer>
 
-    <script src="https://unpkg.com/vue@3/dist/vue.global.prod.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/vue@3/dist/vue.global.prod.js"></script>
     <script src="js/main.js"></script>
-    <script src="js/login-app.js"></script>
+    <script src="js/login-app.js?v=2"></script>
 </body>
 </html>

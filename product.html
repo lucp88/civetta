@@ -15,10 +15,8 @@
     <link rel="icon" type="image/png" sizes="512x512" href="img/icon-512.png">
     <link rel="apple-touch-icon" href="img/icon-192.png">
     <link rel="stylesheet" href="css/style.css">
-    
-    <link rel="stylesheet" href="css/fonts.css">
-    <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
     <style>
+        [v-cloak] { display: none; }
         .product-detail-loading,
         .product-detail-error {
             text-align: center;
@@ -215,6 +213,8 @@
             color: var(--color-crust);
         }
     </style>
+
+    <link rel="stylesheet" href="css/fonts.css">
 </head>
 <body>
     <header>
@@ -242,7 +242,7 @@
         </nav>
     </header>
 
-    <main id="product-detail-app">
+    <main id="product-detail-app" v-cloak>
         <div v-if="loading" class="products">
             <div class="container">
                 <div class="product-detail-loading">Product laden...</div>
@@ -253,7 +253,7 @@
             <div class="container">
                 <div class="product-detail-error">
                     <p>{{ error }}</p>
-                    <p><a href="producten.html">← Terug naar producten</a></p>
+                    <p><a href="producten.html">&larr; Terug naar producten</a></p>
                 </div>
             </div>
         </div>
@@ -263,7 +263,7 @@
                 <div class="container" style="text-align:left;">
                     <div class="product-breadcrumb">
                         <a href="producten.html">Producten</a>
-                        <span>›</span>
+                        <span>&rsaquo;</span>
                         <span>{{ product.naam }}</span>
                     </div>
                     <h1 style="font-size:2.5rem; margin:0;">{{ product.naam }}</h1>
@@ -305,7 +305,7 @@
 
                             <!-- Ingredients -->
                             <div v-if="displayIngredients">
-                                <div class="product-detail-section-label">Ingrediënten</div>
+                                <div class="product-detail-section-label">Ingredi&euml;nten</div>
                                 <div class="product-detail-ingredients">
                                     <template v-if="displayIngredientItems">
                                         <template v-for="(item, idx) in displayIngredientItems"><strong v-if="item.allergeen">{{ item.name }}</strong><template v-else>{{ item.name }}</template><template v-if="idx < displayIngredientItems.length - 1">, </template></template>
@@ -320,7 +320,7 @@
                             <div v-if="allergenList.length > 0 || traceAllergens.length > 0">
                                 <button class="samenstelling-toggle" @click="showAllergens = !showAllergens">
                                     <span>Allergenen</span>
-                                    <span class="samenstelling-arrow" :class="{ open: showAllergens }">▼</span>
+                                    <span class="samenstelling-arrow" :class="{ open: showAllergens }">&#x25BC;</span>
                                 </button>
                                 <div v-if="showAllergens" class="samenstelling-content">
                                     <div v-for="name in allergenList" :key="name" class="samenstelling-row">
@@ -336,7 +336,7 @@
                             <div v-if="displayRecipeDetails">
                                 <button class="samenstelling-toggle" @click="showDetails = !showDetails">
                                     <span>Specificaties</span>
-                                    <span class="samenstelling-arrow" :class="{ open: showDetails }">▼</span>
+                                    <span class="samenstelling-arrow" :class="{ open: showDetails }">&#x25BC;</span>
                                 </button>
                                 <div v-if="showDetails" class="samenstelling-content">
                                     <div v-if="displayRecipeDetails.volkoren_pct > 0" class="samenstelling-volkoren">
@@ -376,7 +376,8 @@
         </div>
     </footer>
 
+    <script src="https://cdn.jsdelivr.net/npm/vue@3/dist/vue.global.prod.js"></script>
     <script src="js/main.js"></script>
-    <script src="js/product-detail-app.js?v=4"></script>
+    <script src="js/product-detail-app.js?v=6"></script>
 </body>
 </html>

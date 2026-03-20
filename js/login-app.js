@@ -25,9 +25,9 @@ createApp({
                         recaptcha_token: recaptchaToken
                     })
                 });
-                
+
                 const data = await response.json();
-                
+
                 if (data.success) {
                     if (data.is_admin) {
                         sessionStorage.setItem('adminLoggedIn', '1');

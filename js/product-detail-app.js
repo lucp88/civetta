@@ -1,6 +1,6 @@
 const { createApp } = Vue;
 
-const productDetailApp = createApp({
+createApp({
     data() {
         return {
             product: null,
@@ -143,6 +143,4 @@ const productDetailApp = createApp({
             }).format(price);
         }
     }
-});
-
-productDetailApp.mount('#product-detail-app');
+}).mount('#product-detail-app');

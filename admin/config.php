@@ -1,13 +1,13 @@
 <?php
+// Load secrets (DB credentials, reCAPTCHA keys) from gitignored file — must be first
+if (file_exists(__DIR__ . '/secrets.php')) {
+    require_once __DIR__ . '/secrets.php';
+}
+
 define('DB_HOST', getenv('DB_HOST') ?: 'localhost');
 define('DB_NAME', getenv('DB_NAME') ?: '');
 define('DB_USER', getenv('DB_USER') ?: '');
 define('DB_PASS', getenv('DB_PASS') ?: '');
-
-// Load secrets (reCAPTCHA keys, etc.) from gitignored file
-if (file_exists(__DIR__ . '/secrets.php')) {
-    require_once __DIR__ . '/secrets.php';
-}
 
 try {
     $pdo = new PDO(

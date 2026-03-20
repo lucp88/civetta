@@ -56,16 +56,16 @@ if (!$email || !$password) {
     exit;
 }
 
-// reCAPTCHA v3 verification
-if (recaptchaSiteKey() && !verifyRecaptcha($data['recaptcha_token'] ?? '', 'login')) {
-    http_response_code(400);
-    echo json_encode(['success' => false, 'error' => 'Spam verificatie mislukt. Probeer het opnieuw.']);
-    exit;
-}
-
 try {
     // Check if this is an admin login (no @ means username, not email)
     $isAdminLogin = strpos($email, '@') === false;
+
+    // reCAPTCHA v3 verification — skip for admin logins (protected by rate limiting)
+    if (!$isAdminLogin && recaptchaSiteKey() && !verifyRecaptcha($data['recaptcha_token'] ?? '', 'login')) {
+        http_response_code(400);
+        echo json_encode(['success' => false, 'error' => 'Spam verificatie mislukt. Probeer het opnieuw.']);
+        exit;
+    }
 
     if ($isAdminLogin) {
         $stmt = $pdo->prepare("SELECT * FROM users WHERE username = ?");

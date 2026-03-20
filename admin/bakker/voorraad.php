@@ -1,4 +1,4 @@
-<?php
+﻿<?php
 require_once '../config.php';
 requireLogin();
 
@@ -188,6 +188,7 @@ require_once '../components/sidebar.php'; ?>
                     <div class="tab" :class="{active: activeTab==='voorraad'}" @click="activeTab='voorraad'">Voorraad</div>
                     <div class="tab" :class="{active: activeTab==='kosten'}" @click="activeTab='kosten'">Vaste Kosten</div>
                     <div class="tab" :class="{active: activeTab==='prognose'}" @click="activeTab='prognose'; loadForecast()">Prognose</div>
+                    <div class="tab" :class="{active: activeTab==='afgemaakt'}" @click="activeTab='afgemaakt'; loadAfgemaakt()"><i class="bi bi-box-seam-fill"></i> Afgemaakt</div>
                 </div>
 
                 <!-- OVERZICHT TAB -->
@@ -933,13 +934,54 @@ require_once '../components/sidebar.php'; ?>
                     </div>
                 </div>
 
+
+                <!-- AFGEMAAKT TAB -->
+                <div v-show="activeTab==='afgemaakt'">
+                    <div class="panel">
+                        <div class="panel-header">
+                            <div class="panel-title"><i class="bi bi-box-seam-fill"></i> Afgemaakte producten in opslag</div>
+                            <button class="btn btn-primary btn-sm" @click="showAfgemaaktModal=true; afgemaaktForm={product_name:'',quantity:1,unit:'stuks',location:'kast',notes:'',production_date:TODAY}"><i class="bi bi-plus"></i> Toevoegen</button>
+                        </div>
+                        <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:1rem;margin-top:1rem">
+                            <div v-for="loc in [{key:'kast',label:'Kast',icon:'bi-house-fill'},{key:'koelkast',label:'Koelkast',icon:'bi-snow'},{key:'vriezer',label:'Vriezer',icon:'bi-thermometer-snow'}]" :key="loc.key" style="background:#f9fafb;border-radius:10px;padding:1rem;border:1px solid #e5e7eb">
+                                <div style="display:flex;align-items:center;gap:0.5rem;margin-bottom:0.75rem;font-weight:700;color:#2d4a2d;font-size:0.9rem"><i class="bi" :class="loc.icon"></i> {{ loc.label }}</div>
+                                <div v-if="afgemaaktByLocation(loc.key).length===0" style="color:#bbb;font-size:0.82rem;text-align:center;padding:0.75rem 0">Leeg</div>
+                                <div v-for="item in afgemaaktByLocation(loc.key)" :key="item.id" style="display:flex;justify-content:space-between;align-items:flex-start;padding:0.4rem 0;border-bottom:1px solid #f0f0f0;font-size:0.85rem">
+                                    <div style="flex:1;min-width:0">
+                                        <div style="font-weight:600;color:#1f2937">{{ item.product_name }}</div>
+                                        <div style="color:#888;font-size:0.78rem">{{ item.quantity }} {{ item.unit }} &bull; {{ formatDate(item.production_date) }}<span v-if="item.notes"> &bull; {{ item.notes }}</span></div>
+                                        <div v-if="item.status==='gereserveerd'" style="color:#e65100;font-size:0.72rem;font-weight:600">Gereserveerd</div>
+                                    </div>
+                                    <button @click="deleteAfgemaakt(item.id)" style="background:none;border:none;color:#dc3545;cursor:pointer;font-size:1rem;padding:0.2rem 0.4rem;border-radius:4px;line-height:1;flex-shrink:0" title="Verwijderen"><i class="bi bi-trash"></i></button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <!-- Afgemaakt modal -->
+                    <div class="modal-overlay" :class="{active:showAfgemaaktModal}" @click.self="showAfgemaaktModal=false">
+                        <div class="modal" style="max-width:420px">
+                            <div class="modal-header"><h3><i class="bi bi-plus-circle"></i> Product toevoegen aan opslag</h3><button class="modal-close" @click="showAfgemaaktModal=false">&times;</button></div>
+                            <div class="modal-body">
+                                <div class="form-group"><label class="form-label">Productnaam *</label><input type="text" class="form-input" v-model="afgemaaktForm.product_name" placeholder="bijv. Zuurdesem 750g"></div>
+                                <div class="form-group" style="display:grid;grid-template-columns:1fr 1fr;gap:0.75rem">
+                                    <div><label class="form-label">Aantal *</label><input type="number" class="form-input" v-model.number="afgemaaktForm.quantity" min="0.1" step="0.1"></div>
+                                    <div><label class="form-label">Eenheid</label><select class="form-select" v-model="afgemaaktForm.unit"><option>stuks</option><option>kg</option><option>g</option><option>liter</option></select></div>
+                                </div>
+                                <div class="form-group"><label class="form-label">Opslag *</label><select class="form-select" v-model="afgemaaktForm.location"><option value="kast">Kast</option><option value="koelkast">Koelkast</option><option value="vriezer">Vriezer</option></select></div>
+                                <div class="form-group"><label class="form-label">Datum</label><input type="date" class="form-input" v-model="afgemaaktForm.production_date"></div>
+                                <div class="form-group"><label class="form-label">Notitie</label><input type="text" class="form-input" v-model="afgemaaktForm.notes" placeholder="Optioneel..."></div>
+                            </div>
+                            <div class="modal-footer"><button class="btn btn-ghost" @click="showAfgemaaktModal=false">Annuleren</button><button class="btn btn-primary" @click="saveAfgemaakt()"><i class="bi bi-check-lg"></i> Opslaan</button></div>
+                        </div>
+                    </div>
+                </div>
                 <div class="toast" :class="toastType" v-if="toastMsg">{{ toastMsg }}</div>
             </div>
         </div>
     </div>
 
     <script src="../../js/ui-notifications.js?v=1"></script>
-    <script src="https://unpkg.com/vue@3/dist/vue.global.prod.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/vue@3/dist/vue.global.prod.js"></script>
     <script>
     const { createApp } = Vue;
     const TODAY = new Date().toISOString().slice(0, 10);
@@ -997,6 +1039,11 @@ require_once '../components/sidebar.php'; ?>
 
                 collapsedGrainTypes: {},
                 collapsedBatchCategories: {},
+
+                // Afgemaakt
+                afgemaaktItems: [],
+                showAfgemaaktModal: false,
+                afgemaaktForm: { product_name: "", quantity: 1, unit: "stuks", location: "kast", notes: "", production_date: "" },
             };
         },
 
@@ -1617,6 +1664,36 @@ require_once '../components/sidebar.php'; ?>
             categoryIcon(cat) {
                 const icons = { meel: 'bi-moisture', mixin: 'bi-plus-circle', topping: 'bi-stars', gist: 'bi-flower1', overig: 'bi-grid' };
                 return icons[cat] || 'bi-grid';
+            },
+
+            afgemaaktByLocation(loc) {
+                return this.afgemaaktItems.filter(i => i.location === loc);
+            },
+
+            async loadAfgemaakt() {
+                try {
+                    const r = await fetch("../../api/voorraad-afgemaakt.php");
+                    const d = await r.json();
+                    if (d.success) this.afgemaaktItems = d.items;
+                } catch(e) {}
+            },
+
+            async saveAfgemaakt() {
+                const form = this.afgemaaktForm;
+                if (!form.product_name || !form.quantity) { this.showToast("Vul naam en aantal in", "error"); return; }
+                const payload = { action: "create", product_name: form.product_name, quantity: form.quantity, unit: form.unit, location: form.location, notes: form.notes, production_date: form.production_date };
+                const r = await fetch("../../api/voorraad-afgemaakt.php", { method: "POST", headers: {"Content-Type":"application/json"}, body: JSON.stringify(payload) });
+                const d = await r.json();
+                if (d.success) { this.showToast("Opgeslagen"); this.showAfgemaaktModal = false; this.loadAfgemaakt(); }
+                else { this.showToast(d.error || "Fout bij opslaan", "error"); }
+            },
+
+            async deleteAfgemaakt(id) {
+                if (!confirm("Verwijderen uit opslag?")) return;
+                const r = await fetch("../../api/voorraad-afgemaakt.php", { method: "POST", headers: {"Content-Type":"application/json"}, body: JSON.stringify({action:"delete",id:id}) });
+                const d = await r.json();
+                if (d.success) { this.showToast("Verwijderd"); this.loadAfgemaakt(); }
+                else { this.showToast(d.error || "Fout", "error"); }
             },
 
             showToast(msg, type = 'success') {

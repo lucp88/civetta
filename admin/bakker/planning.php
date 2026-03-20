@@ -206,19 +206,12 @@ function formatDutchDate($date) {
     return getDutchDayNameFull($date) . ' ' . $date->format('j') . ' ' . getDutchMonthName($date);
 }
 ?>
-<!DOCTYPE html>
-<html lang="nl">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Planning | Civetta Admin</title>
-    <link rel="manifest" href="../manifest.json">
-    <meta name="theme-color" content="#2d4a2d">
-    <meta name="apple-mobile-web-app-capable" content="yes">
-    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-    <link rel="apple-touch-icon" sizes="192x192" href="/img/icon-192.png">
-    <link rel="apple-touch-icon" sizes="512x512" href="/img/icon-512.png">
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+<?php
+$adminPageTitle = 'Planning';
+$adminBasePath = '../';
+$currentPage = 'planning';
+ob_start();
+?>
     <link rel="stylesheet" href="../../css/admin-bakker.css?v=3">
     <style>
         :root {
@@ -453,13 +446,41 @@ function formatDutchDate($date) {
         .connector { width: 2px; height: 20px; background: #e0e0e0; margin: -5px 0 -5px 17px; }
 
         /* FAB + New order modal */
+        .fab-wrapper {
+            position: fixed; bottom: 2rem; right: 2rem; z-index: 900;
+            display: flex; flex-direction: column; align-items: flex-end; gap: 0.5rem;
+        }
         .fab {
-            position: fixed; bottom: 2rem; right: 2rem; width: 56px; height: 56px;
+            width: 56px; height: 56px;
             border-radius: 50%; background: linear-gradient(135deg, var(--accent), var(--accent-dark));
             color: white; border: none; cursor: pointer; box-shadow: 0 4px 15px rgba(139,90,43,0.4);
-            display: flex; align-items: center; justify-content: center; font-size: 1.5rem; z-index: 900; transition: all 0.2s;
+            display: flex; align-items: center; justify-content: center; font-size: 1.5rem; transition: all 0.25s;
+            flex-shrink: 0;
         }
         .fab:hover { transform: scale(1.1); box-shadow: 0 6px 20px rgba(139,90,43,0.5); }
+        .fab.open { transform: rotate(45deg); background: linear-gradient(135deg, #666, #444); }
+        .fab-options {
+            display: flex; flex-direction: column; align-items: flex-end; gap: 0.4rem;
+            visibility: hidden; opacity: 0; transform: translateY(10px); transition: all 0.2s;
+        }
+        .fab-options.show { visibility: visible; opacity: 1; transform: translateY(0); }
+        .fab-option {
+            display: flex; align-items: center; gap: 0.5rem; padding: 0.55rem 1rem;
+            background: white; border: none; border-radius: 24px; cursor: pointer;
+            font-size: 0.88rem; font-weight: 600; box-shadow: 0 3px 12px rgba(0,0,0,0.15);
+            white-space: nowrap; transition: all 0.15s;
+        }
+        .fab-option:hover { transform: translateX(-3px); box-shadow: 0 5px 16px rgba(0,0,0,0.2); }
+        .fab-option-bakken i { color: var(--color-bakken); }
+        .fab-option-bezorging i { color: var(--color-bezorging); }
+        .fab-option-afspraak i { color: var(--color-afspraak); }
+
+        /* Empty-day plus indicator */
+        .cell-add-hint {
+            position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
+            font-size: 1.6rem; color: #ddd; pointer-events: none; transition: color 0.15s;
+        }
+        .calendar-cell:hover .cell-add-hint { color: var(--accent); }
         .new-order-modal { max-width: 700px; }
         .new-order-modal .modal-body { padding: 1.25rem; }
         .form-group { margin-bottom: 1rem; }
@@ -626,15 +647,14 @@ function formatDutchDate($date) {
             .btn-add-product { width: 100%; text-align: center; justify-content: center; display: flex; }
         }
     </style>
-</head>
-<body>
-    <div class="header">
-        <h1><i class="bi bi-calendar3"></i> Planning</h1>
-        <div class="header-links">
-            <a href="bakker-dashboard.php"><i class="bi bi-grid"></i> Overzicht</a>
-            <a href="../index.php"><i class="bi bi-house"></i> Admin</a>
-        </div>
-    </div>
+<?php $adminExtraHead = ob_get_clean(); require_once '../components/sidebar.php'; ?>
+
+            <header class="topbar">
+                <div class="topbar-left">
+                    <span class="topbar-title"><i class="bi bi-calendar3"></i> Planning</span>
+                </div>
+                <div class="topbar-right"></div>
+            </header>
 
     <div class="container">
         <div class="top-bar">
@@ -950,6 +970,9 @@ function formatDutchDate($date) {
                             <?php if (!$isBakdag): ?>
                                 <span class="add-bakdag-hint"><i class="bi bi-plus-circle"></i> bakdag</span>
                             <?php endif; ?>
+                            <?php if (empty($orders) && empty($dayAppts)): ?>
+                                <span class="cell-add-hint"><i class="bi bi-plus"></i></span>
+                            <?php endif; ?>
                         </div>
                     <?php
                         $current->modify('+1 day');
@@ -1018,6 +1041,9 @@ function formatDutchDate($date) {
                                         </div>
                                     <?php endforeach; ?>
                                 </div>
+                                <?php endif; ?>
+                                <?php if (empty($orders) && empty($dayAppts)): ?>
+                                    <span class="cell-add-hint"><i class="bi bi-plus"></i></span>
                                 <?php endif; ?>
                             <?php endif; ?>
                         </div>
@@ -1150,10 +1176,23 @@ function formatDutchDate($date) {
         </div>
     </div>
 
-    <!-- FAB for new order -->
-    <button class="fab" onclick="openNewOrderModal()" title="Nieuwe bestelling">
-        <i class="bi bi-plus-lg"></i>
-    </button>
+    <!-- FAB with type dropdown -->
+    <div class="fab-wrapper" id="fabWrapper">
+        <div class="fab-options" id="fabOptions">
+            <button class="fab-option fab-option-afspraak" onclick="fabAction('afspraak')">
+                <i class="bi bi-calendar-event"></i> Afspraak
+            </button>
+            <button class="fab-option fab-option-bezorging" onclick="fabAction('bezorging')">
+                <i class="bi bi-truck"></i> Bezorging
+            </button>
+            <button class="fab-option fab-option-bakken" onclick="fabAction('bakken')">
+                <i class="bi bi-fire"></i> Bakken
+            </button>
+        </div>
+        <button class="fab" id="fabBtn" onclick="toggleFabMenu(event)" title="Toevoegen">
+            <i class="bi bi-plus-lg" id="fabIcon"></i>
+        </button>
+    </div>
 
     <!-- New order modal -->
     <div class="modal-overlay" id="newOrderModal">
@@ -1203,6 +1242,7 @@ function formatDutchDate($date) {
                     </div>
                     <div class="bakdag-warning" id="bakdagWarning" style="display:none;">
                         <i class="bi bi-exclamation-triangle-fill"></i> Dit is geen bakdag. Eerstvolgende bakdag: <strong id="nextBakdag" onclick="selectNextBakdag()"></strong>
+                        <button id="bakdagAddBtn" onclick="addBakdagFromOrder()" style="display:none;margin-left:auto;padding:0.25rem 0.6rem;background:#ff6b35;color:white;border:none;border-radius:5px;font-size:0.8rem;font-weight:600;cursor:pointer;white-space:nowrap;"><i class="bi bi-plus"></i> Als bakdag instellen</button>
                     </div>
                 </div>
                 <div class="form-group">
@@ -1487,7 +1527,31 @@ function formatDutchDate($date) {
         headerEl.closest('.day-section').classList.toggle('collapsed');
     }
 
-    // Add menu dropdown
+    // FAB dropdown
+    function toggleFabMenu(e) {
+        e.stopPropagation();
+        const opts = document.getElementById('fabOptions');
+        const btn = document.getElementById('fabBtn');
+        const isOpen = opts.classList.contains('show');
+        opts.classList.toggle('show', !isOpen);
+        btn.classList.toggle('open', !isOpen);
+    }
+    document.addEventListener('click', function() {
+        document.getElementById('fabOptions')?.classList.remove('show');
+        document.getElementById('fabBtn')?.classList.remove('open');
+    });
+    function fabAction(type) {
+        document.getElementById('fabOptions').classList.remove('show');
+        document.getElementById('fabBtn').classList.remove('open');
+        const today = toLocalDateStr(new Date());
+        if (type === 'afspraak') {
+            openAppointmentModal(today);
+        } else {
+            openNewOrderModal(today);
+        }
+    }
+
+    // Add menu dropdown (used inside day modal)
     function toggleAddMenu(e) {
         e.stopPropagation();
         document.getElementById('addMenuDropdown').classList.toggle('show');
@@ -1872,6 +1936,7 @@ function formatDutchDate($date) {
     }
 
     function checkBakdag() {
+        const isInternal = document.getElementById('newOrderInternal').checked;
         const date = document.getElementById('newOrderDate').value;
         const indicator = document.getElementById('bakdagIndicator');
         const warning = document.getElementById('bakdagWarning');
@@ -1884,8 +1949,20 @@ function formatDutchDate($date) {
             const next = findNextPossibleBakdag(date);
             const reason = isBakdagDate ? ' (te weinig voorbereidingstijd)' : '';
             document.getElementById('nextBakdag').textContent = next ? new Date(next + 'T00:00').toLocaleDateString('nl-NL', {weekday: 'long', day: 'numeric', month: 'long'}) + reason : 'onbekend';
+            const addBtn = document.getElementById('bakdagAddBtn');
+            if (addBtn) addBtn.style.display = isInternal ? '' : 'none';
         }
         refreshProductOptions();
+    }
+
+    function addBakdagFromOrder() {
+        const date = document.getElementById('newOrderDate').value;
+        if (!date) return;
+        fetch('/api/bakdagen.php', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'add_extra', datum: date, notitie: 'Interne bestelling' }) })
+        .then(r => r.json()).then(data => {
+            if (data.success) { allBakdagen.push(date); showToast('Bakdag toegevoegd', 'success'); checkBakdag(); }
+            else { showToast(data.error || 'Fout bij toevoegen bakdag', 'error'); }
+        });
     }
 
     function selectNextBakdag() {
@@ -1900,6 +1977,7 @@ function formatDutchDate($date) {
         const customerCard = document.getElementById('customerInfoCard');
         if (isInternal) { customerGroup.style.display = 'none'; customerCard.classList.remove('show'); }
         else { customerGroup.style.display = ''; }
+        if (document.getElementById('newOrderDate').value) checkBakdag();
     }
 
     function getInternalAccountId() {
@@ -2178,5 +2256,7 @@ function formatDutchDate($date) {
         }
     }
     </script>
+</div><!-- /.admin-main -->
+</div><!-- /.admin-layout -->
 </body>
 </html>

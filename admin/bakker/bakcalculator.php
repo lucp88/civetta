@@ -1234,7 +1234,7 @@ require_once '../components/sidebar.php'; ?>
     </div>
 
     <script src="../../js/ui-notifications.js?v=1"></script>
-    <script src="https://unpkg.com/vue@3/dist/vue.global.prod.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/vue@3/dist/vue.global.prod.js"></script>
     <script>
     const { createApp } = Vue;
     createApp({
