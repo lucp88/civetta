@@ -76,12 +76,12 @@ ob_start(); ?>
             vertical-align: middle;
         }
         th {
-            color: #3d6b3d;
-            font-weight: 600;
-            font-size: 0.8rem;
+            color: #888;
+            font-weight: 700;
+            font-size: 0.72rem;
             text-transform: uppercase;
-            letter-spacing: 0.03em;
-            padding-bottom: 0.5rem;
+            letter-spacing: 0.04em;
+            border-bottom: 2px solid #e8e0d5;
         }
 
         /* Product group rows */

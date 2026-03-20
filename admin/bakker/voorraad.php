@@ -40,12 +40,12 @@ ob_start(); ?>
         .btn-ghost:hover { border-color: #3d6b3d; background: #faf6f1; }
         .btn-sm { padding: 0.35rem 0.7rem; font-size: 0.8rem; }
 
-        .table-wrapper { overflow-x: auto; border: 1px solid #e5e7eb; border-radius: 6px; }
+        .table-wrapper { overflow-x: auto; border: 1px solid #e8dfd2; border-radius: 6px; }
         table { width: 100%; border-collapse: collapse; font-size: 0.85rem; background: white; }
-        th { text-align: left; padding: 0.5rem 0.875rem; color: #6b7280; font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em; border-bottom: 1px solid #e5e7eb; background: #f9fafb; white-space: nowrap; }
-        td { padding: 0.625rem 0.875rem; border-bottom: 1px solid #f3f4f6; vertical-align: middle; color: #374151; }
+        th { text-align: left; padding: 0.5rem 0.875rem; color: #888; font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em; border-bottom: 2px solid #e8e0d5; white-space: nowrap; }
+        td { padding: 0.625rem 0.875rem; border-bottom: 1px solid #f0ebe5; vertical-align: middle; color: #333; }
         tbody tr:last-child td { border-bottom: none; }
-        tr:hover td { background: #fefcf8; }
+        tr:hover td { background: #faf8f5; }
         td strong { font-weight: 600; color: #1f2937; }
         tr.batch-expired td { background: #fff3f3 !important; }
         tr.batch-empty { opacity: 0.45; }
@@ -60,6 +60,8 @@ ob_start(); ?>
         .badge-overig { background: #f5f5f5; color: #616161; }
         .badge-volkoren { background: #8d6e63; color: white; }
         .badge-wit { background: #faf6f1; color: #3d6b3d; border: 1px solid #e8dfd2; }
+        .badge-bio { background: #e8f5e9; color: #2e7d32; border: 1px solid #a5d6a7; }
+        .badge-allergeen { background: #fff3e0; color: #e65100; border: 1px solid #ffcc80; margin-right: 0.2rem; }
         .badge-ok { background: #e8f5e9; color: #2e7d32; }
         .badge-laag { background: #fff3e0; color: #e65100; }
         .badge-tekort { background: #ffebee; color: #c62828; }
@@ -106,13 +108,13 @@ ob_start(); ?>
         .toggle-label { display: flex; align-items: center; gap: 0.4rem; font-size: 0.85rem; color: #666; cursor: pointer; user-select: none; }
         .toggle-label input[type=checkbox] { cursor: pointer; }
 
-        tr.category-row { background: #f3f4f6; cursor: pointer; user-select: none; }
-        .category-row td { padding: 0.35rem 0.875rem !important; background: #f3f4f6 !important; border-bottom: 1px solid #e5e7eb !important; }
+        tr.category-row { background: #f5f0e8; cursor: pointer; user-select: none; }
+        .category-row td { padding: 0.35rem 0.875rem !important; background: #f5f0e8 !important; border-bottom: 1px solid #e8dfd2 !important; }
         .category-cell { display: flex; align-items: center; gap: 0.5rem; width: 100%; }
-        .category-header-label { font-size: 0.72rem; font-weight: 700; color: #6b7280; text-transform: uppercase; letter-spacing: 0.04em; }
-        .category-header-count { display: inline-flex; align-items: center; justify-content: center; min-width: 1.2rem; height: 1.2rem; background: #d1d5db; color: #374151; border-radius: 10px; font-size: 0.65rem; font-weight: 700; padding: 0 0.3rem; }
-        .category-row:hover td { background: #ececec !important; }
-        .category-chevron { display: inline-flex; align-items: center; margin-right: 0.25rem; font-size: 0.72rem; color: #9ca3af; transition: transform 0.15s; }
+        .category-header-label { font-size: 0.72rem; font-weight: 700; color: #2d4a2d; text-transform: uppercase; letter-spacing: 0.04em; }
+        .category-header-count { display: inline-flex; align-items: center; justify-content: center; min-width: 1.2rem; height: 1.2rem; background: #e0d5c7; color: #2d4a2d; border-radius: 10px; font-size: 0.65rem; font-weight: 700; padding: 0 0.3rem; }
+        .category-row:hover td { background: #ede8e0 !important; }
+        .category-chevron { display: inline-flex; align-items: center; margin-right: 0.25rem; font-size: 0.72rem; color: #a09080; transition: transform 0.15s; }
         .category-chevron.collapsed { transform: rotate(-90deg); }
 
         .empty-state { text-align: center; padding: 3rem; color: #aaa; }
@@ -163,13 +165,13 @@ ob_start(); ?>
         .drag-cell { width: 24px; padding-right: 0 !important; padding-left: 0.5rem !important; }
         tr.drag-over td { background: #dbeafe !important; }
         tr.dragging { opacity: 0.4; }
-        .subcategory-row td { padding: 0.3rem 0.875rem 0.3rem 2rem !important; background: #f9fafb !important; border-bottom: 1px solid #e5e7eb !important; }
+        .subcategory-row td { padding: 0.3rem 0.875rem 0.3rem 2rem !important; background: #faf6f1 !important; border-bottom: 1px solid #e8dfd2 !important; }
         .subcategory-label { font-size: 0.72rem; font-weight: 700; color: #9ca3af; text-transform: uppercase; letter-spacing: 0.04em; }
         .btn-add { border: 1px dashed #d1d5db; border-radius: 4px; background: transparent; color: #9ca3af; cursor: pointer; font-size: 0.78rem; display: inline-flex; align-items: center; gap: 0.3rem; padding: 0.25rem 0.5rem; }
         .btn-add:hover { border-color: #3d6b3d; color: #3d6b3d; background: #f0f7f0; }
         tr.ingredient-add-row td { padding: 0.3rem 0.875rem !important; border-bottom: none; }
         tr.ingredient-add-row { cursor: pointer; }
-        tr.ingredient-add-row:hover td { background: #f9fafb; }
+        tr.ingredient-add-row:hover td { background: #faf6f1; }
     </style>
 <?php $adminExtraHead = ob_get_clean();
 require_once '../components/sidebar.php'; ?>
@@ -303,7 +305,7 @@ require_once '../components/sidebar.php'; ?>
                         </div>
                         <div class="table-wrapper" v-else>
                             <table>
-                                <thead><tr><th class="drag-cell"></th><th>Naam</th><th>Type</th><th>Voorraad</th><th>FIFO Prijs</th><th>Acties</th></tr></thead>
+                                <thead><tr><th class="drag-cell"></th><th>Naam</th><th>Type</th><th>Kenmerken</th><th>Voorraad</th><th>FIFO Prijs</th><th>Acties</th></tr></thead>
                                 <tbody v-for="group in groupedMeel" :key="group.grain_type_id">
                                     <tr class="category-row"
                                         :class="{'drag-over': draggingGrainTypeOverId == group.grain_type_id}"
@@ -317,7 +319,7 @@ require_once '../components/sidebar.php'; ?>
                                         <td class="drag-cell">
                                             <span v-if="group.grain_type_id !== '_none'" class="drag-handle"><i class="bi bi-grip-vertical"></i></span>
                                         </td>
-                                        <td colspan="5">
+                                        <td colspan="6">
                                             <div class="category-cell">
                                                 <i class="bi bi-chevron-down category-chevron" :class="{collapsed: collapsedGrainTypes[group.grain_type_id]}"></i>
                                                 <span class="category-header-label">{{ group.label }}</span>
@@ -342,6 +344,13 @@ require_once '../components/sidebar.php'; ?>
                                             </span>
                                         </td>
                                         <td>
+                                            <span v-if="parseInt(ing.is_biologisch)" class="badge badge-bio">BIO</span>
+                                            <template v-if="ing.allergenen && ing.allergenen.length">
+                                                <span v-for="a in ing.allergenen" :key="a" class="badge badge-allergeen">{{ a }}</span>
+                                            </template>
+                                            <span v-if="!parseInt(ing.is_biologisch) && (!ing.allergenen || !ing.allergenen.length)" style="color:#ccc;font-size:0.8rem">—</span>
+                                        </td>
+                                        <td>
                                             <div style="display:flex;align-items:center;gap:0.5rem">
                                                 <div class="stock-bar">
                                                     <div class="stock-bar-fill" :class="stockLevel(ing.total_stock)" :style="{width: stockPercent(ing.total_stock)+'%'}"></div>
@@ -357,7 +366,7 @@ require_once '../components/sidebar.php'; ?>
                                     </tr>
                                     <tr class="ingredient-add-row" v-show="!collapsedGrainTypes[group.grain_type_id]" @click="openIngredientModal(null, 'meel', group.grain_type_id !== '_none' ? group.grain_type_id : null)">
                                         <td class="drag-cell"></td>
-                                        <td colspan="5"><button class="btn-add" @click.stop="openIngredientModal(null, 'meel', group.grain_type_id !== '_none' ? group.grain_type_id : null)"><i class="bi bi-plus"></i> Nieuw meel</button></td>
+                                        <td colspan="6"><button class="btn-add" @click.stop="openIngredientModal(null, 'meel', group.grain_type_id !== '_none' ? group.grain_type_id : null)"><i class="bi bi-plus"></i> Nieuw meel</button></td>
                                     </tr>
                                 </tbody>
                             </table>
@@ -372,7 +381,7 @@ require_once '../components/sidebar.php'; ?>
 
                         <div class="table-wrapper">
                             <table>
-                                <thead><tr><th class="drag-cell"></th><th>Naam</th><th>Voorraad</th><th>FIFO Prijs</th><th>Acties</th></tr></thead>
+                                <thead><tr><th class="drag-cell"></th><th>Naam</th><th>Kenmerken</th><th>Voorraad</th><th>FIFO Prijs</th><th>Acties</th></tr></thead>
                                 <tbody>
                                     <tr v-for="ing in extrasIngredients" :key="ing.id"
                                         :class="{'drag-over': draggingIngredientOverId == ing.id, 'dragging': draggingIngredientId == ing.id}"
@@ -384,6 +393,13 @@ require_once '../components/sidebar.php'; ?>
                                         @dragend="draggingIngredientId = null; draggingIngredientOverId = null">
                                         <td class="drag-cell"><span class="drag-handle"><i class="bi bi-grip-vertical"></i></span></td>
                                         <td><strong>{{ ing.name }}</strong></td>
+                                        <td>
+                                            <span v-if="parseInt(ing.is_biologisch)" class="badge badge-bio">BIO</span>
+                                            <template v-if="ing.allergenen && ing.allergenen.length">
+                                                <span v-for="a in ing.allergenen" :key="a" class="badge badge-allergeen">{{ a }}</span>
+                                            </template>
+                                            <span v-if="!parseInt(ing.is_biologisch) && (!ing.allergenen || !ing.allergenen.length)" style="color:#ccc;font-size:0.8rem">—</span>
+                                        </td>
                                         <td>
                                             <div style="display:flex;align-items:center;gap:0.5rem">
                                                 <div class="stock-bar">
@@ -400,7 +416,7 @@ require_once '../components/sidebar.php'; ?>
                                     </tr>
                                     <tr class="ingredient-add-row" @click="openIngredientModal(null, 'mixin')">
                                         <td class="drag-cell"></td>
-                                        <td colspan="4"><button class="btn-add" @click.stop="openIngredientModal(null, 'mixin')"><i class="bi bi-plus"></i> Nieuw topping / mix-in</button></td>
+                                        <td colspan="5"><button class="btn-add" @click.stop="openIngredientModal(null, 'mixin')"><i class="bi bi-plus"></i> Nieuw topping / mix-in</button></td>
                                     </tr>
                                 </tbody>
                             </table>
@@ -419,7 +435,7 @@ require_once '../components/sidebar.php'; ?>
 
                         <div class="table-wrapper">
                             <table>
-                                <thead><tr><th class="drag-cell"></th><th>Naam</th><th>Voorraad</th><th>FIFO Prijs</th><th>Acties</th></tr></thead>
+                                <thead><tr><th class="drag-cell"></th><th>Naam</th><th>Kenmerken</th><th>Voorraad</th><th>FIFO Prijs</th><th>Acties</th></tr></thead>
                                 <tbody>
                                     <tr v-for="ing in overigIngredients" :key="ing.id"
                                         :class="{'drag-over': draggingIngredientOverId == ing.id, 'dragging': draggingIngredientId == ing.id}"
@@ -431,6 +447,13 @@ require_once '../components/sidebar.php'; ?>
                                         @dragend="draggingIngredientId = null; draggingIngredientOverId = null">
                                         <td class="drag-cell"><span class="drag-handle"><i class="bi bi-grip-vertical"></i></span></td>
                                         <td><strong>{{ ing.name }}</strong></td>
+                                        <td>
+                                            <span v-if="parseInt(ing.is_biologisch)" class="badge badge-bio">BIO</span>
+                                            <template v-if="ing.allergenen && ing.allergenen.length">
+                                                <span v-for="a in ing.allergenen" :key="a" class="badge badge-allergeen">{{ a }}</span>
+                                            </template>
+                                            <span v-if="!parseInt(ing.is_biologisch) && (!ing.allergenen || !ing.allergenen.length)" style="color:#ccc;font-size:0.8rem">—</span>
+                                        </td>
                                         <td>
                                             <div style="display:flex;align-items:center;gap:0.5rem">
                                                 <div class="stock-bar">
@@ -447,7 +470,7 @@ require_once '../components/sidebar.php'; ?>
                                     </tr>
                                     <tr class="ingredient-add-row" @click="openIngredientModal(null, 'overig')">
                                         <td class="drag-cell"></td>
-                                        <td colspan="4"><button class="btn-add" @click.stop="openIngredientModal(null, 'overig')"><i class="bi bi-plus"></i> Nieuw overig ingrediënt</button></td>
+                                        <td colspan="5"><button class="btn-add" @click.stop="openIngredientModal(null, 'overig')"><i class="bi bi-plus"></i> Nieuw overig ingrediënt</button></td>
                                     </tr>
                                 </tbody>
                             </table>
@@ -761,31 +784,14 @@ require_once '../components/sidebar.php'; ?>
                                     Biologisch product
                                 </label>
                             </div>
-                            <div class="form-group">
-                                <label class="toggle-label">
-                                    <input type="checkbox" v-model="ingredientForm.is_allergeen" :true-value="1" :false-value="0">
-                                    Allergeen
-                                </label>
-                            </div>
-                            <div class="form-group" v-if="ingredientForm.is_allergeen">
-                                <label class="form-label">Allergeen naam (optioneel)</label>
-                                <select class="form-input" v-model="ingredientForm.allergeen_naam">
-                                    <option value="">— Selecteer allergeen —</option>
-                                    <option value="Gluten">Gluten</option>
-                                    <option value="Schaaldieren">Schaaldieren</option>
-                                    <option value="Eieren">Eieren</option>
-                                    <option value="Vis">Vis</option>
-                                    <option value="Pinda's">Pinda's</option>
-                                    <option value="Soja">Soja</option>
-                                    <option value="Melk">Melk</option>
-                                    <option value="Noten">Noten</option>
-                                    <option value="Selderij">Selderij</option>
-                                    <option value="Mosterd">Mosterd</option>
-                                    <option value="Sesam">Sesam</option>
-                                    <option value="Sulfieten">Sulfieten</option>
-                                    <option value="Lupine">Lupine</option>
-                                    <option value="Weekdieren">Weekdieren</option>
-                                </select>
+                            <div class="form-group" style="border-top:1px solid #f0ebe5;padding-top:0.75rem;margin-top:0.25rem">
+                                <label class="form-label">Allergenen <span style="font-weight:400;color:#888;">(EU-14, selecteer alles wat van toepassing is)</span></label>
+                                <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.3rem 1rem;margin-top:0.4rem">
+                                    <label v-for="a in allAllergens" :key="a" style="display:flex;align-items:center;gap:0.4rem;font-size:0.87rem;cursor:pointer;padding:0.2rem 0">
+                                        <input type="checkbox" :value="a" v-model="ingredientForm.allergenen" style="accent-color:#3d6b3d;cursor:pointer;">
+                                        {{ a }}
+                                    </label>
+                                </div>
                             </div>
                             <div class="form-group" style="border-top:1px solid #f0ebe5;padding-top:0.75rem;margin-top:0.25rem">
                                 <label class="toggle-label">
@@ -1015,7 +1021,8 @@ require_once '../components/sidebar.php'; ?>
 
                 showIngredientModal: false,
                 editingIngredient: null,
-                ingredientForm: { name: '', category: 'meel', unit: 'g', grain_type_id: '', is_whole_grain: 0, is_biologisch: 0, is_allergeen: 0, allergeen_naam: '', use_verpakkingen: 0 },
+                ingredientForm: { name: '', category: 'meel', unit: 'g', grain_type_id: '', is_whole_grain: 0, is_biologisch: 0, allergenen: [], use_verpakkingen: 0 },
+                allAllergens: ['Gluten','Schaaldieren','Eieren','Vis',"Pinda's",'Soja','Melk','Noten','Selderij','Mosterd','Sesam','Sulfieten','Lupine','Weekdieren'],
 
                 showGrainTypeModal: false,
                 newGrainTypeName: '',
@@ -1327,8 +1334,7 @@ require_once '../components/sidebar.php'; ?>
                         grain_type_id: ing.grain_type_id || '',
                         is_whole_grain: ing.is_whole_grain || 0,
                         is_biologisch: parseInt(ing.is_biologisch) || 0,
-                        is_allergeen: parseInt(ing.is_allergeen) || 0,
-                        allergeen_naam: ing.allergeen_naam || '',
+                        allergenen: Array.isArray(ing.allergenen) ? [...ing.allergenen] : [],
                         use_verpakkingen: parseInt(ing.use_verpakkingen) || 0,
                     };
                 } else {
@@ -1339,8 +1345,8 @@ require_once '../components/sidebar.php'; ?>
                         grain_type_id: defaultGrainTypeId || '',
                         is_whole_grain: 0,
                         is_biologisch: 0,
-                        is_allergeen: 0,
-                        allergeen_naam: ''
+                        allergenen: [],
+                        use_verpakkingen: 0,
                     };
                 }
                 this.showIngredientModal = true;

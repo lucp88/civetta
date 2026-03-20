@@ -537,6 +537,17 @@ switch ($action) {
         echo json_encode(['success' => true]);
         break;
 
+    case 'delete_allergen':
+        $allergeenNaam = trim($jsonBody['allergeen_naam'] ?? '');
+        if (empty($allergeenNaam)) {
+            echo json_encode(['success' => false, 'error' => 'Allergeen naam is verplicht']);
+            exit;
+        }
+        $stmt = $pdo->prepare("DELETE FROM allergen_trace_status WHERE allergeen_naam = ?");
+        $stmt->execute([$allergeenNaam]);
+        echo json_encode(['success' => true]);
+        break;
+
     default:
         echo json_encode(['success' => false, 'error' => 'Onbekende actie']);
 }

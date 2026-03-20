@@ -32,21 +32,28 @@ try {
                     $where .= " AND is_active = 1";
                 }
                 
-                $sql = "SELECT i.*, 
+                $sql = "SELECT i.*,
                         COALESCE(SUM(b.quantity_remaining), 0) as total_stock,
                         (SELECT price_per_kg FROM ingredient_batches
                          WHERE ingredient_id = i.id AND quantity_remaining > 0
-                         ORDER BY COALESCE(thd_date, '9999-12-31') ASC, purchase_date ASC LIMIT 1) as current_price_per_kg
+                         ORDER BY COALESCE(thd_date, '9999-12-31') ASC, purchase_date ASC LIMIT 1) as current_price_per_kg,
+                        GROUP_CONCAT(ia.allergeen_naam ORDER BY ia.allergeen_naam SEPARATOR ',') as allergenen_str
                         FROM ingredients i
                         LEFT JOIN ingredient_batches b ON i.id = b.ingredient_id AND b.quantity_remaining > 0
+                        LEFT JOIN ingredient_allergenen ia ON ia.ingredient_id = i.id
                         WHERE $where
                         GROUP BY i.id
                         ORDER BY i.category, i.sort_order, i.name";
-                
+
                 $stmt = $pdo->prepare($sql);
                 $stmt->execute($params);
                 $ingredients = $stmt->fetchAll();
-                
+                foreach ($ingredients as &$ing) {
+                    $ing['allergenen'] = $ing['allergenen_str'] ? explode(',', $ing['allergenen_str']) : [];
+                    unset($ing['allergenen_str']);
+                }
+                unset($ing);
+
                 echo json_encode(['success' => true, 'ingredients' => $ingredients]);
             }
             break;
@@ -74,6 +81,20 @@ try {
             ]);
             
             $id = $pdo->lastInsertId();
+
+            // Save allergens to junction table
+            $allergenen = array_filter(array_map('trim', (array)($data['allergenen'] ?? [])));
+            if (!empty($allergenen)) {
+                $iaStmt = $pdo->prepare("INSERT IGNORE INTO ingredient_allergenen (ingredient_id, allergeen_naam) VALUES (?, ?)");
+                foreach ($allergenen as $naam) { $iaStmt->execute([$id, $naam]); }
+                // Keep legacy column in sync (first allergen)
+                $pdo->prepare("UPDATE ingredients SET is_allergeen = 1, allergeen_naam = ? WHERE id = ?")->execute([reset($allergenen), $id]);
+            }
+            if (!empty($allergenen)) {
+                require_once '../lib/allergen-trace.php';
+                updateAllergenTraceStatus($pdo, $id);
+            }
+
             echo json_encode(['success' => true, 'id' => $id, 'message' => 'Ingrediënt aangemaakt']);
             break;
             
@@ -140,7 +161,23 @@ try {
             $sql = "UPDATE ingredients SET " . implode(", ", $fields) . " WHERE id = ?";
             $stmt = $pdo->prepare($sql);
             $stmt->execute($params);
-            
+
+            // Save allergens to junction table if provided
+            if (array_key_exists('allergenen', $data)) {
+                $pdo->prepare("DELETE FROM ingredient_allergenen WHERE ingredient_id = ?")->execute([$data['id']]);
+                $allergenen = array_filter(array_map('trim', (array)$data['allergenen']));
+                if (!empty($allergenen)) {
+                    $iaStmt = $pdo->prepare("INSERT IGNORE INTO ingredient_allergenen (ingredient_id, allergeen_naam) VALUES (?, ?)");
+                    foreach ($allergenen as $naam) { $iaStmt->execute([$data['id'], $naam]); }
+                    // Keep legacy columns in sync
+                    $pdo->prepare("UPDATE ingredients SET is_allergeen = 1, allergeen_naam = ? WHERE id = ?")->execute([reset($allergenen), $data['id']]);
+                } else {
+                    $pdo->prepare("UPDATE ingredients SET is_allergeen = 0, allergeen_naam = NULL WHERE id = ?")->execute([$data['id']]);
+                }
+                require_once '../lib/allergen-trace.php';
+                updateAllergenTraceStatus($pdo, $data['id']);
+            }
+
             echo json_encode(['success' => true, 'message' => 'Ingrediënt bijgewerkt']);
             break;
             

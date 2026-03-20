@@ -154,27 +154,27 @@ ob_start(); ?>
         .recipes-header h2 { font-size: 1.1rem; font-weight: 700; color: #1f2937; display: flex; align-items: center; gap: 0.5rem; }
         .recipes-header h2 i { color: #c8913a; }
         .recipes-header-actions { display: flex; gap: 0.5rem; }
-        .recipe-table { width: 100%; border-collapse: collapse; background: white; border: 1px solid #e5e7eb; border-radius: 6px; overflow: hidden; }
-        .recipe-table thead tr { background: #f9fafb; border-bottom: 1px solid #e5e7eb; }
-        .recipe-table th { padding: 0.5rem 0.875rem; text-align: left; font-size: 0.72rem; font-weight: 700; color: #6b7280; text-transform: uppercase; letter-spacing: 0.04em; white-space: nowrap; }
-        .recipe-table td { padding: 0.625rem 0.875rem; border-bottom: 1px solid #f3f4f6; font-size: 0.85rem; color: #374151; vertical-align: middle; }
+        .recipe-table { width: 100%; border-collapse: collapse; background: white; border: 1px solid #e8dfd2; border-radius: 6px; overflow: hidden; }
+        .recipe-table thead tr { background: #f5f0e8; border-bottom: 2px solid #e8e0d5; }
+        .recipe-table th { padding: 0.5rem 0.875rem; text-align: left; font-size: 0.72rem; font-weight: 700; color: #888; text-transform: uppercase; letter-spacing: 0.04em; white-space: nowrap; }
+        .recipe-table td { padding: 0.625rem 0.875rem; border-bottom: 1px solid #f0ebe5; font-size: 0.85rem; color: #333; vertical-align: middle; }
         .recipe-table tbody tr:last-child td { border-bottom: none; }
-        .recipe-table tbody tr.recipe-row:hover { background: #fefcf8; cursor: pointer; }
-        .recipe-table-name { font-weight: 600; color: #1f2937; display: flex; align-items: center; gap: 0.35rem; }
-        .recipe-table-desc { color: #9ca3af; font-size: 0.8rem; max-width: 300px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-        .recipe-table-date { color: #9ca3af; font-size: 0.8rem; white-space: nowrap; }
+        .recipe-table tbody tr.recipe-row:hover { background: #faf8f5; cursor: pointer; }
+        .recipe-table-name { font-weight: 600; color: #2d4a2d; display: flex; align-items: center; gap: 0.35rem; }
+        .recipe-table-desc { color: #888; font-size: 0.8rem; max-width: 300px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        .recipe-table-date { color: #888; font-size: 0.8rem; white-space: nowrap; }
         .recipe-table-actions { width: 40px; text-align: right; padding-right: 0.5rem !important; }
-        .recipe-group-row td { padding: 0.35rem 0.875rem; background: #f3f4f6; font-size: 0.72rem; font-weight: 700; color: #6b7280; text-transform: uppercase; letter-spacing: 0.04em; border-bottom: 1px solid #e5e7eb; cursor: pointer; user-select: none; }
-        .recipe-group-row:hover td { background: #ececec !important; }
-        .recipe-group-chevron { display: inline-flex; align-items: center; margin-right: 0.35rem; font-size: 0.75rem; transition: transform 0.15s; }
+        .recipe-group-row td { padding: 0.35rem 0.875rem; background: #f5f0e8; font-size: 0.72rem; font-weight: 700; color: #2d4a2d; text-transform: uppercase; letter-spacing: 0.04em; border-bottom: 1px solid #e8dfd2; cursor: pointer; user-select: none; }
+        .recipe-group-row:hover td { background: #ede8e0 !important; }
+        .recipe-group-chevron { display: inline-flex; align-items: center; margin-right: 0.35rem; font-size: 0.75rem; color: #a09080; transition: transform 0.15s; }
         .recipe-group-chevron.collapsed { transform: rotate(-90deg); }
         .deegsoort-badge { display: inline-flex; align-items: center; gap: 0.35rem; padding: 0.3rem 0.7rem; background: #f0fdf4; border: 1px solid #86efac; border-radius: 4px; font-size: 0.8rem; font-weight: 600; color: #166534; }
         .deegsoort-badge i { color: #16a34a; }
         .btn-is-deegsoort { font-size: 0.75rem; color: #6b7280; border: 1px dashed #d1d5db; background: transparent; border-radius: 4px; padding: 0.3rem 0.6rem; cursor: pointer; display: inline-flex; align-items: center; gap: 0.3rem; }
         .btn-is-deegsoort:hover { border-color: #16a34a; color: #166534; background: #f0fdf4; }
         .recipe-table .is-dough-type-icon { color: #16a34a; font-size: 0.8rem; margin-left: 0.25rem; }
-        .recipe-group-count { display: inline-flex; align-items: center; justify-content: center; min-width: 1.2rem; height: 1.2rem; background: #d1d5db; color: #374151; border-radius: 10px; font-size: 0.65rem; font-weight: 700; padding: 0 0.3rem; margin-left: 0.4rem; }
-        .drag-handle { color: #d1d5db; cursor: grab; padding: 0 0.35rem 0 0; font-size: 0.9rem; display: inline-flex; align-items: center; }
+        .recipe-group-count { display: inline-flex; align-items: center; justify-content: center; min-width: 1.2rem; height: 1.2rem; background: #e0d5c7; color: #2d4a2d; border-radius: 10px; font-size: 0.65rem; font-weight: 700; padding: 0 0.3rem; margin-left: 0.4rem; }
+        .drag-handle { color: #c8bfb5; cursor: grab; padding: 0 0.35rem 0 0; font-size: 0.9rem; display: inline-flex; align-items: center; }
         .drag-handle:active { cursor: grabbing; }
         .recipe-group-row.drag-over td { background: #dbeafe !important; }
         .recipe-row.drag-over td { background: #dbeafe !important; }
@@ -208,8 +208,8 @@ ob_start(); ?>
         .overview-item.sub .name { color: #9ca3af; }
         .overview-total { display: flex; justify-content: space-between; padding: 0.4rem 0; border-top: 1px solid #e5e7eb; margin-top: 0.4rem; font-weight: 700; color: #1f2937; font-size: 0.85rem; }
         .bp-table { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
-        .bp-table th { text-align: left; padding: 0.4rem 0.5rem; color: #6b7280; font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.04em; border-bottom: 1px solid #e5e7eb; font-weight: 700; }
-        .bp-table td { padding: 0.4rem 0.5rem; border-bottom: 1px solid #f3f4f6; color: #374151; }
+        .bp-table th { text-align: left; padding: 0.4rem 0.5rem; color: #888; font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.04em; border-bottom: 2px solid #e8e0d5; font-weight: 700; }
+        .bp-table td { padding: 0.4rem 0.5rem; border-bottom: 1px solid #f0ebe5; color: #333; }
         .bp-table td:last-child { text-align: right; font-weight: 700; color: #c8913a; }
         .bp-table tr:last-child td { border-bottom: none; }
         /* ── Radio pills ── */
@@ -355,7 +355,7 @@ require_once '../components/sidebar.php'; ?>
                             <tr v-if="!isGroupCollapsed(group.id)" class="recipe-add-row" @click="newRecipeInGroup(group.id)">
                                 <td class="drag-cell"></td>
                                 <td colspan="4" style="padding:0.35rem 0.875rem">
-                                    <button class="btn-add" style="border-style:dashed;border-color:#e5e7eb;color:#9ca3af;font-size:0.78rem;padding:0.25rem 0.5rem;width:auto;justify-content:flex-start;gap:0.3rem" @click.stop="newRecipeInGroup(group.id)"><i class="bi bi-plus"></i> Nieuw recept</button>
+                                    <button class="btn-add" style="font-size:0.78rem;padding:0.25rem 0.5rem;width:auto;justify-content:flex-start;gap:0.3rem" @click.stop="newRecipeInGroup(group.id)"><i class="bi bi-plus"></i> Nieuw recept</button>
                                 </td>
                             </tr>
                         </template>

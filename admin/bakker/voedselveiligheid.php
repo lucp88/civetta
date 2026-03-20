@@ -123,14 +123,14 @@ ob_start(); ?>
         .allergen-days-bar .progress-bar-fill.ok  { background: #2e7d32; }
         .release-by { font-size: 0.78rem; color: #888; display: flex; align-items: center; gap: 0.3rem; }
 
-        /* Category management */
-        .cat-manage { border: 1px solid #e8e0d5; border-radius: 8px; overflow: hidden; }
-        .cat-manage-item { display: flex; align-items: center; gap: 0.5rem; padding: 0.55rem 0.75rem; border-bottom: 1px solid #f0ebe5; font-size: 0.88rem; }
-        .cat-manage-item:last-child { border-bottom: none; }
-        .cat-manage-item .cat-name { flex: 1; font-weight: 500; }
-        .cat-add { display: flex; gap: 0.5rem; padding: 0.75rem; background: #faf8f5; border-top: 1px solid #e8e0d5; border-radius: 0 0 8px 8px; }
-        .cat-add input { flex: 1; padding: 0.45rem 0.7rem; border: 1.5px solid #e0d5c7; border-radius: 7px; font-size: 0.88rem; font-family: inherit; background: white; }
-        .cat-add input:focus { outline: none; border-color: #3d6b3d; }
+        /* Category management (inline in items table) */
+        .cat-header-cell { display: flex; align-items: center; justify-content: space-between; gap: 0.5rem; }
+        .cat-header-label-wrap { display: flex; align-items: center; gap: 0.35rem; }
+        .cat-header-actions { display: flex; gap: 0.25rem; opacity: 0; transition: opacity 0.15s; }
+        table.items tr.cat-header:hover .cat-header-actions { opacity: 1; }
+        .cat-add-footer { display: flex; gap: 0.5rem; padding: 0.75rem 0.75rem 0; border-top: 1px solid #e8e0d5; margin-top: 0.5rem; }
+        .cat-add-footer input { flex: 1; padding: 0.45rem 0.7rem; border: 1.5px solid #e0d5c7; border-radius: 7px; font-size: 0.88rem; font-family: inherit; background: white; }
+        .cat-add-footer input:focus { outline: none; border-color: #3d6b3d; }
         .cat-empty { padding: 0.75rem; color: #999; font-size: 0.85rem; text-align: center; border: 1px solid #e8e0d5; border-radius: 8px; }
 
         /* Empty state */
@@ -246,24 +246,9 @@ require_once '../components/sidebar.php'; ?>
 
         <!-- ==================== ITEMS BEHEER TAB ==================== -->
         <div id="tab-items" class="tab-content">
-
             <div class="panel">
                 <div class="panel-header">
-                    <div class="panel-title"><i class="bi bi-tags"></i> Categorieën</div>
-                </div>
-                <div id="catLoading" class="loading" style="padding:1rem;"><i class="bi bi-arrow-clockwise spin"></i> Laden…</div>
-                <div id="catList" class="cat-manage" style="display:none;"></div>
-                <div id="catEmpty" class="cat-empty" style="display:none;">Nog geen categorieën.</div>
-                <div class="cat-add">
-                    <input type="text" id="newCatNaam" placeholder="Nieuwe categorie…"
-                        onkeydown="if(event.key==='Enter') addCategorie()">
-                    <button class="btn btn-primary btn-sm" onclick="addCategorie()"><i class="bi bi-plus-lg"></i> Toevoegen</button>
-                </div>
-            </div>
-
-            <div class="panel">
-                <div class="panel-header">
-                    <div class="panel-title"><i class="bi bi-list-ul"></i> Items</div>
+                    <div class="panel-title"><i class="bi bi-list-ul"></i> Schoonmaakitems per categorie</div>
                     <button class="btn btn-primary btn-sm" onclick="openItemModal()"><i class="bi bi-plus-lg"></i> Nieuw item</button>
                 </div>
                 <div id="itemsLoading" class="loading"><i class="bi bi-arrow-clockwise spin"></i> Laden…</div>
@@ -282,7 +267,12 @@ require_once '../components/sidebar.php'; ?>
                 </div>
                 <div id="itemsEmpty" class="empty-state" style="display:none;">
                     <i class="bi bi-inbox"></i>
-                    <p>Nog geen items. Klik op <strong>Nieuw item</strong> om te beginnen.</p>
+                    <p>Nog geen items. Voeg eerst een categorie toe, dan kun je items toevoegen.</p>
+                </div>
+                <div class="cat-add-footer">
+                    <input type="text" id="newCatNaam" placeholder="Nieuwe categorie…"
+                        onkeydown="if(event.key==='Enter') addCategorie()">
+                    <button class="btn btn-ghost btn-sm" onclick="addCategorie()"><i class="bi bi-plus-lg"></i> Categorie toevoegen</button>
                 </div>
             </div>
         </div>
@@ -768,25 +758,7 @@ async function loadCategorieen() {
 }
 
 function renderCategorieen() {
-    const list    = document.getElementById('catList');
-    const empty   = document.getElementById('catEmpty');
-    const loading = document.getElementById('catLoading');
-    loading.style.display = 'none';
-
-    if (!categorieen || categorieen.length === 0) {
-        list.style.display  = 'none';
-        empty.style.display = 'block';
-    } else {
-        list.style.display  = 'block';
-        empty.style.display = 'none';
-        list.innerHTML = categorieen.map(c => `
-            <div class="cat-manage-item">
-                <span class="cat-name">${escHtml(c.naam)}</span>
-                <button class="btn-icon" onclick="openCatEdit(${c.id})" title="Bewerken"><i class="bi bi-pencil"></i></button>
-                <button class="btn-icon danger" onclick="deleteCategorie(${c.id})" title="Verwijderen"><i class="bi bi-trash"></i></button>
-            </div>
-        `).join('');
-    }
+    // Categories are now rendered inline in renderItems() — nothing to do here separately.
 }
 
 async function addCategorie() {
@@ -852,7 +824,8 @@ async function loadItems() {
 
 function renderItems() {
     const body = document.getElementById('itemsBody');
-    if (!masterItems || masterItems.length === 0) {
+    const hasCats = categorieen && categorieen.length > 0;
+    if ((!masterItems || masterItems.length === 0) && !hasCats) {
         body.innerHTML = ''; hideEl('itemsTableWrap'); showEl('itemsEmpty'); return;
     }
     showEl('itemsTableWrap'); hideEl('itemsEmpty');
@@ -865,29 +838,48 @@ function renderItems() {
         groups[cat].push(item);
     });
 
+    // Build a map of categorie_id → categorie object for inline controls
+    const catById = {};
+    (categorieen || []).forEach(c => { catById[c.id] = c; });
+
     let html = '';
     for (const cat of order) {
+        const firstItem = groups[cat][0];
+        const catId     = firstItem ? (firstItem.categorie_id || null) : null;
+        const catObj    = catId ? catById[catId] : null;
+
+        const catControls = catObj ? `
+            <div class="cat-header-actions">
+                <button class="btn-icon" onclick="openCatEdit(${catObj.id})" title="Categorie hernoemen"><i class="bi bi-pencil"></i></button>
+                <button class="btn-icon danger" onclick="deleteCategorie(${catObj.id})" title="Categorie verwijderen"><i class="bi bi-trash"></i></button>
+                <button class="btn-icon" onclick="openItemModal(null, ${catObj.id})" title="Nieuw item in deze categorie" style="color:#3d6b3d;"><i class="bi bi-plus-lg"></i></button>
+            </div>` : '';
+
         html += `<tr class="cat-header">
-            <td colspan="4"><i class="bi bi-tag-fill" style="margin-right:0.35rem; color:#c8913a;"></i>${escHtml(cat)}</td>
+            <td colspan="4">
+                <div class="cat-header-cell">
+                    <span class="cat-header-label-wrap"><i class="bi bi-tag-fill" style="color:#c8913a;"></i> ${escHtml(cat)}</span>
+                    ${catControls}
+                </div>
+            </td>
         </tr>`;
         groups[cat].forEach(item => {
-            const active = parseInt(item.actief) === 1;
+            const active   = parseInt(item.actief) === 1;
             const kritisch = parseInt(item.is_allergeen_kritisch) === 1;
             html += `<tr class="${active ? '' : 'inactive'}">
-                <td><strong>${escHtml(item.naam)}</strong>${kritisch ? ' <span class="badge" style="background:#fff3e0;color:#e65100;font-size:0.7rem;">Allergeen-kritisch</span>' : ''}</td>
+                <td>
+                    <strong>${escHtml(item.naam)}</strong>
+                    ${kritisch ? ' <span class="badge" style="background:#fff3e0;color:#e65100;font-size:0.7rem;">Allergeen-kritisch</span>' : ''}
+                </td>
                 <td style="font-size:0.84rem; color:#666;">${formatFreq(item.frequentie)}</td>
                 <td>
-                    <span class="badge" style="${active
-                        ? 'background:#e8f5e9;color:#2e7d32;'
-                        : 'background:#f5f5f5;color:#999;'}">
+                    <span class="badge" style="${active ? 'background:#e8f5e9;color:#2e7d32;' : 'background:#f5f5f5;color:#999;'}">
                         ${active ? 'Actief' : 'Inactief'}
                     </span>
                 </td>
                 <td>
                     <div style="display:flex; gap:0.35rem;">
-                        <button class="btn-icon" onclick="openItemModal(${item.id})" title="Bewerken">
-                            <i class="bi bi-pencil"></i>
-                        </button>
+                        <button class="btn-icon" onclick="openItemModal(${item.id})" title="Bewerken"><i class="bi bi-pencil"></i></button>
                         <button class="btn-icon ${active ? 'danger' : ''}"
                             title="${active ? 'Deactiveren' : 'Activeren'}"
                             onclick="toggleItemActief(${item.id}, ${active ? 0 : 1})">
@@ -898,10 +890,29 @@ function renderItems() {
             </tr>`;
         });
     }
+
+    // Empty categories (in categorieen but no items yet)
+    (categorieen || []).forEach(c => {
+        if (!order.includes(c.naam)) {
+            html += `<tr class="cat-header">
+                <td colspan="4">
+                    <div class="cat-header-cell">
+                        <span class="cat-header-label-wrap"><i class="bi bi-tag-fill" style="color:#c8913a;"></i> ${escHtml(c.naam)} <span style="font-size:0.75rem;color:#bbb;font-weight:400;">(leeg)</span></span>
+                        <div class="cat-header-actions">
+                            <button class="btn-icon" onclick="openCatEdit(${c.id})" title="Categorie hernoemen"><i class="bi bi-pencil"></i></button>
+                            <button class="btn-icon danger" onclick="deleteCategorie(${c.id})" title="Categorie verwijderen"><i class="bi bi-trash"></i></button>
+                            <button class="btn-icon" onclick="openItemModal(null, ${c.id})" title="Nieuw item in deze categorie" style="color:#3d6b3d;"><i class="bi bi-plus-lg"></i></button>
+                        </div>
+                    </div>
+                </td>
+            </tr>`;
+        }
+    });
+
     body.innerHTML = html;
 }
 
-function openItemModal(id) {
+function openItemModal(id, defaultCategorieId) {
     document.getElementById('itemId').value = id || '';
     document.getElementById('itemModalTitle').textContent = id ? 'Item bewerken' : 'Item toevoegen';
     document.getElementById('itemActiefGroup').style.display = id ? 'block' : 'none';
@@ -921,7 +932,7 @@ function openItemModal(id) {
         }
     } else {
         document.getElementById('itemNaam').value       = '';
-        document.getElementById('itemCategorie').value  = '';
+        document.getElementById('itemCategorie').value  = defaultCategorieId || '';
         document.getElementById('itemFrequentie').value = 'dagelijks';
         document.getElementById('itemAllergeenKritisch').checked = false;
     }
@@ -999,7 +1010,8 @@ function renderAllergenStatus(statuses, criticalCount) {
             depletedSince  = '—';
             daysRemainingHtml = '<span style="color:#aaa;font-size:0.82rem;">Actief in gebruik</span>';
             cleaningStatus = '—';
-            actionBtn      = '<span style="color:#aaa;font-size:0.82rem;" title="Zolang dit allergeen op voorraad is, wordt het automatisch als sporenallergeen getoond. Verwijder de voorraad om de 60-dagenperiode te starten.">Geen actie mogelijk</span>';
+            actionBtn      = `<span style="color:#aaa;font-size:0.82rem;" title="Zolang dit allergeen op voorraad is, wordt het automatisch als sporenallergeen getoond. Verwijder de voorraad om de 60-dagenperiode te starten.">Geen actie mogelijk</span>
+                              <button class="btn btn-danger btn-sm" style="margin-left:0.5rem" onclick="deleteAllergenRecord('${escAttr(s.allergeen_naam)}')" title="Admin: verwijder dit record volledig uit de tracking-tabel (bijv. voor testdata)."><i class="bi bi-trash3"></i></button>`;
         } else if (isDepleted) {
             rowClass      = 'row-depleted';
             statusBadge   = '<span class="badge" style="background:#ffebee;color:#c62828;"><i class="bi bi-clock-history"></i> Uitgeput</span>';
@@ -1039,6 +1051,15 @@ function renderAllergenStatus(statuses, criticalCount) {
             <td style="white-space:nowrap">${actionBtn}</td>
         </tr>`;
     }).join('');
+}
+
+async function deleteAllergenRecord(naam) {
+    if (!await showConfirm(`Record "${naam}" volledig verwijderen uit de tracking?\n\nDit is een admin-override voor testdata. Het record wordt opnieuw aangemaakt zodra er voorraad wordt toegevoegd of verbruikt.`)) return;
+    try {
+        await callApi(null, { action: 'delete_allergen', allergeen_naam: naam });
+        showToast('Record verwijderd', 'success');
+        loadAllergenStatus();
+    } catch (e) { showToast('Fout: ' + e.message, 'error'); }
 }
 
 async function clearAllergen(naam) {
