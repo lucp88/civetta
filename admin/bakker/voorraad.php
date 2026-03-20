@@ -517,9 +517,9 @@ require_once '../components/sidebar.php'; ?>
                                         <td>{{ formatStock(batch.quantity_remaining) }}</td>
                                         <td>€{{ formatNumber(batch.price_per_kg) }}</td>
                                         <td style="white-space:nowrap">
-                                            <button class="btn btn-ghost btn-sm" @click="editBatch(batch)"><i class="bi bi-pencil"></i></button>
-                                            <button class="btn btn-danger btn-sm" @click="purgeBatch(batch)" :disabled="parseFloat(batch.quantity_remaining) === 0" style="margin-left:0.25rem" title="Weggooien"><i class="bi bi-trash3"></i></button>
-                                            <button class="btn btn-ghost btn-sm" @click="deleteBatch(batch.id)" style="margin-left:0.25rem" title="Verwijderen"><i class="bi bi-x-lg"></i></button>
+                                            <button class="btn btn-ghost btn-sm" @click="editBatch(batch)"><i class="bi bi-pencil"></i> Bewerken</button>
+                                            <button class="btn btn-danger btn-sm" @click="purgeBatch(batch)" :disabled="parseFloat(batch.quantity_remaining) === 0" style="margin-left:0.25rem"><i class="bi bi-trash3"></i> Weggooien</button>
+                                            <button class="btn btn-ghost btn-sm" @click="deleteBatch(batch.id)" style="margin-left:0.25rem"><i class="bi bi-x-lg"></i> Verwijderen</button>
                                         </td>
                                     </tr>
                                 </tbody>

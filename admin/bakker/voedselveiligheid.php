@@ -108,6 +108,21 @@ ob_start(); ?>
         .progress-bar-bg { width: 80px; height: 6px; background: #e8e0d5; border-radius: 3px; overflow: hidden; flex-shrink: 0; }
         .progress-bar-fill { height: 100%; background: #2e7d32; border-radius: 3px; }
 
+        /* Allergen table */
+        table.allergen { width: 100%; border-collapse: collapse; font-size: 0.9rem; }
+        table.allergen th { padding: 0.65rem 0.75rem; text-align: left; color: #888; font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.04em; border-bottom: 2px solid #e8e0d5; }
+        table.allergen td { padding: 0.65rem 0.75rem; border-bottom: 1px solid #f0ebe5; vertical-align: middle; }
+        table.allergen tr.row-in-stock td { background: #fffbf5; }
+        table.allergen tr.row-depleted td { background: #fff8f8; }
+        table.allergen tr.row-cleared td { background: #f0fff4; }
+        table.allergen tr:hover td { filter: brightness(0.97); }
+        .allergen-days-bar { display: flex; align-items: center; gap: 0.5rem; }
+        .allergen-days-bar .progress-bar-bg { width: 60px; }
+        .allergen-days-bar .progress-bar-fill.low { background: #c62828; }
+        .allergen-days-bar .progress-bar-fill.mid { background: #e65100; }
+        .allergen-days-bar .progress-bar-fill.ok  { background: #2e7d32; }
+        .release-by { font-size: 0.78rem; color: #888; display: flex; align-items: center; gap: 0.3rem; }
+
         /* Category management */
         .cat-manage { border: 1px solid #e8e0d5; border-radius: 8px; overflow: hidden; }
         .cat-manage-item { display: flex; align-items: center; gap: 0.5rem; padding: 0.55rem 0.75rem; border-bottom: 1px solid #f0ebe5; font-size: 0.88rem; }
@@ -281,21 +296,20 @@ require_once '../components/sidebar.php'; ?>
                 </div>
                 <div id="allergenLoading" class="loading" style="padding:1rem;"><i class="bi bi-arrow-clockwise spin"></i> Laden…</div>
                 <div id="allergenContent" style="display:none;">
-                    <div style="font-size:0.85rem; color:#666; margin-bottom:1rem; padding:0.75rem; background:#faf6f1; border-radius:8px;">
-                        <i class="bi bi-info-circle"></i>
-                        Allergenen worden als sporenallergeen getoond zolang er voorraad is, of tot 60 dagen na uitputting
-                        <strong>en</strong> alle allergeen-kritische schoonmaakitems zijn afgerond.
+                    <div style="font-size:0.85rem; color:#666; margin-bottom:1rem; padding:0.75rem 1rem; background:#faf6f1; border:1px solid #e8dfd2; border-radius:8px; display:flex; gap:0.6rem; align-items:flex-start;">
+                        <i class="bi bi-info-circle" style="color:#c8913a; margin-top:0.1rem; flex-shrink:0;"></i>
+                        <span>Een ingrediënt wordt als <strong>sporenallergeen</strong> getoond op productpagina's zolang het op voorraad is, en daarna nog <strong>60 dagen</strong> na uitputting — tenzij alle allergeen-kritische schoonmaakitems zijn afgerond én de 60 dagen zijn verstreken.</span>
                     </div>
                     <div class="table-wrapper" id="allergenTableWrap" style="display:none;">
-                        <table>
+                        <table class="allergen">
                             <thead>
                                 <tr>
                                     <th>Allergeen</th>
                                     <th>Status</th>
                                     <th>Uitgeput sinds</th>
-                                    <th>Dagen resterend</th>
-                                    <th>Schoonmaak</th>
-                                    <th></th>
+                                    <th>Resterende periode</th>
+                                    <th>Allergeen-kritische schoonmaak</th>
+                                    <th>Actie</th>
                                 </tr>
                             </thead>
                             <tbody id="allergenBody"></tbody>
@@ -978,41 +992,52 @@ function renderAllergenStatus(statuses, criticalCount) {
         const isDepleted = s.status === 'depleted';
         const isCleared  = s.status === 'cleared';
 
-        let statusBadge, depletedSince, daysRemaining, cleaningStatus, actionBtn;
+        let statusBadge, depletedSince, daysRemainingHtml, cleaningStatus, actionBtn, rowClass;
 
         if (isInStock) {
-            statusBadge    = '<span class="badge" style="background:#fff3e0;color:#e65100;">Op voorraad</span>';
+            rowClass       = 'row-in-stock';
+            statusBadge    = '<span class="badge" style="background:#fff3e0;color:#e65100;"><i class="bi bi-exclamation-triangle-fill"></i> Op voorraad</span>';
             depletedSince  = '—';
-            daysRemaining  = '—';
+            daysRemainingHtml = '<span style="color:#aaa;font-size:0.82rem;">Actief in gebruik</span>';
             cleaningStatus = '—';
-            actionBtn      = '';
+            actionBtn      = '<span style="color:#aaa;font-size:0.82rem;" title="Zolang dit allergeen op voorraad is, wordt het automatisch als sporenallergeen getoond. Verwijder de voorraad om de 60-dagenperiode te starten.">Geen actie mogelijk</span>';
         } else if (isDepleted) {
-            statusBadge   = '<span class="badge" style="background:#ffebee;color:#c62828;">Uitgeput</span>';
+            rowClass      = 'row-depleted';
+            statusBadge   = '<span class="badge" style="background:#ffebee;color:#c62828;"><i class="bi bi-clock-history"></i> Uitgeput</span>';
             depletedSince = s.stock_depleted_at ? formatDate(s.stock_depleted_at.substring(0, 10)) : '—';
-            const days    = parseInt(s.days_since_depleted) || 0;
+            const days      = parseInt(s.days_since_depleted) || 0;
             const remaining = Math.max(0, 60 - days);
-            daysRemaining = remaining > 0
-                ? `${remaining} dagen`
-                : '<span style="color:#2e7d32;">Verlopen</span>';
+            const pct       = Math.min(100, Math.round((days / 60) * 100));
+            const barClass  = remaining <= 10 ? 'low' : remaining <= 25 ? 'mid' : 'ok';
+            daysRemainingHtml = remaining > 0
+                ? `<div class="allergen-days-bar">
+                       <div class="progress-bar-bg"><div class="progress-bar-fill ${barClass}" style="width:${pct}%"></div></div>
+                       <span style="color:${barClass === 'low' ? '#c62828' : barClass === 'mid' ? '#e65100' : '#333'}">${remaining} dagen</span>
+                   </div>`
+                : '<span style="color:#2e7d32;font-weight:600;"><i class="bi bi-check-circle"></i> Periode verstreken</span>';
             cleaningStatus = criticalCount === 0
-                ? '<span style="color:#888;">Geen items</span>'
-                : `${s.cleaning_done}/${s.cleaning_total}${s.cleaning_complete ? ' <span style="color:#2e7d32;">✓</span>' : ''}`;
-            actionBtn = `<button class="btn btn-ghost btn-sm" onclick="clearAllergen('${escAttr(s.allergeen_naam)}')"><i class="bi bi-check-lg"></i> Vrijgeven</button>`;
+                ? '<span style="color:#aaa;font-size:0.82rem;">Geen kritische items</span>'
+                : (s.cleaning_complete
+                    ? `<span style="color:#2e7d32;"><i class="bi bi-check-circle"></i> Afgerond (${s.cleaning_done}/${s.cleaning_total})</span>`
+                    : `<span style="color:#e65100;">${s.cleaning_done}/${s.cleaning_total} afgerond</span>`);
+            actionBtn = `<button class="btn btn-ghost btn-sm" onclick="clearAllergen('${escAttr(s.allergeen_naam)}')" title="Handmatig vrijgeven: dit allergeen wordt niet meer als sporenallergeen getoond op productpagina's. Gebruik dit alleen als de ruimte grondig schoongemaakt is en je zeker weet dat er geen kruiscontaminatie meer mogelijk is."><i class="bi bi-check-lg"></i> Vrijgeven</button>`;
         } else {
-            statusBadge   = '<span class="badge" style="background:#e8f5e9;color:#2e7d32;">Vrijgegeven</span>';
+            rowClass      = 'row-cleared';
+            statusBadge   = '<span class="badge" style="background:#e8f5e9;color:#2e7d32;"><i class="bi bi-check-circle-fill"></i> Vrijgegeven</span>';
             depletedSince = s.stock_depleted_at ? formatDate(s.stock_depleted_at.substring(0, 10)) : '—';
-            daysRemaining = '—';
-            cleaningStatus = s.cleared_by === 'auto' ? 'Automatisch' : `Door: ${escHtml(s.cleared_by || '?')}`;
-            actionBtn = `<button class="btn btn-ghost btn-sm" onclick="resetAllergen('${escAttr(s.allergeen_naam)}')"><i class="bi bi-arrow-counterclockwise"></i> Terugzetten</button>`;
+            daysRemainingHtml = '<span style="color:#2e7d32;font-size:0.82rem;">Periode afgerond</span>';
+            const clearedBy = s.cleared_by === 'auto' ? 'Automatisch' : escHtml(s.cleared_by || '?');
+            cleaningStatus = `<span class="release-by"><i class="bi bi-person-check"></i> ${clearedBy}</span>`;
+            actionBtn = `<button class="btn btn-ghost btn-sm" onclick="resetAllergen('${escAttr(s.allergeen_naam)}')" title="Terugzetten naar 'Uitgeput': het allergeen wordt weer als sporenallergeen getoond. Gebruik dit als blijkt dat de vrijgave te vroeg was of per ongeluk is gedaan."><i class="bi bi-arrow-counterclockwise"></i> Terugzetten</button>`;
         }
 
-        return `<tr>
+        return `<tr class="${rowClass}">
             <td><strong>${escHtml(s.allergeen_naam)}</strong></td>
             <td>${statusBadge}</td>
             <td>${depletedSince}</td>
-            <td>${daysRemaining}</td>
+            <td>${daysRemainingHtml}</td>
             <td>${cleaningStatus}</td>
-            <td>${actionBtn}</td>
+            <td style="white-space:nowrap">${actionBtn}</td>
         </tr>`;
     }).join('');
 }
