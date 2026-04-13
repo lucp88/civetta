@@ -427,6 +427,64 @@ ob_start(); ?>
             box-shadow: var(--shadow-sm);
         }
 
+        .bakery-temp-card {
+            background: var(--white);
+            border-radius: var(--radius-md);
+            border: 1px solid var(--border);
+            padding: 1.1rem 1.5rem;
+            margin-bottom: 2rem;
+            display: flex;
+            align-items: center;
+            gap: 1.25rem;
+            flex-wrap: wrap;
+        }
+        .bakery-temp-label {
+            font-size: 0.88rem;
+            font-weight: 600;
+            color: var(--text-primary);
+            display: flex;
+            align-items: center;
+            gap: 0.4rem;
+            white-space: nowrap;
+        }
+        .bakery-temp-input-row { display: flex; align-items: stretch; }
+        .bakery-temp-input {
+            width: 80px;
+            padding: 0.45rem 22px 0.45rem 0.5rem;
+            border: 2px solid var(--border);
+            border-right: none;
+            border-radius: 6px 0 0 6px;
+            font-size: 1.3rem;
+            font-weight: 700;
+            color: var(--text-primary);
+            text-align: center;
+            transition: border-color 0.2s;
+        }
+        .bakery-temp-input:focus { outline: none; border-color: #c8913a; }
+        .bakery-temp-input::-webkit-inner-spin-button { opacity: 1; transform: scale(1.5); transform-origin: right center; }
+        .bakery-temp-unit {
+            padding: 0.45rem 0.6rem;
+            background: #f3f4f6;
+            border: 2px solid var(--border);
+            border-left: none;
+            border-radius: 0 6px 6px 0;
+            font-size: 0.9rem;
+            font-weight: 600;
+            color: #6b7280;
+            display: flex;
+            align-items: center;
+        }
+        .bakery-temp-saved {
+            font-size: 0.8rem;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 0.3rem;
+            transition: opacity 0.3s;
+        }
+        .bakery-temp-saved.fresh { color: #166534; }
+        .bakery-temp-saved.stale { color: #9ca3af; }
+
         @media (max-width: 1024px) {
             .stats-grid { grid-template-columns: repeat(2, 1fr); }
             .content-grid { grid-template-columns: 1fr; }
@@ -460,6 +518,15 @@ require_once 'components/sidebar.php'; ?>
                 <div class="page-header">
                     <h2>Welkom terug</h2>
                     <p><?= strftime('%A %e %B %Y', time()) ?: date('l j F Y') ?></p>
+                </div>
+
+                <div class="bakery-temp-card">
+                    <span class="bakery-temp-label"><i class="bi bi-thermometer-half" style="color:#c8913a"></i> Bakkerijtemperatuur vandaag</span>
+                    <div class="bakery-temp-input-row">
+                        <input type="number" id="bakery-temp" class="bakery-temp-input" min="-10" max="45" step="0.5" placeholder="—" oninput="saveBakeryTemp()">
+                        <span class="bakery-temp-unit">°C</span>
+                    </div>
+                    <span id="bakery-temp-status" class="bakery-temp-saved stale"></span>
                 </div>
 
                 <div class="stats-grid">
@@ -807,6 +874,50 @@ require_once 'components/sidebar.php'; ?>
     }
 
     initPushUI();
+
+    // ── Bakery temperature ──────────────────────────────────────────────────
+    var BT_KEY  = 'civetta_bakery_temp';
+    var WT_KEY  = 'civetta_watertemp';
+    var TODAY   = '<?= date('Y-m-d') ?>';
+
+    function saveBakeryTemp() {
+        var val = parseFloat(document.getElementById('bakery-temp').value);
+        if (isNaN(val)) return;
+        var entry = { date: TODAY, value: val };
+        localStorage.setItem(BT_KEY, JSON.stringify(entry));
+
+        // Push into watertemp settings so dagproductie picks it up
+        try {
+            var wt = JSON.parse(localStorage.getItem(WT_KEY)) || {};
+            wt.flour   = String(val);
+            wt.ambient = String(val);
+            localStorage.setItem(WT_KEY, JSON.stringify(wt));
+        } catch(e) {}
+
+        updateBakeryTempStatus(entry);
+    }
+
+    function updateBakeryTempStatus(entry) {
+        var el = document.getElementById('bakery-temp-status');
+        if (!entry) { el.textContent = ''; return; }
+        if (entry.date === TODAY) {
+            el.className = 'bakery-temp-saved fresh';
+            el.innerHTML = '<i class="bi bi-check-circle-fill"></i> Opgeslagen voor vandaag';
+        } else {
+            el.className = 'bakery-temp-saved stale';
+            el.innerHTML = '<i class="bi bi-clock-history"></i> Laatste waarde: ' + entry.date + ' — nog niet bijgewerkt';
+        }
+    }
+
+    (function initBakeryTemp() {
+        try {
+            var entry = JSON.parse(localStorage.getItem(BT_KEY));
+            if (entry) {
+                document.getElementById('bakery-temp').value = entry.value;
+                updateBakeryTempStatus(entry);
+            }
+        } catch(e) {}
+    })();
     </script>
 </body>
 </html>

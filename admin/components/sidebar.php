@@ -14,7 +14,7 @@ if (!isset($currentPage) || $currentPage === '') {
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title><?= htmlspecialchars($adminPageTitle) ?> | Civetta Admin</title>
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+    <link rel="stylesheet" href="/css/bootstrap-icons.min.css">
     <style>
     :root {
         --green-dark: #1a2e1a;
@@ -352,6 +352,22 @@ if (!isset($currentPage) || $currentPage === '') {
         .topbar-right { gap: 0.5rem; }
         .topbar-link span { display: none; }
     }
+    /* Shared state badges */
+    .badge {
+        display: inline-block;
+        font-size: 0.72rem;
+        font-weight: 600;
+        padding: 0.2rem 0.55rem;
+        border-radius: 20px;
+        vertical-align: middle;
+        white-space: nowrap;
+    }
+    .badge--green  { background: #d4edda; color: #155724; }
+    .badge--orange { background: #fff3cd; color: #856404; }
+    .badge--blue   { background: #cce5ff; color: #004085; }
+    .badge--red    { background: #f8d7da; color: #721c24; }
+    .badge--gray   { background: #e2e3e5; color: #383d41; }
+
     </style>
     <link rel="manifest" href="<?= $adminBasePath ?>manifest.json">
     <meta name="theme-color" content="#5c3d1e">

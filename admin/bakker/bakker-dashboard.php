@@ -440,6 +440,79 @@ ob_start(); ?>
             background: var(--cream);
         }
 
+        .watertemp-tracker {
+            background: var(--white);
+            border-radius: var(--radius-md);
+            border: 1px solid var(--border);
+            overflow: hidden;
+            margin-top: 1.5rem;
+        }
+        .wt-tracker-header {
+            padding: 1rem 1.25rem;
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .wt-tracker-header h3 {
+            font-size: 0.9rem;
+            font-weight: 600;
+            color: var(--text-primary);
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+        .wt-tracker-body {
+            padding: 1rem 1.25rem;
+            display: flex;
+            align-items: center;
+            gap: 1.5rem;
+            flex-wrap: wrap;
+        }
+        .wt-tracker-inputs {
+            display: flex;
+            gap: 1.5rem;
+            flex-wrap: wrap;
+            flex: 1;
+        }
+        .wt-tracker-field {
+            display: flex;
+            flex-direction: column;
+            gap: 0.2rem;
+        }
+        .wt-tracker-label {
+            font-size: 0.68rem;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            color: var(--text-muted);
+            font-weight: 600;
+        }
+        .wt-tracker-value {
+            font-size: 1.25rem;
+            font-weight: 700;
+            color: var(--text-primary);
+            font-variant-numeric: tabular-nums;
+        }
+        .wt-tracker-value.muted { color: var(--text-muted); font-size: 1rem; }
+        .wt-result-pill {
+            padding: 0.5rem 1.1rem;
+            border-radius: 50px;
+            font-weight: 700;
+            font-size: 1.4rem;
+            font-variant-numeric: tabular-nums;
+            white-space: nowrap;
+        }
+        .wt-not-set {
+            font-size: 0.85rem;
+            color: var(--text-muted);
+            padding: 1rem 1.25rem;
+            font-style: italic;
+        }
+        .watertemp-cold { background: #eff6ff; color: #1d4ed8; }
+        .watertemp-cool { background: #f0fdf4; color: #166534; }
+        .watertemp-warm { background: #fff7ed; color: #c2410c; }
+        .watertemp-hot  { background: #fef2f2; color: #b91c1c; }
+
         @media (max-width: 1024px) {
             .action-cards { gap: 1rem; }
         }
@@ -588,11 +661,73 @@ require_once '../components/sidebar.php'; ?>
                         </div>
                     </div>
                 </div>
+
+                <div class="watertemp-tracker">
+                    <div class="wt-tracker-header">
+                        <h3><i class="bi bi-thermometer-half" style="color:#c8913a"></i> Watertemperatuur</h3>
+                        <a href="dagproductie.php?date=<?= $today ?>" class="summary-header-link">Aanpassen</a>
+                    </div>
+                    <div id="wt-tracker-content">
+                        <div class="wt-not-set">Nog geen waarden opgeslagen — open dagproductie om in te stellen.</div>
+                    </div>
+                </div>
+
             </div>
         </div>
     </div>
 
     <script>
+    (function() {
+        var WT_KEY = 'civetta_watertemp';
+        var BT_KEY = 'civetta_bakery_temp';
+        var TODAY  = '<?= date('Y-m-d') ?>';
+        try {
+            var saved = JSON.parse(localStorage.getItem(WT_KEY)) || {};
+            var bt    = JSON.parse(localStorage.getItem(BT_KEY));
+
+            // Determine flour/ambient: prefer bakery temp
+            var flour   = bt ? parseFloat(bt.value) : (parseFloat(saved.flour)   || 0);
+            var ambient = bt ? parseFloat(bt.value) : (parseFloat(saved.ambient) || 0);
+            var ddt      = parseFloat(saved.dough)    || 0;
+            var friction = parseFloat(saved.friction) || 0;
+            var prefVal  = (saved.preferment || '').trim();
+            var hasPref  = prefVal !== '' && !isNaN(parseFloat(prefVal));
+
+            if (!ddt && !bt) return; // nothing at all saved
+
+            var water = hasPref
+                ? ddt * 4 - (flour + ambient + parseFloat(prefVal) + friction)
+                : ddt * 3 - (flour + ambient + friction);
+            water = Math.round(water * 10) / 10;
+
+            var colorClass = water <= 5 ? 'watertemp-cold' : water <= 20 ? 'watertemp-cool' : water <= 35 ? 'watertemp-warm' : 'watertemp-hot';
+            var btStale = bt && bt.date !== TODAY;
+
+            var html = '<div class="wt-tracker-body"><div class="wt-tracker-inputs">';
+
+            // Bakery temp field (prominent)
+            if (bt) {
+                var btLabel = btStale
+                    ? 'Bakkerij <span style="color:#b45309;font-size:0.65rem;font-weight:600"> — ' + bt.date + ' (oud)</span>'
+                    : 'Bakkerij vandaag';
+                html += '<div class="wt-tracker-field"><div class="wt-tracker-label">' + btLabel + '</div>'
+                      + '<div class="wt-tracker-value' + (btStale ? ' muted' : '') + '">' + bt.value + '°C</div></div>';
+            }
+
+            if (ddt) {
+                html += '<div class="wt-tracker-field"><div class="wt-tracker-label">DDT</div><div class="wt-tracker-value">' + ddt + '°C</div></div>';
+                if (hasPref) html += '<div class="wt-tracker-field"><div class="wt-tracker-label">Voordeeg</div><div class="wt-tracker-value">' + parseFloat(prefVal) + '°C</div></div>';
+                if (friction) html += '<div class="wt-tracker-field"><div class="wt-tracker-label">Wrijving</div><div class="wt-tracker-value">' + friction + '°C</div></div>';
+                html += '</div><div class="wt-result-pill ' + colorClass + (btStale ? ' ' + colorClass + '" style="opacity:0.65' : '') + '">' + water + '°C water</div>';
+            } else {
+                html += '</div>';
+            }
+
+            html += '</div>';
+            document.getElementById('wt-tracker-content').innerHTML = html;
+        } catch(e) {}
+    })();
+
     if ('serviceWorker' in navigator) {
         navigator.serviceWorker.register('../sw.js', { scope: '/admin/' });
         if ('PushManager' in window) {

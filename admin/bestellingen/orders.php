@@ -1263,7 +1263,7 @@ require_once '../components/sidebar.php'; ?>
         </div>
     </div>
 
-    <div class="modal-overlay" id="editModal" onclick="if(event.target===this)closeEditModal()">
+    <div class="modal-overlay" id="editModal" onmousedown="this._md=(event.target===this)" onclick="if(event.target===this&&this._md)closeEditModal()">
         <div class="modal">
             <div class="modal-header">
                 <h3 id="editModalTitle">Bestelling aanpassen</h3>

@@ -363,9 +363,9 @@ switch ($method) {
             $totalAmount += floatval($item['quantity']) * floatval($item['unit_price']);
         }
 
-        // Bakeday check — warn for internal orders, don't block
+        // Bakeday check — skip for internal orders, require confirm for regular orders
         $confirmOverride = !empty($data['confirm_override']);
-        if (!$confirmOverride) {
+        if (!$confirmOverride && !$isInternal) {
             $stmtPatroon = $pdo->prepare("SELECT setting_value FROM settings WHERE setting_key = 'bakdagen_patroon'");
             $stmtPatroon->execute();
             $patroonStr = $stmtPatroon->fetchColumn() ?: '';
@@ -418,7 +418,7 @@ switch ($method) {
                 echo json_encode([
                     'success' => false,
                     'needs_confirm' => true,
-                    'warning' => implode(' ', $warnings) . ' Wil je toch doorgaan?'
+                    'warning' => implode(' ', $warnings)
                 ]);
                 exit;
             }

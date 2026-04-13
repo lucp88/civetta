@@ -82,20 +82,21 @@
                                     <input type="text" id="bedrijfsnaam" v-model="form.bedrijfsnaam" required>
                                 </div>
 
-                                <div class="form-group">
-                                    <label for="adres">Adres *</label>
-                                    <input type="text" id="adres" v-model="form.adres" placeholder="Straat en huisnummer" required>
-                                </div>
-
                                 <div class="form-row">
                                     <div class="form-group">
                                         <label for="postcode">Postcode</label>
-                                        <input type="text" id="postcode" v-model="form.postcode" placeholder="1234 AB">
+                                        <input type="text" id="postcode" v-model="form.postcode" placeholder="1234 AB" @blur="lookupPostcode">
+                                        <small v-if="postcodeLoading" style="color: #888;">Adres opzoeken...</small>
                                     </div>
                                     <div class="form-group">
                                         <label for="plaats">Plaats</label>
                                         <input type="text" id="plaats" v-model="form.plaats">
                                     </div>
+                                </div>
+
+                                <div class="form-group">
+                                    <label for="adres">Adres *</label>
+                                    <input type="text" id="adres" v-model="form.adres" placeholder="Straat en huisnummer" required>
                                 </div>
 
                                 <div class="form-group">

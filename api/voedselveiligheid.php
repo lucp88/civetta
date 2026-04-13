@@ -548,6 +548,15 @@ switch ($action) {
         echo json_encode(['success' => true]);
         break;
 
+    case 'reorder_items':
+        $items = $jsonBody['items'] ?? [];
+        $stmt = $pdo->prepare("UPDATE schoonmaak_items SET volgorde = ? WHERE id = ?");
+        foreach ($items as $item) {
+            $stmt->execute([(int)$item['sort_order'], (int)$item['id']]);
+        }
+        echo json_encode(['success' => true]);
+        break;
+
     default:
         echo json_encode(['success' => false, 'error' => 'Onbekende actie']);
 }

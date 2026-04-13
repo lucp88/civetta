@@ -199,12 +199,7 @@ switch ($method) {
                 $stmt = $pdo->prepare("UPDATE business_accounts SET status = 'approved', approved_at = NOW(), invite_token = ? WHERE id = ?");
                 $stmt->execute([$inviteToken, $id]);
 
-                $inviteUrl = 'https://bakkerij-civetta.nl/uitnodiging.php?token=' . $inviteToken;
-                $bedrijf = getBedrijfsGegevens($pdo);
-                $htmlBody = buildAccountInviteEmail($account, $inviteUrl, $bedrijf);
-                sendHtmlEmail($account['email'], "Welkom bij Bakkerij Civetta — activeer je account", $htmlBody);
-
-                echo json_encode(['success' => true, 'message' => 'Goedgekeurd! Uitnodigingsmail is verstuurd.']);
+                echo json_encode(['success' => true, 'message' => 'Goedgekeurd! Stuur een uitnodiging wanneer je klaar bent.']);
             } elseif ($action === 'reject') {
                 $stmt = $pdo->prepare("UPDATE business_accounts SET status = 'rejected' WHERE id = ?");
                 $stmt->execute([$id]);

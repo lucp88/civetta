@@ -1,5 +1,17 @@
 const { createApp } = Vue;
 
+async function pdokPostcodeOpzoeken(postcode) {
+    const p = postcode.replace(/\s/g, '').toUpperCase();
+    if (!/^[0-9]{4}[A-Z]{2}$/.test(p)) return null;
+    try {
+        const resp = await fetch(`https://api.pdok.nl/bzk/locatieserver/search/v3_1/free?q=${p}&fq=type:adres&rows=1`);
+        if (!resp.ok) return null;
+        const data = await resp.json();
+        const hit = data.response?.docs?.[0];
+        return hit ? { straat: hit.straatnaam || '', plaats: hit.woonplaatsnaam || '' } : null;
+    } catch { return null; }
+}
+
 createApp({
     data() {
         return {
@@ -7,6 +19,7 @@ createApp({
             submitting: false,
             error: '',
             submittedEmail: '',
+            postcodeLoading: false,
             form: {
                 bedrijfsnaam: '',
                 adres: '',
@@ -24,6 +37,17 @@ createApp({
     },
     
     methods: {
+        async lookupPostcode() {
+            if (!this.form.postcode) return;
+            this.postcodeLoading = true;
+            const result = await pdokPostcodeOpzoeken(this.form.postcode);
+            this.postcodeLoading = false;
+            if (result) {
+                if (!this.form.adres) this.form.adres = result.straat ? result.straat + ' ' : '';
+                this.form.plaats = result.plaats;
+            }
+        },
+
         async submitRegistration() {
             this.error = '';
             this.submitting = true;

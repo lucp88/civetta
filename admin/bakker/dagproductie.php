@@ -332,54 +332,30 @@ foreach ($doughGroups as $dg) {
 $totalProducts += $noRecipeGroup['total_qty'];
 $totalWeight += $noRecipeGroup['total_weight'];
 ?>
-<!DOCTYPE html>
-<html lang="nl">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Dagproductie <?= $bereidingDate->format('d-m-Y') ?> | Civetta Admin</title>
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+<?php
+$adminPageTitle = 'Dagproductie';
+$adminBasePath = '../';
+$currentPage = 'dagproductie';
+ob_start();
+?>
+    <link rel="stylesheet" href="/css/bootstrap-icons.min.css">
     <style>
-        * { box-sizing: border-box; margin: 0; padding: 0; }
-        body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-            background: #f5f2ed;
-            min-height: 100vh;
-            color: #333;
-        }
-        .header {
-            background: linear-gradient(135deg, #c8913a, #a0722e);
-            color: white;
-            padding: 1.25rem 2rem;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            flex-wrap: wrap;
-            gap: 1rem;
-        }
-        .header h1 { 
-            font-size: 1.5rem; 
-            display: flex; 
-            align-items: center; 
-            gap: 0.5rem;
-        }
-        .header-links { display: flex; gap: 0.75rem; flex-wrap: wrap; }
-        .header a {
-            color: white;
-            text-decoration: none;
-            padding: 0.5rem 1rem;
-            background: rgba(255,255,255,0.2);
-            border-radius: 6px;
-            font-size: 0.9rem;
-            display: flex;
-            align-items: center;
-            gap: 0.4rem;
-        }
-        .header a:hover { background: rgba(255,255,255,0.3); }
         .container {
-            max-width: 1100px;
+            max-width: 1300px;
             margin: 0 auto;
             padding: 2rem;
+        }
+        .page-layout {
+            display: grid;
+            grid-template-columns: 1fr 260px;
+            gap: 2rem;
+            align-items: start;
+        }
+        .page-main { min-width: 0; }
+        .page-sidebar { position: sticky; top: 1.5rem; }
+        @media (max-width: 900px) {
+            .page-layout { grid-template-columns: 1fr; }
+            .page-sidebar { position: static; }
         }
         .date-nav {
             display: flex;
@@ -615,17 +591,59 @@ $totalWeight += $noRecipeGroup['total_weight'];
             color: #5c8db8;
             margin-left: 0.5rem;
         }
+        .watertemp-card {
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.08);
+            padding: 1.25rem;
+            margin-bottom: 1.5rem;
+        }
+        .watertemp-card h3 {
+            font-size: 0.8rem;
+            color: #888;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            margin-bottom: 1rem;
+            display: flex;
+            align-items: center;
+            gap: 0.4rem;
+        }
+        .watertemp-inputs { display: flex; flex-direction: column; gap: 0.6rem; }
+        .watertemp-field { display: flex; flex-direction: column; gap: 0.25rem; }
+        .watertemp-field label { font-size: 0.72rem; color: #888; font-weight: 600; text-transform: uppercase; letter-spacing: 0.04em; }
+        .watertemp-field.optional label { color: #b0b8c5; }
+        .watertemp-input-row { display: flex; align-items: stretch; }
+        .watertemp-input { flex: 1; min-width: 0; padding: 0.5rem 0.5rem; border: 1px solid #d1d5db; border-right: none; border-radius: 6px 0 0 6px; font-size: 1.1rem; font-weight: 600; color: #1f2937; }
+        .watertemp-input::-webkit-inner-spin-button { opacity: 1; transform: scale(1.4); transform-origin: right center; }
+        .watertemp-input:focus { outline: none; border-color: #c8913a; }
+        .watertemp-input.optional-input { background: #f9fafb; color: #6b7280; }
+        .watertemp-input.stale { border-color: #fbbf24; background: #fffbeb; }
+        .watertemp-stale-note { font-size: 0.68rem; color: #b45309; margin-top: 0.2rem; display: flex; align-items: center; gap: 0.25rem; }
+        .watertemp-unit-badge { padding: 0.5rem 0.5rem; background: #f3f4f6; border: 1px solid #d1d5db; border-radius: 0 6px 6px 0; font-size: 0.8rem; color: #6b7280; font-weight: 600; display: flex; align-items: center; white-space: nowrap; }
+        .watertemp-divider { height: 1px; background: #e5e7eb; margin: 0.25rem 0; }
+        .watertemp-result-box { padding: 0.75rem; border-radius: 10px; text-align: center; margin-top: 1rem; transition: background 0.25s; }
+        .watertemp-result-value { font-size: 2.4rem; font-weight: 700; line-height: 1; font-variant-numeric: tabular-nums; }
+        .watertemp-result-label { font-size: 0.75rem; margin-top: 0.3rem; opacity: 0.75; }
+        .watertemp-formula { font-size: 0.7rem; color: #9ca3af; margin-top: 0.6rem; text-align: center; line-height: 1.4; }
+        .watertemp-cold  { background: #eff6ff; color: #1d4ed8; }
+        .watertemp-cool  { background: #f0fdf4; color: #166534; }
+        .watertemp-warm  { background: #fff7ed; color: #c2410c; }
+        .watertemp-hot   { background: #fef2f2; color: #b91c1c; }
+        /* Inline water temp badge in recipe cards */
+        .wt-badge { display: inline-flex; align-items: center; gap: 0.3rem; padding: 0.2rem 0.6rem; border-radius: 20px; font-size: 0.82rem; font-weight: 700; margin-left: 0.5rem; font-variant-numeric: tabular-nums; vertical-align: middle; }
         @media print {
-            body { background: white; }
-            .header, .date-nav, .print-section { display: none !important; }
+            .watertemp-card, .page-sidebar { display: none !important; }
+            .page-layout { grid-template-columns: 1fr !important; }
+        }
+        @media print {
+            .topbar, .admin-topbar, .sidebar, .date-nav, .print-section { display: none !important; }
+            .admin-main { margin-left: 0 !important; }
             .container { max-width: 100%; padding: 0; }
             .recipe-card { break-inside: avoid; box-shadow: none; border: 1px solid #ddd; }
             .recipe-header { background: #3d6b3d !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
             .ingredient-section { background: #f5f5f5 !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
         }
         @media (max-width: 768px) {
-            .header { padding: 1rem; }
-            .header h1 { font-size: 1.2rem; }
             .container { padding: 1rem; }
             .summary-bar { gap: 1rem; }
             .summary-stat { padding: 1rem; flex: 1; min-width: 140px; }
@@ -633,19 +651,19 @@ $totalWeight += $noRecipeGroup['total_weight'];
             .ingredients-grid { grid-template-columns: 1fr; }
         }
     </style>
-</head>
-<body>
-    <div class="header">
-        <h1><i class="bi bi-calculator"></i> Dagproductie<?= $filterDoughType ? ' — ' . htmlspecialchars($filterDoughType) : '' ?></h1>
-        <div class="header-links">
-            <?php if ($filterDoughType): ?>
-                <a href="dagproductie.php?date=<?= $date ?>"><i class="bi bi-list"></i> Alle deegsoorten</a>
-            <?php endif; ?>
-            <a href="planning.php?filter=bakken&date=<?= $date ?>&mode=day"><i class="bi bi-fire"></i> Bereiden</a>
-            <a href="bakker-dashboard.php"><i class="bi bi-grid"></i> Overzicht</a>
-            <a href="../index.php"><i class="bi bi-house"></i> Admin</a>
-        </div>
-    </div>
+<?php $adminExtraHead = ob_get_clean(); require_once '../components/sidebar.php'; ?>
+
+        <header class="topbar">
+            <div class="topbar-left">
+                <span class="topbar-title"><i class="bi bi-calculator"></i> Dagproductie<?= $filterDoughType ? ' — ' . htmlspecialchars($filterDoughType) : '' ?></span>
+            </div>
+            <div class="topbar-right">
+                <?php if ($filterDoughType): ?>
+                    <a class="topbar-link" href="dagproductie.php?date=<?= $date ?>"><i class="bi bi-list"></i> <span>Alle deegsoorten</span></a>
+                <?php endif; ?>
+                <a class="topbar-link" href="planning.php?filter=bakken&date=<?= $date ?>&mode=day"><i class="bi bi-fire"></i> <span>Bereiden</span></a>
+            </div>
+        </header>
 
     <div class="container">
         <div class="date-nav">
@@ -669,6 +687,8 @@ $totalWeight += $noRecipeGroup['total_weight'];
                 <p>Geen bestellingen om te bereiden op deze dag</p>
             </div>
         <?php else: ?>
+        <div class="page-layout">
+        <div class="page-main">
 
             <div class="print-section">
                 <button class="btn btn-primary" onclick="window.print()">
@@ -739,7 +759,7 @@ $totalWeight += $noRecipeGroup['total_weight'];
                             <div class="ingredient-section">
                                 <h3><i class="bi bi-droplet"></i> Hoofddeeg — Water & Zout</h3>
                                 <div class="ingredient-row">
-                                    <span class="ingredient-name">Water</span>
+                                    <span class="ingredient-name">Water <span class="wt-badge watertemp-cool" data-wt-badge>28°C</span></span>
                                     <span>
                                         <span class="ingredient-weight"><?= $calc['mainWater'] ?>g</span>
                                     </span>
@@ -933,7 +953,155 @@ $totalWeight += $noRecipeGroup['total_weight'];
                     </div>
                 <?php endforeach; ?>
 
+        </div><!-- /.page-main -->
+        <div class="page-sidebar">
+            <div class="watertemp-card">
+                <h3><i class="bi bi-thermometer-half"></i> Watertemperatuur</h3>
+                <div class="watertemp-inputs">
+                    <div class="watertemp-field">
+                        <label>DDT (gewenste deegtemp)</label>
+                        <div class="watertemp-input-row">
+                            <input type="number" id="wt-dough" class="watertemp-input" value="24" min="0" max="40" step="0.5" oninput="calcWaterTemp()">
+                            <span class="watertemp-unit-badge">°C</span>
+                        </div>
+                    </div>
+                    <div class="watertemp-field">
+                        <label>Meeltemperatuur</label>
+                        <div class="watertemp-input-row">
+                            <input type="number" id="wt-flour" class="watertemp-input" value="20" min="-10" max="40" step="0.5" oninput="wtClearStale('wt-flour'); calcWaterTemp()">
+                            <span class="watertemp-unit-badge">°C</span>
+                        </div>
+                        <div id="wt-flour-stale" class="watertemp-stale-note" style="display:none"><i class="bi bi-clock-history"></i> Geschat — vul bakkerijtemp in</div>
+                    </div>
+                    <div class="watertemp-field">
+                        <label>Omgevingstemperatuur</label>
+                        <div class="watertemp-input-row">
+                            <input type="number" id="wt-ambient" class="watertemp-input" value="20" min="-10" max="40" step="0.5" oninput="wtClearStale('wt-ambient'); calcWaterTemp()">
+                            <span class="watertemp-unit-badge">°C</span>
+                        </div>
+                        <div id="wt-ambient-stale" class="watertemp-stale-note" style="display:none"><i class="bi bi-clock-history"></i> Geschat — vul bakkerijtemp in</div>
+                    </div>
+                    <div class="watertemp-divider"></div>
+                    <div class="watertemp-field optional">
+                        <label>Voordeeg/levain temp</label>
+                        <div class="watertemp-input-row">
+                            <input type="number" id="wt-preferment" class="watertemp-input optional-input" placeholder="—" min="-10" max="40" step="0.5" oninput="calcWaterTemp()">
+                            <span class="watertemp-unit-badge">°C</span>
+                        </div>
+                    </div>
+                    <div class="watertemp-field optional">
+                        <label>Wrijvingsfactor kneder</label>
+                        <div class="watertemp-input-row">
+                            <input type="number" id="wt-friction" class="watertemp-input optional-input" placeholder="0" value="0" min="0" max="30" step="1" oninput="calcWaterTemp()">
+                            <span class="watertemp-unit-badge">°C</span>
+                        </div>
+                    </div>
+                </div>
+                <div id="wt-result" class="watertemp-result-box watertemp-cool">
+                    <div id="wt-result-value" class="watertemp-result-value">28°C</div>
+                    <div class="watertemp-result-label">Watertemperatuur</div>
+                </div>
+                <div id="wt-formula" class="watertemp-formula">(DDT × 3) − (meel + omgeving + wrijving)</div>
+            </div>
+        </div><!-- /.page-sidebar -->
+        </div><!-- /.page-layout -->
+
         <?php endif; ?>
     </div>
+    <script>
+    var WT_KEY = 'civetta_watertemp';
+    var BT_KEY = 'civetta_bakery_temp';
+    var TODAY  = '<?= date('Y-m-d') ?>';
+
+    function wtSave() {
+        localStorage.setItem(WT_KEY, JSON.stringify({
+            dough:      document.getElementById('wt-dough').value,
+            flour:      document.getElementById('wt-flour').value,
+            ambient:    document.getElementById('wt-ambient').value,
+            preferment: document.getElementById('wt-preferment').value,
+            friction:   document.getElementById('wt-friction').value
+        }));
+    }
+
+    function wtSetStale(id, stale) {
+        var input = document.getElementById(id);
+        var note  = document.getElementById(id + '-stale');
+        if (!input || !note) return;
+        if (stale) {
+            input.classList.add('stale');
+            note.style.display = '';
+        } else {
+            input.classList.remove('stale');
+            note.style.display = 'none';
+        }
+    }
+
+    function wtClearStale(id) {
+        wtSetStale(id, false);
+    }
+
+    function wtLoad() {
+        try {
+            // 1. Start with saved watertemp values
+            var saved = JSON.parse(localStorage.getItem(WT_KEY)) || {};
+            if (saved.dough      !== undefined) document.getElementById('wt-dough').value      = saved.dough;
+            if (saved.preferment !== undefined) document.getElementById('wt-preferment').value = saved.preferment;
+            if (saved.friction   !== undefined) document.getElementById('wt-friction').value   = saved.friction;
+
+            // 2. Overlay bakery temp for flour + ambient
+            var bt = JSON.parse(localStorage.getItem(BT_KEY));
+            if (bt && bt.value !== undefined) {
+                var stale = (bt.date !== TODAY);
+                document.getElementById('wt-flour').value   = bt.value;
+                document.getElementById('wt-ambient').value = bt.value;
+                wtSetStale('wt-flour',   stale);
+                wtSetStale('wt-ambient', stale);
+            } else {
+                // Fall back to saved watertemp values
+                if (saved.flour   !== undefined) document.getElementById('wt-flour').value   = saved.flour;
+                if (saved.ambient !== undefined) document.getElementById('wt-ambient').value = saved.ambient;
+            }
+        } catch(e) {}
+    }
+
+    function calcWaterTemp() {
+        var ddt        = parseFloat(document.getElementById('wt-dough').value)    || 0;
+        var flour      = parseFloat(document.getElementById('wt-flour').value)    || 0;
+        var ambient    = parseFloat(document.getElementById('wt-ambient').value)  || 0;
+        var friction   = parseFloat(document.getElementById('wt-friction').value) || 0;
+        var prefVal    = document.getElementById('wt-preferment').value.trim();
+        var hasPref    = prefVal !== '' && !isNaN(parseFloat(prefVal));
+        var preferment = hasPref ? parseFloat(prefVal) : null;
+
+        var water, formulaText;
+        if (hasPref) {
+            water       = ddt * 4 - (flour + ambient + preferment + friction);
+            formulaText = '(DDT × 4) − (meel + omgeving + voordeeg + wrijving)';
+        } else {
+            water       = ddt * 3 - (flour + ambient + friction);
+            formulaText = '(DDT × 3) − (meel + omgeving + wrijving)';
+        }
+        water = Math.round(water * 10) / 10;
+
+        var colorClass = water <= 5 ? 'watertemp-cold' : water <= 20 ? 'watertemp-cool' : water <= 35 ? 'watertemp-warm' : 'watertemp-hot';
+        var text = water + '°C';
+
+        document.getElementById('wt-result-value').textContent = text;
+        document.getElementById('wt-formula').textContent = formulaText;
+        document.getElementById('wt-result').className = 'watertemp-result-box ' + colorClass;
+
+        document.querySelectorAll('[data-wt-badge]').forEach(function(el) {
+            el.textContent = text;
+            el.className = 'wt-badge ' + colorClass;
+        });
+
+        wtSave();
+    }
+
+    wtLoad();
+    calcWaterTemp();
+    </script>
+</div><!-- /.admin-main -->
+</div><!-- /.admin-layout -->
 </body>
 </html>

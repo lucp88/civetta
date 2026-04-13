@@ -16,7 +16,7 @@
     <link rel="apple-touch-icon" href="img/icon-192.png">
     <link rel="stylesheet" href="css/style.css">
     <link rel="stylesheet" href="css/mijn-bestellingen.css?v=8">
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+    <link rel="stylesheet" href="/css/bootstrap-icons.min.css">
     
     <link rel="stylesheet" href="css/fonts.css">
 </head>
@@ -239,7 +239,7 @@
                     </template>
 
                     <!-- Recurring Detail Modal -->
-                    <div class="modal-overlay recurring-detail-modal" :class="{ active: selectedRecurringGroup }" @click.self="closeDetailModal">
+                    <div class="modal-overlay recurring-detail-modal" :class="{ active: selectedRecurringGroup }" @mousedown="$event.currentTarget._md = ($event.target === $event.currentTarget)" @click.self="$event.currentTarget._md && closeDetailModal()">
                         <div class="modal" v-if="selectedRecurringGroup">
                             <div class="recurring-detail-header">
                                 <div class="recurring-detail-header-left">
@@ -398,7 +398,7 @@
                     </div>
                     
                     <!-- Edit Single Delivery Modal -->
-                    <div class="modal-overlay edit-single-modal" :class="{ active: editSingleDelivery }" @click.self="editSingleDelivery = null">
+                    <div class="modal-overlay edit-single-modal" :class="{ active: editSingleDelivery }" @mousedown="$event.currentTarget._md = ($event.target === $event.currentTarget)" @click.self="$event.currentTarget._md && (editSingleDelivery = null)">
                         <div class="modal" v-if="editSingleDelivery">
                             <h3>
                                 Levering {{ formatDateShort(editSingleDelivery.delivery_date) }}
@@ -444,7 +444,7 @@
                     </div>
 
                     <!-- Order Detail Modal -->
-                    <div class="modal-overlay" :class="{ active: selectedOrder }" @click.self="closeOrderModal">
+                    <div class="modal-overlay" :class="{ active: selectedOrder }" @mousedown="$event.currentTarget._md = ($event.target === $event.currentTarget)" @click.self="$event.currentTarget._md && closeOrderModal()">
                         <div class="modal" v-if="selectedOrder">
                             <div class="order-detail-header">
                                 <div class="order-detail-header-left">
@@ -626,7 +626,7 @@
                     </div>
                     
                     <!-- Payment Panel Modal -->
-                    <div class="modal-overlay payment-panel-modal" :class="{ active: showPaymentPanel }" @click="closePaymentPanelOverlay($event)">
+                    <div class="modal-overlay payment-panel-modal" :class="{ active: showPaymentPanel }" @mousedown="$event.currentTarget._md = ($event.target === $event.currentTarget)" @click="closePaymentPanelOverlay($event)">
                         <div class="modal" v-if="showPaymentPanel && selectedOrder">
                             <template v-if="!paymentConfirmed">
                                 <h3>
@@ -740,7 +740,7 @@
                     </div>
                     
                     <!-- Cancel Order Dialog -->
-                    <div class="modal-overlay cancel-dialog-modal" :class="{ active: showCancelDialog }" @click.self="closeCancelDialog">
+                    <div class="modal-overlay cancel-dialog-modal" :class="{ active: showCancelDialog }" @mousedown="$event.currentTarget._md = ($event.target === $event.currentTarget)" @click.self="$event.currentTarget._md && closeCancelDialog()">
                         <div class="modal cancel-dialog" v-if="showCancelDialog && selectedOrder">
                             <div class="cancel-dialog-icon">
                                 <i class="bi bi-exclamation-triangle"></i>

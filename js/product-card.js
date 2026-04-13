@@ -258,7 +258,7 @@ const ProductDetailModal = {
     },
 
     template: `
-        <div class="product-modal-overlay" :class="{ active: product }" @click.self="$emit('close')">
+        <div class="product-modal-overlay" :class="{ active: product }" @mousedown="$event.currentTarget._md = ($event.target === $event.currentTarget)" @click.self="$event.currentTarget._md && $emit('close')">
             <div class="product-modal" v-if="product">
                 <button class="product-modal-close" @click="$emit('close')">&times;</button>
 

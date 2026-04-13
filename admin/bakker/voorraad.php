@@ -180,7 +180,10 @@ require_once '../components/sidebar.php'; ?>
                 <div class="topbar-left">
                     <span class="topbar-title">Voorraadbeheer</span>
                 </div>
-                <div class="topbar-right"></div>
+                <div class="topbar-right" style="display:flex;gap:0.5rem;">
+                    <button class="btn btn-ghost btn-sm" onclick="newGrainType()"><i class="bi bi-tags"></i> Nieuwe Graansoort</button>
+                    <button class="btn btn-primary btn-sm" onclick="newIngredient()"><i class="bi bi-plus-lg"></i> Nieuw Ingredient</button>
+                </div>
             </header>
 
             <div class="admin-content" id="app" v-cloak>
@@ -281,10 +284,6 @@ require_once '../components/sidebar.php'; ?>
                     <div v-show="ingredientSubTab==='meel'" class="panel">
                         <div class="panel-header">
                             <div class="panel-title"><i class="bi bi-moisture"></i> Meelsoorten</div>
-                            <div style="display:flex;gap:0.5rem">
-                                <button class="btn btn-ghost" @click="showGrainTypeModal=true"><i class="bi bi-tags"></i> Graansoorten</button>
-                                <button class="btn btn-primary" @click="openIngredientModal(null, 'meel')"><i class="bi bi-plus"></i> Nieuw Meel</button>
-                            </div>
                         </div>
 
                         <div class="filter-row">
@@ -331,12 +330,15 @@ require_once '../components/sidebar.php'; ?>
                                         v-show="!collapsedGrainTypes[group.grain_type_id]"
                                         :class="{'drag-over': draggingIngredientOverId == ing.id, 'dragging': draggingIngredientId == ing.id}"
                                         draggable="true"
+                                        style="cursor:pointer"
+                                        title="Klik om te bewerken"
+                                        @click="openIngredientModal(ing)"
                                         @dragstart.stop="onIngredientDragStart($event, ing.id)"
                                         @dragover.prevent.stop="onIngredientDragOver($event, ing.id)"
                                         @dragleave="draggingIngredientOverId = null"
                                         @drop.stop="onIngredientDrop($event, ing.id)"
                                         @dragend="draggingIngredientId = null; draggingIngredientOverId = null">
-                                        <td class="drag-cell"><span class="drag-handle"><i class="bi bi-grip-vertical"></i></span></td>
+                                        <td class="drag-cell" @click.stop><span class="drag-handle"><i class="bi bi-grip-vertical"></i></span></td>
                                         <td><strong>{{ ing.name }}</strong></td>
                                         <td>
                                             <span class="badge" :class="parseInt(ing.is_whole_grain) === 1 ? 'badge-volkoren' : 'badge-wit'">
@@ -359,8 +361,7 @@ require_once '../components/sidebar.php'; ?>
                                             </div>
                                         </td>
                                         <td>{{ ing.current_price_per_kg ? '€'+formatNumber(ing.current_price_per_kg)+'/kg' : '-' }}</td>
-                                        <td>
-                                            <button class="btn btn-ghost btn-sm" @click="openIngredientModal(ing)"><i class="bi bi-pencil"></i> Bewerken</button>
+                                        <td @click.stop>
                                             <button class="btn btn-success btn-sm" @click="openBatchModal(ing)"><i class="bi bi-plus"></i> Bijvullen</button>
                                         </td>
                                     </tr>
@@ -376,7 +377,6 @@ require_once '../components/sidebar.php'; ?>
                     <div v-show="ingredientSubTab==='extras'" class="panel">
                         <div class="panel-header">
                             <div class="panel-title"><i class="bi bi-plus-circle"></i> Toppings + Mix-ins</div>
-                            <button class="btn btn-primary" @click="openIngredientModal(null, 'mixin')"><i class="bi bi-plus"></i> Nieuw</button>
                         </div>
 
                         <div class="table-wrapper">
@@ -386,12 +386,15 @@ require_once '../components/sidebar.php'; ?>
                                     <tr v-for="ing in extrasIngredients" :key="ing.id"
                                         :class="{'drag-over': draggingIngredientOverId == ing.id, 'dragging': draggingIngredientId == ing.id}"
                                         draggable="true"
+                                        style="cursor:pointer"
+                                        title="Klik om te bewerken"
+                                        @click="openIngredientModal(ing)"
                                         @dragstart="onIngredientDragStart($event, ing.id)"
                                         @dragover.prevent="onIngredientDragOver($event, ing.id)"
                                         @dragleave="draggingIngredientOverId = null"
                                         @drop="onIngredientDrop($event, ing.id)"
                                         @dragend="draggingIngredientId = null; draggingIngredientOverId = null">
-                                        <td class="drag-cell"><span class="drag-handle"><i class="bi bi-grip-vertical"></i></span></td>
+                                        <td class="drag-cell" @click.stop><span class="drag-handle"><i class="bi bi-grip-vertical"></i></span></td>
                                         <td><strong>{{ ing.name }}</strong></td>
                                         <td>
                                             <span v-if="parseInt(ing.is_biologisch)" class="badge badge-bio">BIO</span>
@@ -409,8 +412,7 @@ require_once '../components/sidebar.php'; ?>
                                             </div>
                                         </td>
                                         <td>{{ ing.current_price_per_kg ? '€'+formatNumber(ing.current_price_per_kg)+'/kg' : '-' }}</td>
-                                        <td>
-                                            <button class="btn btn-ghost btn-sm" @click="openIngredientModal(ing)"><i class="bi bi-pencil"></i> Bewerken</button>
+                                        <td @click.stop>
                                             <button class="btn btn-success btn-sm" @click="openBatchModal(ing)"><i class="bi bi-plus"></i> Bijvullen</button>
                                         </td>
                                     </tr>
@@ -430,7 +432,6 @@ require_once '../components/sidebar.php'; ?>
                     <div v-show="ingredientSubTab==='overig'" class="panel">
                         <div class="panel-header">
                             <div class="panel-title"><i class="bi bi-grid"></i> Overig</div>
-                            <button class="btn btn-primary" @click="openIngredientModal(null, 'overig')"><i class="bi bi-plus"></i> Nieuw</button>
                         </div>
 
                         <div class="table-wrapper">
@@ -440,12 +441,15 @@ require_once '../components/sidebar.php'; ?>
                                     <tr v-for="ing in overigIngredients" :key="ing.id"
                                         :class="{'drag-over': draggingIngredientOverId == ing.id, 'dragging': draggingIngredientId == ing.id}"
                                         draggable="true"
+                                        style="cursor:pointer"
+                                        title="Klik om te bewerken"
+                                        @click="openIngredientModal(ing)"
                                         @dragstart="onIngredientDragStart($event, ing.id)"
                                         @dragover.prevent="onIngredientDragOver($event, ing.id)"
                                         @dragleave="draggingIngredientOverId = null"
                                         @drop="onIngredientDrop($event, ing.id)"
                                         @dragend="draggingIngredientId = null; draggingIngredientOverId = null">
-                                        <td class="drag-cell"><span class="drag-handle"><i class="bi bi-grip-vertical"></i></span></td>
+                                        <td class="drag-cell" @click.stop><span class="drag-handle"><i class="bi bi-grip-vertical"></i></span></td>
                                         <td><strong>{{ ing.name }}</strong></td>
                                         <td>
                                             <span v-if="parseInt(ing.is_biologisch)" class="badge badge-bio">BIO</span>
@@ -463,8 +467,7 @@ require_once '../components/sidebar.php'; ?>
                                             </div>
                                         </td>
                                         <td>{{ ing.current_price_per_kg ? '€'+formatNumber(ing.current_price_per_kg)+'/kg' : '-' }}</td>
-                                        <td>
-                                            <button class="btn btn-ghost btn-sm" @click="openIngredientModal(ing)"><i class="bi bi-pencil"></i> Bewerken</button>
+                                        <td @click.stop>
                                             <button class="btn btn-success btn-sm" @click="openBatchModal(ing)"><i class="bi bi-plus"></i> Bijvullen</button>
                                         </td>
                                     </tr>
@@ -728,7 +731,7 @@ require_once '../components/sidebar.php'; ?>
                 <!-- MODALS -->
 
                 <!-- Ingredient modal -->
-                <div class="modal-overlay" :class="{active: showIngredientModal}" @click.self="showIngredientModal=false">
+                <div class="modal-overlay" :class="{active: showIngredientModal}" @mousedown="$event.currentTarget._md = ($event.target === $event.currentTarget)" @click.self="$event.currentTarget._md && (showIngredientModal=false)">
                     <div class="modal">
                         <div class="modal-header">
                             <h3>{{ editingIngredient ? 'Ingrediënt Bewerken' : 'Nieuw Ingrediënt' }}</h3>
@@ -811,7 +814,7 @@ require_once '../components/sidebar.php'; ?>
                 </div>
 
                 <!-- Grain type modal -->
-                <div class="modal-overlay" :class="{active: showGrainTypeModal}" @click.self="showGrainTypeModal=false">
+                <div class="modal-overlay" :class="{active: showGrainTypeModal}" @mousedown="$event.currentTarget._md = ($event.target === $event.currentTarget)" @click.self="$event.currentTarget._md && (showGrainTypeModal=false)">
                     <div class="modal">
                         <div class="modal-header">
                             <h3><i class="bi bi-tags"></i> Graansoorten Beheren</h3>
@@ -821,7 +824,7 @@ require_once '../components/sidebar.php'; ?>
                             <div class="grain-type-list">
                                 <div v-for="gt in grainTypes" :key="gt.id" class="grain-type-item">
                                     <span>{{ gt.name }}</span>
-                                    <button class="btn btn-danger btn-sm" @click="deleteGrainType(gt.id)"><i class="bi bi-trash"></i></button>
+                                    <button class="btn btn-danger btn-sm" @click="deleteGrainType(gt.id)"><i class="bi bi-trash"></i> Verwijderen</button>
                                 </div>
                                 <div v-if="grainTypes.length === 0" style="color:#888;padding:1rem 0;text-align:center">
                                     Nog geen graansoorten toegevoegd
@@ -829,14 +832,14 @@ require_once '../components/sidebar.php'; ?>
                             </div>
                             <div class="add-grain-type">
                                 <input type="text" class="form-input" v-model="newGrainTypeName" placeholder="Nieuwe graansoort..." @keyup.enter="addGrainType">
-                                <button class="btn btn-primary" @click="addGrainType" :disabled="!newGrainTypeName.trim()"><i class="bi bi-plus"></i></button>
+                                <button class="btn btn-primary" @click="addGrainType" :disabled="!newGrainTypeName.trim()"><i class="bi bi-plus"></i> Toevoegen</button>
                             </div>
                         </div>
                     </div>
                 </div>
 
                 <!-- Batch modal -->
-                <div class="modal-overlay" :class="{active: showBatchModal}" @click.self="showBatchModal=false">
+                <div class="modal-overlay" :class="{active: showBatchModal}" @mousedown="$event.currentTarget._md = ($event.target === $event.currentTarget)" @click.self="$event.currentTarget._md && (showBatchModal=false)">
                     <div class="modal">
                         <div class="modal-header">
                             <h3>{{ editingBatch ? 'Batch Bewerken' : 'Voorraad Toevoegen' }}</h3>
@@ -890,7 +893,7 @@ require_once '../components/sidebar.php'; ?>
                 </div>
 
                 <!-- Consolidatie modal -->
-                <div class="modal-overlay" :class="{active: showConsolidationModal}" @click.self="showConsolidationModal=false">
+                <div class="modal-overlay" :class="{active: showConsolidationModal}" @mousedown="$event.currentTarget._md = ($event.target === $event.currentTarget)" @click.self="$event.currentTarget._md && (showConsolidationModal=false)">
                     <div class="modal modal-wide">
                         <div class="modal-header">
                             <h3><i class="bi bi-clipboard-check"></i> Consolidatie uitvoeren</h3>
@@ -964,7 +967,7 @@ require_once '../components/sidebar.php'; ?>
                         </div>
                     </div>
                     <!-- Afgemaakt modal -->
-                    <div class="modal-overlay" :class="{active:showAfgemaaktModal}" @click.self="showAfgemaaktModal=false">
+                    <div class="modal-overlay" :class="{active:showAfgemaaktModal}" @mousedown="$event.currentTarget._md = ($event.target === $event.currentTarget)" @click.self="$event.currentTarget._md && (showAfgemaaktModal=false)">
                         <div class="modal" style="max-width:420px">
                             <div class="modal-header"><h3><i class="bi bi-plus-circle"></i> Product toevoegen aan opslag</h3><button class="modal-close" @click="showAfgemaaktModal=false">&times;</button></div>
                             <div class="modal-body">
@@ -1005,7 +1008,7 @@ require_once '../components/sidebar.php'; ?>
     const { createApp } = Vue;
     const TODAY = new Date().toISOString().slice(0, 10);
 
-    createApp({
+    const app = createApp({
         data() {
             return {
                 activeTab: 'overzicht',
@@ -1766,7 +1769,23 @@ require_once '../components/sidebar.php'; ?>
             this.loadMonthlyLoaves();
             this.loadConsolidations();
         }
-    }).mount('#app');
+    });
+    window.vueApp = app.mount('#app');
+    </script>
+    <script>
+    function newGrainType() {
+        if (!window.vueApp) return;
+        window.vueApp.activeTab = 'ingredienten';
+        window.vueApp.ingredientSubTab = 'meel';
+        window.vueApp.showGrainTypeModal = true;
+    }
+    function newIngredient() {
+        if (!window.vueApp) return;
+        if (window.vueApp.activeTab !== 'ingredienten') window.vueApp.activeTab = 'ingredienten';
+        const typeMap = { meel: 'meel', extras: 'mixin', overig: 'overig' };
+        const type = typeMap[window.vueApp.ingredientSubTab] || 'meel';
+        window.vueApp.openIngredientModal(null, type);
+    }
     </script>
 </body>
 </html>

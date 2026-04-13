@@ -344,20 +344,21 @@
                     </div>
                 </div>
                 
-                <div v-if="showAddressModal" class="address-modal-overlay" @click.self="showAddressModal = false">
+                <div v-if="showAddressModal" class="address-modal-overlay" @mousedown="$event.currentTarget._md = ($event.target === $event.currentTarget)" @click.self="$event.currentTarget._md && (showAddressModal = false)">
                     <div class="address-modal">
                         <h3>Afleveradres wijzigen</h3>
                         <div class="form-group">
-                            <label>Adres</label>
-                            <input type="text" v-model="editAddress.adres">
-                        </div>
-                        <div class="form-group">
                             <label>Postcode</label>
-                            <input type="text" v-model="editAddress.postcode">
+                            <input type="text" v-model="editAddress.postcode" @blur="lookupAddressPostcode">
+                            <small v-if="addressPostcodeLoading" style="color: #888;">Adres opzoeken...</small>
                         </div>
                         <div class="form-group">
                             <label>Plaats</label>
                             <input type="text" v-model="editAddress.plaats">
+                        </div>
+                        <div class="form-group">
+                            <label>Adres</label>
+                            <input type="text" v-model="editAddress.adres">
                         </div>
                         <div class="address-modal-buttons">
                             <button type="button" class="btn-cancel" @click="showAddressModal = false">Annuleren</button>
@@ -391,6 +392,18 @@
         <script src="js/main.js"></script>
     <script>
     const { createApp } = Vue;
+
+    async function pdokPostcodeOpzoeken(postcode) {
+        const p = postcode.replace(/\s/g, '').toUpperCase();
+        if (!/^[0-9]{4}[A-Z]{2}$/.test(p)) return null;
+        try {
+            const resp = await fetch(`https://api.pdok.nl/bzk/locatieserver/search/v3_1/free?q=${p}&fq=type:adres&rows=1`);
+            if (!resp.ok) return null;
+            const data = await resp.json();
+            const hit = data.response?.docs?.[0];
+            return hit ? { straat: hit.straatnaam || '', plaats: hit.woonplaatsnaam || '' } : null;
+        } catch { return null; }
+    }
     
     createApp({
         data() {
@@ -424,6 +437,7 @@
                 sidebarExpanded: false,
                 showAddressModal: false,
                 editAddress: {},
+                addressPostcodeLoading: false,
                 flatpickrInstance: null
             };
         },
@@ -687,6 +701,17 @@ async mounted() {
                 return day.charAt(0).toUpperCase() + day.slice(1) + ' ' + formatted;
             },
             
+            async lookupAddressPostcode() {
+                if (!this.editAddress.postcode) return;
+                this.addressPostcodeLoading = true;
+                const result = await pdokPostcodeOpzoeken(this.editAddress.postcode);
+                this.addressPostcodeLoading = false;
+                if (result) {
+                    if (!this.editAddress.adres) this.editAddress.adres = result.straat ? result.straat + ' ' : '';
+                    this.editAddress.plaats = result.plaats;
+                }
+            },
+
             saveAddress() {
                 this.deliveryAddress.adres = this.editAddress.adres;
                 this.deliveryAddress.postcode = this.editAddress.postcode;

@@ -21,6 +21,10 @@ if (strlen($token) !== 64 || !ctype_xdigit($token)) {
             $error = 'Ongeldige of verlopen uitnodigingslink.';
         } elseif ($account['invite_accepted_at'] !== null) {
             $alreadyAccepted = true;
+        } elseif ($account['invite_opened_at'] === null) {
+            $pdo->prepare("UPDATE business_accounts SET invite_opened_at = NOW() WHERE invite_token = ? AND invite_opened_at IS NULL")
+                ->execute([$token]);
+            $account['invite_opened_at'] = date('Y-m-d H:i:s');
         }
     } catch (PDOException $e) {
         $error = 'Er is een fout opgetreden. Probeer het later opnieuw.';

@@ -777,7 +777,7 @@ createApp({
         },
         
         closePaymentPanelOverlay(event) {
-            if (event.target.classList.contains('modal-overlay')) {
+            if (event.target.classList.contains('modal-overlay') && event.currentTarget._md) {
                 this.closePaymentPanel();
             }
         },

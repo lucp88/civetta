@@ -859,8 +859,8 @@ require_once '../components/sidebar.php'; ?>
 
                 if (result.success) {
                     showMessage('Saldo bijgewerkt!', 'success');
-                    document.getElementById('balance-form').reset();
-                    loadTransactions(accountId);
+                    closeBalanceModal();
+                    setTimeout(() => location.reload(), 1000);
                 } else {
                     showMessage(result.error || 'Er ging iets mis', 'error');
                 }

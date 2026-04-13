@@ -74,7 +74,9 @@ function showConfirm(message, title) {
         document.body.appendChild(overlay);
         overlay.querySelector('.confirm-btn-ok').onclick = function() { overlay.remove(); resolve(true); };
         overlay.querySelector('.confirm-btn-cancel').onclick = function() { overlay.remove(); resolve(false); };
-        overlay.addEventListener('click', function(e) { if (e.target === overlay) { overlay.remove(); resolve(false); } });
+        var _md = false;
+        overlay.addEventListener('mousedown', function(e) { _md = e.target === overlay; });
+        overlay.addEventListener('click', function(e) { if (e.target === overlay && _md) { overlay.remove(); resolve(false); } });
     });
 }
 
@@ -93,14 +95,18 @@ document.addEventListener('keydown', function(e) {
 document.addEventListener('DOMContentLoaded', function() {
     const dayModal = document.getElementById('dayModal');
     if (dayModal) {
+        var _dayMd = false;
+        dayModal.addEventListener('mousedown', function(e) { _dayMd = e.target === dayModal; });
         dayModal.addEventListener('click', function(e) {
-            if (e.target === this) closeDayModal();
+            if (e.target === this && _dayMd) closeDayModal();
         });
     }
     const bakdagenModal = document.getElementById('bakdagenModal');
     if (bakdagenModal) {
+        var _bakMd = false;
+        bakdagenModal.addEventListener('mousedown', function(e) { _bakMd = e.target === bakdagenModal; });
         bakdagenModal.addEventListener('click', function(e) {
-            if (e.target === this && typeof closeBakdagenModal === 'function') closeBakdagenModal();
+            if (e.target === this && _bakMd && typeof closeBakdagenModal === 'function') closeBakdagenModal();
         });
     }
 });

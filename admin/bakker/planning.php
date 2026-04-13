@@ -1875,6 +1875,7 @@ ob_start();
     }
 
     function getAvailableBakdagen() {
+        if (document.getElementById('newOrderInternal').checked) return 999;
         const dateStr = document.getElementById('newOrderDate').value;
         if (!dateStr) return 999;
         const today = new Date(); today.setHours(0, 0, 0, 0);
@@ -1978,6 +1979,7 @@ ob_start();
         if (isInternal) { customerGroup.style.display = 'none'; customerCard.classList.remove('show'); }
         else { customerGroup.style.display = ''; }
         if (document.getElementById('newOrderDate').value) checkBakdag();
+        refreshProductOptions();
     }
 
     function getInternalAccountId() {

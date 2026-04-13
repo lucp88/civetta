@@ -2,7 +2,7 @@
 window.RECAPTCHA_SITE_KEY = '6LfXDocsAAAAABbTwZUzQXnYdaRvyWa5cVGulfwd';
 
 // Only load reCAPTCHA on pages that actually use it
-const _rcPages = ['login.html', 'zakelijk.html', 'contact.html', 'bestelling-plaatsen.html', 'checkout.html'];
+const _rcPages = ['login.html', 'zakelijk.html', 'contact.html', 'bestelling-plaatsen.html', 'checkout.html', 'financiering.html'];
 const _rcPath = window.location.pathname.split('/').pop() || '';
 if (window.RECAPTCHA_SITE_KEY && _rcPages.some(p => _rcPath === p)) {
     const script = document.createElement('script');

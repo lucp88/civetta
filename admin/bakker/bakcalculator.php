@@ -262,7 +262,10 @@ require_once '../components/sidebar.php'; ?>
                 <div class="topbar-left">
                     <span class="topbar-title">Recepten</span>
                 </div>
-                <div class="topbar-right"></div>
+                <div class="topbar-right" style="display:flex;gap:0.5rem;">
+                    <button class="btn btn-ghost btn-sm" onclick="newDeegsoort()"><i class="bi bi-tags"></i> Nieuwe Deegsoort</button>
+                    <button class="btn btn-primary btn-sm" onclick="nieuwRecept()"><i class="bi bi-plus-lg"></i> Nieuw Recept</button>
+                </div>
             </header>
 
             <div class="admin-content">
@@ -313,7 +316,7 @@ require_once '../components/sidebar.php'; ?>
                             <td class="recipe-table-date" style="color:#9ca3af;font-size:0.75rem">{{ group.description || '' }}</td>
                             <td class="recipe-table-actions" @click.stop>
                                 <div style="display:flex;gap:0.25rem;justify-content:flex-end;align-items:center">
-                                    <button v-if="group.id" class="btn-icon" style="width:26px;height:26px;font-size:0.75rem" @click="editGroupDoughType(group)" title="Deegsoort bewerken"><i class="bi bi-pencil"></i></button>
+                                    <button v-if="group.id" class="btn-icon" style="width:26px;height:26px" @click="editGroupDoughType(group)" title="Deegsoort bewerken"><i class="bi bi-pencil"></i></button>
                                 </div>
                             </td>
                         </tr>
@@ -374,7 +377,7 @@ require_once '../components/sidebar.php'; ?>
             <div class="dough-type-select">
                 <template v-if="isDoughType">
                     <span class="deegsoort-badge"><i class="bi bi-layers-fill"></i> Is deegsoort</span>
-                    <button type="button" class="btn-icon" style="width:26px;height:26px;font-size:0.75rem" @click="isDoughType = false; doughTypeId = null" title="Verwijder deegsoort markering"><i class="bi bi-x"></i></button>
+                    <button type="button" class="btn-icon" style="width:26px;height:26px" @click="isDoughType = false; doughTypeId = null" title="Verwijder deegsoort markering"><i class="bi bi-x"></i></button>
                 </template>
                 <template v-else>
                     <select :value="doughTypeId" @change="onDoughTypeChange($event.target.value ? parseInt($event.target.value) : null)" class="form-select-sm">
@@ -897,6 +900,35 @@ require_once '../components/sidebar.php'; ?>
             </div>
 
             <div class="calc-sidebar" v-show="calculatorActive">
+                <div class="summary-card" style="margin-bottom:0.75rem">
+                    <div class="summary-header" style="background:#5c3d1e">
+                        <h3>Deeg Eigenschappen</h3>
+                    </div>
+                    <div class="summary-body">
+                        <div class="summary-row">
+                            <span class="summary-label">Hydratatie</span>
+                            <span class="summary-value">{{ formatP(hydration) }}%</span>
+                        </div>
+                        <div class="summary-row">
+                            <span class="summary-label">Volkoren</span>
+                            <span class="summary-value">{{ formatP(totalWholeGrainPct) }}%</span>
+                        </div>
+                        <div class="summary-row">
+                            <span class="summary-label">Wit</span>
+                            <span class="summary-value">{{ formatP(100 - Math.round(totalWholeGrainPct * 10) / 10) }}%</span>
+                        </div>
+                        <template v-if="grainTypeDistribution.length > 0">
+                            <div class="summary-section-title">Graanverdeling</div>
+                            <div class="summary-row" v-for="gt in grainTypeDistribution" :key="gt.name">
+                                <span class="summary-label">{{ gt.name }}</span>
+                                <span class="summary-value">{{ formatP(gt.pct) }}%</span>
+                            </div>
+                        </template>
+                        <div v-if="isInherited" style="font-size:0.68rem;color:#9ca3af;margin-top:0.4rem">
+                            van deegsoort {{ doughTypes.find(d => d.id == doughTypeId)?.name }}
+                        </div>
+                    </div>
+                </div>
                 <div class="summary-card">
                     <div class="summary-header">
                         <h3>Live Berekening</h3>
@@ -919,21 +951,6 @@ require_once '../components/sidebar.php'; ?>
                             <span class="summary-label">Zout</span>
                             <span class="summary-value">{{ formatW(saltWeight) }}g</span>
                         </div>
-                        <div class="summary-row">
-                            <span class="summary-label">Volkoren</span>
-                            <span class="summary-value">{{ formatP(totalWholeGrainPct) }}%</span>
-                        </div>
-                        <div class="summary-row">
-                            <span class="summary-label">Wit</span>
-                            <span class="summary-value">{{ formatP(100 - Math.round(totalWholeGrainPct * 10) / 10) }}%</span>
-                        </div>
-                        <template v-if="grainTypeDistribution.length > 0">
-                            <div class="summary-section-title">Graanverdeling</div>
-                            <div class="summary-row" v-for="gt in grainTypeDistribution" :key="gt.name">
-                                <span class="summary-label">{{ gt.name }}</span>
-                                <span class="summary-value">{{ formatP(gt.pct) }}%</span>
-                            </div>
-                        </template>
                         <div class="summary-section-title" v-if="useSourdough">Zuurdesem</div>
                         <div class="summary-row" v-if="useSourdough">
                             <span class="summary-label">Percentage</span>
@@ -1000,7 +1017,7 @@ require_once '../components/sidebar.php'; ?>
 
         <div class="toast success" v-if="toastMsg">{{ toastMsg }}</div>
 
-        <div class="modal-overlay" v-if="showDoughTypeModal" @click.self="doughTypeModalView === 'list' && (showDoughTypeModal = false)">
+        <div class="modal-overlay" v-if="showDoughTypeModal" @mousedown="$event.currentTarget._md = ($event.target === $event.currentTarget)" @click.self="$event.currentTarget._md && doughTypeModalView === 'list' && (showDoughTypeModal = false)">
             <div class="modal-content" :class="{'modal-wide': doughTypeModalView === 'edit'}">
                 <div class="modal-header">
                     <h3 v-if="doughTypeModalView === 'list'">Deegsoorten beheren</h3>
@@ -1015,8 +1032,8 @@ require_once '../components/sidebar.php'; ?>
                             <div v-for="dt in doughTypes" :key="dt.id" class="dough-type-item">
                                 <span>{{ dt.name }}</span>
                                 <div style="display:flex;gap:0.25rem">
-                                    <button class="btn-icon-danger" @click="editDoughType(dt)" title="Bewerken" style="color:#374151"><i class="bi bi-pencil"></i></button>
-                                    <button class="btn-icon-danger" @click="deleteDoughType(dt.id)" title="Verwijderen"><i class="bi bi-trash"></i></button>
+                                    <button class="btn btn-ghost" style="font-size:0.8rem;padding:0.3rem 0.6rem" @click="editDoughType(dt)"><i class="bi bi-pencil"></i> Bewerken</button>
+                                    <button class="btn btn-danger" style="font-size:0.8rem;padding:0.3rem 0.6rem" @click="deleteDoughType(dt.id)">Verwijderen</button>
                                 </div>
                             </div>
                             <div v-if="doughTypes.length === 0" class="empty-msg">Nog geen deegsoorten</div>
@@ -1190,6 +1207,30 @@ require_once '../components/sidebar.php'; ?>
                             <i class="bi bi-exclamation-triangle"></i> Totaal is {{ editingDoughType.mainDoughGrains.reduce((s,g)=>s+(g.pct||0),0) }}% — moet 100% zijn
                         </div>
 
+                        <div v-if="dtGrainCharacteristics" style="background:#f5f0e8;border-radius:8px;padding:0.875rem 1rem;margin-top:1rem">
+                            <div class="panel-title" style="margin-bottom:0.6rem;font-size:0.75rem">Deeg Eigenschappen</div>
+                            <div style="display:flex;gap:1.25rem;flex-wrap:wrap;margin-bottom:0.5rem">
+                                <div>
+                                    <div class="form-label" style="font-size:0.68rem">Volkoren</div>
+                                    <strong style="font-size:1rem;color:#5c3d1e">{{ Math.round(dtGrainCharacteristics.wholePct * 10) / 10 }}%</strong>
+                                </div>
+                                <div>
+                                    <div class="form-label" style="font-size:0.68rem">Wit</div>
+                                    <strong style="font-size:1rem;color:#5c3d1e">{{ Math.round(dtGrainCharacteristics.whitePct * 10) / 10 }}%</strong>
+                                </div>
+                                <div>
+                                    <div class="form-label" style="font-size:0.68rem">Hydratatie</div>
+                                    <strong style="font-size:1rem;color:#5c3d1e">{{ editingDoughType.hydration }}%</strong>
+                                </div>
+                            </div>
+                            <div v-if="dtGrainCharacteristics.grainDist.length > 0" style="display:flex;gap:1.25rem;flex-wrap:wrap">
+                                <div v-for="gt in dtGrainCharacteristics.grainDist" :key="gt.name">
+                                    <div class="form-label" style="font-size:0.68rem">{{ gt.name }}</div>
+                                    <span style="font-size:0.85rem;color:#8b5a2b;font-weight:600">{{ Math.round(gt.pct * 10) / 10 }}%</span>
+                                </div>
+                            </div>
+                        </div>
+
                         <hr class="divider">
                         <div class="panel-title" style="margin-bottom:0.75rem">Methode</div>
                         <div v-for="(day, di) in editingDoughType.methodDays" :key="'dtday'+di" class="method-day">
@@ -1237,7 +1278,7 @@ require_once '../components/sidebar.php'; ?>
     <script src="https://cdn.jsdelivr.net/npm/vue@3/dist/vue.global.prod.js"></script>
     <script>
     const { createApp } = Vue;
-    createApp({
+    const app = createApp({
         data() {
             return {
                 activeTab: 'recept',
@@ -1422,6 +1463,50 @@ require_once '../components/sidebar.php'; ?>
                     .map(t => ({ name: t.name, pct: (t.amount / this.totalFlour) * 100 }))
                     .filter(t => t.pct > 0)
                     .sort((a, b) => b.pct - a.pct);
+            },
+
+            dtGrainCharacteristics() {
+                if (!this.editingDoughType || this.grainTypes.length === 0) return null;
+                const dt = this.editingDoughType;
+                const sourdoughShare = dt.useSourdough ? (dt.sourdoughPct || 0) / 100 : 0;
+                const preFermentShare = dt.usePreFerment ? (dt.preFermentPct || 0) / 100 : 0;
+                const mainShare = Math.max(0, 1 - sourdoughShare - preFermentShare);
+                const grainWeights = {};
+                const addGrains = (grains, share) => {
+                    if (share <= 0 || !grains) return;
+                    grains.forEach(g => {
+                        if (!grainWeights[g.type]) grainWeights[g.type] = 0;
+                        grainWeights[g.type] += share * (g.pct || 0) / 100;
+                    });
+                };
+                if (dt.useSourdough) addGrains(dt.sourdoughGrains, sourdoughShare);
+                if (dt.usePreFerment) addGrains(dt.preFermentGrains, preFermentShare);
+                addGrains(dt.mainDoughGrains, mainShare);
+                const total = Object.values(grainWeights).reduce((s, v) => s + v, 0);
+                if (total === 0) return null;
+                let wholeGrain = 0;
+                Object.entries(grainWeights).forEach(([type, w]) => {
+                    const grain = this.grainTypes.find(g => g.id == type);
+                    if (grain && grain.isWholeGrain) wholeGrain += w;
+                });
+                const wholePct = (wholeGrain / total) * 100;
+                const typeMap = {};
+                Object.entries(grainWeights).forEach(([type, w]) => {
+                    const grain = this.grainTypes.find(g => g.id == type);
+                    if (!grain || w <= 0) return;
+                    const gtId = grain.grainTypeId;
+                    const gtName = gtId
+                        ? ((this.grainTypeNames.find(g => g.id == gtId) || {}).name || 'Onbekend')
+                        : 'Onbekend';
+                    const key = gtId !== null ? gtId : 'unknown';
+                    if (!typeMap[key]) typeMap[key] = { name: gtName, amount: 0 };
+                    typeMap[key].amount += w;
+                });
+                const grainDist = Object.values(typeMap)
+                    .map(t => ({ name: t.name, pct: (t.amount / total) * 100 }))
+                    .filter(t => t.pct > 0)
+                    .sort((a, b) => b.pct - a.pct);
+                return { wholePct, whitePct: 100 - Math.round(wholePct * 10) / 10, grainDist };
             },
 
             totalFlourCost() {
@@ -2376,7 +2461,12 @@ require_once '../components/sidebar.php'; ?>
             this.loadSavedRecipes();
             this.loadUtilityCosts();
         }
-    }).mount('#app');
+    });
+    window.vueApp = app.mount('#app');
+    </script>
+    <script>
+    function newDeegsoort() { if (window.vueApp) window.vueApp.showDoughTypeModal = true; }
+    function nieuwRecept()   { if (window.vueApp) { if (window.vueApp.calculatorActive) window.vueApp.backToRecipes(); setTimeout(() => window.vueApp.newRecipe(), 50); } }
     </script>
     <script>
     if ('serviceWorker' in navigator) {
