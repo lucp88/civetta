@@ -222,12 +222,85 @@ nav {
     background: linear-gradient(135deg, var(--color-crust), var(--color-crust-dark));
 }
 
-.nav-login {
+.nav-icon-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 36px;
+    height: 36px;
+    padding: 0;
+    background: none;
+    border: none;
+    border-radius: 8px;
+    color: var(--color-stone);
+    cursor: pointer;
+    transition: color 0.2s, background 0.2s;
+}
+
+.nav-icon-btn:hover {
+    color: var(--color-crust);
+    background: var(--color-parchment);
+}
+
+.nav-cart-link {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+    width: 36px;
+    height: 36px;
+    padding: 0 !important;
+    color: var(--color-stone) !important;
+    background: none !important;
+    border-radius: 8px;
+    text-decoration: none;
+}
+
+.nav-cart-link:hover {
+    color: var(--color-crust) !important;
+    background: var(--color-parchment) !important;
+}
+
+.nav-cart-count {
+    position: absolute;
+    top: -4px;
+    right: -4px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 18px;
+    height: 18px;
+    padding: 0 4px;
+    background: #e8541a;
+    color: white;
+    font-size: 0.65rem;
+    font-weight: 700;
+    border-radius: 9px;
+    line-height: 1;
+    box-shadow: 0 1px 4px rgba(0,0,0,0.2);
+}
+
+.login-dropdown-name {
+    padding: 0.75rem 1rem 0.4rem;
+    font-size: 0.75rem;
+    font-weight: 400;
+    color: var(--color-stone);
+    letter-spacing: 0.03em;
+    opacity: 0.8;
+}
+
+.nav-login,
+#nav-cart-item {
+    display: flex;
+    align-items: center;
     position: relative;
 }
 
 .nav-login .login-trigger {
     cursor: pointer;
+    align-self: stretch;
+    display: flex;
+    align-items: center;
 }
 
 button.login-trigger {
@@ -250,6 +323,13 @@ button.login-trigger:hover {
     background: var(--color-parchment);
 }
 
+button.nav-icon-btn {
+    padding: 0;
+    display: flex;
+    width: 36px;
+    height: 36px;
+}
+
 .nav-login .nav-login-arrow {
     transition: transform 0.2s ease;
     flex-shrink: 0;
@@ -261,7 +341,7 @@ button.login-trigger:hover {
 
 .nav-login .login-dropdown {
     position: absolute;
-    top: 100%;
+    top: calc(100% + 6px);
     right: 0;
     background: var(--color-warm-white);
     border-radius: 8px;
@@ -1506,7 +1586,7 @@ footer::before {
         transform: rotate(-45deg) translate(5px, -5px);
     }
 
-    button.login-trigger {
+    button.login-trigger:not(.nav-icon-btn) {
         display: block;
         width: 100%;
         text-align: left;

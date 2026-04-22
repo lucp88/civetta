@@ -96,6 +96,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $beschrijving = trim($_POST['beschrijving'] ?? '');
     $doughTypeId = !empty($_POST['dough_type_id']) ? intval($_POST['dough_type_id']) : null;
     $categoryId = !empty($_POST['category_id']) ? intval($_POST['category_id']) : null;
+    $isActive = isset($_POST['is_active']) ? 1 : 0;
+    $isHidden = isset($_POST['is_visible']) ? 0 : 1;
     $foto = $product['foto'] ?? '';
     
     $allowedTypes = ['image/jpeg', 'image/png', 'image/webp'];
@@ -123,11 +125,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if ($naam) {
         try {
             if ($id) {
-                $stmt = $pdo->prepare("UPDATE products SET naam = ?, beschrijving = ?, foto = ?, dough_type_id = ?, category_id = ? WHERE id = ?");
-                $stmt->execute([$naam, $beschrijving, $foto, $doughTypeId, $categoryId, $id]);
+                $stmt = $pdo->prepare("UPDATE products SET naam = ?, beschrijving = ?, foto = ?, dough_type_id = ?, category_id = ?, is_active = ?, is_hidden = ? WHERE id = ?");
+                $stmt->execute([$naam, $beschrijving, $foto, $doughTypeId, $categoryId, $isActive, $isHidden, $id]);
             } else {
-                $stmt = $pdo->prepare("INSERT INTO products (naam, beschrijving, foto, dough_type_id, category_id) VALUES (?, ?, ?, ?, ?)");
-                $stmt->execute([$naam, $beschrijving, $foto, $doughTypeId, $categoryId]);
+                $stmt = $pdo->prepare("INSERT INTO products (naam, beschrijving, foto, dough_type_id, category_id, is_active, is_hidden) VALUES (?, ?, ?, ?, ?, ?, ?)");
+                $stmt->execute([$naam, $beschrijving, $foto, $doughTypeId, $categoryId, $isActive, $isHidden]);
                 $id = $pdo->lastInsertId();
             }
             
@@ -298,6 +300,19 @@ ob_start(); ?>
             display: flex;
             align-items: center;
         }
+        .toggle-options { display: flex; flex-direction: column; gap: 0.6rem; }
+        .toggle-option { display: flex; align-items: center; gap: 0.75rem; cursor: pointer; padding: 0.75rem; background: #f5f2ed; border-radius: 8px; transition: background 0.15s; }
+        .toggle-option:hover { background: #ede9e2; }
+        .tog-sw { display: inline-flex; align-items: center; flex-shrink: 0; }
+        .tog-sw input { position: absolute; opacity: 0; width: 0; height: 0; }
+        .tog-track { width: 44px; height: 24px; background: #ccc; border-radius: 12px; position: relative; transition: background 0.2s; }
+        .tog-sw input:checked + .tog-track { background: #3d6b3d; }
+        .tog-thumb { position: absolute; width: 20px; height: 20px; background: white; border-radius: 50%; top: 2px; left: 2px; transition: left 0.2s; box-shadow: 0 2px 4px rgba(0,0,0,0.2); }
+        .tog-sw input:checked + .tog-track .tog-thumb { left: 22px; }
+        .toggle-option-text { display: flex; flex-direction: column; }
+        .toggle-option-label { font-weight: 600; color: #4a433d; font-size: 0.95rem; }
+        .toggle-option-help { font-size: 0.82rem; color: #888; margin-top: 0.1rem; }
+
         .file-input {
             padding: 0.5rem;
             background: #f5f2ed;
@@ -518,6 +533,33 @@ require_once '../components/sidebar.php'; ?>
                             <textarea id="beschrijving" name="beschrijving"><?= htmlspecialchars($product['beschrijving'] ?? '') ?></textarea>
                         </div>
                         
+                        <div class="form-group">
+                            <label>Status &amp; Zichtbaarheid</label>
+                            <div class="toggle-options">
+                                <label class="toggle-option">
+                                    <span class="tog-sw">
+                                        <input type="checkbox" name="is_active" value="1" <?= !empty($product['is_active']) ? 'checked' : '' ?>>
+                                        <span class="tog-track"><span class="tog-thumb"></span></span>
+                                    </span>
+                                    <div class="toggle-option-text">
+                                        <span class="toggle-option-label">Actief</span>
+                                        <span class="toggle-option-help">Beschikbaar voor aankoop op de website</span>
+                                    </div>
+                                </label>
+                                <label class="toggle-option">
+                                    <span class="tog-sw">
+                                        <input type="checkbox" name="is_visible" value="1" <?= empty($product['is_hidden']) ? 'checked' : '' ?>>
+                                        <span class="tog-track"><span class="tog-thumb"></span></span>
+                                    </span>
+                                    <div class="toggle-option-text">
+                                        <span class="toggle-option-label">Zichtbaar</span>
+                                        <span class="toggle-option-help">Zichtbaar op de website (ook als inactief)</span>
+                                    </div>
+                                </label>
+                            </div>
+                            <p class="help">Nieuwe producten starten als verborgen en inactief</p>
+                        </div>
+
                         <div class="form-group">
                             <label for="category_id">Categorie</label>
                             <select id="category_id" name="category_id">

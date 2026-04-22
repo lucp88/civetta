@@ -212,7 +212,7 @@ function formatDutchDate($date) {
     <title>Bereiden | Civetta Admin</title>
     <link rel="manifest" href="../manifest.json">
     <meta name="theme-color" content="#e55a2b">
-    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <link rel="apple-touch-icon" sizes="192x192" href="/img/icon-192.png">
     <link rel="apple-touch-icon" sizes="512x512" href="/img/icon-512.png">
@@ -1369,9 +1369,8 @@ function formatDutchDate($date) {
         });
     }
 
-    document.getElementById('appointmentModal').addEventListener('click', function(e) {
-        if (e.target === this) closeAppointmentModal();
-    });
+    document.getElementById('appointmentModal').addEventListener('mousedown', function(e) { this._md = e.target === this; });
+    document.getElementById('appointmentModal').addEventListener('click', function(e) { if (e.target === this && this._md) closeAppointmentModal(); });
 
     function openDayModal(date, dateLabel, filterDoughType) {
         const isBakdagDay = bakdagen.includes(date);

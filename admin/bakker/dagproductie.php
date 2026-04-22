@@ -13,11 +13,12 @@ $voorbereidingDagen = (int)($stmtVd->fetchColumn() ?: 3);
 
 // Load ingredient names from DB (for flour grain names)
 $ingredientNames = [];
-$ingStmt = $pdo->query("SELECT id, name FROM ingredients");
+$ingStmt = $pdo->query("SELECT id, name, brand_name FROM ingredients");
 if ($ingStmt) {
     foreach ($ingStmt->fetchAll() as $ing) {
-        $ingredientNames[$ing['id']] = $ing['name'];
-        $ingredientNames[strval($ing['id'])] = $ing['name'];
+        $displayName = $ing['brand_name'] ? $ing['name'] . ' – ' . $ing['brand_name'] : $ing['name'];
+        $ingredientNames[$ing['id']] = $displayName;
+        $ingredientNames[strval($ing['id'])] = $displayName;
     }
 }
 
@@ -40,7 +41,8 @@ $stmt = $pdo->prepare("
         br.recipe_data,
         br.dough_type_id,
         COALESCE(dt.name, 'Geen deegsoort') as dough_type_name,
-        dt.recipe_data as dough_type_recipe_data
+        dt.recipe_data as dough_type_recipe_data,
+        COALESCE(dt.current_version, 1) as dough_type_version
     FROM business_orders bo
     JOIN business_accounts ba ON bo.account_id = ba.id
     JOIN business_order_items boi ON bo.id = boi.order_id
@@ -107,7 +109,9 @@ foreach ($allItems as $item) {
             if (!isset($doughGroups[$doughTypeName])) {
                 $dtRecipeData = !empty($item['dough_type_recipe_data']) ? json_decode($item['dough_type_recipe_data'], true) : null;
                 $doughGroups[$doughTypeName] = [
+                    'dough_type_id' => (int)($item['dough_type_id'] ?? 0),
                     'dough_type_data' => $dtRecipeData,
+                    'dough_type_version' => (int)$item['dough_type_version'],
                     'recipes' => [],
                     'products' => [],
                     'orders' => [],
@@ -234,9 +238,11 @@ function calculateIngredients($recipeData, $totalQty, $totalWeight, $ingredientN
     foreach ($mainGrains as $grain) {
         if ($grain['pct'] > 0) {
             $grainWeight = $mainFlour * ($grain['pct'] / 100);
-            // Resolve grain name: try DB ingredients first, then fallback map, then raw type
             $grainType = $grain['type'] ?? '';
-            $grainName = $ingredientNames[$grainType] ?? $grainTypesFallback[$grainType] ?? $grainType;
+            $brandId = $grain['brand_ingredient_id'] ?? null;
+            $grainName = ($brandId && isset($ingredientNames[$brandId]))
+                ? $ingredientNames[$brandId]
+                : ($ingredientNames[$grainType] ?? $grainTypesFallback[$grainType] ?? $grainType);
             $grains[] = [
                 'name' => $grainName,
                 'weight' => round($grainWeight),
@@ -322,6 +328,7 @@ function formatDutchDate($date) {
     return getDutchDayName($date) . ' ' . $date->format('j') . ' ' . getDutchMonthName($date);
 }
 
+
 $totalProducts = 0;
 $totalWeight = 0;
 $totalDoughTypeCount = count($doughGroups);
@@ -331,6 +338,31 @@ foreach ($doughGroups as $dg) {
 }
 $totalProducts += $noRecipeGroup['total_qty'];
 $totalWeight += $noRecipeGroup['total_weight'];
+
+// Fetch all existing bakacties for this date, keyed by dough_type_name
+$existingBakactiesByType = [];
+$stmtAllBa = $pdo->prepare("SELECT id, COALESCE(dough_type_name, '') as dough_type_name FROM bak_acties WHERE DATE(datum) = ?");
+$stmtAllBa->execute([$date]);
+foreach ($stmtAllBa->fetchAll() as $ba) {
+    $existingBakactiesByType[$ba['dough_type_name']] = (int)$ba['id'];
+}
+// For the filtered view: check if a bakactie exists for this specific dough type
+$existingBakactieId = $filterDoughType ? ($existingBakactiesByType[$filterDoughType] ?? null) : null;
+
+// Build minimal payload for "Start Bakactie" — only safe scalar values (no recipe text blobs)
+$bakactieSimple = null;
+if ($filterDoughType && !empty($doughGroups[$filterDoughType])) {
+    $dg = $doughGroups[$filterDoughType];
+    $allOids = [];
+    foreach (array_keys($dg['orders']) as $oid) { $allOids[] = (int)$oid; }
+    $bakactieSimple = [
+        'dough_type_id'   => (int)($dg['dough_type_id'] ?? 0),
+        'version'         => (int)$dg['dough_type_version'],
+        'total_qty'       => (int)$dg['total_qty'],
+        'total_weight_g'  => (int)$dg['total_weight'],
+        'order_ids'       => array_values(array_unique($allOids)),
+    ];
+}
 ?>
 <?php
 $adminPageTitle = 'Dagproductie';
@@ -345,18 +377,8 @@ ob_start();
             margin: 0 auto;
             padding: 2rem;
         }
-        .page-layout {
-            display: grid;
-            grid-template-columns: 1fr 260px;
-            gap: 2rem;
-            align-items: start;
-        }
+        .page-layout { display: block; }
         .page-main { min-width: 0; }
-        .page-sidebar { position: sticky; top: 1.5rem; }
-        @media (max-width: 900px) {
-            .page-layout { grid-template-columns: 1fr; }
-            .page-sidebar { position: static; }
-        }
         .date-nav {
             display: flex;
             align-items: center;
@@ -591,50 +613,31 @@ ob_start();
             color: #5c8db8;
             margin-left: 0.5rem;
         }
-        .watertemp-card {
+        .btn-bakactie {
+            background: linear-gradient(135deg, #92400e, #78350f);
+            color: white;
+        }
+        .btn-bakactie:hover { background: linear-gradient(135deg, #78350f, #5c3d1e); }
+        .dough-type-nav { display: flex; flex-direction: column; gap: 0.75rem; margin-bottom: 2rem; }
+        .dough-type-nav-card {
+            display: flex;
+            align-items: center;
+            padding: 1.25rem 1.5rem;
             background: white;
             border-radius: 12px;
             box-shadow: 0 4px 15px rgba(0,0,0,0.08);
-            padding: 1.25rem;
-            margin-bottom: 1.5rem;
+            text-decoration: none;
+            color: inherit;
+            border-left: 4px solid #3d6b3d;
+            gap: 1rem;
+            transition: box-shadow 0.15s, transform 0.1s;
         }
-        .watertemp-card h3 {
-            font-size: 0.8rem;
-            color: #888;
-            text-transform: uppercase;
-            letter-spacing: 0.05em;
-            margin-bottom: 1rem;
-            display: flex;
-            align-items: center;
-            gap: 0.4rem;
-        }
-        .watertemp-inputs { display: flex; flex-direction: column; gap: 0.6rem; }
-        .watertemp-field { display: flex; flex-direction: column; gap: 0.25rem; }
-        .watertemp-field label { font-size: 0.72rem; color: #888; font-weight: 600; text-transform: uppercase; letter-spacing: 0.04em; }
-        .watertemp-field.optional label { color: #b0b8c5; }
-        .watertemp-input-row { display: flex; align-items: stretch; }
-        .watertemp-input { flex: 1; min-width: 0; padding: 0.5rem 0.5rem; border: 1px solid #d1d5db; border-right: none; border-radius: 6px 0 0 6px; font-size: 1.1rem; font-weight: 600; color: #1f2937; }
-        .watertemp-input::-webkit-inner-spin-button { opacity: 1; transform: scale(1.4); transform-origin: right center; }
-        .watertemp-input:focus { outline: none; border-color: #c8913a; }
-        .watertemp-input.optional-input { background: #f9fafb; color: #6b7280; }
-        .watertemp-input.stale { border-color: #fbbf24; background: #fffbeb; }
-        .watertemp-stale-note { font-size: 0.68rem; color: #b45309; margin-top: 0.2rem; display: flex; align-items: center; gap: 0.25rem; }
-        .watertemp-unit-badge { padding: 0.5rem 0.5rem; background: #f3f4f6; border: 1px solid #d1d5db; border-radius: 0 6px 6px 0; font-size: 0.8rem; color: #6b7280; font-weight: 600; display: flex; align-items: center; white-space: nowrap; }
-        .watertemp-divider { height: 1px; background: #e5e7eb; margin: 0.25rem 0; }
-        .watertemp-result-box { padding: 0.75rem; border-radius: 10px; text-align: center; margin-top: 1rem; transition: background 0.25s; }
-        .watertemp-result-value { font-size: 2.4rem; font-weight: 700; line-height: 1; font-variant-numeric: tabular-nums; }
-        .watertemp-result-label { font-size: 0.75rem; margin-top: 0.3rem; opacity: 0.75; }
-        .watertemp-formula { font-size: 0.7rem; color: #9ca3af; margin-top: 0.6rem; text-align: center; line-height: 1.4; }
-        .watertemp-cold  { background: #eff6ff; color: #1d4ed8; }
-        .watertemp-cool  { background: #f0fdf4; color: #166534; }
-        .watertemp-warm  { background: #fff7ed; color: #c2410c; }
-        .watertemp-hot   { background: #fef2f2; color: #b91c1c; }
-        /* Inline water temp badge in recipe cards */
-        .wt-badge { display: inline-flex; align-items: center; gap: 0.3rem; padding: 0.2rem 0.6rem; border-radius: 20px; font-size: 0.82rem; font-weight: 700; margin-left: 0.5rem; font-variant-numeric: tabular-nums; vertical-align: middle; }
-        @media print {
-            .watertemp-card, .page-sidebar { display: none !important; }
-            .page-layout { grid-template-columns: 1fr !important; }
-        }
+        .dough-type-nav-card:hover { box-shadow: 0 6px 20px rgba(0,0,0,0.13); transform: translateX(3px); }
+        .dough-type-nav-info { flex: 1; min-width: 0; }
+        .dough-type-nav-name { font-size: 1.1rem; font-weight: 700; color: #2d4a2d; display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.35rem; flex-wrap: wrap; }
+        .dough-type-nav-stats { font-size: 0.85rem; color: #888; display: flex; gap: 1.25rem; flex-wrap: wrap; }
+        .dough-type-nav-badge { background: #d4edda; color: #155724; font-size: 0.72rem; padding: 0.1rem 0.5rem; border-radius: 10px; font-weight: 600; }
+        .dough-type-nav-arrow { color: #3d6b3d; font-size: 1.25rem; flex-shrink: 0; }
         @media print {
             .topbar, .admin-topbar, .sidebar, .date-nav, .print-section { display: none !important; }
             .admin-main { margin-left: 0 !important; }
@@ -694,6 +697,17 @@ ob_start();
                 <button class="btn btn-primary" onclick="window.print()">
                     <i class="bi bi-printer"></i> Print overzicht
                 </button>
+                <?php if (!empty($doughGroups) && $filterDoughType): ?>
+                <?php if ($existingBakactieId): ?>
+                <a href="bak-actie.php?id=<?= (int)$existingBakactieId ?>" class="btn btn-bakactie">
+                    <i class="bi bi-journal-bookmark"></i> Bakactie
+                </a>
+                <?php else: ?>
+                <a href="bak-actie.php?date=<?= urlencode($date) ?>&dough_type=<?= urlencode($filterDoughType) ?>&dough_type_id=<?= $bakactieSimple ? (int)$bakactieSimple['dough_type_id'] : 0 ?>&qty=<?= $bakactieSimple ? (int)$bakactieSimple['total_qty'] : 0 ?>&weight=<?= $bakactieSimple ? (int)$bakactieSimple['total_weight_g'] : 0 ?>" class="btn btn-bakactie">
+                    <i class="bi bi-journal-plus"></i> Bakactie
+                </a>
+                <?php endif; ?>
+                <?php endif; ?>
             </div>
 
             <div class="summary-bar">
@@ -722,15 +736,43 @@ ob_start();
                 </div>
             <?php endif; ?>
 
+            <?php if (!$filterDoughType): ?>
+            <div class="dough-type-nav">
+                <?php foreach ($doughGroups as $doughTypeName => $doughGroup): ?>
+                <a href="?date=<?= $date ?>&dough_type=<?= urlencode($doughTypeName) ?>" class="dough-type-nav-card">
+                    <div class="dough-type-nav-info">
+                        <div class="dough-type-nav-name">
+                            <i class="bi bi-layers"></i>
+                            <?= htmlspecialchars($doughTypeName) ?>
+                            <span style="font-size:0.75rem;color:#888;font-weight:400">v<?= $doughGroup['dough_type_version'] ?></span>
+                            <?php if (isset($existingBakactiesByType[$doughTypeName])): ?>
+                                <span class="dough-type-nav-badge"><i class="bi bi-journal-check"></i> Bakactie gestart</span>
+                            <?php endif; ?>
+                        </div>
+                        <div class="dough-type-nav-stats">
+                            <span><i class="bi bi-box"></i> <?= $doughGroup['total_qty'] ?> stuks</span>
+                            <span><i class="bi bi-speedometer"></i> <?= number_format($doughGroup['total_weight']/1000, 1, ',', '.') ?> kg deeg</span>
+                        </div>
+                    </div>
+                    <i class="bi bi-chevron-right dough-type-nav-arrow"></i>
+                </a>
+                <?php endforeach; ?>
+            </div>
+            <?php else: ?>
             <?php foreach ($doughGroups as $doughTypeName => $doughGroup):
-                // Use first recipe's data for the combined calculation
-                $firstRecipe = reset($doughGroup['recipes']);
-                $calcData = $firstRecipe['data'];
+                $firstRecipe = !empty($doughGroup['recipes']) ? reset($doughGroup['recipes']) : [];
+                $calcData = $firstRecipe['data'] ?? [];
                 $calc = calculateIngredients($calcData, $doughGroup['total_qty'], $doughGroup['total_weight'], $ingredientNames);
             ?>
                 <div class="recipe-card">
                     <div class="recipe-header">
-                        <h2><i class="bi bi-layers"></i> <?= htmlspecialchars($doughTypeName) ?></h2>
+                        <h2><i class="bi bi-layers"></i> <?= htmlspecialchars($doughTypeName) ?>
+                            <?php if ($doughGroup['dough_type_id']): ?>
+                                <a href="recepten.php#dt-<?= $doughGroup['dough_type_id'] ?>/versies" style="font-size:0.78rem;opacity:0.8;font-weight:400;color:rgba(255,255,255,0.85);text-decoration:none;border:1px solid rgba(255,255,255,0.3);padding:0.1rem 0.4rem;border-radius:4px;margin-left:0.4rem" title="Bekijk receptversies">v<?= $doughGroup['dough_type_version'] ?> <i class="bi bi-box-arrow-up-right" style="font-size:0.7rem"></i></a>
+                            <?php else: ?>
+                                <span style="font-size:0.8rem;opacity:0.7;font-weight:400">v<?= $doughGroup['dough_type_version'] ?></span>
+                            <?php endif; ?>
+                        </h2>
                         <div class="stats">
                             <span><i class="bi bi-box"></i> <?= $doughGroup['total_qty'] ?> stuks</span>
                             <span><i class="bi bi-speedometer"></i> <?= number_format($doughGroup['total_weight']/1000, 1, ',', '.') ?> kg deeg</span>
@@ -759,7 +801,7 @@ ob_start();
                             <div class="ingredient-section">
                                 <h3><i class="bi bi-droplet"></i> Hoofddeeg — Water & Zout</h3>
                                 <div class="ingredient-row">
-                                    <span class="ingredient-name">Water <span class="wt-badge watertemp-cool" data-wt-badge>28°C</span></span>
+                                    <span class="ingredient-name">Water</span>
                                     <span>
                                         <span class="ingredient-weight"><?= $calc['mainWater'] ?>g</span>
                                     </span>
@@ -909,8 +951,9 @@ ob_start();
                                         </div>
                                         <?php if (!empty($day['steps'])): ?>
                                             <?php foreach ($day['steps'] as $si => $step): ?>
-                                                <?php if (trim($step)): ?>
-                                                    <div style="color:#666;font-size:0.9rem;padding-left:1.5rem;margin-top:0.2rem"><span style="color:#c8913a;font-weight:600">Stap <?= $si + 1 ?>:</span> <?= htmlspecialchars($step) ?></div>
+                                                <?php $stepTitle = is_array($step) ? ($step['title'] ?? '') : (string)$step; ?>
+                                                <?php if (trim($stepTitle)): ?>
+                                                    <div style="color:#666;font-size:0.9rem;padding-left:1.5rem;margin-top:0.2rem"><span style="color:#c8913a;font-weight:600">Stap <?= $si + 1 ?>:</span> <?= htmlspecialchars($stepTitle) ?></div>
                                                 <?php endif; ?>
                                             <?php endforeach; ?>
                                         <?php endif; ?>
@@ -952,154 +995,16 @@ ob_start();
                         </div>
                     </div>
                 <?php endforeach; ?>
+            <?php endif; ?>
 
         </div><!-- /.page-main -->
-        <div class="page-sidebar">
-            <div class="watertemp-card">
-                <h3><i class="bi bi-thermometer-half"></i> Watertemperatuur</h3>
-                <div class="watertemp-inputs">
-                    <div class="watertemp-field">
-                        <label>DDT (gewenste deegtemp)</label>
-                        <div class="watertemp-input-row">
-                            <input type="number" id="wt-dough" class="watertemp-input" value="24" min="0" max="40" step="0.5" oninput="calcWaterTemp()">
-                            <span class="watertemp-unit-badge">°C</span>
-                        </div>
-                    </div>
-                    <div class="watertemp-field">
-                        <label>Meeltemperatuur</label>
-                        <div class="watertemp-input-row">
-                            <input type="number" id="wt-flour" class="watertemp-input" value="20" min="-10" max="40" step="0.5" oninput="wtClearStale('wt-flour'); calcWaterTemp()">
-                            <span class="watertemp-unit-badge">°C</span>
-                        </div>
-                        <div id="wt-flour-stale" class="watertemp-stale-note" style="display:none"><i class="bi bi-clock-history"></i> Geschat — vul bakkerijtemp in</div>
-                    </div>
-                    <div class="watertemp-field">
-                        <label>Omgevingstemperatuur</label>
-                        <div class="watertemp-input-row">
-                            <input type="number" id="wt-ambient" class="watertemp-input" value="20" min="-10" max="40" step="0.5" oninput="wtClearStale('wt-ambient'); calcWaterTemp()">
-                            <span class="watertemp-unit-badge">°C</span>
-                        </div>
-                        <div id="wt-ambient-stale" class="watertemp-stale-note" style="display:none"><i class="bi bi-clock-history"></i> Geschat — vul bakkerijtemp in</div>
-                    </div>
-                    <div class="watertemp-divider"></div>
-                    <div class="watertemp-field optional">
-                        <label>Voordeeg/levain temp</label>
-                        <div class="watertemp-input-row">
-                            <input type="number" id="wt-preferment" class="watertemp-input optional-input" placeholder="—" min="-10" max="40" step="0.5" oninput="calcWaterTemp()">
-                            <span class="watertemp-unit-badge">°C</span>
-                        </div>
-                    </div>
-                    <div class="watertemp-field optional">
-                        <label>Wrijvingsfactor kneder</label>
-                        <div class="watertemp-input-row">
-                            <input type="number" id="wt-friction" class="watertemp-input optional-input" placeholder="0" value="0" min="0" max="30" step="1" oninput="calcWaterTemp()">
-                            <span class="watertemp-unit-badge">°C</span>
-                        </div>
-                    </div>
-                </div>
-                <div id="wt-result" class="watertemp-result-box watertemp-cool">
-                    <div id="wt-result-value" class="watertemp-result-value">28°C</div>
-                    <div class="watertemp-result-label">Watertemperatuur</div>
-                </div>
-                <div id="wt-formula" class="watertemp-formula">(DDT × 3) − (meel + omgeving + wrijving)</div>
-            </div>
-        </div><!-- /.page-sidebar -->
         </div><!-- /.page-layout -->
 
         <?php endif; ?>
     </div>
+
     <script>
-    var WT_KEY = 'civetta_watertemp';
-    var BT_KEY = 'civetta_bakery_temp';
-    var TODAY  = '<?= date('Y-m-d') ?>';
 
-    function wtSave() {
-        localStorage.setItem(WT_KEY, JSON.stringify({
-            dough:      document.getElementById('wt-dough').value,
-            flour:      document.getElementById('wt-flour').value,
-            ambient:    document.getElementById('wt-ambient').value,
-            preferment: document.getElementById('wt-preferment').value,
-            friction:   document.getElementById('wt-friction').value
-        }));
-    }
-
-    function wtSetStale(id, stale) {
-        var input = document.getElementById(id);
-        var note  = document.getElementById(id + '-stale');
-        if (!input || !note) return;
-        if (stale) {
-            input.classList.add('stale');
-            note.style.display = '';
-        } else {
-            input.classList.remove('stale');
-            note.style.display = 'none';
-        }
-    }
-
-    function wtClearStale(id) {
-        wtSetStale(id, false);
-    }
-
-    function wtLoad() {
-        try {
-            // 1. Start with saved watertemp values
-            var saved = JSON.parse(localStorage.getItem(WT_KEY)) || {};
-            if (saved.dough      !== undefined) document.getElementById('wt-dough').value      = saved.dough;
-            if (saved.preferment !== undefined) document.getElementById('wt-preferment').value = saved.preferment;
-            if (saved.friction   !== undefined) document.getElementById('wt-friction').value   = saved.friction;
-
-            // 2. Overlay bakery temp for flour + ambient
-            var bt = JSON.parse(localStorage.getItem(BT_KEY));
-            if (bt && bt.value !== undefined) {
-                var stale = (bt.date !== TODAY);
-                document.getElementById('wt-flour').value   = bt.value;
-                document.getElementById('wt-ambient').value = bt.value;
-                wtSetStale('wt-flour',   stale);
-                wtSetStale('wt-ambient', stale);
-            } else {
-                // Fall back to saved watertemp values
-                if (saved.flour   !== undefined) document.getElementById('wt-flour').value   = saved.flour;
-                if (saved.ambient !== undefined) document.getElementById('wt-ambient').value = saved.ambient;
-            }
-        } catch(e) {}
-    }
-
-    function calcWaterTemp() {
-        var ddt        = parseFloat(document.getElementById('wt-dough').value)    || 0;
-        var flour      = parseFloat(document.getElementById('wt-flour').value)    || 0;
-        var ambient    = parseFloat(document.getElementById('wt-ambient').value)  || 0;
-        var friction   = parseFloat(document.getElementById('wt-friction').value) || 0;
-        var prefVal    = document.getElementById('wt-preferment').value.trim();
-        var hasPref    = prefVal !== '' && !isNaN(parseFloat(prefVal));
-        var preferment = hasPref ? parseFloat(prefVal) : null;
-
-        var water, formulaText;
-        if (hasPref) {
-            water       = ddt * 4 - (flour + ambient + preferment + friction);
-            formulaText = '(DDT × 4) − (meel + omgeving + voordeeg + wrijving)';
-        } else {
-            water       = ddt * 3 - (flour + ambient + friction);
-            formulaText = '(DDT × 3) − (meel + omgeving + wrijving)';
-        }
-        water = Math.round(water * 10) / 10;
-
-        var colorClass = water <= 5 ? 'watertemp-cold' : water <= 20 ? 'watertemp-cool' : water <= 35 ? 'watertemp-warm' : 'watertemp-hot';
-        var text = water + '°C';
-
-        document.getElementById('wt-result-value').textContent = text;
-        document.getElementById('wt-formula').textContent = formulaText;
-        document.getElementById('wt-result').className = 'watertemp-result-box ' + colorClass;
-
-        document.querySelectorAll('[data-wt-badge]').forEach(function(el) {
-            el.textContent = text;
-            el.className = 'wt-badge ' + colorClass;
-        });
-
-        wtSave();
-    }
-
-    wtLoad();
-    calcWaterTemp();
     </script>
 </div><!-- /.admin-main -->
 </div><!-- /.admin-layout -->

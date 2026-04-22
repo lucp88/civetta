@@ -68,6 +68,7 @@
             display: flex;
             flex-direction: column;
             padding: var(--spacing-md);
+            padding-bottom: var(--spacing-sm);
         }
         .product-card-full .card-title {
             font-family: var(--font-display);
@@ -79,35 +80,64 @@
             color: var(--color-stone);
             font-size: 0.95rem;
             line-height: 1.6;
-            margin-bottom: var(--spacing-sm);
             display: -webkit-box;
             -webkit-line-clamp: 3;
             -webkit-box-orient: vertical;
             overflow: hidden;
         }
         .product-card-full .card-footer {
-            margin-top: auto;
-            padding-top: var(--spacing-sm);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 0.75rem;
+            padding: var(--spacing-sm) var(--spacing-md);
             border-top: 1px solid var(--color-parchment);
+        }
+        .card-footer-prices {
+            display: flex;
+            flex-direction: column;
+            gap: 0.1rem;
         }
         .product-card-full .card-price {
             font-family: var(--font-display);
-            font-size: 1.25rem;
+            font-size: 1.2rem;
             font-weight: 700;
             color: var(--color-crust);
         }
-        .product-card-full .card-variants {
-            display: flex;
-            align-items: baseline;
-            gap: 0.75rem;
-            flex-wrap: wrap;
-        }
-        .product-card-full .card-variants .card-price {
-            margin-right: 0;
-        }
-        .product-card-full .variant-others {
+        .card-variant-count {
             font-size: 0.75rem;
             color: var(--color-stone);
+        }
+        .card-order-btn {
+            flex-shrink: 0;
+            display: flex;
+            align-items: center;
+            gap: 0.35rem;
+            padding: 0.45rem 0.9rem;
+            background: var(--color-crust);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-family: var(--font-body);
+            font-size: 0.85rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: background 0.2s ease;
+            position: relative;
+        }
+        .card-order-btn:hover { background: var(--color-crust-dark); }
+        .card-order-badge {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            min-width: 18px;
+            height: 18px;
+            padding: 0 4px;
+            background: white;
+            color: var(--color-crust);
+            font-size: 0.7rem;
+            font-weight: 700;
+            border-radius: 9px;
         }
     </style>
 
@@ -164,22 +194,7 @@
                             </div>
                             <div class="card-content">
                                 <h3 class="card-title">{{ product.naam }}</h3>
-
-                                <p v-if="product.beschrijving" class="card-description">
-                                    {{ product.beschrijving }}
-                                </p>
-
-                                <div class="card-footer">
-                                    <div v-if="product.variants && product.variants.length > 0" class="card-variants">
-                                        <span class="card-price">{{ formatPrice(getLowestPrice(product)) }}</span>
-                                        <span v-if="product.variants.length > 1" class="variant-others">
-                                            {{ getOtherVariants(product) }}
-                                        </span>
-                                    </div>
-                                    <span v-else-if="product.prijs" class="card-price">
-                                        {{ formatPrice(product.prijs) }}
-                                    </span>
-                                </div>
+                                <p v-if="product.beschrijving" class="card-description">{{ product.beschrijving }}</p>
                             </div>
                         </a>
                     </div>
@@ -205,7 +220,7 @@
     </footer>
 
     <script src="https://cdn.jsdelivr.net/npm/vue@3/dist/vue.global.prod.js"></script>
-    <script src="js/main.js"></script>
-    <script src="js/products-app.js?v=6"></script>
+    <script src="js/main.js?v=4"></script>
+    <script src="js/products-app.js?v=8"></script>
 </body>
 </html>

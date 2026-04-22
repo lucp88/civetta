@@ -8,23 +8,39 @@ $error = '';
 $success = false;
 $alreadyAccepted = false;
 $account = null;
+$isTweedeContact = false;
 
 if (strlen($token) !== 64 || !ctype_xdigit($token)) {
     $error = 'Ongeldige uitnodigingslink.';
 } else {
     try {
+        // Check primary invite token first
         $stmt = $pdo->prepare("SELECT * FROM business_accounts WHERE invite_token = ?");
         $stmt->execute([$token]);
         $account = $stmt->fetch();
 
         if (!$account) {
+            // Check tweede_invite_token
+            $stmt = $pdo->prepare("SELECT * FROM business_accounts WHERE tweede_invite_token = ?");
+            $stmt->execute([$token]);
+            $account = $stmt->fetch();
+            $isTweedeContact = true;
+        }
+
+        if (!$account) {
             $error = 'Ongeldige of verlopen uitnodigingslink.';
-        } elseif ($account['invite_accepted_at'] !== null) {
+        } elseif ($isTweedeContact && $account['tweede_invite_accepted_at'] !== null) {
             $alreadyAccepted = true;
-        } elseif ($account['invite_opened_at'] === null) {
+        } elseif (!$isTweedeContact && $account['invite_accepted_at'] !== null) {
+            $alreadyAccepted = true;
+        } elseif (!$isTweedeContact && $account['invite_opened_at'] === null) {
             $pdo->prepare("UPDATE business_accounts SET invite_opened_at = NOW() WHERE invite_token = ? AND invite_opened_at IS NULL")
                 ->execute([$token]);
             $account['invite_opened_at'] = date('Y-m-d H:i:s');
+        } elseif ($isTweedeContact && $account['tweede_invite_opened_at'] === null) {
+            $pdo->prepare("UPDATE business_accounts SET tweede_invite_opened_at = NOW() WHERE tweede_invite_token = ? AND tweede_invite_opened_at IS NULL")
+                ->execute([$token]);
+            $account['tweede_invite_opened_at'] = date('Y-m-d H:i:s');
         }
     } catch (PDOException $e) {
         $error = 'Er is een fout opgetreden. Probeer het later opnieuw.';
@@ -42,8 +58,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $account && !$alreadyAccepted && !$
     } else {
         try {
             $hash = password_hash($password, PASSWORD_DEFAULT);
-            $stmt = $pdo->prepare("UPDATE business_accounts SET password_hash = ?, invite_accepted_at = NOW() WHERE invite_token = ? AND invite_accepted_at IS NULL");
-            $stmt->execute([$hash, $token]);
+            if ($isTweedeContact) {
+                $stmt = $pdo->prepare("UPDATE business_accounts SET tweede_password_hash = ?, tweede_invite_accepted_at = NOW() WHERE tweede_invite_token = ? AND tweede_invite_accepted_at IS NULL");
+                $stmt->execute([$hash, $token]);
+            } else {
+                $stmt = $pdo->prepare("UPDATE business_accounts SET password_hash = ?, invite_accepted_at = NOW() WHERE invite_token = ? AND invite_accepted_at IS NULL");
+                $stmt->execute([$hash, $token]);
+            }
 
             if ($stmt->rowCount() === 1) {
                 $success = true;
@@ -207,7 +228,8 @@ $bedrijfsnaam = $bedrijf['bedrijfsnaam'] ?? 'Bakkerij Civetta';
         </div>
 
     <?php else: ?>
-        <h2>Welkom, <?= htmlspecialchars($account['contactpersoon']) ?>!</h2>
+        <?php $welkomNaam = $isTweedeContact ? ($account['tweede_contactpersoon'] ?? $account['contactpersoon']) : $account['contactpersoon']; ?>
+        <h2>Welkom, <?= htmlspecialchars($welkomNaam) ?>!</h2>
         <p class="greeting">
             Stel een wachtwoord in voor je zakelijke account bij <?= htmlspecialchars($bedrijfsnaam) ?>
             (<?= htmlspecialchars($account['bedrijfsnaam']) ?>).

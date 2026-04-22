@@ -5,7 +5,7 @@ require_once '../admin/config.php';
 $orderId = $_GET['order_id'] ?? '';
 
 if (!$orderId) {
-    header('Location: ../zakelijk-dashboard.html');
+    header('Location: ../mijn-dashboard.html');
     exit;
 }
 
@@ -26,9 +26,9 @@ try {
             header("Location: ../bedankt-bestelling.html?status=pending&order_id=$orderId");
         }
     } else {
-        header('Location: ../zakelijk-dashboard.html');
+        header('Location: ../mijn-dashboard.html');
     }
 } catch (PDOException $e) {
-    header('Location: ../zakelijk-dashboard.html');
+    header('Location: ../mijn-dashboard.html');
 }
 ?>

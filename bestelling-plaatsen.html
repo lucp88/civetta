@@ -16,7 +16,7 @@
     <link rel="apple-touch-icon" href="img/icon-192.png">
     <link rel="stylesheet" href="css/style.css">
     <link rel="stylesheet" href="css/order-shared.css?v=1">
-    <link rel="stylesheet" href="css/bestelling-plaatsen.css?v=3">
+    <link rel="stylesheet" href="css/bestelling-plaatsen.css?v=5">
     
     <link rel="stylesheet" href="css/fonts.css">
 </head>
@@ -35,7 +35,7 @@
                 <li><a href="financiering.html">Crowdfunding</a></li>
                 <li><a href="contact.html">Contact</a></li>
                 <li class="nav-login">
-                    <a href="zakelijk-dashboard.html" class="login-trigger active">Dashboard</a>
+                    <a href="mijn-dashboard.html" class="login-trigger active">Dashboard</a>
                 </li>
             </ul>
             <button class="mobile-menu-btn" aria-label="Menu">
@@ -113,7 +113,7 @@
                         </div>
                         
                         <div class="cart-column">
-                        <aside class="cart-panel" :class="{ expanded: cartExpanded }">
+                        <aside class="cart-panel" :class="{ expanded: cartExpanded, 'has-items': cartItems.length > 0 }">
                         <div class="cart-panel-toggle" @click="cartExpanded = !cartExpanded">
                             <div class="drag-handle"></div>
                             <div class="cart-panel-toggle-content">
@@ -266,8 +266,8 @@
     </footer>
 
     <script src="https://cdn.jsdelivr.net/npm/vue@3/dist/vue.global.prod.js"></script>
-    <script src="js/main.js"></script>
-    <script src="js/product-card.js?v=8"></script>
+    <script src="js/main.js?v=4"></script>
+    <script src="js/product-card.js?v=10"></script>
     <script>
     const { createApp } = Vue;
 

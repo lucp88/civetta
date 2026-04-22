@@ -15,11 +15,6 @@
     <link rel="icon" type="image/png" sizes="512x512" href="img/icon-512.png">
     <link rel="apple-touch-icon" href="img/icon-192.png">
     <link rel="stylesheet" href="css/style.css">
-    <style>
-        .purchased td { text-decoration: line-through; color: #999; }
-        .purchased td:last-child { text-decoration: none; color: #2e7d32; }
-    </style>
-    
     <link rel="stylesheet" href="css/fonts.css">
 </head>
 <body>
@@ -93,74 +88,6 @@
                     <p>Om Civetta goed te kunnen starten zijn een aantal essentiële investeringen nodig, zoals een oven, menger en andere bakkerijapparatuur. In totaal gaat het om een bedrag van ongeveer <strong>€19.000</strong>.</p>
                     <p>Een deel hiervan heb ik al zelf geïnvesteerd, maar ik heb ook besloten om een crowdfundingsactie te starten zodat mensen die dat willen een gepaste bijdrage kunnen leveren.</p>
                     
-                    <div class="fundraiser-box" id="progress-box">
-                        <div class="fundraiser-progress">
-                            <div class="progress-bar">
-                                <div class="progress-fill" id="progress-fill" style="width: 0%">
-                                    <span class="progress-bread">🥖</span>
-                                </div>
-                            </div>
-                            <div class="progress-labels">
-                                <span>€0</span>
-                                <span>€19.000</span>
-                            </div>
-                        </div>
-                        <div class="fundraiser-stats">
-                            <div class="stat">
-                                <span class="stat-number" id="amount-raised">€0</span>
-                                <span class="stat-label">opgehaald</span>
-                            </div>
-                            <div class="stat">
-                                <span class="stat-number" id="amount-remaining">€19.000</span>
-                                <span class="stat-label">te gaan</span>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-                <div class="funding-section">
-                    <h2>Waar wordt het geld voor gebruikt?</h2>
-                    <table class="equipment-table">
-                        <thead>
-                            <tr>
-                                <th>Wat</th>
-                                <th>Prijs</th>
-                                <th>Aangekocht</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            <tr class="purchased">
-                                <td>Oven</td>
-                                <td>€5.000</td>
-                                <td>✓</td>
-                            </tr>
-                            <tr>
-                                <td>Spiraalmenger</td>
-                                <td>€5.000</td>
-                                <td></td>
-                            </tr>
-                            <tr class="purchased">
-                                <td>Diviseuse</td>
-                                <td>€3.000</td>
-                                <td>✓</td>
-                            </tr>
-                            <tr class="purchased">
-                                <td>Koelkast & vriezer</td>
-                                <td>€2.000</td>
-                                <td>✓</td>
-                            </tr>
-                            <tr>
-                                <td>Overig materieel</td>
-                                <td>€2.000</td>
-                                <td></td>
-                            </tr>
-                            <tr>
-                                <td>Initiële voorraad & eerste operationele kosten</td>
-                                <td>€2.000</td>
-                                <td></td>
-                            </tr>
-                        </tbody>
-                    </table>
                 </div>
 
                 <div class="funding-section">
@@ -270,25 +197,7 @@
     </footer>
 
     <script src="js/ui-notifications.js?v=1"></script>
-    <script src="js/main.js"></script>
-    <script>
-        (async function loadProgress() {
-            const goal = 19000;
-            try {
-                const response = await fetch('api/donations-total.php');
-                const data = await response.json();
-                if (data.success) {
-                    const raised = data.total;
-                    const remaining = Math.max(0, goal - raised);
-                    const percentage = Math.min(100, (raised / goal) * 100);
-                    
-                    document.getElementById('progress-fill').style.width = percentage + '%';
-                    document.getElementById('amount-raised').textContent = '€' + raised.toLocaleString('nl-NL', {minimumFractionDigits: 0, maximumFractionDigits: 0});
-                    document.getElementById('amount-remaining').textContent = '€' + remaining.toLocaleString('nl-NL', {minimumFractionDigits: 0, maximumFractionDigits: 0});
-                }
-            } catch (e) {}
-        })();
-    </script>
+    <script src="js/main.js?v=4"></script>
     <script>
         (function() {
             const amountBtns = document.querySelectorAll('.mollie-amount-btn');

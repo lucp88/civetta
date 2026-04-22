@@ -604,10 +604,10 @@ switch ($method) {
                 $stmtBedrijf = $pdo->query("SELECT setting_key, setting_value FROM settings WHERE setting_key LIKE 'bedrijf_%'");
                 $bedrijf = $stmtBedrijf->fetchAll(PDO::FETCH_KEY_PAIR);
 
-                $emailHtml = buildAdminOrderEditEmail($order, $oldItems, $items, $bedrijf, $btwTarief);
+                $emailHtml = buildAdminOrderEditEmail($order, $oldItems, $items, $bedrijf, $btwTarief, $pdo);
                 sendHtmlEmail(
                     $order['email'],
-                    'Uw bestelling #' . $orderId . ' is aangepast door Bakkerij Civetta',
+                    getEmailSubject($pdo, 'bestelling_aangepast', 'Uw bestelling #' . $orderId . ' is aangepast door Bakkerij Civetta'),
                     $emailHtml
                 );
 

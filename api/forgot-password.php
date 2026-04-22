@@ -34,8 +34,8 @@ try {
 
         $resetUrl = 'https://bakkerij-civetta.nl/wachtwoord-resetten.php?token=' . $token;
         $bedrijf = getBedrijfsGegevens($pdo);
-        $htmlBody = buildForgotPasswordEmail($account, $resetUrl, $bedrijf);
-        sendHtmlEmail($email, 'Wachtwoord opnieuw instellen — Bakkerij Civetta', $htmlBody);
+        $htmlBody = buildForgotPasswordEmail($account, $resetUrl, $bedrijf, $pdo);
+        sendHtmlEmail($email, getEmailSubject($pdo, 'wachtwoord_vergeten', 'Wachtwoord opnieuw instellen — Bakkerij Civetta'), $htmlBody);
     }
 } catch (PDOException $e) {
     // Silently fail to not reveal account existence

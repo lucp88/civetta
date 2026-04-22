@@ -299,6 +299,26 @@ ob_start(); ?>
             color: #888;
             text-transform: uppercase;
         }
+        .tweede-contact {
+            margin-top: 0.75rem;
+            padding-top: 0.75rem;
+            border-top: 1px dashed #e8dfd2;
+        }
+        .tweede-contact-title {
+            font-size: 0.75rem;
+            font-weight: 600;
+            color: #8b5a2b;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            margin-bottom: 0.35rem;
+        }
+        .tweede-contact-details {
+            font-size: 0.9rem;
+            color: #555;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.5rem 1.5rem;
+        }
     </style>
 <?php $adminExtraHead = ob_get_clean();
 require_once '../components/sidebar.php'; ?>
@@ -337,6 +357,16 @@ require_once '../components/sidebar.php'; ?>
                     <?php foreach ($accounts as $account):
                         $hasToken = !empty($account['invite_token']);
                         $hasAccepted = !empty($account['invite_accepted_at']);
+                        $hasSecond = !empty($account['tweede_email']);
+                        $secondAccepted = !empty($account['tweede_invite_accepted_at']);
+                        $secondOpened = !empty($account['tweede_invite_opened_at']);
+                        $secondToken = !empty($account['tweede_invite_token']);
+                        if ($hasSecond) {
+                            if ($secondAccepted) { $secondBadgeStyle = 'background:#d4edda;color:#155724'; $secondLabel = 'Actief'; }
+                            elseif ($secondOpened) { $secondBadgeStyle = 'background:#e3f2fd;color:#1565c0'; $secondLabel = 'Link geopend'; }
+                            elseif ($secondToken) { $secondBadgeStyle = 'background:#fff3cd;color:#856404'; $secondLabel = 'Uitnodiging verstuurd'; }
+                            else { $secondBadgeStyle = 'background:#f8d7da;color:#721c24'; $secondLabel = 'Niet uitgenodigd'; }
+                        }
                     ?>
                         <div class="account-item" id="account-<?= $account['id'] ?>">
                             <div class="account-header">
@@ -382,6 +412,15 @@ require_once '../components/sidebar.php'; ?>
                                     <dd><?= htmlspecialchars($account['telefoon'] ?: '-') ?></dd>
                                 </div>
                             </dl>
+                            <?php if ($hasSecond): ?>
+                            <div class="tweede-contact">
+                                <div class="tweede-contact-title">Tweede persoon <span class="balance-badge" style="<?= $secondBadgeStyle ?>"><?= $secondLabel ?></span></div>
+                                <div class="tweede-contact-details">
+                                    <span><?= htmlspecialchars($account['tweede_contactpersoon'] ?: '-') ?></span>
+                                    <span><a href="mailto:<?= htmlspecialchars($account['tweede_email']) ?>"><?= htmlspecialchars($account['tweede_email']) ?></a></span>
+                                </div>
+                            </div>
+                            <?php endif; ?>
                             <div class="account-actions">
                                 <button class="btn btn-small" onclick="openEditModal(<?= htmlspecialchars(json_encode($account), ENT_QUOTES) ?>)">
                                     <i class="bi bi-pencil"></i> Bewerken
@@ -401,6 +440,15 @@ require_once '../components/sidebar.php'; ?>
                                 <?php else: ?>
                                 <button class="btn btn-warning btn-small" onclick="sendInvite(<?= $account['id'] ?>, '<?= htmlspecialchars($account['email'], ENT_QUOTES) ?>')">
                                     <i class="bi bi-key"></i> Wachtwoord reset
+                                </button>
+                                <?php endif; ?>
+                                <?php if ($hasSecond): ?>
+                                <button class="btn btn-small" style="background:#8b5a2b" onclick="openTweedeModal(<?= htmlspecialchars(json_encode(['id' => $account['id'], 'tweede_contactpersoon' => $account['tweede_contactpersoon'], 'tweede_email' => $account['tweede_email']]), ENT_QUOTES) ?>, <?= $secondAccepted ? 'true' : 'false' ?>)">
+                                    👥 Tweede persoon
+                                </button>
+                                <?php else: ?>
+                                <button class="btn btn-small" style="background:#8b5a2b" onclick="openTweedeModal(<?= htmlspecialchars(json_encode(['id' => $account['id'], 'tweede_contactpersoon' => '', 'tweede_email' => '']), ENT_QUOTES) ?>, false)">
+                                    + Tweede persoon
                                 </button>
                                 <?php endif; ?>
                                 <button class="btn btn-danger btn-small" onclick="deleteAccount(<?= $account['id'] ?>, '<?= htmlspecialchars($account['bedrijfsnaam'], ENT_QUOTES) ?>')">
@@ -577,6 +625,35 @@ require_once '../components/sidebar.php'; ?>
             <div class="modal-actions">
                 <button type="button" class="btn btn-secondary" onclick="closeBalanceModal()">Sluiten</button>
             </div>
+        </div>
+    </div>
+
+    <!-- Tweede Persoon Modal -->
+    <div class="modal-overlay" id="tweede-modal">
+        <div class="modal">
+            <h3>Tweede persoon</h3>
+            <form id="tweede-form" onsubmit="saveTweedeContact(event)">
+                <input type="hidden" id="tweede-account-id">
+                <div class="form-group">
+                    <label>Naam</label>
+                    <input type="text" id="tweede-contactpersoon" placeholder="Voornaam achternaam">
+                </div>
+                <div class="form-group">
+                    <label>E-mail *</label>
+                    <input type="email" id="tweede-email" required placeholder="persoon@voorbeeld.nl">
+                </div>
+                <div id="tweede-invite-row" style="display:none; margin-top:0.5rem;">
+                    <label style="display:flex;align-items:center;gap:0.5rem;font-weight:600;color:#2d4a2d;font-size:0.85rem;cursor:pointer;">
+                        <input type="checkbox" id="tweede-send-invite" checked>
+                        Stuur uitnodigingsmail
+                    </label>
+                </div>
+                <div class="modal-actions">
+                    <button type="button" class="btn btn-secondary" onclick="closeTweedeModal()">Annuleren</button>
+                    <button type="button" id="tweede-remove-btn" class="btn btn-danger" style="display:none" onclick="removeTweedeContact()">Verwijderen</button>
+                    <button type="submit" class="btn btn-success">Opslaan &amp; uitnodigen</button>
+                </div>
+            </form>
         </div>
     </div>
 
@@ -838,6 +915,12 @@ require_once '../components/sidebar.php'; ?>
             }
         }
 
+        [['create-modal', 'closeCreateModal'], ['edit-modal', 'closeEditModal'], ['balance-modal', 'closeBalanceModal'], ['set-password-modal', 'closeSetPasswordModal']].forEach(function([id, fn]) {
+            const el = document.getElementById(id);
+            el.addEventListener('mousedown', function(e) { this._md = e.target === this; });
+            el.addEventListener('click', function(e) { if (e.target === this && this._md) window[fn](); });
+        });
+
         async function addBalance(event) {
             event.preventDefault();
 
@@ -913,19 +996,81 @@ require_once '../components/sidebar.php'; ?>
             }
         }
 
-        // Modal click-outside handlers
-        document.getElementById('create-modal').addEventListener('click', function(e) {
-            if (e.target === this) closeCreateModal();
-        });
-        document.getElementById('edit-modal').addEventListener('click', function(e) {
-            if (e.target === this) closeEditModal();
-        });
-        document.getElementById('balance-modal').addEventListener('click', function(e) {
-            if (e.target === this) closeBalanceModal();
-        });
-        document.getElementById('set-password-modal').addEventListener('click', function(e) {
-            if (e.target === this) closeSetPasswordModal();
-        });
+        // Tweede persoon
+        let tweedeAccountId = null;
+        let tweedeHasExisting = false;
+
+        function openTweedeModal(account, isAccepted) {
+            tweedeAccountId = account.id;
+            tweedeHasExisting = !!(account.tweede_email);
+            document.getElementById('tweede-account-id').value = account.id;
+            document.getElementById('tweede-contactpersoon').value = account.tweede_contactpersoon || '';
+            document.getElementById('tweede-email').value = account.tweede_email || '';
+            document.getElementById('tweede-invite-row').style.display = tweedeHasExisting ? 'block' : 'none';
+            document.getElementById('tweede-remove-btn').style.display = tweedeHasExisting ? '' : 'none';
+            document.getElementById('tweede-send-invite').checked = !isAccepted;
+            const submitBtn = document.querySelector('#tweede-form button[type="submit"]');
+            submitBtn.textContent = tweedeHasExisting ? (isAccepted ? 'Opslaan' : 'Opslaan & uitnodigen') : 'Opslaan & uitnodigen';
+            document.getElementById('tweede-modal').classList.add('active');
+        }
+
+        function closeTweedeModal() {
+            document.getElementById('tweede-modal').classList.remove('active');
+        }
+
+        async function saveTweedeContact(event) {
+            event.preventDefault();
+            const tweedeEmail = document.getElementById('tweede-email').value;
+            const tweedeContactpersoon = document.getElementById('tweede-contactpersoon').value;
+            const sendInvite = !tweedeHasExisting || document.getElementById('tweede-send-invite').checked;
+
+            try {
+                const response = await fetch('../../api/business-accounts.php', {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        id: tweedeAccountId,
+                        action: sendInvite ? 'send_tweede_invite' : 'update_tweede_contact',
+                        tweede_email: tweedeEmail,
+                        tweede_contactpersoon: tweedeContactpersoon
+                    })
+                });
+                const data = await response.json();
+                if (data.success) {
+                    showMessage(data.message, 'success');
+                    closeTweedeModal();
+                    setTimeout(() => location.reload(), 1500);
+                } else {
+                    showMessage(data.error || 'Er ging iets mis', 'error');
+                }
+            } catch (e) {
+                showMessage('Er ging iets mis', 'error');
+            }
+        }
+
+        async function removeTweedeContact() {
+            if (!await showConfirm('Tweede persoon verwijderen? Ze kunnen dan niet meer inloggen.', 'Verwijderen')) return;
+            try {
+                const response = await fetch('../../api/business-accounts.php', {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ id: tweedeAccountId, action: 'remove_tweede_contact' })
+                });
+                const data = await response.json();
+                if (data.success) {
+                    showMessage(data.message, 'success');
+                    closeTweedeModal();
+                    setTimeout(() => location.reload(), 1500);
+                } else {
+                    showMessage(data.error || 'Er ging iets mis', 'error');
+                }
+            } catch (e) {
+                showMessage('Er ging iets mis', 'error');
+            }
+        }
+
+        document.getElementById('tweede-modal').addEventListener('mousedown', function(e) { this._md = e.target === this; });
+        document.getElementById('tweede-modal').addEventListener('click', function(e) { if (e.target === this && this._md) closeTweedeModal(); });
     </script>
 </body>
 </html>

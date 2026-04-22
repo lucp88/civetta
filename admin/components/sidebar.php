@@ -371,7 +371,7 @@ if (!isset($currentPage) || $currentPage === '') {
     </style>
     <link rel="manifest" href="<?= $adminBasePath ?>manifest.json">
     <meta name="theme-color" content="#5c3d1e">
-    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <link rel="apple-touch-icon" href="/img/icon-192.png">
     <?php if ($adminExtraHead) echo $adminExtraHead; ?>
@@ -410,8 +410,9 @@ if (!isset($currentPage) || $currentPage === '') {
         <a href="<?= $adminBasePath ?>reporting/analytics.php" class="nav-item <?= $currentPage === 'analytics' ? 'active' : '' ?>">Analytics</a>
 
         <div class="nav-section">Bakkerij</div>
-        <a href="<?= $adminBasePath ?>bakker/bakker-dashboard.php" class="nav-item <?= $currentPage === 'bakker-dashboard' ? 'active' : '' ?>">Planning</a>
-        <a href="<?= $adminBasePath ?>bakker/bakcalculator.php" class="nav-item <?= $currentPage === 'bakcalculator' ? 'active' : '' ?>">Recepten</a>
+        <a href="<?= $adminBasePath ?>bakker/bakker-dashboard.php" class="nav-item <?= ($currentPage === 'bakker-dashboard' || $currentPage === 'dagproductie') ? 'active' : '' ?>">Bakkersdashboard</a>
+        <a href="<?= $adminBasePath ?>bakker/recepten.php" class="nav-item <?= ($currentPage === 'recepten' || $currentPage === 'bakcalculator') ? 'active' : '' ?>">Recepten</a>
+        <a href="<?= $adminBasePath ?>bakker/logboek.php" class="nav-item <?= $currentPage === 'logboek' ? 'active' : '' ?>">Logboek</a>
         <a href="<?= $adminBasePath ?>bakker/voorraad.php" class="nav-item <?= $currentPage === 'voorraad' ? 'active' : '' ?>">Voorraadbeheer</a>
         <a href="<?= $adminBasePath ?>bakker/voedselveiligheid.php" class="nav-item <?= $currentPage === 'voedselveiligheid' ? 'active' : '' ?>">Voedselveiligheid</a>
 
@@ -435,6 +436,7 @@ if (!isset($currentPage) || $currentPage === '') {
         </a>
         <a href="<?= $adminBasePath ?>settings/settings-bedrijf.php" class="nav-item <?= $currentPage === 'settings-bedrijf' ? 'active' : '' ?>">Bedrijfsgegevens</a>
         <a href="<?= $adminBasePath ?>settings/settings-boekhouding.php" class="nav-item <?= $currentPage === 'settings-boekhouding' ? 'active' : '' ?>">Boekhouding</a>
+        <a href="<?= $adminBasePath ?>settings/email-templates.php" class="nav-item <?= $currentPage === 'email-templates' ? 'active' : '' ?>">E-mail templates</a>
 
         <div class="nav-section">Web-Dev</div>
         <a href="<?= $adminBasePath ?>migrations/index.php" class="nav-item <?= $currentPage === 'migrations' ? 'active' : '' ?>">Migraties</a>

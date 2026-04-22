@@ -531,6 +531,9 @@ function switchTab(tab) {
     document.querySelectorAll('.tab-content').forEach(c => c.classList.toggle('active', c.id === 'tab-' + tab));
     if (tab === 'items') loadItemsTab();
     if (tab === 'allergenen') loadAllergenStatus();
+    const url = new URL(window.location);
+    url.searchParams.set('tab', tab);
+    history.replaceState(null, '', url);
 }
 
 // ==================== FORMULIER MODAL ====================
@@ -1368,6 +1371,8 @@ document.addEventListener('keydown', e => {
     document.getElementById('filterVan').value = toLocal(firstDay);
     document.getElementById('filterTot').value = toLocal(lastDay);
     loadOverzicht();
+    const urlTab = new URLSearchParams(location.search).get('tab');
+    if (urlTab && ['overzicht', 'items', 'allergenen'].includes(urlTab)) switchTab(urlTab);
 })();
 </script>
 </body>

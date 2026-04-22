@@ -28,21 +28,30 @@ const ProductCard = {
         hasVariants() {
             return this.product.variants && this.product.variants.length > 0;
         },
+        activeVariants() {
+            if (!this.hasVariants) return [];
+            return this.product.variants.filter(v => v.is_active);
+        },
         currentVariant() {
             if (!this.hasVariants) return null;
-            return this.product.variants.find(v => v.id == this.selectedVariantId) || this.product.variants[0];
+            return this.product.variants.find(v => v.id == this.selectedVariantId) || this.activeVariants[0] || null;
+        },
+        isAvailable() {
+            return !!this.product.is_active && this.activeVariants.length > 0;
         }
     },
     
     mounted() {
-        if (this.hasVariants) {
+        if (this.activeVariants.length > 0) {
+            this.selectedVariantId = this.activeVariants[0].id;
+        } else if (this.hasVariants) {
             this.selectedVariantId = this.product.variants[0].id;
         }
     },
     
     template: `
-        <div class="product-card-modern" :class="{ selected: quantity > 0 }">
-            <button v-if="hasVariants && showQuantity" class="btn-add-cart" :class="{ 'btn-added': addedToCart }" @click.stop="addToCart" :title="addedToCart ? 'Toegevoegd!' : 'Toevoegen aan bestelling'">
+        <div class="product-card-modern" :class="{ selected: quantity > 0, 'product-card-unavailable': showQuantity && !isAvailable }">
+            <button v-if="hasVariants && showQuantity && isAvailable" class="btn-add-cart" :class="{ 'btn-added': addedToCart }" @click.stop="addToCart" :title="addedToCart ? 'Toegevoegd!' : 'Toevoegen aan bestelling'">
                 <svg v-if="addedToCart" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3">
                     <path d="M20 6L9 17l-5-5"/>
                 </svg>
@@ -80,13 +89,14 @@ const ProductCard = {
                 
                 <!-- Product MET varianten: dropdown + qty -->
                 <template v-if="hasVariants && showQuantity">
-                    <div class="product-card-variant-row">
+                    <div v-if="!product.is_active" class="product-unavailable-label">Tijdelijk niet beschikbaar</div>
+                    <div v-else class="product-card-variant-row">
                         <select v-model="selectedVariantId" class="variant-select">
-                            <option v-for="v in product.variants" :key="v.id" :value="v.id">
+                            <option v-for="v in product.variants" :key="v.id" :value="v.id" :disabled="!v.is_active">
                                 {{ variantLabel(v) }}
                             </option>
                         </select>
-                        <div class="add-qty-group">
+                        <div v-if="activeVariants.length > 0" class="add-qty-group">
                             <button class="qty-btn-small" @click="addQuantity = Math.max(1, addQuantity - 1)">-</button>
                             <input type="number" v-model.number="addQuantity" min="1" class="qty-input-small">
                             <button class="qty-btn-small" @click="addQuantity++">+</button>
@@ -106,11 +116,12 @@ const ProductCard = {
                     </div>
                     <div v-else class="product-card-price">Prijs op aanvraag</div>
                     
-                    <div v-if="showQuantity" class="product-card-quantity">
+                    <div v-if="showQuantity && !isAvailable" class="product-unavailable-label">Tijdelijk niet beschikbaar</div>
+                    <div v-else-if="showQuantity" class="product-card-quantity">
                         <button class="qty-btn" @click="decrease" :disabled="quantity === 0">-</button>
-                        <input type="number" 
-                               class="qty-input" 
-                               :value="quantity" 
+                        <input type="number"
+                               class="qty-input"
+                               :value="quantity"
                                @change="setQuantity($event.target.value)"
                                min="0">
                         <button class="qty-btn" @click="increase">+</button>
@@ -331,7 +342,8 @@ const ProductDetailModal = {
                                 <span class="variant-gewicht">{{ v.naam ? v.naam + ' - ' : '' }}{{ v.gewicht }}g</span>
                                 <span class="variant-prijs">{{ formatPrice(v.prijs) }}</span>
                             </div>
-                            <div v-if="showAddToCart" class="variant-actions">
+                            <div v-if="showAddToCart && !v.is_active" class="variant-coming-soon">Binnenkort beschikbaar</div>
+                            <div v-else-if="showAddToCart" class="variant-actions">
                                 <span v-if="cartCounts.variants[v.id]" class="cart-count-hint">{{ cartCounts.variants[v.id] }} in wagen</span>
                                 <div class="variant-qty-group">
                                     <button class="variant-qty-btn" @click="changeQty(v.id, -1)">-</button>
@@ -674,6 +686,22 @@ const productCardStyles = `
         background: var(--color-crust-dark);
     }
 
+    .product-card-unavailable {
+        opacity: 0.65;
+    }
+    .product-unavailable-label {
+        font-size: 0.78rem;
+        color: #999;
+        font-style: italic;
+        margin-top: 0.4rem;
+    }
+    .variant-coming-soon {
+        font-size: 0.8rem;
+        color: #999;
+        font-style: italic;
+        margin-top: 0.2rem;
+    }
+
     .product-modal-overlay {
         display: none;
         position: fixed;
@@ -970,6 +998,22 @@ const productCardStyles = `
         color: #2d5a27;
         font-weight: 600;
         white-space: nowrap;
+    }
+    @media (max-width: 1024px) {
+        .product-modal-overlay {
+            padding: 0;
+            align-items: flex-end;
+        }
+        .product-modal {
+            max-width: 100%;
+            width: 100%;
+            border-radius: 20px 20px 0 0;
+            max-height: 85vh;
+            -webkit-overflow-scrolling: touch;
+        }
+        .product-modal-image {
+            aspect-ratio: 16/9;
+        }
     }
 `;
 

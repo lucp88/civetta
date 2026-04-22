@@ -25,20 +25,23 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET') {
     $stmt->execute();
     $voorbereidingDagen = (int)($stmt->fetchColumn() ?: 3);
 
-    // Get extra days in range
-    $stmt = $pdo->prepare("SELECT id, datum, notitie FROM bakdagen_extra WHERE datum BETWEEN ? AND ? ORDER BY datum");
+    // Get extra days and sluitingen in range
+    $stmt = $pdo->prepare("SELECT id, datum, notitie, COALESCE(type,'extra') as type FROM bakdagen_extra WHERE datum BETWEEN ? AND ? ORDER BY datum");
     $stmt->execute([$start, $end]);
-    $extraDagen = $stmt->fetchAll();
-    $extraDatums = array_column($extraDagen, 'datum');
+    $allExtra = $stmt->fetchAll();
+    $extraDagen    = array_filter($allExtra, fn($r) => $r['type'] === 'extra');
+    $sluitingDagen = array_filter($allExtra, fn($r) => $r['type'] === 'sluiting');
+    $extraDatums    = array_column(array_values($extraDagen), 'datum');
+    $sluitingDatums = array_column(array_values($sluitingDagen), 'datum');
 
-    // Compute all baking days in range
+    // Compute all baking days in range (pattern + extras, minus sluitingen)
     $bakdagen = [];
     $current = new DateTime($start);
     $endDt = new DateTime($end);
     while ($current <= $endDt) {
         $weekday = (int)$current->format('N');
         $dateStr = $current->format('Y-m-d');
-        if (in_array($weekday, $patroon) || in_array($dateStr, $extraDatums)) {
+        if (!in_array($dateStr, $sluitingDatums) && (in_array($weekday, $patroon) || in_array($dateStr, $extraDatums))) {
             $bakdagen[] = $dateStr;
         }
         $current->modify('+1 day');
@@ -52,7 +55,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET') {
         'success' => true,
         'patroon' => $patroon,
         'voorbereiding_dagen' => $voorbereidingDagen,
-        'extra_dagen' => $extraDagen,
+        'extra_dagen' => array_values($extraDagen),
+        'sluiting_dagen' => array_values($sluitingDagen),
         'bakdagen' => $bakdagen,
         'bakkerij' => [
             'naam' => $addrSettings['bedrijf_naam'] ?? '',
@@ -104,7 +108,36 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             echo json_encode(['success' => false, 'error' => 'Datum is verplicht']);
             exit;
         }
-        $stmt = $pdo->prepare("DELETE FROM bakdagen_extra WHERE datum = ?");
+        $stmt = $pdo->prepare("DELETE FROM bakdagen_extra WHERE datum = ? AND COALESCE(type,'extra') = 'extra'");
+        $stmt->execute([$datum]);
+        echo json_encode(['success' => true]);
+        exit;
+    }
+
+    if ($action === 'add_sluiting') {
+        $datum = $input['datum'] ?? '';
+        $notitie = $input['notitie'] ?? null;
+        if (!$datum) {
+            echo json_encode(['success' => false, 'error' => 'Datum is verplicht']);
+            exit;
+        }
+        try {
+            $stmt = $pdo->prepare("INSERT INTO bakdagen_extra (datum, notitie, type) VALUES (?, ?, 'sluiting') ON DUPLICATE KEY UPDATE notitie = VALUES(notitie), type = 'sluiting'");
+            $stmt->execute([$datum, $notitie]);
+            echo json_encode(['success' => true, 'id' => $pdo->lastInsertId()]);
+        } catch (PDOException $e) {
+            echo json_encode(['success' => false, 'error' => $e->getMessage()]);
+        }
+        exit;
+    }
+
+    if ($action === 'remove_sluiting') {
+        $datum = $input['datum'] ?? '';
+        if (!$datum) {
+            echo json_encode(['success' => false, 'error' => 'Datum is verplicht']);
+            exit;
+        }
+        $stmt = $pdo->prepare("DELETE FROM bakdagen_extra WHERE datum = ? AND type = 'sluiting'");
         $stmt->execute([$datum]);
         echo json_encode(['success' => true]);
         exit;

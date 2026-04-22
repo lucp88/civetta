@@ -1,0 +1,530 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Winkelwagen | Bakkerij Civetta</title>
+    <link rel="icon" type="image/png" sizes="192x192" href="img/icon-192.png">
+    <link rel="icon" type="image/png" sizes="512x512" href="img/icon-512.png">
+    <link rel="apple-touch-icon" href="img/icon-192.png">
+    <link rel="stylesheet" href="css/style.css">
+    <link rel="stylesheet" href="css/fonts.css">
+    <style>
+        [v-cloak] { display: none; }
+
+        .cart-page {
+            min-height: calc(100vh - 200px);
+            background: linear-gradient(180deg, var(--color-cream) 0%, #f5efe6 100%);
+        }
+
+        .cart-wrapper {
+            max-width: 1100px;
+            margin: 0 auto;
+            padding: var(--spacing-lg) var(--spacing-md);
+            padding-bottom: var(--spacing-xl);
+        }
+
+        .cart-back {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.4rem;
+            color: var(--color-stone);
+            font-size: 0.9rem;
+            text-decoration: none;
+            margin-bottom: var(--spacing-md);
+            transition: color 0.2s;
+        }
+        .cart-back:hover { color: var(--color-crust); }
+        .cart-back svg { width: 16px; height: 16px; }
+
+        .cart-title {
+            font-family: var(--font-display);
+            font-size: 2rem;
+            color: var(--color-crust-dark);
+            margin-bottom: var(--spacing-lg);
+        }
+        .cart-title span {
+            font-family: var(--font-body);
+            font-size: 1rem;
+            font-weight: 400;
+            color: var(--color-stone);
+            margin-left: 0.5rem;
+        }
+
+        .cart-layout {
+            display: grid;
+            grid-template-columns: 1fr 340px;
+            gap: var(--spacing-lg);
+            align-items: start;
+        }
+
+        /* Items */
+        .cart-items-card {
+            background: var(--color-warm-white);
+            border-radius: 16px;
+            box-shadow: 0 4px 20px rgba(139,90,43,0.07);
+            overflow: hidden;
+        }
+
+        .cart-item-row {
+            display: grid;
+            grid-template-columns: 64px 1fr auto auto;
+            align-items: center;
+            gap: 1rem;
+            padding: 1rem 1.25rem;
+            border-bottom: 1px solid var(--color-parchment);
+            transition: background 0.15s;
+        }
+        .cart-item-row:last-child { border-bottom: none; }
+        .cart-item-row:hover { background: var(--color-cream); }
+
+        .cart-item-img {
+            width: 64px;
+            height: 64px;
+            border-radius: 10px;
+            object-fit: cover;
+            flex-shrink: 0;
+            background: var(--color-parchment);
+        }
+        .cart-item-img-placeholder {
+            width: 64px;
+            height: 64px;
+            border-radius: 10px;
+            background: linear-gradient(135deg, #f5ebe0, #e8d5c0);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+        }
+        .cart-item-img-placeholder svg { width: 60%; height: 60%; opacity: 0.6; }
+
+        .cart-item-info { min-width: 0; }
+        .cart-item-name {
+            font-weight: 600;
+            font-size: 0.95rem;
+            color: var(--color-crust-dark);
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        .cart-item-unit {
+            font-size: 0.8rem;
+            color: var(--color-stone);
+            margin-top: 0.15rem;
+        }
+        .cart-item-remove {
+            background: none;
+            border: none;
+            color: #bbb;
+            font-size: 1.1rem;
+            cursor: pointer;
+            padding: 0.25rem;
+            border-radius: 4px;
+            line-height: 1;
+            transition: color 0.15s;
+            margin-top: 0.4rem;
+        }
+        .cart-item-remove:hover { color: #e74c3c; }
+
+        .cart-qty-group {
+            display: flex;
+            align-items: center;
+            gap: 0.35rem;
+            background: var(--color-parchment);
+            border-radius: 8px;
+            padding: 0.25rem 0.4rem;
+        }
+        .cart-qty-btn {
+            width: 28px;
+            height: 28px;
+            border: none;
+            border-radius: 6px;
+            background: white;
+            color: var(--color-crust);
+            font-size: 1rem;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: background 0.15s;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+        }
+        .cart-qty-btn:hover { background: var(--color-crust); color: white; }
+        .cart-qty-input {
+            width: 36px;
+            text-align: center;
+            border: none;
+            background: transparent;
+            font-size: 0.95rem;
+            font-weight: 700;
+            color: var(--color-crust-dark);
+            -moz-appearance: textfield;
+        }
+        .cart-qty-input::-webkit-outer-spin-button,
+        .cart-qty-input::-webkit-inner-spin-button { -webkit-appearance: none; }
+
+        .cart-item-subtotal {
+            font-weight: 700;
+            font-size: 0.95rem;
+            color: var(--color-crust);
+            white-space: nowrap;
+            text-align: right;
+        }
+
+        .cart-item-actions {
+            display: flex;
+            flex-direction: column;
+            align-items: flex-end;
+            gap: 0.25rem;
+        }
+
+        /* Summary */
+        .cart-summary {
+            position: sticky;
+            top: 100px;
+        }
+        .cart-summary-card {
+            background: var(--color-warm-white);
+            border-radius: 16px;
+            box-shadow: 0 4px 20px rgba(139,90,43,0.08);
+            padding: var(--spacing-md);
+        }
+        .summary-title {
+            font-family: var(--font-display);
+            font-size: 1.1rem;
+            color: var(--color-crust-dark);
+            margin-bottom: var(--spacing-sm);
+            padding-bottom: var(--spacing-sm);
+            border-bottom: 1px solid var(--color-parchment);
+        }
+        .summary-row {
+            display: flex;
+            justify-content: space-between;
+            font-size: 0.9rem;
+            color: var(--color-stone);
+            padding: 0.35rem 0;
+        }
+        .summary-row.total {
+            font-size: 1.05rem;
+            font-weight: 700;
+            color: var(--color-crust-dark);
+            padding-top: 0.75rem;
+            margin-top: 0.5rem;
+            border-top: 1px solid var(--color-parchment);
+        }
+        .checkout-btn {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.5rem;
+            width: 100%;
+            padding: 0.9rem;
+            margin-top: var(--spacing-md);
+            background: linear-gradient(135deg, var(--color-crust), var(--color-crust-dark));
+            color: white;
+            border: none;
+            border-radius: 12px;
+            font-family: var(--font-body);
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: opacity 0.2s, transform 0.1s;
+        }
+        .checkout-btn:hover { opacity: 0.92; transform: translateY(-1px); }
+        .checkout-btn:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
+        .checkout-btn svg { width: 18px; height: 18px; }
+
+        .summary-links {
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+            margin-top: var(--spacing-sm);
+        }
+        .summary-link {
+            display: block;
+            text-align: center;
+            font-size: 0.875rem;
+            color: var(--color-crust);
+            text-decoration: none;
+            padding: 0.5rem;
+            border-radius: 8px;
+            transition: background 0.15s;
+        }
+        .summary-link:hover { background: var(--color-parchment); }
+
+        /* Empty state */
+        .cart-empty-state {
+            background: var(--color-warm-white);
+            border-radius: 16px;
+            box-shadow: 0 4px 20px rgba(139,90,43,0.07);
+            text-align: center;
+            padding: var(--spacing-xl) var(--spacing-lg);
+        }
+        .cart-empty-icon {
+            font-size: 3.5rem;
+            opacity: 0.35;
+            margin-bottom: var(--spacing-sm);
+        }
+        .cart-empty-state h2 {
+            font-family: var(--font-display);
+            color: var(--color-crust-dark);
+            margin-bottom: 0.5rem;
+        }
+        .cart-empty-state p {
+            color: var(--color-stone);
+            margin-bottom: var(--spacing-md);
+        }
+        .btn-primary {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.4rem;
+            padding: 0.75rem 1.5rem;
+            background: var(--color-crust);
+            color: white;
+            border-radius: 10px;
+            font-weight: 600;
+            text-decoration: none;
+            transition: background 0.2s;
+        }
+        .btn-primary:hover { background: var(--color-crust-dark); }
+
+        @media (max-width: 768px) {
+            .cart-layout {
+                grid-template-columns: 1fr;
+            }
+            .cart-summary { position: static; }
+            .cart-item-row {
+                grid-template-columns: 52px 1fr auto;
+                grid-template-rows: auto auto;
+            }
+            .cart-item-img,
+            .cart-item-img-placeholder {
+                width: 52px;
+                height: 52px;
+                grid-row: 1 / 3;
+            }
+            .cart-item-info { grid-column: 2; grid-row: 1; }
+            .cart-item-actions { grid-column: 3; grid-row: 1; align-items: flex-end; }
+            .cart-qty-group { grid-column: 2 / 4; grid-row: 2; justify-self: start; }
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <nav>
+            <div class="logo">
+                <a href="index.html">Civetta</a>
+            </div>
+            <ul class="nav-links">
+                <li><a href="index.html">Home</a></li>
+                <li><a href="ons-verhaal.html">Ons Verhaal</a></li>
+                <li><a href="producten.html">Producten</a></li>
+                <li><a href="galerij.html">Galerij</a></li>
+                <li><a href="leveranciers.html">Leveranciers</a></li>
+                <li><a href="financiering.html">Crowdfunding</a></li>
+                <li><a href="contact.html">Contact</a></li>
+                <li class="nav-login">
+                    <a href="login.html" class="login-trigger">Inloggen</a>
+                </li>
+            </ul>
+            <button class="mobile-menu-btn" aria-label="Menu">
+                <span></span><span></span><span></span>
+            </button>
+        </nav>
+    </header>
+
+    <main class="cart-page">
+        <div id="cart-app" v-cloak>
+            <div class="cart-wrapper">
+                <a href="producten.html" class="cart-back">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>
+                    Verder winkelen
+                </a>
+
+                <h1 class="cart-title">
+                    Winkelwagen
+                    <span v-if="items.length > 0">{{ totalItems }} {{ totalItems === 1 ? 'product' : 'producten' }}</span>
+                </h1>
+
+                <div v-if="items.length === 0" class="cart-empty-state">
+                    <div class="cart-empty-icon">🛒</div>
+                    <h2>Uw winkelwagen is leeg</h2>
+                    <p>Voeg producten toe om een bestelling te plaatsen.</p>
+                    <a href="bestelling-plaatsen.html" class="btn-primary">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14"/></svg>
+                        Nieuwe bestelling starten
+                    </a>
+                </div>
+
+                <div v-else class="cart-layout">
+                    <!-- Items -->
+                    <div class="cart-items-card">
+                        <div v-for="(item, idx) in items" :key="idx" class="cart-item-row">
+                            <img v-if="item.product_image" :src="item.product_image" :alt="item.product_name" class="cart-item-img">
+                            <div v-else class="cart-item-img-placeholder">
+                                <svg viewBox="0 0 80 80" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                    <ellipse cx="40" cy="42" rx="28" ry="18" fill="#d4a574" opacity="0.4"/>
+                                    <ellipse cx="40" cy="38" rx="26" ry="16" fill="#c4956a" opacity="0.6"/>
+                                    <ellipse cx="40" cy="36" rx="24" ry="14" fill="#b8875c"/>
+                                </svg>
+                            </div>
+
+                            <div class="cart-item-info">
+                                <div class="cart-item-name">{{ item.product_name }}</div>
+                                <div class="cart-item-unit">{{ formatPrice(item.unit_price) }} p/st</div>
+                            </div>
+
+                            <div class="cart-item-actions">
+                                <div class="cart-item-subtotal">{{ formatPrice(item.unit_price * item.quantity) }}</div>
+                                <button class="cart-item-remove" @click="removeItem(idx)" title="Verwijderen">&times;</button>
+                            </div>
+
+                            <div class="cart-qty-group">
+                                <button class="cart-qty-btn" @click="changeQty(idx, -1)">−</button>
+                                <input type="number" class="cart-qty-input" :value="item.quantity" @change="setQty(idx, $event.target.value)" min="1">
+                                <button class="cart-qty-btn" @click="changeQty(idx, 1)">+</button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Summary -->
+                    <div class="cart-summary">
+                        <div class="cart-summary-card">
+                            <div class="summary-title">Overzicht</div>
+                            <div class="summary-row">
+                                <span>Subtotaal (excl. BTW)</span>
+                                <span>{{ formatPrice(totalExcl) }}</span>
+                            </div>
+                            <div class="summary-row">
+                                <span>BTW ({{ btwTarief }}%)</span>
+                                <span>{{ formatPrice(btwAmount) }}</span>
+                            </div>
+                            <div class="summary-row total">
+                                <span>Totaal incl. BTW</span>
+                                <span>{{ formatPrice(totalIncl) }}</span>
+                            </div>
+
+                            <button class="checkout-btn" @click="goToCheckout">
+                                Afrekenen
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+                            </button>
+
+                            <div class="summary-links">
+                                <a href="bestelling-plaatsen.html" class="summary-link">Bestelling aanpassen</a>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <footer>
+        <div class="container">
+            <div class="footer-content">
+                <div class="footer-info">
+                    <p><strong>Bakkerij Civetta</strong></p>
+                    <p>Leersum, Utrecht</p>
+                </div>
+                <img src="img/logo.jpeg" alt="Civetta" class="footer-logo">
+                <div class="footer-contact">
+                    <p><a href="mailto:info@bakkerij-civetta.nl">info@bakkerij-civetta.nl</a></p>
+                    <p><a href="privacy.html">Privacybeleid</a></p>
+                </div>
+            </div>
+        </div>
+    </footer>
+
+    <script src="https://cdn.jsdelivr.net/npm/vue@3/dist/vue.global.prod.js"></script>
+    <script src="js/main.js?v=4"></script>
+    <script>
+    const { createApp } = Vue;
+
+    createApp({
+        data() {
+            return {
+                items: [],
+                btwTarief: 9
+            };
+        },
+
+        computed: {
+            totalExcl() {
+                return this.items.reduce((s, i) => s + i.unit_price * i.quantity, 0);
+            },
+            btwAmount() {
+                return this.totalExcl * this.btwTarief / 100;
+            },
+            totalIncl() {
+                return this.totalExcl + this.btwAmount;
+            },
+            totalItems() {
+                return this.items.reduce((s, i) => s + i.quantity, 0);
+            }
+        },
+
+        mounted() {
+            if (!sessionStorage.getItem('businessAccount')) {
+                window.location.href = 'login.html';
+                return;
+            }
+            this.loadCart();
+            this.loadBtwTarief();
+        },
+
+        methods: {
+            loadCart() {
+                try {
+                    const data = JSON.parse(sessionStorage.getItem('checkoutData') || '{}');
+                    this.items = (data.items || []).filter(i => (parseInt(i.quantity) || 0) > 0);
+                } catch(e) {
+                    this.items = [];
+                }
+            },
+
+            async loadBtwTarief() {
+                try {
+                    const r = await fetch('api/products.php');
+                    const data = await r.json();
+                    if (data.btw_tarief) this.btwTarief = data.btw_tarief;
+                } catch(e) {}
+            },
+
+            changeQty(idx, delta) {
+                const newQty = (this.items[idx].quantity || 1) + delta;
+                if (newQty <= 0) this.removeItem(idx);
+                else { this.items[idx].quantity = newQty; this.saveCart(); }
+            },
+
+            setQty(idx, value) {
+                const qty = Math.max(1, parseInt(value) || 1);
+                this.items[idx].quantity = qty;
+                this.saveCart();
+            },
+
+            removeItem(idx) {
+                this.items.splice(idx, 1);
+                this.saveCart();
+            },
+
+            saveCart() {
+                sessionStorage.setItem('checkoutData', JSON.stringify({
+                    items: this.items,
+                    total_amount: this.totalIncl
+                }));
+                if (typeof updateNavCart === 'function') updateNavCart();
+            },
+
+            goToCheckout() {
+                this.saveCart();
+                window.location.href = 'checkout.html';
+            },
+
+            formatPrice(amount) {
+                return new Intl.NumberFormat('nl-NL', { style: 'currency', currency: 'EUR' }).format(amount || 0);
+            }
+        }
+    }).mount('#cart-app');
+    </script>
+</body>
+</html>

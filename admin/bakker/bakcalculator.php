@@ -1,8 +1,9 @@
 <?php
 require_once '../config.php';
 requireLogin();
+header('Location: recepten.php' . (isset($_SERVER['QUERY_STRING']) && $_SERVER['QUERY_STRING'] ? '?' . $_SERVER['QUERY_STRING'] : ''));
+exit;
 
-$stmt = $pdo->query("SELECT COUNT(*) as count FROM business_accounts WHERE status = 'pending'");
 $sidebarPendingAccounts = $stmt->fetch()['count'];
 
 $stmt = $pdo->prepare("SELECT COUNT(*) as count FROM business_orders WHERE delivery_date = CURDATE() AND is_cancelled = 0 AND delivery_status = 'geplaatst'");
@@ -254,6 +255,48 @@ ob_start(); ?>
         .inherited-locked { opacity: 0.45; pointer-events: none; }
         .modal-wide { max-width: 680px !important; }
         .modal-body-scroll { max-height: 75vh; overflow-y: auto; padding-right: 0.25rem; }
+        /* ── Spin buttons ── */
+        .spin-field { display: flex; align-items: stretch; }
+        .spin-field .form-input { border-radius: 0; flex: 1; min-width: 0; border-left: none; text-align: center; -moz-appearance: textfield; }
+        .spin-field .form-input::-webkit-inner-spin-button,
+        .spin-field .form-input::-webkit-outer-spin-button { -webkit-appearance: none; }
+        .spin-field .input-unit { border-left: none; border-radius: 0; }
+        .spin-btn { width: 28px; flex-shrink: 0; background: #f3f4f6; border: 1px solid #d1d5db; color: #374151; font-size: 1.05rem; font-weight: 600; line-height: 1; cursor: pointer; display: flex; align-items: center; justify-content: center; padding: 0; user-select: none; }
+        .spin-btn:first-child { border-radius: 4px 0 0 4px; }
+        .spin-btn-r { border-radius: 0 4px 4px 0; border-left: none; }
+        .spin-field .input-unit + .spin-btn-r { border-left: none; }
+        .spin-btn:hover { background: #fff5eb; color: #c8913a; border-color: #c8913a; z-index: 1; position: relative; }
+        .spin-btn:active { background: #fdebd0; }
+        /* ── Version history ── */
+        .version-row { display: flex; justify-content: space-between; align-items: center; padding: 0.6rem 0.875rem; border: 1px solid #f0ebe5; border-radius: 4px; background: #faf8f5; margin-bottom: 0.4rem; gap: 0.75rem; }
+        .version-meta { display: flex; flex-direction: column; gap: 0.15rem; flex: 1; min-width: 0; }
+        .version-meta strong { font-size: 0.85rem; color: #1f2937; }
+        .version-meta time { font-size: 0.75rem; color: #9ca3af; }
+        .version-note-text { font-size: 0.75rem; color: #6b7280; font-style: italic; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .version-badge-active { display: inline-flex; align-items: center; padding: 0.1rem 0.4rem; background: #dcfce7; color: #166534; border-radius: 3px; font-size: 0.65rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.03em; }
+        .version-actions { display: flex; gap: 0.3rem; flex-shrink: 0; }
+        .version-note-input { width: 100%; padding: 0.4rem 0.6rem; border: 1px solid #d1d5db; border-radius: 4px; font-size: 0.85rem; font-family: inherit; resize: none; }
+        .version-note-input:focus { outline: none; border-color: #c8913a; box-shadow: 0 0 0 2px rgba(200,145,58,0.12); }
+        /* ── Method main steps + substeps ── */
+        .method-mainstep { background: white; border: 1px solid #e5e7eb; border-radius: 6px; margin-bottom: 0.625rem; overflow: hidden; }
+        .mainstep-header { display: flex; align-items: center; gap: 0.4rem; padding: 0.5rem 0.625rem; background: #f9fafb; border-bottom: 1px solid #f0f0f0; }
+        .mainstep-title-input { flex: 1; border: none; background: transparent; font-size: 0.875rem; font-weight: 600; color: #1f2937; padding: 0.2rem 0.3rem; border-radius: 3px; }
+        .mainstep-title-input:focus { outline: none; background: white; box-shadow: 0 0 0 2px rgba(200,145,58,0.2); }
+        .mainstep-title-input::placeholder { font-weight: 400; color: #d1d5db; }
+        .substeps-list { padding: 0.5rem 0.625rem 0.25rem; }
+        .method-substep { display: flex; align-items: center; gap: 0.35rem; margin-bottom: 0.4rem; flex-wrap: wrap; }
+        .substep-actie { flex: 0 0 auto; }
+        .substep-select { padding: 0.3rem 0.4rem; border: 1px solid #d1d5db; border-radius: 4px; font-size: 0.75rem; background: white; color: #374151; min-width: 100px; }
+        .substep-select:focus { outline: none; border-color: #c8913a; }
+        .substep-field { flex: 0 0 auto; }
+        .substep-field .spin-field .form-input { width: 44px; font-size: 0.8rem; padding: 0.3rem 0.25rem; }
+        .substep-field .spin-btn { width: 22px; font-size: 0.9rem; }
+        .substep-field .input-unit { font-size: 0.7rem; padding: 0.3rem 0.35rem; }
+        .substep-desc { flex: 1; min-width: 120px; }
+        .substep-desc .form-input { padding: 0.3rem 0.5rem; font-size: 0.8rem; width: 100%; }
+        .substep-add-btn { display: inline-flex; align-items: center; gap: 0.25rem; padding: 0.2rem 0.5rem; font-size: 0.72rem; color: #9ca3af; background: none; border: 1px dashed #e5e7eb; border-radius: 4px; cursor: pointer; margin: 0.25rem 0.625rem 0.5rem; }
+        .substep-add-btn:hover { border-color: #c8913a; color: #c8913a; background: #fffbf5; }
+
     </style>
 <?php $adminExtraHead = ob_get_clean();
 require_once '../components/sidebar.php'; ?>
@@ -271,7 +314,7 @@ require_once '../components/sidebar.php'; ?>
             <div class="admin-content">
                 <div id="app" v-cloak>
         <!-- ═══ RECIPE LIST VIEW ═══ -->
-        <div v-if="!calculatorActive" class="recipes-view" @click="closeMenuIfOpen">
+        <div v-if="!calculatorActive && !doughTypeEditActive" class="recipes-view" @click="closeMenuIfOpen">
             <div class="recipes-header">
                 <h2>Recepten</h2>
                 <div class="recipes-header-actions">
@@ -367,8 +410,259 @@ require_once '../components/sidebar.php'; ?>
             </table>
         </div>
 
+        <!-- ═══ DOUGH TYPE EDITOR VIEW ═══ -->
+        <div v-if="doughTypeEditActive && editingDoughType">
+            <div class="top-bar">
+                <button class="btn-back" @click="backFromDoughType"><i class="bi bi-arrow-left"></i> Recepten</button>
+                <div class="recipe-name-group">
+                    <input type="text" v-model="editingDoughType.name" class="recipe-name-input" placeholder="Naam deegsoort...">
+                    <input type="text" v-model="editingDoughType.description" class="recipe-desc-input" placeholder="Omschrijving (optioneel)...">
+                </div>
+                <input v-if="editingDoughType.id" type="text" v-model="dtVersionNote" class="form-input" style="width:160px;font-size:0.78rem;padding:0.35rem 0.6rem" placeholder="Versienoot (optioneel)..." title="Wordt opgeslagen bij volgende versie">
+                <button class="btn btn-success" @click="saveDoughType" :disabled="!editingDoughType.name.trim()">
+                    <i class="bi bi-save"></i> {{ editingDoughType.id ? 'Opslaan' : 'Aanmaken' }}
+                </button>
+            </div>
+            <div class="tabs">
+                <div class="tab" :class="{active: dtActiveTab==='recept'}" @click="dtActiveTab='recept'">Recept</div>
+                <div v-if="editingDoughType.id" class="tab" :class="{active: dtActiveTab==='versies'}" @click="dtActiveTab='versies'">
+                    Versies <span v-if="dtVersions.length" style="background:#e5e7eb;border-radius:10px;padding:0.05rem 0.4rem;font-size:0.7rem;margin-left:0.2rem;font-weight:700">{{ dtVersions.length }}</span>
+                </div>
+            </div>
+            <div class="layout">
+                <div class="main-content">
+
+                    <div v-show="dtActiveTab==='recept'">
+                        <div class="panel" style="max-width:680px">
+
+                        <div class="form-grid" style="margin-bottom:1rem">
+                            <div class="form-group">
+                                <label class="form-label">Hydratatie</label>
+                                <div class="input-with-unit">
+                                    <input type="number" v-model.number="editingDoughType.hydration" class="form-input" min="30" max="120" step="1">
+                                    <span class="input-unit">%</span>
+                                </div>
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label">Zout</label>
+                                <div class="input-with-unit">
+                                    <input type="number" v-model.number="editingDoughType.saltPct" class="form-input" min="0" max="10" step="0.1">
+                                    <span class="input-unit">%</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <hr class="divider">
+                        <div class="panel-title" style="margin-bottom:0.75rem">Rijsmiddelen</div>
+
+                        <div class="toggle-row">
+                            <div class="toggle" :class="{on: editingDoughType.useSourdough}" @click="editingDoughType.useSourdough = !editingDoughType.useSourdough"></div>
+                            <span class="toggle-label">Zuurdesem</span>
+                        </div>
+                        <div class="form-grid" v-if="editingDoughType.useSourdough" style="margin-bottom:1rem">
+                            <div class="form-group">
+                                <label class="form-label">Percentage (baker's %)</label>
+                                <div class="input-with-unit">
+                                    <input type="number" v-model.number="editingDoughType.sourdoughPct" class="form-input" min="0" max="100" step="0.5">
+                                    <span class="input-unit">%</span>
+                                </div>
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label">Hydratatie zuurdesem</label>
+                                <div class="input-with-unit">
+                                    <input type="number" v-model.number="editingDoughType.sourdoughHydration" class="form-input" min="50" max="200" step="1">
+                                    <span class="input-unit">%</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="toggle-row" style="margin-top:0.5rem">
+                            <div class="toggle" :class="{on: editingDoughType.useYeast}" @click="editingDoughType.useYeast = !editingDoughType.useYeast"></div>
+                            <span class="toggle-label">Gist</span>
+                        </div>
+                        <div class="form-grid" v-if="editingDoughType.useYeast" style="margin-bottom:1rem">
+                            <div class="form-group">
+                                <label class="form-label">Type</label>
+                                <select v-model="editingDoughType.yeastType" class="form-select">
+                                    <option v-for="y in yeastTypes" :value="y.id">{{ y.name }}</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label">Percentage</label>
+                                <div class="input-with-unit">
+                                    <input type="number" v-model.number="editingDoughType.yeastPct" class="form-input" min="0" max="10" step="0.1">
+                                    <span class="input-unit">%</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <hr class="divider">
+                        <div class="panel-title" style="margin-bottom:0.75rem">Meelsoorten</div>
+
+                        <div v-if="editingDoughType.useSourdough" style="margin-bottom:1rem">
+                            <label class="form-label" style="margin-bottom:0.5rem;display:block">Zuurdesem meelsoorten</label>
+                            <div class="grain-row" v-for="(grain, i) in editingDoughType.sourdoughGrains" :key="'dtsd'+i">
+                                <div class="form-group">
+                                    <select v-model="grain.type" class="form-select">
+                                        <option v-for="g in grainTypes" :value="g.id">{{ g.name }}</option>
+                                    </select>
+                                </div>
+                                <div class="form-group">
+                                    <div class="input-with-unit">
+                                        <input type="number" v-model.number="grain.pct" class="form-input" min="0" max="100" step="1">
+                                        <span class="input-unit">%</span>
+                                    </div>
+                                </div>
+                                <button class="btn-remove" @click="editingDoughType.sourdoughGrains.splice(i,1)" v-if="editingDoughType.sourdoughGrains.length > 1"><i class="bi bi-x"></i></button>
+                            </div>
+                            <button class="btn-add" @click="editingDoughType.sourdoughGrains.push({type: grainTypes[0]?.id ?? 'wheat_white', pct: 0})" v-if="editingDoughType.sourdoughGrains.length < 5">
+                                <i class="bi bi-plus"></i> Toevoegen
+                            </button>
+                            <div class="grain-warning" v-if="editingDoughType.sourdoughGrains.reduce((s,g)=>s+(g.pct||0),0) !== 100">
+                                <i class="bi bi-exclamation-triangle"></i> Totaal is {{ editingDoughType.sourdoughGrains.reduce((s,g)=>s+(g.pct||0),0) }}% — moet 100% zijn
+                            </div>
+                        </div>
+
+                        <div style="display:flex;align-items:center;gap:0.75rem;margin-bottom:0.75rem">
+                            <div class="toggle" :class="{on: editingDoughType.usePreFerment}" @click="editingDoughType.usePreFerment = !editingDoughType.usePreFerment"></div>
+                            <span class="toggle-label" style="font-size:0.9rem">Voordeeg</span>
+                        </div>
+                        <div v-if="editingDoughType.usePreFerment" style="margin-bottom:1rem">
+                            <div class="form-grid" style="margin-bottom:0.75rem">
+                                <div class="form-group">
+                                    <label class="form-label">% van totaal meel</label>
+                                    <div class="input-with-unit">
+                                        <input type="number" v-model.number="editingDoughType.preFermentPct" class="form-input" min="1" max="100" step="1">
+                                        <span class="input-unit">%</span>
+                                    </div>
+                                </div>
+                                <div class="form-group">
+                                    <label class="form-label">Hydratatie voordeeg</label>
+                                    <div class="input-with-unit">
+                                        <input type="number" v-model.number="editingDoughType.preFermentHydration" class="form-input" min="50" max="200" step="1">
+                                        <span class="input-unit">%</span>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="grain-row" v-for="(grain, i) in editingDoughType.preFermentGrains" :key="'dtpf'+i">
+                                <div class="form-group">
+                                    <select v-model="grain.type" class="form-select">
+                                        <option v-for="g in grainTypes" :value="g.id">{{ g.name }}</option>
+                                    </select>
+                                </div>
+                                <div class="form-group">
+                                    <div class="input-with-unit">
+                                        <input type="number" v-model.number="grain.pct" class="form-input" min="0" max="100" step="1">
+                                        <span class="input-unit">%</span>
+                                    </div>
+                                </div>
+                                <button class="btn-remove" @click="editingDoughType.preFermentGrains.splice(i,1)" v-if="editingDoughType.preFermentGrains.length > 1"><i class="bi bi-x"></i></button>
+                            </div>
+                            <button class="btn-add" @click="editingDoughType.preFermentGrains.push({type: grainTypes[0]?.id ?? 'wheat_white', pct: 0})" v-if="editingDoughType.preFermentGrains.length < 5">
+                                <i class="bi bi-plus"></i> Toevoegen
+                            </button>
+                        </div>
+
+                        <label class="form-label" style="margin-bottom:0.5rem;display:block">Hoofddeeg meelsoorten</label>
+                        <div class="grain-row" v-for="(grain, i) in editingDoughType.mainDoughGrains" :key="'dtmd'+i">
+                            <div class="form-group">
+                                <select v-model="grain.type" class="form-select">
+                                    <option v-for="g in grainTypes" :value="g.id">{{ g.name }}</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <div class="input-with-unit">
+                                    <input type="number" v-model.number="grain.pct" class="form-input" min="0" max="100" step="1">
+                                    <span class="input-unit">%</span>
+                                </div>
+                            </div>
+                            <button class="btn-remove" @click="editingDoughType.mainDoughGrains.splice(i,1)" v-if="editingDoughType.mainDoughGrains.length > 1"><i class="bi bi-x"></i></button>
+                        </div>
+                        <button class="btn-add" @click="editingDoughType.mainDoughGrains.push({type: grainTypes[0]?.id ?? 'wheat_white', pct: 0})" v-if="editingDoughType.mainDoughGrains.length < 5">
+                            <i class="bi bi-plus"></i> Meelsoort toevoegen
+                        </button>
+                        <div class="grain-warning" v-if="editingDoughType.mainDoughGrains.reduce((s,g)=>s+(g.pct||0),0) !== 100">
+                            <i class="bi bi-exclamation-triangle"></i> Totaal is {{ editingDoughType.mainDoughGrains.reduce((s,g)=>s+(g.pct||0),0) }}% — moet 100% zijn
+                        </div>
+
+                        <div v-if="dtGrainCharacteristics" style="background:#f5f0e8;border-radius:8px;padding:0.875rem 1rem;margin-top:1rem">
+                            <div class="panel-title" style="margin-bottom:0.6rem;font-size:0.75rem">Deeg Eigenschappen</div>
+                            <div style="display:flex;gap:1.25rem;flex-wrap:wrap;margin-bottom:0.5rem">
+                                <div>
+                                    <div class="form-label" style="font-size:0.68rem">Volkoren</div>
+                                    <strong style="font-size:1rem;color:#5c3d1e">{{ Math.round(dtGrainCharacteristics.wholePct * 10) / 10 }}%</strong>
+                                </div>
+                                <div>
+                                    <div class="form-label" style="font-size:0.68rem">Wit</div>
+                                    <strong style="font-size:1rem;color:#5c3d1e">{{ Math.round(dtGrainCharacteristics.whitePct * 10) / 10 }}%</strong>
+                                </div>
+                                <div>
+                                    <div class="form-label" style="font-size:0.68rem">Hydratatie</div>
+                                    <strong style="font-size:1rem;color:#5c3d1e">{{ editingDoughType.hydration }}%</strong>
+                                </div>
+                            </div>
+                            <div v-if="dtGrainCharacteristics.grainDist.length > 0" style="display:flex;gap:1.25rem;flex-wrap:wrap">
+                                <div v-for="gt in dtGrainCharacteristics.grainDist" :key="gt.name">
+                                    <div class="form-label" style="font-size:0.68rem">{{ gt.name }}</div>
+                                    <span style="font-size:0.85rem;color:#8b5a2b;font-weight:600">{{ Math.round(gt.pct * 10) / 10 }}%</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <hr class="divider">
+                        <div class="panel-title" style="margin-bottom:0.75rem">Methode</div>
+                        <div v-for="(day, di) in editingDoughType.methodDays" :key="'dtday'+di" class="method-day">
+                            <div class="method-day-header">
+                                <h4>Dag {{ di + 1 }}</h4>
+                                <button class="btn-remove" @click="editingDoughType.methodDays.splice(di, 1)" v-if="editingDoughType.methodDays.length > 1" title="Dag verwijderen"><i class="bi bi-x-lg"></i></button>
+                            </div>
+                            <div v-for="(step, si) in day.steps" :key="'dtstep'+di+'-'+si" class="method-mainstep">
+                                <div class="mainstep-header">
+                                    <span class="method-step-num">{{ si + 1 }}</span>
+                                    <input type="text" v-model="step.title" class="mainstep-title-input" placeholder="Naam van deze stap...">
+                                    <button class="btn-remove" @click="day.steps.splice(si, 1)" v-if="day.steps.length > 1"><i class="bi bi-x"></i></button>
+                                </div>
+                            </div>
+                            <button class="method-add-step" @click="day.steps.push({ title: '', substeps: [] })"><i class="bi bi-plus"></i> Stap toevoegen</button>
+                        </div>
+                        <button class="method-add-day" @click="editingDoughType.methodDays.push({ label: 'Dag ' + (editingDoughType.methodDays.length + 1), steps: [{ title: '', substeps: [] }] })">
+                            <i class="bi bi-plus-lg"></i> Dag toevoegen
+                        </button>
+
+                        </div><!-- end panel -->
+                    </div>
+
+                    <div v-show="dtActiveTab==='versies' && editingDoughType.id" style="padding:1.25rem 0">
+                        <div class="panel" style="margin-bottom:1rem">
+                            <div class="panel-title">Versienoot bij volgende opslag</div>
+                            <textarea v-model="dtVersionNote" class="version-note-input" rows="2" placeholder="Optionele toelichting bij de volgende keer opslaan..."></textarea>
+                        </div>
+                        <div v-if="dtVersions.length === 0" class="empty-state">
+                            <i class="bi bi-clock-history" style="font-size:2rem;color:#d1d5db"></i>
+                            <p>Nog geen versiegeschiedenis. Versies worden aangemaakt bij elke opslag.</p>
+                        </div>
+                        <div v-for="v in dtVersions" :key="v.id" class="version-row">
+                            <div class="version-meta">
+                                <div style="display:flex;align-items:center;gap:0.4rem">
+                                    <strong>Versie {{ v.version_number }}</strong>
+                                    <span v-if="v.version_number === dtCurrentVersionNumber" class="version-badge-active">Actief</span>
+                                </div>
+                                <time>{{ v.created_at }}</time>
+                                <span v-if="v.note" class="version-note-text">{{ v.note }}</span>
+                            </div>
+                            <div class="version-actions">
+                                <button class="btn btn-ghost btn-sm" @click="previewDtVersion(v.id)" title="Laad deze versie ter beoordeling">Bekijk</button>
+                                <button class="btn btn-ghost btn-sm" @click="restoreDtVersion(v.id)" v-if="v.version_number !== dtCurrentVersionNumber" title="Herstel als nieuwe actieve versie">Herstel</button>
+                            </div>
+                        </div>
+                    </div>
+
+                </div>
+            </div>
+        </div>
+
         <!-- ═══ CALCULATOR VIEW ═══ -->
-        <div class="top-bar" v-show="calculatorActive">
+        <div class="top-bar" v-show="calculatorActive && !doughTypeEditActive">
             <button class="btn-back" @click="backToRecipes"><i class="bi bi-arrow-left"></i> Recepten</button>
             <div class="recipe-name-group">
                 <input type="text" v-model="recipeName" class="recipe-name-input" placeholder="Receptnaam...">
@@ -387,19 +681,24 @@ require_once '../components/sidebar.php'; ?>
                     <button type="button" class="btn-is-deegsoort" @click="isDoughType = true; doughTypeId = null; mixins = []; toppings = []; if (activeTab === 'toevoegingen') activeTab = 'recept'" title="Dit recept definieert een deegsoort"><i class="bi bi-layers"></i> Is deegsoort</button>
                 </template>
             </div>
+            <input type="text" v-model="versionNote" class="form-input" style="width:160px;font-size:0.78rem;padding:0.35rem 0.6rem" placeholder="Versienoot (optioneel)..." title="Wordt opgeslagen bij volgende versie">
             <button class="btn btn-success" @click="saveRecipe" :disabled="saving"><i class="bi bi-save"></i> {{ currentRecipeId ? 'Opslaan' : 'Bewaar' }}</button>
+
             <button class="btn btn-ghost" @click="duplicateRecipe" v-if="currentRecipeId"><i class="bi bi-copy"></i> Dupliceer</button>
         </div>
 
-        <div class="tabs" v-show="calculatorActive">
+        <div class="tabs" v-show="calculatorActive && !doughTypeEditActive">
             <div class="tab" :class="{active: activeTab==='recept'}" @click="activeTab='recept'">Recept</div>
             <div class="tab" :class="{active: activeTab==='meel'}" @click="activeTab='meel'">Meel & Voordeeg</div>
             <div v-if="!isDoughType" class="tab" :class="{active: activeTab==='toevoegingen'}" @click="activeTab='toevoegingen'">Toevoegingen</div>
             <div class="tab" :class="{active: activeTab==='overzicht'}" @click="activeTab='overzicht'">Overzicht</div>
             <div class="tab" :class="{active: activeTab==='methode'}" @click="activeTab='methode'">Methode</div>
+            <div v-if="currentRecipeId" class="tab" :class="{active: activeTab==='versies'}" @click="activeTab='versies'">
+                Versies <span v-if="versions.length" style="background:#e5e7eb;border-radius:10px;padding:0.05rem 0.4rem;font-size:0.7rem;margin-left:0.2rem;font-weight:700">{{ versions.length }}</span>
+            </div>
         </div>
 
-        <div class="layout">
+        <div class="layout" v-if="!doughTypeEditActive">
             <div class="main-content">
 
                 <div v-show="calculatorActive && activeTab==='recept'">
@@ -416,23 +715,29 @@ require_once '../components/sidebar.php'; ?>
                         <div class="form-grid">
                             <div class="form-group">
                                 <label class="form-label">Deeggewicht per stuk</label>
-                                <div class="input-with-unit">
+                                <div class="spin-field">
+                                    <button type="button" class="spin-btn" @click="doughWeight = Math.max(1, (doughWeight||0) - 10)">−</button>
                                     <input type="number" v-model.number="doughWeight" class="form-input" min="1" step="10">
                                     <span class="input-unit">g</span>
+                                    <button type="button" class="spin-btn spin-btn-r" @click="doughWeight = (doughWeight||0) + 10">+</button>
                                 </div>
                             </div>
                             <div class="form-group">
                                 <label class="form-label">Hydratatie</label>
-                                <div class="input-with-unit">
+                                <div class="spin-field">
+                                    <button type="button" class="spin-btn" @click="!isInherited && (hydration = Math.max(30, (hydration||0) - 1))" :disabled="isInherited">−</button>
                                     <input type="number" v-model.number="hydration" class="form-input" min="30" max="120" step="1" :disabled="isInherited" :class="{'inherited-field': isInherited}">
-                                    <span class="input-unit">%</span>
+                                    <span class="input-unit" :class="{'inherited-field': isInherited}">%</span>
+                                    <button type="button" class="spin-btn spin-btn-r" @click="!isInherited && (hydration = Math.min(120, (hydration||0) + 1))" :disabled="isInherited">+</button>
                                 </div>
                             </div>
                             <div class="form-group">
                                 <label class="form-label">Zout</label>
-                                <div class="input-with-unit">
+                                <div class="spin-field">
+                                    <button type="button" class="spin-btn" @click="!isInherited && (saltPct = Math.max(0, Math.round(((saltPct||0) - 0.1) * 10) / 10))" :disabled="isInherited">−</button>
                                     <input type="number" v-model.number="saltPct" class="form-input" min="0" max="10" step="0.1" :disabled="isInherited" :class="{'inherited-field': isInherited}">
-                                    <span class="input-unit">%</span>
+                                    <span class="input-unit" :class="{'inherited-field': isInherited}">%</span>
+                                    <button type="button" class="spin-btn spin-btn-r" @click="!isInherited && (saltPct = Math.min(10, Math.round(((saltPct||0) + 0.1) * 10) / 10))" :disabled="isInherited">+</button>
                                 </div>
                             </div>
                         </div>
@@ -445,16 +750,20 @@ require_once '../components/sidebar.php'; ?>
                         <div class="form-grid" v-if="useSourdough" style="margin-bottom:1rem">
                             <div class="form-group">
                                 <label class="form-label">Percentage (baker's %)</label>
-                                <div class="input-with-unit">
+                                <div class="spin-field">
+                                    <button type="button" class="spin-btn" @click="!isInherited && (sourdoughPct = Math.max(0, (sourdoughPct||0) - 1))" :disabled="isInherited">−</button>
                                     <input type="number" v-model.number="sourdoughPct" class="form-input" min="0" max="100" step="0.5" :disabled="isInherited" :class="{'inherited-field': isInherited}">
-                                    <span class="input-unit">%</span>
+                                    <span class="input-unit" :class="{'inherited-field': isInherited}">%</span>
+                                    <button type="button" class="spin-btn spin-btn-r" @click="!isInherited && (sourdoughPct = Math.min(100, (sourdoughPct||0) + 1))" :disabled="isInherited">+</button>
                                 </div>
                             </div>
                             <div class="form-group">
                                 <label class="form-label">Hydratatie zuurdesem</label>
-                                <div class="input-with-unit">
+                                <div class="spin-field">
+                                    <button type="button" class="spin-btn" @click="!isInherited && (sourdoughHydration = Math.max(50, (sourdoughHydration||0) - 5))" :disabled="isInherited">−</button>
                                     <input type="number" v-model.number="sourdoughHydration" class="form-input" min="50" max="200" step="1" :disabled="isInherited" :class="{'inherited-field': isInherited}">
-                                    <span class="input-unit">%</span>
+                                    <span class="input-unit" :class="{'inherited-field': isInherited}">%</span>
+                                    <button type="button" class="spin-btn spin-btn-r" @click="!isInherited && (sourdoughHydration = Math.min(200, (sourdoughHydration||0) + 5))" :disabled="isInherited">+</button>
                                 </div>
                             </div>
                         </div>
@@ -471,9 +780,11 @@ require_once '../components/sidebar.php'; ?>
                             </div>
                             <div class="form-group">
                                 <label class="form-label">Percentage</label>
-                                <div class="input-with-unit">
+                                <div class="spin-field">
+                                    <button type="button" class="spin-btn" @click="!isInherited && (yeastPct = Math.max(0, Math.round(((yeastPct||0) - 0.1) * 10) / 10))" :disabled="isInherited">−</button>
                                     <input type="number" v-model.number="yeastPct" class="form-input" min="0" max="10" step="0.1" :disabled="isInherited" :class="{'inherited-field': isInherited}">
-                                    <span class="input-unit">%</span>
+                                    <span class="input-unit" :class="{'inherited-field': isInherited}">%</span>
+                                    <button type="button" class="spin-btn spin-btn-r" @click="!isInherited && (yeastPct = Math.min(10, Math.round(((yeastPct||0) + 0.1) * 10) / 10))" :disabled="isInherited">+</button>
                                 </div>
                             </div>
                         </div>
@@ -495,9 +806,11 @@ require_once '../components/sidebar.php'; ?>
                                 </select>
                             </div>
                             <div class="form-group">
-                                <div class="input-with-unit">
-                                    <input type="number" v-model.number="grain.pct" class="form-input" min="0" max="100" step="1" placeholder="Aandeel" :disabled="isInherited" :class="{'inherited-field': isInherited}">
-                                    <span class="input-unit">%</span>
+                                <div class="spin-field">
+                                    <button type="button" class="spin-btn" @click="!isInherited && (grain.pct = Math.max(0, (grain.pct||0) - 1))" :disabled="isInherited">−</button>
+                                    <input type="number" v-model.number="grain.pct" class="form-input" min="0" max="100" step="1" placeholder="%" :disabled="isInherited" :class="{'inherited-field': isInherited}">
+                                    <span class="input-unit" :class="{'inherited-field': isInherited}">%</span>
+                                    <button type="button" class="spin-btn spin-btn-r" @click="!isInherited && (grain.pct = Math.min(100, (grain.pct||0) + 1))" :disabled="isInherited">+</button>
                                 </div>
                             </div>
                             <button class="btn-remove" @click="sourdoughGrains.splice(i,1)" v-if="!isInherited && sourdoughGrains.length > 1"><i class="bi bi-x"></i></button>
@@ -542,9 +855,11 @@ require_once '../components/sidebar.php'; ?>
                                 </select>
                             </div>
                             <div class="form-group">
-                                <div class="input-with-unit">
-                                    <input type="number" v-model.number="grain.pct" class="form-input" min="0" max="100" step="1" placeholder="Aandeel" :disabled="isInherited" :class="{'inherited-field': isInherited}">
-                                    <span class="input-unit">%</span>
+                                <div class="spin-field">
+                                    <button type="button" class="spin-btn" @click="!isInherited && (grain.pct = Math.max(0, (grain.pct||0) - 1))" :disabled="isInherited">−</button>
+                                    <input type="number" v-model.number="grain.pct" class="form-input" min="0" max="100" step="1" placeholder="%" :disabled="isInherited" :class="{'inherited-field': isInherited}">
+                                    <span class="input-unit" :class="{'inherited-field': isInherited}">%</span>
+                                    <button type="button" class="spin-btn spin-btn-r" @click="!isInherited && (grain.pct = Math.min(100, (grain.pct||0) + 1))" :disabled="isInherited">+</button>
                                 </div>
                             </div>
                             <button class="btn-remove" @click="preFermentGrains.splice(i,1)" v-if="!isInherited && preFermentGrains.length > 1"><i class="bi bi-x"></i></button>
@@ -571,7 +886,17 @@ require_once '../components/sidebar.php'; ?>
                                 <div class="toggle" :class="{on: usePreFerment, 'inherited-locked': isInherited}" @click="!isInherited && (usePreFerment = !usePreFerment)"></div>
                             </div>
                         </div>
-                        <label class="form-label" style="margin-bottom:0.5rem;display:block">Meelsoorten in hoofddeeg</label>
+                        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:0.5rem">
+                            <label class="form-label" style="margin:0">Meelsoorten in hoofddeeg</label>
+                            <div class="radio-group">
+                                <span class="radio-pill" :class="{active: mainDoughPctMode==='separate'}" @click="!isInherited && (mainDoughPctMode='separate')" title="Percentages van hoofddeeg meel alleen">Los</span>
+                                <span class="radio-pill" :class="{active: mainDoughPctMode==='integrated'}" @click="!isInherited && (mainDoughPctMode='integrated')" title="Percentages van totaal meel (inclusief zuurdesem/voordeeg)">Totaal meel</span>
+                            </div>
+                        </div>
+                        <div v-if="mainDoughPctMode==='integrated'" class="inherited-banner" style="margin-bottom:0.75rem;font-size:0.75rem">
+                            <i class="bi bi-info-circle"></i>
+                            <span>Percentages zijn van <strong>totaal meel</strong> — gewicht toont hoeveel van dit meel in het hoofddeeg gaat (excl. zuurdesem/voordeeg bijdrage).</span>
+                        </div>
                         <div class="grain-row" v-for="(grain, i) in mainDoughGrains" :key="'md'+i">
                             <div class="form-group">
                                 <select v-model="grain.type" class="form-select" :disabled="isInherited" :class="{'inherited-field': isInherited}">
@@ -579,9 +904,11 @@ require_once '../components/sidebar.php'; ?>
                                 </select>
                             </div>
                             <div class="form-group">
-                                <div class="input-with-unit">
-                                    <input type="number" v-model.number="grain.pct" class="form-input" min="0" max="100" step="1" placeholder="Aandeel" :disabled="isInherited" :class="{'inherited-field': isInherited}">
-                                    <span class="input-unit">%</span>
+                                <div class="spin-field">
+                                    <button type="button" class="spin-btn" @click="!isInherited && (grain.pct = Math.max(0, (grain.pct||0) - 1))" :disabled="isInherited">−</button>
+                                    <input type="number" v-model.number="grain.pct" class="form-input" min="0" max="100" step="1" placeholder="%" :disabled="isInherited" :class="{'inherited-field': isInherited}">
+                                    <span class="input-unit" :class="{'inherited-field': isInherited}">%</span>
+                                    <button type="button" class="spin-btn spin-btn-r" @click="!isInherited && (grain.pct = Math.min(100, (grain.pct||0) + 1))" :disabled="isInherited">+</button>
                                 </div>
                             </div>
                             <button class="btn-remove" @click="mainDoughGrains.splice(i,1)" v-if="!isInherited && mainDoughGrains.length > 1"><i class="bi bi-x"></i></button>
@@ -875,8 +1202,9 @@ require_once '../components/sidebar.php'; ?>
                                 <h4>Dag {{ di + 1 }}</h4>
                                 <button class="btn-remove" @click="removeDay(di)" v-if="!isInherited && methodDays.length > 1" title="Dag verwijderen"><i class="bi bi-x-lg"></i></button>
                             </div>
+
                             <div v-for="(step, si) in day.steps" :key="di+'-'+si"
-                                class="method-step"
+                                class="method-mainstep"
                                 :class="{ dragging: dragStep && dragStep.di === di && dragStep.si === si, 'drag-over': dragOverStep && dragOverStep.di === di && dragOverStep.si === si }"
                                 draggable="true"
                                 @dragstart="onStepDragStart(di, si, $event)"
@@ -884,11 +1212,56 @@ require_once '../components/sidebar.php'; ?>
                                 @dragleave="onStepDragLeave(di, si)"
                                 @drop.prevent="onStepDrop(di, si)"
                                 @dragend="onStepDragEnd()">
-                                <span class="method-step-handle" title="Sleep om te verplaatsen"><i class="bi bi-grip-vertical"></i></span>
-                                <span class="method-step-num">{{ si + 1 }}</span>
-                                <textarea v-model="day.steps[si]" placeholder="Beschrijf deze stap..." rows="1" @input="autoResizeStep($event)"></textarea>
-                                <button class="btn-remove" @click="removeStep(di, si)" v-if="day.steps.length > 1" title="Stap verwijderen"><i class="bi bi-x"></i></button>
+                                <div class="mainstep-header">
+                                    <span class="method-step-handle" title="Sleep om te verplaatsen"><i class="bi bi-grip-vertical"></i></span>
+                                    <span class="method-step-num">{{ si + 1 }}</span>
+                                    <input type="text" v-model="step.title" class="mainstep-title-input" placeholder="Naam van deze stap (bijv. Deegmengen)...">
+                                    <button class="btn-remove" @click="removeStep(di, si)" v-if="day.steps.length > 1" title="Stap verwijderen"><i class="bi bi-x"></i></button>
+                                </div>
+
+                                <div class="substeps-list" v-if="step.substeps && step.substeps.length > 0">
+                                    <div v-for="(sub, ssi) in step.substeps" :key="ssi" class="method-substep">
+                                        <div class="substep-actie">
+                                            <select v-model="sub.actie" class="substep-select">
+                                                <option value="">actie...</option>
+                                                <option value="kneden">Kneden</option>
+                                                <option value="vouwen">Vouwen</option>
+                                                <option value="rust">Rust</option>
+                                                <option value="toevoegen">Toevoegen</option>
+                                                <option value="vormen">Vormen</option>
+                                                <option value="rijzen">Rijzen</option>
+                                                <option value="bakken">Bakken</option>
+                                                <option value="afkoelen">Afkoelen</option>
+                                                <option value="overig">Overig</option>
+                                            </select>
+                                        </div>
+                                        <div class="substep-field" title="Tijd in minuten">
+                                            <div class="spin-field">
+                                                <button type="button" class="spin-btn" @click="sub.tijd = Math.max(0, (sub.tijd||0) - 1)">−</button>
+                                                <input type="number" v-model.number="sub.tijd" class="form-input" min="0" placeholder="0">
+                                                <span class="input-unit">min</span>
+                                                <button type="button" class="spin-btn spin-btn-r" @click="sub.tijd = (sub.tijd||0) + 1">+</button>
+                                            </div>
+                                        </div>
+                                        <div class="substep-field" title="Temperatuur in °C (optioneel)">
+                                            <div class="spin-field">
+                                                <button type="button" class="spin-btn" @click="sub.temp = Math.max(0, (sub.temp||0) - 5)">−</button>
+                                                <input type="number" v-model.number="sub.temp" class="form-input" min="0" max="300" placeholder="°C">
+                                                <span class="input-unit">°C</span>
+                                                <button type="button" class="spin-btn spin-btn-r" @click="sub.temp = Math.min(300, (sub.temp||0) + 5)">+</button>
+                                            </div>
+                                        </div>
+                                        <div class="substep-desc">
+                                            <input type="text" v-model="sub.beschrijving" class="form-input" placeholder="Omschrijving...">
+                                        </div>
+                                        <button class="btn-remove" @click="step.substeps.splice(ssi, 1)" title="Substap verwijderen"><i class="bi bi-x"></i></button>
+                                    </div>
+                                </div>
+                                <button class="substep-add-btn" @click="step.substeps.push({ actie: '', tijd: null, temp: null, beschrijving: '' })">
+                                    <i class="bi bi-plus"></i> Substap toevoegen
+                                </button>
                             </div>
+
                             <button class="method-add-step" @click="addStep(di)"><i class="bi bi-plus"></i> Stap toevoegen</button>
                         </div>
                         <button class="method-add-day" @click="addDay()" v-if="!isInherited">
@@ -897,7 +1270,41 @@ require_once '../components/sidebar.php'; ?>
                     </div>
                 </div>
 
+                <!-- ═══ VERSIES TAB ═══ -->
+                <div v-show="calculatorActive && activeTab==='versies'" style="padding:1.25rem 0">
+                    <div class="panel" style="margin-bottom:0.75rem">
+                        <div class="panel-title">Versienoot bij volgende opslag</div>
+                        <textarea v-model="versionNote" class="version-note-input" rows="2" placeholder="Optionele toelichting bij de volgende keer opslaan..."></textarea>
+                    </div>
+                    <div class="panel">
+                        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:0.875rem">
+                            <div class="panel-title" style="margin-bottom:0">Versiegeschiedenis</div>
+                            <span style="font-size:0.75rem;color:#9ca3af">{{ versions.length }} versie{{ versions.length !== 1 ? 's' : '' }}</span>
+                        </div>
+                        <div v-if="versions.length === 0" class="empty-state">
+                            <i class="bi bi-clock-history"></i>
+                            <p>Nog geen versiegeschiedenis. Versies worden aangemaakt bij elke opslag.</p>
+                        </div>
+                        <div v-for="v in versions" :key="v.id" class="version-row">
+                            <div class="version-meta">
+                                <div style="display:flex;align-items:center;gap:0.5rem">
+                                    <strong>Versie {{ v.version_number }}</strong>
+                                    <span v-if="v.version_number === currentVersionNumber" class="version-badge-active">Actief</span>
+                                </div>
+                                <time>{{ formatDate(v.created_at) }}</time>
+                                <span v-if="v.note" class="version-note-text">{{ v.note }}</span>
+                            </div>
+                            <div class="version-actions">
+                                <button class="btn btn-ghost btn-sm" @click="previewVersion(v.id)" title="Laad deze versie ter beoordeling">Bekijk</button>
+                                <button class="btn btn-ghost btn-sm" @click="restoreVersion(v.id)" v-if="v.version_number !== currentVersionNumber" title="Herstel als nieuwe actieve versie">Herstel</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
             </div>
+
+
 
             <div class="calc-sidebar" v-show="calculatorActive">
                 <div class="summary-card" style="margin-bottom:0.75rem">
@@ -1016,259 +1423,6 @@ require_once '../components/sidebar.php'; ?>
         </div>
 
         <div class="toast success" v-if="toastMsg">{{ toastMsg }}</div>
-
-        <div class="modal-overlay" v-if="showDoughTypeModal" @mousedown="$event.currentTarget._md = ($event.target === $event.currentTarget)" @click.self="$event.currentTarget._md && doughTypeModalView === 'list' && (showDoughTypeModal = false)">
-            <div class="modal-content" :class="{'modal-wide': doughTypeModalView === 'edit'}">
-                <div class="modal-header">
-                    <h3 v-if="doughTypeModalView === 'list'">Deegsoorten beheren</h3>
-                    <h3 v-else>{{ editingDoughType && editingDoughType.id ? editingDoughType.name : 'Nieuwe deegsoort' }}</h3>
-                    <button class="modal-close" @click="showDoughTypeModal = false">&times;</button>
-                </div>
-                <div class="modal-body modal-body-scroll">
-
-                    <!-- LIST VIEW -->
-                    <div v-if="doughTypeModalView === 'list'">
-                        <div class="dough-type-list">
-                            <div v-for="dt in doughTypes" :key="dt.id" class="dough-type-item">
-                                <span>{{ dt.name }}</span>
-                                <div style="display:flex;gap:0.25rem">
-                                    <button class="btn btn-ghost" style="font-size:0.8rem;padding:0.3rem 0.6rem" @click="editDoughType(dt)"><i class="bi bi-pencil"></i> Bewerken</button>
-                                    <button class="btn btn-danger" style="font-size:0.8rem;padding:0.3rem 0.6rem" @click="deleteDoughType(dt.id)">Verwijderen</button>
-                                </div>
-                            </div>
-                            <div v-if="doughTypes.length === 0" class="empty-msg">Nog geen deegsoorten</div>
-                        </div>
-                        <button class="btn btn-primary" style="width:100%;margin-top:0.5rem" @click="newDoughType()">
-                            <i class="bi bi-plus"></i> Nieuwe deegsoort
-                        </button>
-                    </div>
-
-                    <!-- EDIT VIEW -->
-                    <div v-if="doughTypeModalView === 'edit' && editingDoughType">
-                        <div class="form-group" style="margin-bottom:0.5rem">
-                            <label class="form-label">Naam</label>
-                            <input type="text" v-model="editingDoughType.name" class="form-input" placeholder="Bijv. Bianco, Rocca..." style="width:100%">
-                        </div>
-                        <div class="form-group" style="margin-bottom:1rem">
-                            <label class="form-label">Omschrijving</label>
-                            <input type="text" v-model="editingDoughType.description" class="form-input" placeholder="Korte omschrijving (optioneel)..." style="width:100%">
-                        </div>
-
-                        <div class="form-grid" style="margin-bottom:1rem">
-                            <div class="form-group">
-                                <label class="form-label">Hydratatie</label>
-                                <div class="input-with-unit">
-                                    <input type="number" v-model.number="editingDoughType.hydration" class="form-input" min="30" max="120" step="1">
-                                    <span class="input-unit">%</span>
-                                </div>
-                            </div>
-                            <div class="form-group">
-                                <label class="form-label">Zout</label>
-                                <div class="input-with-unit">
-                                    <input type="number" v-model.number="editingDoughType.saltPct" class="form-input" min="0" max="10" step="0.1">
-                                    <span class="input-unit">%</span>
-                                </div>
-                            </div>
-                        </div>
-
-                        <hr class="divider">
-                        <div class="panel-title" style="margin-bottom:0.75rem">Rijsmiddelen</div>
-
-                        <div class="toggle-row">
-                            <div class="toggle" :class="{on: editingDoughType.useSourdough}" @click="editingDoughType.useSourdough = !editingDoughType.useSourdough"></div>
-                            <span class="toggle-label">Zuurdesem</span>
-                        </div>
-                        <div class="form-grid" v-if="editingDoughType.useSourdough" style="margin-bottom:1rem">
-                            <div class="form-group">
-                                <label class="form-label">Percentage (baker's %)</label>
-                                <div class="input-with-unit">
-                                    <input type="number" v-model.number="editingDoughType.sourdoughPct" class="form-input" min="0" max="100" step="0.5">
-                                    <span class="input-unit">%</span>
-                                </div>
-                            </div>
-                            <div class="form-group">
-                                <label class="form-label">Hydratatie zuurdesem</label>
-                                <div class="input-with-unit">
-                                    <input type="number" v-model.number="editingDoughType.sourdoughHydration" class="form-input" min="50" max="200" step="1">
-                                    <span class="input-unit">%</span>
-                                </div>
-                            </div>
-                        </div>
-
-                        <div class="toggle-row" style="margin-top:0.5rem">
-                            <div class="toggle" :class="{on: editingDoughType.useYeast}" @click="editingDoughType.useYeast = !editingDoughType.useYeast"></div>
-                            <span class="toggle-label">Gist</span>
-                        </div>
-                        <div class="form-grid" v-if="editingDoughType.useYeast" style="margin-bottom:1rem">
-                            <div class="form-group">
-                                <label class="form-label">Type</label>
-                                <select v-model="editingDoughType.yeastType" class="form-select">
-                                    <option v-for="y in yeastTypes" :value="y.id">{{ y.name }}</option>
-                                </select>
-                            </div>
-                            <div class="form-group">
-                                <label class="form-label">Percentage</label>
-                                <div class="input-with-unit">
-                                    <input type="number" v-model.number="editingDoughType.yeastPct" class="form-input" min="0" max="10" step="0.1">
-                                    <span class="input-unit">%</span>
-                                </div>
-                            </div>
-                        </div>
-
-                        <hr class="divider">
-                        <div class="panel-title" style="margin-bottom:0.75rem">Meelsoorten</div>
-
-                        <!-- Sourdough grains -->
-                        <div v-if="editingDoughType.useSourdough" style="margin-bottom:1rem">
-                            <label class="form-label" style="margin-bottom:0.5rem;display:block">Zuurdesem meelsoorten</label>
-                            <div class="grain-row" v-for="(grain, i) in editingDoughType.sourdoughGrains" :key="'dtsd'+i">
-                                <div class="form-group">
-                                    <select v-model="grain.type" class="form-select">
-                                        <option v-for="g in grainTypes" :value="g.id">{{ g.name }}</option>
-                                    </select>
-                                </div>
-                                <div class="form-group">
-                                    <div class="input-with-unit">
-                                        <input type="number" v-model.number="grain.pct" class="form-input" min="0" max="100" step="1">
-                                        <span class="input-unit">%</span>
-                                    </div>
-                                </div>
-                                <button class="btn-remove" @click="editingDoughType.sourdoughGrains.splice(i,1)" v-if="editingDoughType.sourdoughGrains.length > 1"><i class="bi bi-x"></i></button>
-                            </div>
-                            <button class="btn-add" @click="editingDoughType.sourdoughGrains.push({type: grainTypes[0]?.id ?? 'wheat_white', pct: 0})" v-if="editingDoughType.sourdoughGrains.length < 5">
-                                <i class="bi bi-plus"></i> Toevoegen
-                            </button>
-                            <div class="grain-warning" v-if="editingDoughType.sourdoughGrains.reduce((s,g)=>s+(g.pct||0),0) !== 100">
-                                <i class="bi bi-exclamation-triangle"></i> Totaal is {{ editingDoughType.sourdoughGrains.reduce((s,g)=>s+(g.pct||0),0) }}% — moet 100% zijn
-                            </div>
-                        </div>
-
-                        <!-- Pre-ferment toggle + grains -->
-                        <div style="display:flex;align-items:center;gap:0.75rem;margin-bottom:0.75rem">
-                            <div class="toggle" :class="{on: editingDoughType.usePreFerment}" @click="editingDoughType.usePreFerment = !editingDoughType.usePreFerment"></div>
-                            <span class="toggle-label" style="font-size:0.9rem">Voordeeg</span>
-                        </div>
-                        <div v-if="editingDoughType.usePreFerment" style="margin-bottom:1rem">
-                            <div class="form-grid" style="margin-bottom:0.75rem">
-                                <div class="form-group">
-                                    <label class="form-label">% van totaal meel</label>
-                                    <div class="input-with-unit">
-                                        <input type="number" v-model.number="editingDoughType.preFermentPct" class="form-input" min="1" max="100" step="1">
-                                        <span class="input-unit">%</span>
-                                    </div>
-                                </div>
-                                <div class="form-group">
-                                    <label class="form-label">Hydratatie voordeeg</label>
-                                    <div class="input-with-unit">
-                                        <input type="number" v-model.number="editingDoughType.preFermentHydration" class="form-input" min="50" max="200" step="1">
-                                        <span class="input-unit">%</span>
-                                    </div>
-                                </div>
-                            </div>
-                            <div class="grain-row" v-for="(grain, i) in editingDoughType.preFermentGrains" :key="'dtpf'+i">
-                                <div class="form-group">
-                                    <select v-model="grain.type" class="form-select">
-                                        <option v-for="g in grainTypes" :value="g.id">{{ g.name }}</option>
-                                    </select>
-                                </div>
-                                <div class="form-group">
-                                    <div class="input-with-unit">
-                                        <input type="number" v-model.number="grain.pct" class="form-input" min="0" max="100" step="1">
-                                        <span class="input-unit">%</span>
-                                    </div>
-                                </div>
-                                <button class="btn-remove" @click="editingDoughType.preFermentGrains.splice(i,1)" v-if="editingDoughType.preFermentGrains.length > 1"><i class="bi bi-x"></i></button>
-                            </div>
-                            <button class="btn-add" @click="editingDoughType.preFermentGrains.push({type: grainTypes[0]?.id ?? 'wheat_white', pct: 0})" v-if="editingDoughType.preFermentGrains.length < 5">
-                                <i class="bi bi-plus"></i> Toevoegen
-                            </button>
-                        </div>
-
-                        <!-- Main dough grains -->
-                        <label class="form-label" style="margin-bottom:0.5rem;display:block">Hoofddeeg meelsoorten</label>
-                        <div class="grain-row" v-for="(grain, i) in editingDoughType.mainDoughGrains" :key="'dtmd'+i">
-                            <div class="form-group">
-                                <select v-model="grain.type" class="form-select">
-                                    <option v-for="g in grainTypes" :value="g.id">{{ g.name }}</option>
-                                </select>
-                            </div>
-                            <div class="form-group">
-                                <div class="input-with-unit">
-                                    <input type="number" v-model.number="grain.pct" class="form-input" min="0" max="100" step="1">
-                                    <span class="input-unit">%</span>
-                                </div>
-                            </div>
-                            <button class="btn-remove" @click="editingDoughType.mainDoughGrains.splice(i,1)" v-if="editingDoughType.mainDoughGrains.length > 1"><i class="bi bi-x"></i></button>
-                        </div>
-                        <button class="btn-add" @click="editingDoughType.mainDoughGrains.push({type: grainTypes[0]?.id ?? 'wheat_white', pct: 0})" v-if="editingDoughType.mainDoughGrains.length < 5">
-                            <i class="bi bi-plus"></i> Meelsoort toevoegen
-                        </button>
-                        <div class="grain-warning" v-if="editingDoughType.mainDoughGrains.reduce((s,g)=>s+(g.pct||0),0) !== 100">
-                            <i class="bi bi-exclamation-triangle"></i> Totaal is {{ editingDoughType.mainDoughGrains.reduce((s,g)=>s+(g.pct||0),0) }}% — moet 100% zijn
-                        </div>
-
-                        <div v-if="dtGrainCharacteristics" style="background:#f5f0e8;border-radius:8px;padding:0.875rem 1rem;margin-top:1rem">
-                            <div class="panel-title" style="margin-bottom:0.6rem;font-size:0.75rem">Deeg Eigenschappen</div>
-                            <div style="display:flex;gap:1.25rem;flex-wrap:wrap;margin-bottom:0.5rem">
-                                <div>
-                                    <div class="form-label" style="font-size:0.68rem">Volkoren</div>
-                                    <strong style="font-size:1rem;color:#5c3d1e">{{ Math.round(dtGrainCharacteristics.wholePct * 10) / 10 }}%</strong>
-                                </div>
-                                <div>
-                                    <div class="form-label" style="font-size:0.68rem">Wit</div>
-                                    <strong style="font-size:1rem;color:#5c3d1e">{{ Math.round(dtGrainCharacteristics.whitePct * 10) / 10 }}%</strong>
-                                </div>
-                                <div>
-                                    <div class="form-label" style="font-size:0.68rem">Hydratatie</div>
-                                    <strong style="font-size:1rem;color:#5c3d1e">{{ editingDoughType.hydration }}%</strong>
-                                </div>
-                            </div>
-                            <div v-if="dtGrainCharacteristics.grainDist.length > 0" style="display:flex;gap:1.25rem;flex-wrap:wrap">
-                                <div v-for="gt in dtGrainCharacteristics.grainDist" :key="gt.name">
-                                    <div class="form-label" style="font-size:0.68rem">{{ gt.name }}</div>
-                                    <span style="font-size:0.85rem;color:#8b5a2b;font-weight:600">{{ Math.round(gt.pct * 10) / 10 }}%</span>
-                                </div>
-                            </div>
-                        </div>
-
-                        <hr class="divider">
-                        <div class="panel-title" style="margin-bottom:0.75rem">Methode</div>
-                        <div v-for="(day, di) in editingDoughType.methodDays" :key="'dtday'+di" class="method-day">
-                            <div class="method-day-header">
-                                <h4>Dag {{ di + 1 }}</h4>
-                                <button class="btn-remove" @click="editingDoughType.methodDays.splice(di, 1)" v-if="editingDoughType.methodDays.length > 1" title="Dag verwijderen"><i class="bi bi-x-lg"></i></button>
-                            </div>
-                            <div v-for="(step, si) in day.steps" :key="'dtstep'+di+'-'+si"
-                                class="method-step"
-                                :class="{ dragging: dragStep && dragStep.di === ('dt'+di) && dragStep.si === si, 'drag-over': dragOverStep && dragOverStep.di === ('dt'+di) && dragOverStep.si === si }"
-                                draggable="true"
-                                @dragstart="onStepDragStart('dt'+di, si, $event)"
-                                @dragover.prevent="onStepDragOver('dt'+di, si, $event)"
-                                @dragleave="onStepDragLeave('dt'+di, si)"
-                                @drop.prevent="onStepDropDt(di, si)"
-                                @dragend="onStepDragEnd()">
-                                <span class="method-step-handle" title="Sleep om te verplaatsen"><i class="bi bi-grip-vertical"></i></span>
-                                <span class="method-step-num">{{ si + 1 }}</span>
-                                <textarea v-model="day.steps[si]" placeholder="Beschrijf deze stap..." rows="1" @input="autoResizeStep($event)"></textarea>
-                                <button class="btn-remove" @click="day.steps.splice(si, 1)" v-if="day.steps.length > 1"><i class="bi bi-x"></i></button>
-                            </div>
-                            <button class="method-add-step" @click="day.steps.push('')"><i class="bi bi-plus"></i> Stap toevoegen</button>
-                        </div>
-                        <button class="method-add-day" @click="editingDoughType.methodDays.push({ label: 'Dag ' + (editingDoughType.methodDays.length + 1), steps: [''] })">
-                            <i class="bi bi-plus-lg"></i> Dag toevoegen
-                        </button>
-
-                        <div style="display:flex;gap:0.5rem;margin-top:1.5rem">
-                            <button class="btn btn-ghost" @click="doughTypeModalView = 'list'">← Terug</button>
-                            <button class="btn btn-primary" style="flex:1" @click="saveDoughType()" :disabled="!editingDoughType.name.trim()">
-                                <i class="bi bi-check"></i> {{ editingDoughType.id ? 'Opslaan' : 'Aanmaken' }}
-                            </button>
-                        </div>
-                    </div>
-
-                </div>
-            </div>
-        </div>
                 </div>
             </div>
         </div>
@@ -1289,9 +1443,12 @@ require_once '../components/sidebar.php'; ?>
                 currentRecipeId: null,
                 doughTypeId: null,
                 doughTypes: <?= json_encode($doughTypes) ?>,
-                showDoughTypeModal: false,
-                doughTypeModalView: 'list',
+                doughTypeEditActive: false,
+                dtActiveTab: 'recept',
                 editingDoughType: null,
+                dtVersions: [],
+                dtCurrentVersionNumber: 1,
+                dtVersionNote: '',
                 doughWeight: 300,
                 hydration: 62,
                 saltPct: 2.6,
@@ -1310,10 +1467,11 @@ require_once '../components/sidebar.php'; ?>
                 mixinMode: 'flour',
                 mixins: [],
                 toppings: [],
-                methodDays: [{ label: 'Dag 1', steps: [''] }],
+                methodDays: [{ label: 'Dag 1', steps: [{ title: '', substeps: [] }] }],
                 dragStep: null,
                 dragOverStep: null,
                 isDoughType: false,
+                mainDoughPctMode: 'separate',
                 savedRecipes: [],
                 collapsedGroups: {},
                 draggingGroupId: null,
@@ -1322,6 +1480,10 @@ require_once '../components/sidebar.php'; ?>
                 draggingRecipeOverId: null,
                 saving: false,
                 toastMsg: '',
+                versions: [],
+                currentVersionNumber: 1,
+                versionNote: '',
+
                 grainTypes: [],
                 yeastTypes: [],
                 mixinIngredients: [],
@@ -1714,7 +1876,8 @@ require_once '../components/sidebar.php'; ?>
             },
             mainDoughGrainDetail(i) {
                 const g = this.mainDoughGrains[i];
-                const total = this.mainDoughFlour * ((g.pct || 0) / 100);
+                const base = this.mainDoughPctMode === 'integrated' ? this.totalFlour : this.mainDoughFlour;
+                const total = base * ((g.pct || 0) / 100);
                 return { total };
             },
 
@@ -1724,12 +1887,16 @@ require_once '../components/sidebar.php'; ?>
             },
             async removeDay(di) {
                 if (this.isInherited || this.methodDays.length <= 1) return;
-                const hasContent = this.methodDays[di].steps.some(s => s.trim());
+                const hasContent = this.methodDays[di].steps.some(s => {
+                    const title = typeof s === 'string' ? s : (s.title || '');
+                    const hasSubs = typeof s === 'object' && s.substeps && s.substeps.length > 0;
+                    return title.trim() || hasSubs;
+                });
                 if (hasContent && !await showConfirm('Dag ' + (di + 1) + ' bevat stappen. Weet je zeker dat je deze wilt verwijderen?')) return;
                 this.methodDays.splice(di, 1);
             },
             addStep(di) {
-                this.methodDays[di].steps.push('');
+                this.methodDays[di].steps.push({ title: '', substeps: [] });
             },
             removeStep(di, si) {
                 if (this.methodDays[di].steps.length <= 1) return;
@@ -1781,13 +1948,16 @@ require_once '../components/sidebar.php'; ?>
             async applyDoughTypeMethod() {
                 if (!this.inheritedMethodDays) return;
                 if (!await showConfirm('Methode stappen overnemen van deegsoort? Bestaande stappen worden overschreven.')) return;
-                this.methodDays = JSON.parse(JSON.stringify(this.inheritedMethodDays));
+                this.methodDays = JSON.parse(JSON.stringify(this.inheritedMethodDays)).map(day => ({
+                    ...day,
+                    steps: (day.steps || []).map(s => typeof s === 'string' ? { title: s, substeps: [] } : { title: '', substeps: [], ...s })
+                }));
             },
             syncMethodDaysToInheritedDayCount() {
                 if (!this.inheritedMethodDays) return;
                 const target = this.inheritedMethodDays.length;
                 while (this.methodDays.length < target) {
-                    this.methodDays.push({ label: 'Dag ' + (this.methodDays.length + 1), steps: [''] });
+                    this.methodDays.push({ label: 'Dag ' + (this.methodDays.length + 1), steps: [{ title: '', substeps: [] }] });
                 }
                 while (this.methodDays.length > target) {
                     this.methodDays.pop();
@@ -1833,6 +2003,7 @@ require_once '../components/sidebar.php'; ?>
                     preFermentHydration: this.preFermentHydration,
                     preFermentGrains: this.preFermentGrains,
                     mainDoughGrains: this.mainDoughGrains,
+                    mainDoughPctMode: this.mainDoughPctMode,
                     methodDays: this.methodDays,
                 };
                 if (!this.isDoughType) {
@@ -1856,6 +2027,19 @@ require_once '../components/sidebar.php'; ?>
                     const lines = d.method.split('\n').filter(l => l.trim());
                     this.methodDays = [{ label: 'Dag 1', steps: lines.length ? lines : [''] }];
                 }
+                // Backward compat: convert string steps to { title, substeps } objects
+                this.methodDays = this.methodDays.map(day => ({
+                    ...day,
+                    steps: (day.steps || []).map(step =>
+                        typeof step === 'string'
+                            ? { title: step, substeps: [] }
+                            : { title: '', substeps: [], ...step }
+                    )
+                }));
+                if (!this.methodDays.length) {
+                    this.methodDays = [{ label: 'Dag 1', steps: [{ title: '', substeps: [] }] }];
+                }
+                this.mainDoughPctMode = d.mainDoughPctMode || 'separate';
                 if (d.weightPerBall !== undefined && d.doughWeight === undefined) {
                     this.doughWeight = d.weightPerBall;
                 }
@@ -1878,7 +2062,13 @@ require_once '../components/sidebar.php'; ?>
                 if (!this.recipeName.trim()) { this.recipeName = 'Naamloos recept'; }
                 this.saving = true;
                 try {
-                    const body = { name: this.recipeName, dough_type_id: this.doughTypeId, is_dough_type: this.isDoughType ? 1 : 0, recipe_data: this.getRecipeData() };
+                    const body = {
+                        name: this.recipeName,
+                        dough_type_id: this.doughTypeId,
+                        is_dough_type: this.isDoughType ? 1 : 0,
+                        recipe_data: this.getRecipeData(),
+                        version_note: this.versionNote || null,
+                    };
                     if (this.currentRecipeId) body.id = this.currentRecipeId;
                     const method = this.currentRecipeId ? 'PUT' : 'POST';
                     const res = await fetch('../../api/baker-recipes.php', { method, headers: {'Content-Type':'application/json'}, body: JSON.stringify(body) });
@@ -1887,6 +2077,9 @@ require_once '../components/sidebar.php'; ?>
                         if (!this.currentRecipeId && data.id) this.currentRecipeId = data.id;
                         if (data.dough_type_id) this.doughTypeId = data.dough_type_id;
                         if (this.isDoughType) await this.reloadDoughTypes();
+                        this.versionNote = '';
+                        // Refresh version list
+                        if (this.currentRecipeId) await this.loadVersions(this.currentRecipeId);
                         this.showToast('Recept opgeslagen!');
                     }
                 } catch (e) { console.error(e); }
@@ -1918,6 +2111,9 @@ require_once '../components/sidebar.php'; ?>
                         this.recipeName = data.recipe.name;
                         this.isDoughType = data.recipe.is_dough_type == 1;
                         this.doughTypeId = data.recipe.dough_type_id;
+                        this.versions = data.recipe.versions || [];
+                        this.currentVersionNumber = data.recipe.current_version || 1;
+                        this.versionNote = '';
                         this.applyRecipeData(data.recipe.recipe_data);
                         this.calculatorActive = true;
                         this.activeTab = 'recept';
@@ -1980,8 +2176,52 @@ require_once '../components/sidebar.php'; ?>
             backToRecipes() {
                 this.calculatorActive = false;
                 this.activeTab = 'recept';
+                this.versions = [];
+                this.currentVersionNumber = 1;
                 this.loadSavedRecipes();
             },
+
+            async loadVersions(recipeId) {
+                try {
+                    const res = await fetch('../../api/baker-recipes.php?id=' + recipeId);
+                    const data = await res.json();
+                    if (data.success) {
+                        this.versions = data.recipe.versions || [];
+                        this.currentVersionNumber = data.recipe.current_version || 1;
+                    }
+                } catch (e) { console.error(e); }
+            },
+
+            async previewVersion(versionId) {
+                try {
+                    const res = await fetch('../../api/baker-recipes.php?version_id=' + versionId);
+                    const data = await res.json();
+                    if (data.success) {
+                        const v = data.version;
+                        this.applyRecipeData(v.recipe_data);
+                        this.recipeName = v.name;
+                        this.showToast('Versie ' + v.version_number + ' geladen (niet opgeslagen)');
+                    }
+                } catch (e) { console.error(e); }
+            },
+
+            async restoreVersion(versionId) {
+                if (!await showConfirm('Weet je zeker dat je deze versie wilt herstellen? Dit maakt een nieuwe actieve versie aan.')) return;
+                try {
+                    const res = await fetch('../../api/baker-recipes.php', {
+                        method: 'PATCH',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ action: 'restore_version', version_id: versionId }),
+                    });
+                    const data = await res.json();
+                    if (data.success) {
+                        await this.loadRecipe(this.currentRecipeId);
+                        this.activeTab = 'versies';
+                        this.showToast('Versie hersteld als nieuwe actieve versie');
+                    }
+                } catch (e) { console.error(e); }
+            },
+
 
             toggleRecipeMenu(id) {
                 this.activeRecipeMenu = this.activeRecipeMenu === id ? null : id;
@@ -2108,7 +2348,6 @@ require_once '../components/sidebar.php'; ?>
                 if (definingRecipe) {
                     this.loadRecipe(definingRecipe.id);
                 } else {
-                    this.showDoughTypeModal = true;
                     this.editDoughType(this.doughTypes.find(d => d.id === group.id));
                 }
             },
@@ -2143,7 +2382,11 @@ require_once '../components/sidebar.php'; ?>
                     this.mainDoughGrains = [];
                     this.mixins = [];
                     this.toppings = [];
-                    this.methodDays = [{ label: 'Dag 1', steps: [''] }];
+                    this.methodDays = [{ label: 'Dag 1', steps: [{ title: '', substeps: [] }] }];
+                    this.versions = [];
+                    this.currentVersionNumber = 1;
+                    this.versionNote = '';
+                    this.mainDoughPctMode = 'separate';
                     this.calculatorActive = true;
                     this.activeTab = 'recept';
                 }
@@ -2365,9 +2608,13 @@ require_once '../components/sidebar.php'; ?>
                     useYeast: false,
                     yeastType: this.yeastTypes[0]?.id ?? 'instant_yeast',
                     yeastPct: 1.3,
-                    methodDays: [{ label: 'Dag 1', steps: [''] }],
+                    methodDays: [{ label: 'Dag 1', steps: [{ title: '', substeps: [] }] }],
                 };
-                this.doughTypeModalView = 'edit';
+                this.calculatorActive = false;
+                this.doughTypeEditActive = true;
+                this.dtActiveTab = 'recept';
+                this.dtVersions = [];
+                this.dtVersionNote = '';
             },
 
             editDoughType(dt) {
@@ -2390,9 +2637,18 @@ require_once '../components/sidebar.php'; ?>
                     useYeast: rd.useYeast ?? false,
                     yeastType: rd.yeastType ?? (this.yeastTypes[0]?.id ?? 'instant_yeast'),
                     yeastPct: rd.yeastPct ?? 1.3,
-                    methodDays: rd.methodDays ? JSON.parse(JSON.stringify(rd.methodDays)) : [{ label: 'Dag 1', steps: [''] }],
+                    methodDays: (rd.methodDays ? JSON.parse(JSON.stringify(rd.methodDays)) : [{ label: 'Dag 1', steps: [{ title: '', substeps: [] }] }]).map(day => ({
+                        ...day,
+                        steps: (day.steps || []).map(s => typeof s === 'string' ? { title: s, substeps: [] } : { title: '', substeps: [], ...s })
+                    })),
                 };
-                this.doughTypeModalView = 'edit';
+                this.calculatorActive = false;
+                this.doughTypeEditActive = true;
+                this.dtActiveTab = 'recept';
+                this.dtVersionNote = '';
+                this.dtVersions = [];
+                this.dtCurrentVersionNumber = 1;
+                this.loadDtVersions(dt.id);
             },
 
             async saveDoughType() {
@@ -2414,7 +2670,7 @@ require_once '../components/sidebar.php'; ?>
                         await fetch('../../api/dough-types.php', {
                             method: 'PUT',
                             headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({ id: dt.id, name: dt.name, recipe_data: recipeData })
+                            body: JSON.stringify({ id: dt.id, name: dt.name, recipe_data: recipeData, version_note: this.dtVersionNote || null })
                         });
                         const idx = this.doughTypes.findIndex(d => d.id === dt.id);
                         if (idx !== -1) {
@@ -2438,7 +2694,8 @@ require_once '../components/sidebar.php'; ?>
                         }
                     }
                 } catch (e) { console.error(e); }
-                this.doughTypeModalView = 'list';
+                this.doughTypeEditActive = false;
+                this.editingDoughType = null;
             },
 
             async deleteDoughType(id) {
@@ -2450,6 +2707,71 @@ require_once '../components/sidebar.php'; ?>
                         this.doughTypes = this.doughTypes.filter(dt => dt.id !== id);
                         if (this.doughTypeId === id) this.doughTypeId = null;
                         this.showToast('Deegsoort verwijderd!');
+                    }
+                } catch (e) { console.error(e); }
+            },
+
+            backFromDoughType() {
+                this.doughTypeEditActive = false;
+                this.editingDoughType = null;
+            },
+
+            async loadDtVersions(doughTypeId) {
+                try {
+                    const res = await fetch('../../api/dough-types.php?id=' + doughTypeId);
+                    const data = await res.json();
+                    if (data.success) {
+                        this.dtVersions = data.dough_type.versions || [];
+                        this.dtCurrentVersionNumber = data.dough_type.current_version || 1;
+                    }
+                } catch (e) { console.error(e); }
+            },
+
+            async previewDtVersion(versionId) {
+                try {
+                    const res = await fetch('../../api/dough-types.php?version_id=' + versionId);
+                    const data = await res.json();
+                    if (data.success) {
+                        const v = data.version;
+                        const rd = v.recipe_data || {};
+                        Object.assign(this.editingDoughType, {
+                            name: v.name,
+                            description: rd.description || '',
+                            hydration: rd.hydration ?? 62,
+                            saltPct: rd.saltPct ?? 2.6,
+                            useSourdough: rd.useSourdough ?? false,
+                            sourdoughPct: rd.sourdoughPct ?? 20,
+                            sourdoughHydration: rd.sourdoughHydration ?? 100,
+                            sourdoughGrains: rd.sourdoughGrains ? JSON.parse(JSON.stringify(rd.sourdoughGrains)) : [{ type: 'wheat_white', pct: 100 }],
+                            usePreFerment: rd.usePreFerment ?? false,
+                            preFermentPct: rd.preFermentPct ?? 20,
+                            preFermentHydration: rd.preFermentHydration ?? 100,
+                            preFermentGrains: rd.preFermentGrains ? JSON.parse(JSON.stringify(rd.preFermentGrains)) : [{ type: 'wheat_white', pct: 100 }],
+                            mainDoughGrains: rd.mainDoughGrains ? JSON.parse(JSON.stringify(rd.mainDoughGrains)) : [{ type: 'wheat_white', pct: 100 }],
+                            useYeast: rd.useYeast ?? false,
+                            yeastType: rd.yeastType ?? 'instant_yeast',
+                            yeastPct: rd.yeastPct ?? 1.3,
+                            methodDays: rd.methodDays ? JSON.parse(JSON.stringify(rd.methodDays)) : [{ label: 'Dag 1', steps: [{ title: '', substeps: [] }] }],
+                        });
+                        this.dtActiveTab = 'recept';
+                        this.showToast('Versie ' + v.version_number + ' geladen (niet opgeslagen)');
+                    }
+                } catch (e) { console.error(e); }
+            },
+
+            async restoreDtVersion(versionId) {
+                if (!await showConfirm('Weet je zeker dat je deze versie wilt herstellen? Dit maakt een nieuwe actieve versie aan.')) return;
+                try {
+                    const res = await fetch('../../api/dough-types.php', {
+                        method: 'PATCH',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ action: 'restore_version', version_id: versionId }),
+                    });
+                    const data = await res.json();
+                    if (data.success) {
+                        await this.loadDtVersions(this.editingDoughType.id);
+                        this.dtActiveTab = 'versies';
+                        this.showToast('Versie hersteld als nieuwe actieve versie');
                     }
                 } catch (e) { console.error(e); }
             },
@@ -2465,7 +2787,7 @@ require_once '../components/sidebar.php'; ?>
     window.vueApp = app.mount('#app');
     </script>
     <script>
-    function newDeegsoort() { if (window.vueApp) window.vueApp.showDoughTypeModal = true; }
+    function newDeegsoort() { if (window.vueApp) window.vueApp.newDoughType(); }
     function nieuwRecept()   { if (window.vueApp) { if (window.vueApp.calculatorActive) window.vueApp.backToRecipes(); setTimeout(() => window.vueApp.newRecipe(), 50); } }
     </script>
     <script>

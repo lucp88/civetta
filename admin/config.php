@@ -65,6 +65,16 @@ function recordLoginAttempt($pdo, $identifier, $success = false) {
     }
 }
 
+function setSetting($pdo, $key, $value) {
+    if ($value === null) {
+        $stmt = $pdo->prepare("DELETE FROM settings WHERE setting_key = ?");
+        $stmt->execute([$key]);
+    } else {
+        $stmt = $pdo->prepare("INSERT INTO settings (setting_key, setting_value) VALUES (?, ?) ON DUPLICATE KEY UPDATE setting_value = ?");
+        $stmt->execute([$key, $value, $value]);
+    }
+}
+
 function cleanOldLoginAttempts($pdo) {
     $pdo->exec("DELETE FROM login_attempts WHERE attempt_time < DATE_SUB(NOW(), INTERVAL 1 DAY)");
 }

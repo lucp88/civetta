@@ -144,7 +144,7 @@ function formatDutchDate($date) {
     <title>Leveren | Civetta Admin</title>
     <link rel="manifest" href="../manifest.json">
     <meta name="theme-color" content="#1976d2">
-    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <link rel="apple-touch-icon" sizes="192x192" href="/img/icon-192.png">
     <link rel="apple-touch-icon" sizes="512x512" href="/img/icon-512.png">
@@ -1226,9 +1226,8 @@ function formatDutchDate($date) {
         document.querySelectorAll('.modal-overlay').forEach(m => m.classList.remove('active'));
     }
 
-    document.getElementById('appointmentModal').addEventListener('click', function(e) {
-        if (e.target === this) closeAppointmentModal();
-    });
+    document.getElementById('appointmentModal').addEventListener('mousedown', function(e) { this._md = e.target === this; });
+    document.getElementById('appointmentModal').addEventListener('click', function(e) { if (e.target === this && this._md) closeAppointmentModal(); });
 
     async function openDayModal(date, dateLabel) {
         currentDayDate = date;
@@ -1917,10 +1916,9 @@ function formatDutchDate($date) {
         }
     }
     
-    document.getElementById('newOrderModal').addEventListener('click', function(e) {
-        if (e.target === this) closeNewOrderModal();
-    });
-    
+    document.getElementById('newOrderModal').addEventListener('mousedown', function(e) { this._md = e.target === this; });
+    document.getElementById('newOrderModal').addEventListener('click', function(e) { if (e.target === this && this._md) closeNewOrderModal(); });
+
     <?php if ($viewMode === 'day' && !empty($ordersByDate[$currentDate->format('Y-m-d')])): ?>
     document.addEventListener('DOMContentLoaded', function() {
         loadRouteData('<?= $currentDate->format('Y-m-d') ?>').then(() => {

@@ -38,6 +38,8 @@ switch ($method) {
                     exit;
                 }
                 
+                $account['ingelogd_als'] = $_SESSION['business_contact_naam'] ?? $account['contactpersoon'];
+                $account['ingelogd_persoon'] = $_SESSION['business_persoon'] ?? 1;
                 echo json_encode(['success' => true, 'account' => $account]);
                 
             } elseif ($action === 'orders') {

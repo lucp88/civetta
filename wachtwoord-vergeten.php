@@ -166,7 +166,7 @@ $bedrijfsnaam = $bedrijf['bedrijfsnaam'] ?? 'Bakkerij Civetta';
                             <form @submit.prevent="submit">
                                 <div class="form-group">
                                     <label for="email">E-mailadres</label>
-                                    <input type="email" id="email" v-model="email" required autocomplete="email" placeholder="uw@bedrijf.nl">
+                                    <input type="email" id="email" v-model="email" required autocomplete="email" placeholder="naam@voorbeeld.nl">
                                 </div>
                                 <button type="submit" class="btn" :disabled="loading">
                                     {{ loading ? 'Bezig...' : 'Verstuur resetlink' }}
@@ -199,7 +199,7 @@ $bedrijfsnaam = $bedrijf['bedrijfsnaam'] ?? 'Bakkerij Civetta';
     </footer>
 
     <script src="https://cdn.jsdelivr.net/npm/vue@3/dist/vue.global.prod.js"></script>
-    <script src="js/main.js"></script>
+    <script src="js/main.js?v=2"></script>
     <script>
     const { createApp } = Vue;
     createApp({

@@ -4,7 +4,7 @@ requireLogin();
 
 $categories = $pdo->query("SELECT * FROM product_categories ORDER BY sort_order ASC, naam ASC")->fetchAll();
 $products = $pdo->query("SELECT * FROM products ORDER BY sort_order ASC, naam ASC")->fetchAll();
-$variants = $pdo->query("SELECT id, product_id, naam, gewicht, prijs, recipe_id, foto FROM product_variants ORDER BY product_id ASC, sort_order ASC, gewicht ASC")->fetchAll();
+$variants = $pdo->query("SELECT id, product_id, naam, gewicht, prijs, recipe_id, foto, is_active, is_hidden FROM product_variants ORDER BY product_id ASC, sort_order ASC, gewicht ASC")->fetchAll();
 $variantsByProduct = [];
 foreach ($variants as $v) {
     $variantsByProduct[$v['product_id']][] = $v;
@@ -22,6 +22,219 @@ $stmt->execute();
 $sidebarUnprocessedOrders = $stmt->fetch()['count'];
 
 $recipes = $pdo->query("SELECT id, name, dough_type_id FROM baker_recipes ORDER BY name ASC")->fetchAll();
+
+// ── Kostprijs calculation (low–high range across ingredient price ranges) ──────
+function computeVariantKostprijs(array $rd, int $doughWeightG, array $priceRangeById, array $priceRangeByName): ?array {
+    if ($doughWeightG <= 0) return null;
+
+    $hydration        = (float)($rd['hydration']          ?? 65);
+    $saltPct          = (float)($rd['saltPct']            ?? 2.6);
+    $useYeast         = !empty($rd['useYeast']);
+    $yeastPct         = $useYeast ? (float)($rd['yeastPct'] ?? 0) : 0;
+    $useSourdough     = !empty($rd['useSourdough']);
+    $usePreFerment    = !empty($rd['usePreFerment']);
+    $mixinMode        = $rd['mixinMode']        ?? 'flour';
+    $mainDoughPctMode = $rd['mainDoughPctMode'] ?? 'separate';
+
+    $totalFlour = $doughWeightG / (1 + $hydration / 100 + $saltPct / 100);
+
+    $sourdoughFlour = 0;
+    if ($useSourdough && ($rd['sourdoughPct'] ?? 0) > 0) {
+        $sdHyd = (float)($rd['sourdoughHydration'] ?? 100);
+        $sourdoughFlour = ($totalFlour * (float)$rd['sourdoughPct'] / 100) / (1 + $sdHyd / 100);
+    }
+    $preFermentFlour = 0;
+    if ($usePreFerment && ($rd['preFermentPct'] ?? 0) > 0) {
+        $pfHyd = (float)($rd['preFermentHydration'] ?? 100);
+        $preFermentFlour = ($totalFlour * (float)$rd['preFermentPct'] / 100) / (1 + $pfHyd / 100);
+    }
+
+    $mainDoughFlour = $totalFlour - $sourdoughFlour - $preFermentFlour;
+    $mixinBase      = ($mixinMode === 'dough') ? $doughWeightG : $totalFlour;
+
+    $integratedMixinWeight = 0;
+    foreach ($rd['mixins'] ?? [] as $m) {
+        if (($m['category'] ?? '') === 'integrated' && ($m['pct'] ?? 0) > 0) {
+            $integratedMixinWeight += $mixinBase * (float)$m['pct'] / 100;
+        }
+    }
+    $saltWeight  = ($totalFlour + $integratedMixinWeight) * $saltPct / 100;
+    $yeastWeight = $totalFlour * $yeastPct / 100;
+
+    $low = 0.0; $high = 0.0; $hasAny = false;
+    $add = function(float $wg, ?array $range) use (&$low, &$high, &$hasAny) {
+        if (!$range || ($range['min'] === null && $range['max'] === null)) return;
+        $mn = $range['min'] ?? $range['max'];
+        $mx = $range['max'] ?? $range['min'];
+        $low  += $wg / 1000 * $mn;
+        $high += $wg / 1000 * $mx;
+        $hasAny = true;
+    };
+
+    // Sourdough / pre-ferment grains
+    foreach ([
+        ['key' => 'sourdoughGrains',  'flour' => $sourdoughFlour,  'active' => $useSourdough],
+        ['key' => 'preFermentGrains', 'flour' => $preFermentFlour, 'active' => $usePreFerment],
+    ] as $sec) {
+        if (!$sec['active'] || $sec['flour'] <= 0) continue;
+        foreach ($rd[$sec['key']] ?? [] as $grain) {
+            $pct = (float)($grain['pct'] ?? 0);
+            if ($pct <= 0 || !is_numeric($grain['type'] ?? '')) continue;
+            $add($sec['flour'] * $pct / 100, $priceRangeById[(int)$grain['type']] ?? null);
+        }
+    }
+    // Main dough grains
+    $mainBase = ($mainDoughPctMode === 'integrated') ? $totalFlour : $mainDoughFlour;
+    foreach ($rd['mainDoughGrains'] ?? [] as $grain) {
+        $pct = (float)($grain['pct'] ?? 0);
+        if ($pct <= 0 || !is_numeric($grain['type'] ?? '')) continue;
+        $add($mainBase * $pct / 100, $priceRangeById[(int)$grain['type']] ?? null);
+    }
+    // Yeast
+    if ($useYeast && $yeastWeight > 0 && is_numeric($rd['yeastType'] ?? '')) {
+        $add($yeastWeight, $priceRangeById[(int)$rd['yeastType']] ?? null);
+    }
+    // Salt
+    $add($saltWeight, $priceRangeByName['zout'] ?? null);
+    // Mixins
+    foreach ($rd['mixins'] ?? [] as $m) {
+        $pct = (float)($m['pct'] ?? 0);
+        if ($pct <= 0 || empty($m['ingredient'])) continue;
+        $add($mixinBase * $pct / 100, $priceRangeByName[strtolower($m['ingredient'])] ?? null);
+    }
+    // Toppings (always % of doughWeight)
+    foreach ($rd['toppings'] ?? [] as $t) {
+        $pct = (float)($t['pct'] ?? 0);
+        if ($pct <= 0 || empty($t['ingredient'])) continue;
+        $add($doughWeightG * $pct / 100, $priceRangeByName[strtolower($t['ingredient'])] ?? null);
+    }
+
+    if (!$hasAny) return null;
+    return ['low' => round($low, 4), 'high' => round($high, 4)];
+}
+
+$kostprijsByVariant = [];  // [variant_id => ['low' => float, 'high' => float]]
+$kostprijsByProduct = [];  // [product_id => ['low' => float, 'high' => float]]
+
+try {
+    $allRecipeIds = array_values(array_filter(array_unique(array_column($variants, 'recipe_id'))));
+    if (!empty($allRecipeIds)) {
+        $ph = implode(',', array_fill(0, count($allRecipeIds), '?'));
+        $stmt = $pdo->prepare("SELECT id, recipe_data FROM baker_recipes WHERE id IN ($ph)");
+        $stmt->execute($allRecipeIds);
+        $recipesById = [];
+        foreach ($stmt->fetchAll() as $r) {
+            $rd = json_decode($r['recipe_data'], true);
+            if ($rd) $recipesById[(int)$r['id']] = $rd;
+        }
+
+        // Collect all ingredient IDs (grains + yeast) and names (mixins, toppings, salt)
+        $neededIds   = [];
+        $neededNames = ['zout'];
+        foreach ($recipesById as $rd) {
+            foreach (['sourdoughGrains', 'preFermentGrains', 'mainDoughGrains'] as $key) {
+                foreach ($rd[$key] ?? [] as $grain) {
+                    if (is_numeric($grain['type'] ?? '')) $neededIds[] = (int)$grain['type'];
+                }
+            }
+            if (!empty($rd['useYeast']) && is_numeric($rd['yeastType'] ?? '')) {
+                $neededIds[] = (int)$rd['yeastType'];
+            }
+            foreach (array_merge($rd['mixins'] ?? [], $rd['toppings'] ?? []) as $item) {
+                if (!empty($item['ingredient'])) $neededNames[] = strtolower($item['ingredient']);
+            }
+        }
+        $neededIds   = array_values(array_unique($neededIds));
+        $neededNames = array_values(array_unique($neededNames));
+
+        // Price ranges by ID: check own batches AND children's batches (for group ingredients)
+        $priceRangeById = [];
+        if (!empty($neededIds)) {
+            $ph2 = implode(',', array_fill(0, count($neededIds), '?'));
+            // Own batches
+            $stmt = $pdo->prepare("
+                SELECT i.id, MIN(b.price_per_kg) as min_p, MAX(b.price_per_kg) as max_p
+                FROM ingredients i
+                JOIN ingredient_batches b ON b.ingredient_id = i.id AND b.quantity_remaining > 0
+                WHERE i.id IN ($ph2)
+                GROUP BY i.id
+            ");
+            $stmt->execute($neededIds);
+            foreach ($stmt->fetchAll() as $r) {
+                $priceRangeById[(int)$r['id']] = ['min' => (float)$r['min_p'], 'max' => (float)$r['max_p']];
+            }
+            // Children's batches (group ingredients have no own batches)
+            $stmt = $pdo->prepare("
+                SELECT c.parent_id, MIN(b.price_per_kg) as min_p, MAX(b.price_per_kg) as max_p
+                FROM ingredients c
+                JOIN ingredient_batches b ON b.ingredient_id = c.id AND b.quantity_remaining > 0
+                WHERE c.parent_id IN ($ph2)
+                GROUP BY c.parent_id
+            ");
+            $stmt->execute($neededIds);
+            foreach ($stmt->fetchAll() as $r) {
+                $pid = (int)$r['parent_id'];
+                if (!isset($priceRangeById[$pid])) {
+                    $priceRangeById[$pid] = ['min' => (float)$r['min_p'], 'max' => (float)$r['max_p']];
+                } else {
+                    $priceRangeById[$pid]['min'] = min($priceRangeById[$pid]['min'], (float)$r['min_p']);
+                    $priceRangeById[$pid]['max'] = max($priceRangeById[$pid]['max'], (float)$r['max_p']);
+                }
+            }
+        }
+
+        // Price ranges by name (mixins, toppings, salt — matched case-insensitively)
+        $priceRangeByName = [];
+        if (!empty($neededNames)) {
+            $ph3 = implode(',', array_fill(0, count($neededNames), '?'));
+            $stmt = $pdo->prepare("
+                SELECT LOWER(i.name) as name_lower, MIN(b.price_per_kg) as min_p, MAX(b.price_per_kg) as max_p
+                FROM ingredients i
+                JOIN ingredient_batches b ON b.ingredient_id = i.id AND b.quantity_remaining > 0
+                WHERE LOWER(i.name) IN ($ph3) AND i.is_active = 1
+                GROUP BY LOWER(i.name)
+            ");
+            $stmt->execute($neededNames);
+            foreach ($stmt->fetchAll() as $r) {
+                $priceRangeByName[$r['name_lower']] = ['min' => (float)$r['min_p'], 'max' => (float)$r['max_p']];
+            }
+        }
+
+        // Compute per-variant kostprijs range
+        foreach ($variants as $v) {
+            if (empty($v['recipe_id']) || !isset($recipesById[$v['recipe_id']])) continue;
+            $result = computeVariantKostprijs(
+                $recipesById[$v['recipe_id']],
+                (int)$v['gewicht'],
+                $priceRangeById,
+                $priceRangeByName
+            );
+            if ($result !== null) $kostprijsByVariant[$v['id']] = $result;
+        }
+
+        // Aggregate per-product range (min of lows, max of highs across variants)
+        foreach ($products as $p) {
+            $costs = [];
+            foreach ($variantsByProduct[$p['id']] ?? [] as $v) {
+                if (isset($kostprijsByVariant[$v['id']])) $costs[] = $kostprijsByVariant[$v['id']];
+            }
+            if (!empty($costs)) {
+                $kostprijsByProduct[$p['id']] = [
+                    'low'  => min(array_column($costs, 'low')),
+                    'high' => max(array_column($costs, 'high')),
+                ];
+            }
+        }
+    }
+} catch (Exception $e) {
+    // Kostprijs unavailable — products still render without it
+}
+
+function fmtKp(float $low, float $high): string {
+    $lo = '€' . number_format($low,  2, ',', '.');
+    $hi = '€' . number_format($high, 2, ',', '.');
+    return (abs($high - $low) < 0.005) ? $lo : $lo . '&nbsp;–&nbsp;' . $hi;
+}
 
 $adminPageTitle = 'Producten';
 $currentPage = 'products';
@@ -117,9 +330,10 @@ ob_start(); ?>
         tr.variant-row:hover td { background: #f5f2ed; }
         .variant-naam {
             display: flex;
-            align-items: center;
-            gap: 0.4rem;
-            padding-left: 1rem;
+            flex-direction: column;
+            align-items: flex-start;
+            gap: 0.05rem;
+            padding-left: 0.25rem;
             color: #4a433d;
             font-size: 0.9rem;
         }
@@ -169,6 +383,9 @@ ob_start(); ?>
         .ve-actions { display: flex; gap: 0.4rem; align-items: center; margin-top: 0.35rem; width: 100%; }
         .ve-spacer { flex: 1; }
         .variant-foto-thumb { width: 36px; height: 27px; object-fit: cover; border-radius: 3px; opacity: 0.85; }
+        .kp-cell { font-size: 0.8rem; white-space: nowrap; font-variant-numeric: tabular-nums; color: #6b5c4e; }
+        .variant-kp { color: #888; }
+        .kp-na { color: #ccc; }
 
         /* Category sections */
         .category-section { margin-bottom: 1.25rem; }
@@ -208,6 +425,15 @@ ob_start(); ?>
         .cat-tab-empty { text-align: center; padding: 4rem 2rem; color: #bbb; background: white; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.06); }
         .cat-tab-empty i { font-size: 3rem; display: block; margin-bottom: 1rem; color: #d5c9bc; }
         .cat-tab-empty p { font-size: 0.95rem; }
+        /* Toggle switches */
+        .tog-sw { display: inline-flex; align-items: center; cursor: pointer; }
+        .tog-sw input { position: absolute; opacity: 0; width: 0; height: 0; }
+        .tog-track { width: 32px; height: 18px; background: #ccc; border-radius: 9px; position: relative; transition: background 0.2s; flex-shrink: 0; }
+        .tog-sw input:checked + .tog-track { background: #3d6b3d; }
+        .tog-thumb { position: absolute; width: 14px; height: 14px; background: white; border-radius: 50%; top: 2px; left: 2px; transition: left 0.2s; box-shadow: 0 1px 3px rgba(0,0,0,0.25); }
+        .tog-sw input:checked + .tog-track .tog-thumb { left: 16px; }
+        .tog-sw input:disabled + .tog-track { opacity: 0.5; }
+
         /* Category add modal */
         .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.45); display: none; align-items: center; justify-content: center; z-index: 1000; padding: 1rem; }
         .modal-overlay.open { display: flex; }
@@ -268,7 +494,10 @@ require_once '../components/sidebar.php'; ?>
                                     <th>Product / Variant</th>
                                     <th>Beschrijving</th>
                                     <th>Prijs</th>
+                                    <th>Kostprijs</th>
                                     <th>Recept</th>
+                                    <th title="Beschikbaar voor aankoop">Actief</th>
+                                    <th title="Zichtbaar op de website">Zichtbaar</th>
                                     <th>Acties</th>
                                 </tr>
                             </thead>
@@ -286,6 +515,21 @@ require_once '../components/sidebar.php'; ?>
                                     <td class="product-beschrijving"><?= htmlspecialchars(substr($product['beschrijving'] ?? '', 0, 60)) ?><?= strlen($product['beschrijving'] ?? '') > 60 ? '…' : '' ?></td>
                                     <td></td>
                                     <td></td>
+                                    <td></td>
+                                    <td onclick="event.stopPropagation()">
+                                        <label class="tog-sw" title="Actief: beschikbaar voor aankoop">
+                                            <input type="checkbox" <?= !empty($product['is_active']) ? 'checked' : '' ?>
+                                                   onchange="toggleField(this,'product',<?= $product['id'] ?>,'is_active')">
+                                            <span class="tog-track"><span class="tog-thumb"></span></span>
+                                        </label>
+                                    </td>
+                                    <td onclick="event.stopPropagation()">
+                                        <label class="tog-sw" title="Zichtbaar: zichtbaar op de website">
+                                            <input type="checkbox" <?= empty($product['is_hidden']) ? 'checked' : '' ?>
+                                                   onchange="toggleField(this,'product',<?= $product['id'] ?>,'is_hidden',true)">
+                                            <span class="tog-track"><span class="tog-thumb"></span></span>
+                                        </label>
+                                    </td>
                                     <td class="actions" onclick="event.stopPropagation()">
                                         <a href="product-edit.php?id=<?= $product['id'] ?>" class="btn btn-small">Bewerken</a>
                                         <a href="product-delete.php?id=<?= $product['id'] ?>" class="btn btn-small btn-danger"
@@ -310,7 +554,7 @@ require_once '../components/sidebar.php'; ?>
                                             $label = $v['naam'] ?? '';
                                             $weightStr = $v['gewicht'] ? intval($v['gewicht']) . 'g' : '';
                                             if ($label && $weightStr) {
-                                                echo htmlspecialchars($label) . ' <span class="variant-weight">— ' . $weightStr . '</span>';
+                                                echo htmlspecialchars($label) . '<span class="variant-weight">' . $weightStr . '</span>';
                                             } elseif ($label) {
                                                 echo htmlspecialchars($label);
                                             } else {
@@ -321,6 +565,7 @@ require_once '../components/sidebar.php'; ?>
                                     </td>
                                     <td><?php if (!empty($v['foto'])): ?><img src="../../<?= htmlspecialchars($v['foto']) ?>" class="variant-foto-thumb"><?php endif; ?></td>
                                     <td class="variant-price">&euro;<?= number_format($v['prijs'], 2, ',', '.') ?></td>
+                                    <td class="kp-cell variant-kp"><?php $vkp = $kostprijsByVariant[$v['id']] ?? null; echo $vkp ? fmtKp($vkp['low'], $vkp['high']) : '<span class="kp-na">–</span>'; ?></td>
                                     <td>
                                         <?php if (!empty($v['recipe_id'])): ?>
                                             <span style="color:#2e7d32;font-size:0.85rem"><i class="bi bi-check-circle-fill"></i></span>
@@ -328,12 +573,26 @@ require_once '../components/sidebar.php'; ?>
                                             <span style="color:#ddd;font-size:0.85rem"><i class="bi bi-dash"></i></span>
                                         <?php endif; ?>
                                     </td>
+                                    <td onclick="event.stopPropagation()">
+                                        <label class="tog-sw" title="Actief">
+                                            <input type="checkbox" <?= !empty($v['is_active']) ? 'checked' : '' ?>
+                                                   onchange="toggleField(this,'variant',<?= $v['id'] ?>,'is_active')">
+                                            <span class="tog-track"><span class="tog-thumb"></span></span>
+                                        </label>
+                                    </td>
+                                    <td onclick="event.stopPropagation()">
+                                        <label class="tog-sw" title="Zichtbaar">
+                                            <input type="checkbox" <?= empty($v['is_hidden']) ? 'checked' : '' ?>
+                                                   onchange="toggleField(this,'variant',<?= $v['id'] ?>,'is_hidden',true)">
+                                            <span class="tog-track"><span class="tog-thumb"></span></span>
+                                        </label>
+                                    </td>
                                     <td></td>
                                 </tr>
                                 <?php endforeach; ?>
                                 <tr class="variant-add-row" onclick="openInlineEdit(null, <?= $product['id'] ?>)">
                                     <td class="drag-cell"></td>
-                                    <td colspan="5"><button class="btn-add"><i class="bi bi-plus"></i> Nieuwe variant</button></td>
+                                    <td colspan="8"><button class="btn-add"><i class="bi bi-plus"></i> Nieuwe variant</button></td>
                                 </tr>
                             </tbody>
                             <?php endforeach; ?>
@@ -377,6 +636,23 @@ require_once '../components/sidebar.php'; ?>
 <script src="../../js/ui-notifications.js?v=1"></script>
 <script>
 const recipesData = <?= json_encode(array_values($recipes)) ?>;
+
+window.toggleField = async function(el, type, id, field, invert) {
+    const dbVal = el.checked ? (invert ? 0 : 1) : (invert ? 1 : 0);
+    el.disabled = true;
+    try {
+        const res = await fetch('../../api/products.php', {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ action: 'toggle', type, id, field, value: dbVal })
+        });
+        const json = await res.json();
+        if (!json.success) el.checked = !el.checked;
+    } catch(e) {
+        el.checked = !el.checked;
+    }
+    el.disabled = false;
+};
 
 (function() {
     // ── Tab switching ──────────────────────────────────────────────────
@@ -608,7 +884,7 @@ const recipesData = <?= json_encode(array_values($recipes)) ?>;
         return html;
     }
 
-    function closeInlineEdit() {
+    window.closeInlineEdit = function closeInlineEdit() {
         if (!activeEditTr) return;
         if (activeEditTr._originalRow) activeEditTr._originalRow.style.display = '';
         activeEditTr.remove();
@@ -638,7 +914,7 @@ const recipesData = <?= json_encode(array_values($recipes)) ?>;
         tr.className = 'variant-edit-row';
         tr.innerHTML = `
             <td class="drag-cell"></td>
-            <td colspan="5">
+            <td colspan="7">
                 <div class="ve-form">
                     <input type="text"   class="ve-naam"    placeholder="Naam (optioneel)" value="${naam.replace(/"/g,'&quot;')}">
                     <input type="number" class="ve-gewicht" placeholder="Gewicht (g)" value="${gewicht}" min="0">

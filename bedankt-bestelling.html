@@ -187,7 +187,7 @@
                         </div>
                         
                         <div class="thank-you-actions">
-                            <a href="zakelijk-dashboard.html" class="btn">Naar Dashboard</a>
+                            <a href="mijn-dashboard.html" class="btn">Naar Dashboard</a>
                             <a v-if="order && order.payment_url" :href="order.payment_url" class="btn btn-outline">Opnieuw Betalen</a>
                         </div>
                     </template>
@@ -216,7 +216,7 @@
                         </div>
                         
                         <div class="thank-you-actions">
-                            <a href="zakelijk-dashboard.html" class="btn">Naar Dashboard</a>
+                            <a href="mijn-dashboard.html" class="btn">Naar Dashboard</a>
                         </div>
                     </template>
                     
@@ -272,7 +272,7 @@
                         </div>
                         
                         <div class="thank-you-actions">
-                            <a href="zakelijk-dashboard.html" class="btn">Naar Dashboard</a>
+                            <a href="mijn-dashboard.html" class="btn">Naar Dashboard</a>
                             <a v-if="order && order.eboekhouden_pdf_url" :href="order.eboekhouden_pdf_url" target="_blank" class="btn btn-outline">Factuur Bekijken</a>
                         </div>
                     </template>
@@ -301,7 +301,7 @@
                         </div>
 
                         <div class="thank-you-actions">
-                            <a href="zakelijk-dashboard.html" class="btn">Naar Dashboard</a>
+                            <a href="mijn-dashboard.html" class="btn">Naar Dashboard</a>
                             <a href="mijn-bestellingen.html" class="btn btn-outline">Mijn Bestellingen</a>
                         </div>
                     </template>
@@ -330,7 +330,7 @@
                         </div>
                         
                         <div class="thank-you-actions">
-                            <a href="zakelijk-dashboard.html" class="btn">Naar Dashboard</a>
+                            <a href="mijn-dashboard.html" class="btn">Naar Dashboard</a>
                             <a v-if="order" :href="'api/factuur.php?order_id=' + order.id" target="_blank" class="btn btn-outline">Factuur Bekijken</a>
                         </div>
                     </template>
@@ -356,7 +356,7 @@
     </footer>
 
     <script src="https://cdn.jsdelivr.net/npm/vue@3/dist/vue.global.prod.js"></script>
-    <script src="js/main.js"></script>
+    <script src="js/main.js?v=4"></script>
     <script>
         const { createApp } = Vue;
         

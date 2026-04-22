@@ -62,6 +62,11 @@ ob_start(); ?>
         .badge-wit { background: #faf6f1; color: #3d6b3d; border: 1px solid #e8dfd2; }
         .badge-bio { background: #e8f5e9; color: #2e7d32; border: 1px solid #a5d6a7; }
         .badge-allergeen { background: #fff3e0; color: #e65100; border: 1px solid #ffcc80; margin-right: 0.2rem; }
+        .bio-tabs { display:flex; gap:0; background:#f0ebe5; border-radius:8px; overflow:hidden; padding:3px; max-width:200px; }
+        .bio-tab { flex:1; padding:0.3rem 0.75rem; border:none; background:transparent; cursor:pointer; font-size:0.82rem; font-weight:600; color:#8b5a2b; border-radius:6px; transition:all 0.15s; }
+        .bio-tab.active { background:white; color:#2e7d32; box-shadow:0 1px 3px rgba(0,0,0,0.15); }
+        .sub-product-row > td { background:#f7f5f1 !important; font-size:0.9rem; }
+        .sub-product-row > td:first-child { border-left:3px solid #a5d6a7; }
         .badge-ok { background: #e8f5e9; color: #2e7d32; }
         .badge-laag { background: #fff3e0; color: #e65100; }
         .badge-tekort { background: #ffebee; color: #c62828; }
@@ -108,14 +113,18 @@ ob_start(); ?>
         .toggle-label { display: flex; align-items: center; gap: 0.4rem; font-size: 0.85rem; color: #666; cursor: pointer; user-select: none; }
         .toggle-label input[type=checkbox] { cursor: pointer; }
 
-        tr.category-row { background: #f5f0e8; cursor: pointer; user-select: none; }
+        tr.category-row { background: #f5f0e8; user-select: none; }
         .category-row td { padding: 0.35rem 0.875rem !important; background: #f5f0e8 !important; border-bottom: 1px solid #e8dfd2 !important; }
         .category-cell { display: flex; align-items: center; gap: 0.5rem; width: 100%; }
+        .category-toggle { display: flex; align-items: center; gap: 0.5rem; cursor: pointer; flex: 1; min-width: 0; padding: 0.25rem 0; }
+        .category-toggle:hover .category-header-label { color: #1a3a1a; }
         .category-header-label { font-size: 0.72rem; font-weight: 700; color: #2d4a2d; text-transform: uppercase; letter-spacing: 0.04em; }
         .category-header-count { display: inline-flex; align-items: center; justify-content: center; min-width: 1.2rem; height: 1.2rem; background: #e0d5c7; color: #2d4a2d; border-radius: 10px; font-size: 0.65rem; font-weight: 700; padding: 0 0.3rem; }
-        .category-row:hover td { background: #ede8e0 !important; }
-        .category-chevron { display: inline-flex; align-items: center; margin-right: 0.25rem; font-size: 0.72rem; color: #a09080; transition: transform 0.15s; }
+        .category-add-btn { background: none; border: none; cursor: pointer; color: #a09080; font-size: 1rem; padding: 0.2rem 0.4rem; border-radius: 4px; display: inline-flex; align-items: center; opacity: 0.6; transition: all 0.15s; }
+        .category-add-btn:hover { background: #e8dfd2; color: #3d6b3d; opacity: 1; }
+        .category-chevron { display: inline-flex; align-items: center; justify-content: center; width: 1.5rem; height: 1.5rem; font-size: 1rem; color: #7a6858; background: #ebe4da; border-radius: 4px; transition: transform 0.15s; flex-shrink: 0; }
         .category-chevron.collapsed { transform: rotate(-90deg); }
+        .grain-ing-name { padding-left: 1.5rem !important; }
 
         .empty-state { text-align: center; padding: 3rem; color: #aaa; }
         .empty-state i { font-size: 3rem; margin-bottom: 1rem; display: block; }
@@ -188,12 +197,12 @@ require_once '../components/sidebar.php'; ?>
 
             <div class="admin-content" id="app" v-cloak>
                 <div class="tabs">
-                    <div class="tab" :class="{active: activeTab==='overzicht'}" @click="activeTab='overzicht'">Overzicht</div>
-                    <div class="tab" :class="{active: activeTab==='ingredienten'}" @click="activeTab='ingredienten'">Ingrediënten</div>
-                    <div class="tab" :class="{active: activeTab==='voorraad'}" @click="activeTab='voorraad'">Voorraad</div>
-                    <div class="tab" :class="{active: activeTab==='kosten'}" @click="activeTab='kosten'">Vaste Kosten</div>
-                    <div class="tab" :class="{active: activeTab==='prognose'}" @click="activeTab='prognose'; loadForecast()">Prognose</div>
-                    <div class="tab" :class="{active: activeTab==='afgemaakt'}" @click="activeTab='afgemaakt'; loadAfgemaakt()"><i class="bi bi-box-seam-fill"></i> Producten</div>
+                    <div class="tab" :class="{active: activeTab==='overzicht'}" @click="setTab('overzicht')">Overzicht</div>
+                    <div class="tab" :class="{active: activeTab==='ingredienten'}" @click="setTab('ingredienten')">Ingrediënten</div>
+                    <div class="tab" :class="{active: activeTab==='voorraad'}" @click="setTab('voorraad')">Voorraad</div>
+                    <div class="tab" :class="{active: activeTab==='kosten'}" @click="setTab('kosten')">Vaste Kosten</div>
+                    <div class="tab" :class="{active: activeTab==='prognose'}" @click="setTab('prognose'); loadForecast()">Prognose</div>
+                    <div class="tab" :class="{active: activeTab==='afgemaakt'}" @click="setTab('afgemaakt'); loadAfgemaakt()"><i class="bi bi-box-seam-fill"></i> Producten</div>
                 </div>
 
                 <!-- OVERZICHT TAB -->
@@ -253,7 +262,7 @@ require_once '../components/sidebar.php'; ?>
                                                     <td colspan="3"><span class="subcategory-label">{{ sub.label }}</span></td>
                                                 </tr>
                                                 <tr v-for="item in sub.items" :key="item.id">
-                                                    <td><strong>{{ item.name }}</strong></td>
+                                                    <td><strong>{{ item.name }}{{ item.brand_name ? ' – ' + item.brand_name : '' }}</strong></td>
                                                     <td>{{ formatStock(item.total_stock) }}</td>
                                                     <td><button class="btn btn-success btn-sm" @click="openBatchModal(item)"><i class="bi bi-plus"></i> Bijvullen</button></td>
                                                 </tr>
@@ -261,7 +270,7 @@ require_once '../components/sidebar.php'; ?>
                                         </template>
                                         <template v-else>
                                             <tr v-for="item in group.items" :key="item.id">
-                                                <td><strong>{{ item.name }}</strong></td>
+                                                <td><strong>{{ item.name }}{{ item.brand_name ? ' – ' + item.brand_name : '' }}</strong></td>
                                                 <td>{{ formatStock(item.total_stock) }}</td>
                                                 <td><button class="btn btn-success btn-sm" @click="openBatchModal(item)"><i class="bi bi-plus"></i> Bijvullen</button></td>
                                             </tr>
@@ -279,6 +288,12 @@ require_once '../components/sidebar.php'; ?>
                         <div class="subtab" :class="{active: ingredientSubTab==='meel'}" @click="ingredientSubTab='meel'">Meel</div>
                         <div class="subtab" :class="{active: ingredientSubTab==='extras'}" @click="ingredientSubTab='extras'">Toppings + Mix-ins</div>
                         <div class="subtab" :class="{active: ingredientSubTab==='overig'}" @click="ingredientSubTab='overig'">Overig</div>
+                    </div>
+                    <div style="padding:0.5rem 1rem 0">
+                        <div class="bio-tabs">
+                            <button class="bio-tab" :class="{active: bioFilter==='bio'}" @click="bioFilter='bio'">BIO</button>
+                            <button class="bio-tab" :class="{active: bioFilter==='non-bio'}" @click="bioFilter='non-bio'">Non-BIO</button>
+                        </div>
                     </div>
 
                     <div v-show="ingredientSubTab==='meel'" class="panel">
@@ -305,69 +320,99 @@ require_once '../components/sidebar.php'; ?>
                         <div class="table-wrapper" v-else>
                             <table>
                                 <thead><tr><th class="drag-cell"></th><th>Naam</th><th>Type</th><th>Kenmerken</th><th>Voorraad</th><th>FIFO Prijs</th><th>Acties</th></tr></thead>
-                                <tbody v-for="group in groupedMeel" :key="group.grain_type_id">
+                                <tbody v-for="grainGroup in groupedMeel" :key="grainGroup.grain_type_id">
                                     <tr class="category-row"
-                                        :class="{'drag-over': draggingGrainTypeOverId == group.grain_type_id}"
-                                        :draggable="group.grain_type_id !== '_none'"
-                                        @click="toggleGrainType(group.grain_type_id)"
-                                        @dragstart="group.grain_type_id !== '_none' && onGrainTypeDragStart($event, group.grain_type_id)"
-                                        @dragover="group.grain_type_id !== '_none' && onGrainTypeDragOver($event, group.grain_type_id)"
+                                        :class="{'drag-over': draggingGrainTypeOverId == grainGroup.grain_type_id}"
+                                        :draggable="grainGroup.grain_type_id !== '_none'"
+                                        @dragstart="grainGroup.grain_type_id !== '_none' && onGrainTypeDragStart($event, grainGroup.grain_type_id)"
+                                        @dragover="grainGroup.grain_type_id !== '_none' && onGrainTypeDragOver($event, grainGroup.grain_type_id)"
                                         @dragleave="draggingGrainTypeOverId = null"
-                                        @drop="group.grain_type_id !== '_none' && onGrainTypeDrop($event, group.grain_type_id)"
+                                        @drop="grainGroup.grain_type_id !== '_none' && onGrainTypeDrop($event, grainGroup.grain_type_id)"
                                         @dragend="draggingGrainTypeId = null; draggingGrainTypeOverId = null">
                                         <td class="drag-cell">
-                                            <span v-if="group.grain_type_id !== '_none'" class="drag-handle"><i class="bi bi-grip-vertical"></i></span>
+                                            <span v-if="grainGroup.grain_type_id !== '_none'" class="drag-handle"><i class="bi bi-grip-vertical"></i></span>
                                         </td>
                                         <td colspan="6">
                                             <div class="category-cell">
-                                                <i class="bi bi-chevron-down category-chevron" :class="{collapsed: collapsedGrainTypes[group.grain_type_id]}"></i>
-                                                <span class="category-header-label">{{ group.label }}</span>
-                                                <span class="category-header-count">{{ group.items.length }}</span>
-                                            </div>
-                                        </td>
-                                    </tr>
-                                    <tr v-for="ing in group.items" :key="ing.id"
-                                        v-show="!collapsedGrainTypes[group.grain_type_id]"
-                                        :class="{'drag-over': draggingIngredientOverId == ing.id, 'dragging': draggingIngredientId == ing.id}"
-                                        draggable="true"
-                                        style="cursor:pointer"
-                                        title="Klik om te bewerken"
-                                        @click="openIngredientModal(ing)"
-                                        @dragstart.stop="onIngredientDragStart($event, ing.id)"
-                                        @dragover.prevent.stop="onIngredientDragOver($event, ing.id)"
-                                        @dragleave="draggingIngredientOverId = null"
-                                        @drop.stop="onIngredientDrop($event, ing.id)"
-                                        @dragend="draggingIngredientId = null; draggingIngredientOverId = null">
-                                        <td class="drag-cell" @click.stop><span class="drag-handle"><i class="bi bi-grip-vertical"></i></span></td>
-                                        <td><strong>{{ ing.name }}</strong></td>
-                                        <td>
-                                            <span class="badge" :class="parseInt(ing.is_whole_grain) === 1 ? 'badge-volkoren' : 'badge-wit'">
-                                                {{ parseInt(ing.is_whole_grain) === 1 ? 'Volkoren' : 'Wit' }}
-                                            </span>
-                                        </td>
-                                        <td>
-                                            <span v-if="parseInt(ing.is_biologisch)" class="badge badge-bio">BIO</span>
-                                            <template v-if="ing.allergenen && ing.allergenen.length">
-                                                <span v-for="a in ing.allergenen" :key="a" class="badge badge-allergeen">{{ a }}</span>
-                                            </template>
-                                            <span v-if="!parseInt(ing.is_biologisch) && (!ing.allergenen || !ing.allergenen.length)" style="color:#ccc;font-size:0.8rem">—</span>
-                                        </td>
-                                        <td>
-                                            <div style="display:flex;align-items:center;gap:0.5rem">
-                                                <div class="stock-bar">
-                                                    <div class="stock-bar-fill" :class="stockLevel(ing.total_stock)" :style="{width: stockPercent(ing.total_stock)+'%'}"></div>
+                                                <div class="category-toggle" @click="toggleGrainType(grainGroup.grain_type_id)">
+                                                    <i class="bi bi-chevron-down category-chevron" :class="{collapsed: collapsedGrainTypes[grainGroup.grain_type_id]}"></i>
+                                                    <span class="category-header-label">{{ grainGroup.label }}</span>
+                                                    <span class="category-header-count">{{ grainGroup.items.length }}</span>
                                                 </div>
-                                                <span>{{ formatStock(ing.total_stock) }}</span>
+                                                <button class="category-add-btn" @click.stop="openIngredientModal(null, 'meel', grainGroup.grain_type_id !== '_none' ? grainGroup.grain_type_id : null)" title="Nieuw meel toevoegen"><i class="bi bi-plus-lg"></i></button>
                                             </div>
                                         </td>
-                                        <td>{{ ing.current_price_per_kg ? '€'+formatNumber(ing.current_price_per_kg)+'/kg' : '-' }}</td>
-                                        <td @click.stop>
-                                            <button class="btn btn-success btn-sm" @click="openBatchModal(ing)"><i class="bi bi-plus"></i> Bijvullen</button>
-                                        </td>
                                     </tr>
-                                    <tr class="ingredient-add-row" v-show="!collapsedGrainTypes[group.grain_type_id]" @click="openIngredientModal(null, 'meel', group.grain_type_id !== '_none' ? group.grain_type_id : null)">
+                                    <template v-for="ing in grainGroup.items" :key="ing.id">
+                                        <tr v-show="!collapsedGrainTypes[grainGroup.grain_type_id]"
+                                            :class="{'drag-over': draggingIngredientOverId == ing.id, 'dragging': draggingIngredientId == ing.id}"
+                                            draggable="true"
+                                            @dragstart.stop="onIngredientDragStart($event, ing.id)"
+                                            @dragover.prevent.stop="onIngredientDragOver($event, ing.id)"
+                                            @dragleave="draggingIngredientOverId = null"
+                                            @drop.stop="onIngredientDrop($event, ing.id)"
+                                            @dragend="draggingIngredientId = null; draggingIngredientOverId = null">
+                                            <td class="drag-cell" @click.stop><span class="drag-handle"><i class="bi bi-grip-vertical"></i></span></td>
+                                            <td class="grain-ing-name" style="cursor:pointer" @click="openIngredientModal(ing)">
+                                                <button v-if="childrenOf(ing.id).length" @click.stop="toggleGroupExpand(ing.id)" style="background:none;border:none;cursor:pointer;color:#8b5a2b;padding:0 0.4rem 0 0;font-size:1rem">
+                                                    <i :class="expandedGroups[ing.id] ? 'bi bi-chevron-down' : 'bi bi-chevron-right'"></i>
+                                                </button>
+                                                <strong>{{ ing.name }}</strong>
+                                            </td>
+                                            <td>
+                                                <span class="badge" :class="parseInt(ing.is_whole_grain) === 1 ? 'badge-volkoren' : 'badge-wit'">
+                                                    {{ parseInt(ing.is_whole_grain) === 1 ? 'Volkoren' : 'Wit' }}
+                                                </span>
+                                            </td>
+                                            <td>
+                                                <template v-if="ing.allergenen && ing.allergenen.length">
+                                                    <span v-for="a in ing.allergenen" :key="a" class="badge badge-allergeen">{{ a }}</span>
+                                                </template>
+                                                <span v-else style="color:#ccc;font-size:0.8rem">—</span>
+                                            </td>
+                                            <td>
+                                                <div style="display:flex;align-items:center;gap:0.5rem">
+                                                    <div class="stock-bar"><div class="stock-bar-fill" :class="stockLevel(filteredGroupStock(ing))" :style="{width: stockPercent(filteredGroupStock(ing))+'%'}"></div></div>
+                                                    <span>{{ formatStock(filteredGroupStock(ing)) }}</span>
+                                                </div>
+                                            </td>
+                                            <td>—</td>
+                                            <td @click.stop>
+                                                <button v-if="!childrenOf(ing.id).length" class="btn btn-success btn-sm" @click="openBatchModal(ing)"><i class="bi bi-plus"></i> Bijvullen</button>
+                                                <button class="btn btn-ghost btn-sm" @click="openSubProductModal(ing)" style="margin-left:0.25rem"><i class="bi bi-plus-circle"></i> Merk</button>
+                                            </td>
+                                        </tr>
+                                        <!-- Sub-product rows -->
+                                        <tr v-show="!collapsedGrainTypes[grainGroup.grain_type_id] && expandedGroups[ing.id]"
+                                            v-for="child in filteredChildrenOf(ing.id)" :key="'c'+child.id"
+                                            class="sub-product-row">
+                                            <td class="drag-cell"></td>
+                                            <td style="padding-left:2.25rem;cursor:pointer" @click="openIngredientModal(child)">
+                                                {{ child.brand_name || 'Standaard' }}
+                                                <span v-if="parseInt(child.is_biologisch)" class="badge badge-bio" style="margin-left:0.3rem">BIO</span>
+                                            </td>
+                                            <td>—</td>
+                                            <td>
+                                                <template v-if="child.allergenen && child.allergenen.length">
+                                                    <span v-for="a in child.allergenen" :key="a" class="badge badge-allergeen">{{ a }}</span>
+                                                </template>
+                                                <span v-else style="color:#ccc;font-size:0.8rem">—</span>
+                                            </td>
+                                            <td>
+                                                <div style="display:flex;align-items:center;gap:0.5rem">
+                                                    <div class="stock-bar"><div class="stock-bar-fill" :class="stockLevel(child.total_stock)" :style="{width: stockPercent(child.total_stock)+'%'}"></div></div>
+                                                    <span>{{ formatStock(child.total_stock) }}</span>
+                                                </div>
+                                            </td>
+                                            <td>{{ child.current_price_per_kg ? '€'+formatNumber(child.current_price_per_kg)+'/kg' : '-' }}</td>
+                                            <td>
+                                                <button class="btn btn-success btn-sm" @click="openBatchModal(child)"><i class="bi bi-plus"></i> Bijvullen</button>
+                                            </td>
+                                        </tr>
+                                    </template>
+                                    <tr class="ingredient-add-row" v-show="!collapsedGrainTypes[grainGroup.grain_type_id]" @click="openIngredientModal(null, 'meel', grainGroup.grain_type_id !== '_none' ? grainGroup.grain_type_id : null)">
                                         <td class="drag-cell"></td>
-                                        <td colspan="6"><button class="btn-add" @click.stop="openIngredientModal(null, 'meel', group.grain_type_id !== '_none' ? group.grain_type_id : null)"><i class="bi bi-plus"></i> Nieuw meel</button></td>
+                                        <td class="grain-ing-name" colspan="6"><button class="btn-add" @click.stop="openIngredientModal(null, 'meel', grainGroup.grain_type_id !== '_none' ? grainGroup.grain_type_id : null)"><i class="bi bi-plus"></i> Nieuw meel</button></td>
                                     </tr>
                                 </tbody>
                             </table>
@@ -383,39 +428,62 @@ require_once '../components/sidebar.php'; ?>
                             <table>
                                 <thead><tr><th class="drag-cell"></th><th>Naam</th><th>Kenmerken</th><th>Voorraad</th><th>FIFO Prijs</th><th>Acties</th></tr></thead>
                                 <tbody>
-                                    <tr v-for="ing in extrasIngredients" :key="ing.id"
-                                        :class="{'drag-over': draggingIngredientOverId == ing.id, 'dragging': draggingIngredientId == ing.id}"
-                                        draggable="true"
-                                        style="cursor:pointer"
-                                        title="Klik om te bewerken"
-                                        @click="openIngredientModal(ing)"
-                                        @dragstart="onIngredientDragStart($event, ing.id)"
-                                        @dragover.prevent="onIngredientDragOver($event, ing.id)"
-                                        @dragleave="draggingIngredientOverId = null"
-                                        @drop="onIngredientDrop($event, ing.id)"
-                                        @dragend="draggingIngredientId = null; draggingIngredientOverId = null">
-                                        <td class="drag-cell" @click.stop><span class="drag-handle"><i class="bi bi-grip-vertical"></i></span></td>
-                                        <td><strong>{{ ing.name }}</strong></td>
-                                        <td>
-                                            <span v-if="parseInt(ing.is_biologisch)" class="badge badge-bio">BIO</span>
-                                            <template v-if="ing.allergenen && ing.allergenen.length">
-                                                <span v-for="a in ing.allergenen" :key="a" class="badge badge-allergeen">{{ a }}</span>
-                                            </template>
-                                            <span v-if="!parseInt(ing.is_biologisch) && (!ing.allergenen || !ing.allergenen.length)" style="color:#ccc;font-size:0.8rem">—</span>
-                                        </td>
-                                        <td>
-                                            <div style="display:flex;align-items:center;gap:0.5rem">
-                                                <div class="stock-bar">
-                                                    <div class="stock-bar-fill" :class="stockLevel(ing.total_stock)" :style="{width: stockPercent(ing.total_stock)+'%'}"></div>
+                                    <template v-for="ing in extrasIngredients" :key="ing.id">
+                                        <tr :class="{'drag-over': draggingIngredientOverId == ing.id, 'dragging': draggingIngredientId == ing.id}"
+                                            draggable="true"
+                                            @dragstart="onIngredientDragStart($event, ing.id)"
+                                            @dragover.prevent="onIngredientDragOver($event, ing.id)"
+                                            @dragleave="draggingIngredientOverId = null"
+                                            @drop="onIngredientDrop($event, ing.id)"
+                                            @dragend="draggingIngredientId = null; draggingIngredientOverId = null">
+                                            <td class="drag-cell" @click.stop><span class="drag-handle"><i class="bi bi-grip-vertical"></i></span></td>
+                                            <td style="cursor:pointer" @click="openIngredientModal(ing)">
+                                                <button v-if="childrenOf(ing.id).length" @click.stop="toggleGroupExpand(ing.id)" style="background:none;border:none;cursor:pointer;color:#8b5a2b;padding:0 0.4rem 0 0;font-size:1rem">
+                                                    <i :class="expandedGroups[ing.id] ? 'bi bi-chevron-down' : 'bi bi-chevron-right'"></i>
+                                                </button>
+                                                <strong>{{ ing.name }}</strong>
+                                            </td>
+                                            <td>
+                                                <template v-if="ing.allergenen && ing.allergenen.length">
+                                                    <span v-for="a in ing.allergenen" :key="a" class="badge badge-allergeen">{{ a }}</span>
+                                                </template>
+                                                <span v-else style="color:#ccc;font-size:0.8rem">—</span>
+                                            </td>
+                                            <td>
+                                                <div style="display:flex;align-items:center;gap:0.5rem">
+                                                    <div class="stock-bar"><div class="stock-bar-fill" :class="stockLevel(filteredGroupStock(ing))" :style="{width: stockPercent(filteredGroupStock(ing))+'%'}"></div></div>
+                                                    <span>{{ formatStock(filteredGroupStock(ing)) }}</span>
                                                 </div>
-                                                <span>{{ formatStock(ing.total_stock) }}</span>
-                                            </div>
-                                        </td>
-                                        <td>{{ ing.current_price_per_kg ? '€'+formatNumber(ing.current_price_per_kg)+'/kg' : '-' }}</td>
-                                        <td @click.stop>
-                                            <button class="btn btn-success btn-sm" @click="openBatchModal(ing)"><i class="bi bi-plus"></i> Bijvullen</button>
-                                        </td>
-                                    </tr>
+                                            </td>
+                                            <td>—</td>
+                                            <td @click.stop>
+                                                <button v-if="!childrenOf(ing.id).length" class="btn btn-success btn-sm" @click="openBatchModal(ing)"><i class="bi bi-plus"></i> Bijvullen</button>
+                                                <button class="btn btn-ghost btn-sm" @click="openSubProductModal(ing)" style="margin-left:0.25rem"><i class="bi bi-plus-circle"></i> Merk</button>
+                                            </td>
+                                        </tr>
+                                        <tr v-for="child in filteredChildrenOf(ing.id)" :key="'c'+child.id"
+                                            v-show="expandedGroups[ing.id]" class="sub-product-row">
+                                            <td class="drag-cell"></td>
+                                            <td style="padding-left:2.25rem;cursor:pointer" @click="openIngredientModal(child)">
+                                                {{ child.brand_name || 'Standaard' }}
+                                                <span v-if="parseInt(child.is_biologisch)" class="badge badge-bio" style="margin-left:0.3rem">BIO</span>
+                                            </td>
+                                            <td>
+                                                <template v-if="child.allergenen && child.allergenen.length">
+                                                    <span v-for="a in child.allergenen" :key="a" class="badge badge-allergeen">{{ a }}</span>
+                                                </template>
+                                                <span v-else style="color:#ccc;font-size:0.8rem">—</span>
+                                            </td>
+                                            <td>
+                                                <div style="display:flex;align-items:center;gap:0.5rem">
+                                                    <div class="stock-bar"><div class="stock-bar-fill" :class="stockLevel(child.total_stock)" :style="{width: stockPercent(child.total_stock)+'%'}"></div></div>
+                                                    <span>{{ formatStock(child.total_stock) }}</span>
+                                                </div>
+                                            </td>
+                                            <td>{{ child.current_price_per_kg ? '€'+formatNumber(child.current_price_per_kg)+'/kg' : '-' }}</td>
+                                            <td><button class="btn btn-success btn-sm" @click="openBatchModal(child)"><i class="bi bi-plus"></i> Bijvullen</button></td>
+                                        </tr>
+                                    </template>
                                     <tr class="ingredient-add-row" @click="openIngredientModal(null, 'mixin')">
                                         <td class="drag-cell"></td>
                                         <td colspan="5"><button class="btn-add" @click.stop="openIngredientModal(null, 'mixin')"><i class="bi bi-plus"></i> Nieuw topping / mix-in</button></td>
@@ -438,39 +506,62 @@ require_once '../components/sidebar.php'; ?>
                             <table>
                                 <thead><tr><th class="drag-cell"></th><th>Naam</th><th>Kenmerken</th><th>Voorraad</th><th>FIFO Prijs</th><th>Acties</th></tr></thead>
                                 <tbody>
-                                    <tr v-for="ing in overigIngredients" :key="ing.id"
-                                        :class="{'drag-over': draggingIngredientOverId == ing.id, 'dragging': draggingIngredientId == ing.id}"
-                                        draggable="true"
-                                        style="cursor:pointer"
-                                        title="Klik om te bewerken"
-                                        @click="openIngredientModal(ing)"
-                                        @dragstart="onIngredientDragStart($event, ing.id)"
-                                        @dragover.prevent="onIngredientDragOver($event, ing.id)"
-                                        @dragleave="draggingIngredientOverId = null"
-                                        @drop="onIngredientDrop($event, ing.id)"
-                                        @dragend="draggingIngredientId = null; draggingIngredientOverId = null">
-                                        <td class="drag-cell" @click.stop><span class="drag-handle"><i class="bi bi-grip-vertical"></i></span></td>
-                                        <td><strong>{{ ing.name }}</strong></td>
-                                        <td>
-                                            <span v-if="parseInt(ing.is_biologisch)" class="badge badge-bio">BIO</span>
-                                            <template v-if="ing.allergenen && ing.allergenen.length">
-                                                <span v-for="a in ing.allergenen" :key="a" class="badge badge-allergeen">{{ a }}</span>
-                                            </template>
-                                            <span v-if="!parseInt(ing.is_biologisch) && (!ing.allergenen || !ing.allergenen.length)" style="color:#ccc;font-size:0.8rem">—</span>
-                                        </td>
-                                        <td>
-                                            <div style="display:flex;align-items:center;gap:0.5rem">
-                                                <div class="stock-bar">
-                                                    <div class="stock-bar-fill" :class="stockLevel(ing.total_stock)" :style="{width: stockPercent(ing.total_stock)+'%'}"></div>
+                                    <template v-for="ing in overigIngredients" :key="ing.id">
+                                        <tr :class="{'drag-over': draggingIngredientOverId == ing.id, 'dragging': draggingIngredientId == ing.id}"
+                                            draggable="true"
+                                            @dragstart="onIngredientDragStart($event, ing.id)"
+                                            @dragover.prevent="onIngredientDragOver($event, ing.id)"
+                                            @dragleave="draggingIngredientOverId = null"
+                                            @drop="onIngredientDrop($event, ing.id)"
+                                            @dragend="draggingIngredientId = null; draggingIngredientOverId = null">
+                                            <td class="drag-cell" @click.stop><span class="drag-handle"><i class="bi bi-grip-vertical"></i></span></td>
+                                            <td style="cursor:pointer" @click="openIngredientModal(ing)">
+                                                <button v-if="childrenOf(ing.id).length" @click.stop="toggleGroupExpand(ing.id)" style="background:none;border:none;cursor:pointer;color:#8b5a2b;padding:0 0.4rem 0 0;font-size:1rem">
+                                                    <i :class="expandedGroups[ing.id] ? 'bi bi-chevron-down' : 'bi bi-chevron-right'"></i>
+                                                </button>
+                                                <strong>{{ ing.name }}</strong>
+                                            </td>
+                                            <td>
+                                                <template v-if="ing.allergenen && ing.allergenen.length">
+                                                    <span v-for="a in ing.allergenen" :key="a" class="badge badge-allergeen">{{ a }}</span>
+                                                </template>
+                                                <span v-else style="color:#ccc;font-size:0.8rem">—</span>
+                                            </td>
+                                            <td>
+                                                <div style="display:flex;align-items:center;gap:0.5rem">
+                                                    <div class="stock-bar"><div class="stock-bar-fill" :class="stockLevel(filteredGroupStock(ing))" :style="{width: stockPercent(filteredGroupStock(ing))+'%'}"></div></div>
+                                                    <span>{{ formatStock(filteredGroupStock(ing)) }}</span>
                                                 </div>
-                                                <span>{{ formatStock(ing.total_stock) }}</span>
-                                            </div>
-                                        </td>
-                                        <td>{{ ing.current_price_per_kg ? '€'+formatNumber(ing.current_price_per_kg)+'/kg' : '-' }}</td>
-                                        <td @click.stop>
-                                            <button class="btn btn-success btn-sm" @click="openBatchModal(ing)"><i class="bi bi-plus"></i> Bijvullen</button>
-                                        </td>
-                                    </tr>
+                                            </td>
+                                            <td>—</td>
+                                            <td @click.stop>
+                                                <button v-if="!childrenOf(ing.id).length" class="btn btn-success btn-sm" @click="openBatchModal(ing)"><i class="bi bi-plus"></i> Bijvullen</button>
+                                                <button class="btn btn-ghost btn-sm" @click="openSubProductModal(ing)" style="margin-left:0.25rem"><i class="bi bi-plus-circle"></i> Merk</button>
+                                            </td>
+                                        </tr>
+                                        <tr v-for="child in filteredChildrenOf(ing.id)" :key="'c'+child.id"
+                                            v-show="expandedGroups[ing.id]" class="sub-product-row">
+                                            <td class="drag-cell"></td>
+                                            <td style="padding-left:2.25rem;cursor:pointer" @click="openIngredientModal(child)">
+                                                {{ child.brand_name || 'Standaard' }}
+                                                <span v-if="parseInt(child.is_biologisch)" class="badge badge-bio" style="margin-left:0.3rem">BIO</span>
+                                            </td>
+                                            <td>
+                                                <template v-if="child.allergenen && child.allergenen.length">
+                                                    <span v-for="a in child.allergenen" :key="a" class="badge badge-allergeen">{{ a }}</span>
+                                                </template>
+                                                <span v-else style="color:#ccc;font-size:0.8rem">—</span>
+                                            </td>
+                                            <td>
+                                                <div style="display:flex;align-items:center;gap:0.5rem">
+                                                    <div class="stock-bar"><div class="stock-bar-fill" :class="stockLevel(child.total_stock)" :style="{width: stockPercent(child.total_stock)+'%'}"></div></div>
+                                                    <span>{{ formatStock(child.total_stock) }}</span>
+                                                </div>
+                                            </td>
+                                            <td>{{ child.current_price_per_kg ? '€'+formatNumber(child.current_price_per_kg)+'/kg' : '-' }}</td>
+                                            <td><button class="btn btn-success btn-sm" @click="openBatchModal(child)"><i class="bi bi-plus"></i> Bijvullen</button></td>
+                                        </tr>
+                                    </template>
                                     <tr class="ingredient-add-row" @click="openIngredientModal(null, 'overig')">
                                         <td class="drag-cell"></td>
                                         <td colspan="5"><button class="btn-add" @click.stop="openIngredientModal(null, 'overig')"><i class="bi bi-plus"></i> Nieuw overig ingrediënt</button></td>
@@ -499,7 +590,12 @@ require_once '../components/sidebar.php'; ?>
                         <div class="filter-row">
                             <select v-model="filterIngredient">
                                 <option value="">Alle ingrediënten</option>
-                                <option v-for="ing in ingredients" :value="ing.id">{{ ing.name }}</option>
+                                <template v-for="grp in batchIngredientGroups" :key="grp.id">
+                                    <optgroup v-if="grp.children.length" :label="grp.name">
+                                        <option v-for="c in grp.children" :key="c.id" :value="c.id">{{ c.brand_name || 'Standaard' }}{{ parseInt(c.is_biologisch) ? ' (BIO)' : '' }}</option>
+                                    </optgroup>
+                                    <option v-else :value="grp.id">{{ grp.name }}</option>
+                                </template>
                             </select>
                             <label class="toggle-label">
                                 <input type="checkbox" v-model="hideEmptyBatches">
@@ -527,8 +623,8 @@ require_once '../components/sidebar.php'; ?>
                                     <tr v-for="batch in group.items" :key="batch.id"
                                         v-show="!collapsedBatchCategories[group.category]"
                                         :class="{'batch-expired': isBatchExpired(batch), 'batch-empty': parseFloat(batch.quantity_remaining) === 0}">
-                                        <td>
-                                            <strong>{{ batch.ingredient_name }}</strong>
+                                                        <td>
+                                            <strong>{{ batch.ingredient_name }}{{ batch.brand_name ? ' – ' + batch.brand_name : '' }}</strong>
                                             <span v-if="parseInt(batch.is_open)" title="Geopend — wordt afgemaakt voor volgende batch" style="display:inline-block;margin-left:0.4rem;padding:0.1rem 0.4rem;background:#fff3e0;color:#e65100;border-radius:4px;font-size:0.7rem;font-weight:700">open</span>
                                         </td>
                                         <td>{{ formatDate(batch.purchase_date) }}</td>
@@ -734,74 +830,107 @@ require_once '../components/sidebar.php'; ?>
                 <div class="modal-overlay" :class="{active: showIngredientModal}" @mousedown="$event.currentTarget._md = ($event.target === $event.currentTarget)" @click.self="$event.currentTarget._md && (showIngredientModal=false)">
                     <div class="modal">
                         <div class="modal-header">
-                            <h3>{{ editingIngredient ? 'Ingrediënt Bewerken' : 'Nieuw Ingrediënt' }}</h3>
+                            <h3>
+                                <template v-if="!ingredientForm.parent_id">{{ editingIngredient ? 'Groep Bewerken' : 'Nieuwe Ingrediëntengroep' }}</template>
+                                <template v-else>
+                                    {{ editingIngredient ? 'Merk Bewerken' : 'Nieuw Merk' }}
+                                    <span v-if="ingredientModalParentName" style="font-weight:400;opacity:0.75"> — {{ ingredientModalParentName }}</span>
+                                </template>
+                            </h3>
                             <button class="modal-close" @click="showIngredientModal=false">&times;</button>
                         </div>
                         <div class="modal-body">
-                            <div class="form-group">
-                                <label class="form-label">Naam *</label>
-                                <input type="text" class="form-input" v-model="ingredientForm.name" required>
-                            </div>
-                            <div class="form-row">
+                            <!-- GROUP fields (parent_id = null) -->
+                            <template v-if="!ingredientForm.parent_id">
                                 <div class="form-group">
-                                    <label class="form-label">Categorie</label>
-                                    <select class="form-select" v-model="ingredientForm.category">
-                                        <option value="meel">Meel</option>
-                                        <option value="mixin">Toppings + Mix-ins</option>
-                                        <option value="overig">Overig</option>
-                                        <option value="gist" v-if="ingredientForm.category === 'gist'">Gist (oud)</option>
-                                        <option value="topping" v-if="ingredientForm.category === 'topping'">Topping (oud)</option>
-                                    </select>
+                                    <label class="form-label">Naam *</label>
+                                    <input type="text" class="form-input" v-model="ingredientForm.name" required>
                                 </div>
-                                <div class="form-group">
-                                    <label class="form-label">Eenheid</label>
-                                    <select class="form-select" v-model="ingredientForm.unit">
-                                        <option value="g">Gram (g)</option>
-                                        <option value="kg">Kilogram (kg)</option>
-                                        <option value="ml">Milliliter (ml)</option>
-                                        <option value="l">Liter (l)</option>
-                                    </select>
-                                </div>
-                            </div>
-                            <template v-if="ingredientForm.category === 'meel'">
                                 <div class="form-row">
                                     <div class="form-group">
-                                        <label class="form-label">Graansoort</label>
-                                        <select class="form-select" v-model="ingredientForm.grain_type_id">
-                                            <option value="">Selecteer...</option>
-                                            <option v-for="gt in grainTypes" :key="gt.id" :value="gt.id">{{ gt.name }}</option>
+                                        <label class="form-label">Categorie</label>
+                                        <select class="form-select" v-model="ingredientForm.category">
+                                            <option value="meel">Meel</option>
+                                            <option value="mixin">Toppings + Mix-ins</option>
+                                            <option value="overig">Overig</option>
+                                            <option value="gist" v-if="ingredientForm.category === 'gist'">Gist (oud)</option>
+                                            <option value="topping" v-if="ingredientForm.category === 'topping'">Topping (oud)</option>
                                         </select>
                                     </div>
                                     <div class="form-group">
-                                        <label class="form-label">Type</label>
-                                        <select class="form-select" v-model="ingredientForm.is_whole_grain">
-                                            <option :value="0">Wit</option>
-                                            <option :value="1">Volkoren</option>
+                                        <label class="form-label">Eenheid</label>
+                                        <select class="form-select" v-model="ingredientForm.unit">
+                                            <option value="g">Gram (g)</option>
+                                            <option value="kg">Kilogram (kg)</option>
+                                            <option value="ml">Milliliter (ml)</option>
+                                            <option value="l">Liter (l)</option>
                                         </select>
+                                    </div>
+                                </div>
+                                <template v-if="ingredientForm.category === 'meel'">
+                                    <div class="form-row">
+                                        <div class="form-group">
+                                            <label class="form-label">Graansoort</label>
+                                            <select class="form-select" v-model="ingredientForm.grain_type_id">
+                                                <option value="">Selecteer...</option>
+                                                <option v-for="gt in grainTypes" :key="gt.id" :value="gt.id">{{ gt.name }}</option>
+                                            </select>
+                                        </div>
+                                        <div class="form-group">
+                                            <label class="form-label">Type</label>
+                                            <select class="form-select" v-model="ingredientForm.is_whole_grain">
+                                                <option :value="0">Wit</option>
+                                                <option :value="1">Volkoren</option>
+                                            </select>
+                                        </div>
+                                    </div>
+                                </template>
+                            </template>
+
+                            <!-- SUB-PRODUCT fields (parent_id set) -->
+                            <template v-if="ingredientForm.parent_id">
+                                <div class="form-group">
+                                    <label class="form-label">Merknaam <span style="font-weight:400;color:#888">(optioneel — leeg = Standaard)</span></label>
+                                    <input type="text" class="form-input" v-model="ingredientForm.brand_name" placeholder="bijv. Molen de Vlijt">
+                                </div>
+                                <div class="form-group">
+                                    <label class="toggle-label">
+                                        <input type="checkbox" v-model="ingredientForm.is_biologisch" :true-value="1" :false-value="0">
+                                        Biologisch product
+                                    </label>
+                                </div>
+                                <div class="form-group">
+                                    <label class="toggle-label">
+                                        <input type="checkbox" v-model="ingredientForm.use_verpakkingen" :true-value="1" :false-value="0">
+                                        Komt in verpakkingen
+                                        <span title="Een eenmaal geopende verpakking wordt altijd volledig afgemaakt voordat de volgende batch wordt aangesproken — ook als die nieuwere batch een eerdere T.H.T. heeft. Bij het aanvullen kun je het aantal verpakkingen en de kosten per verpakking of totaal invoeren." style="display:inline-flex;align-items:center;justify-content:center;width:1rem;height:1rem;background:#e0d5c7;border-radius:50%;font-size:0.65rem;font-weight:700;color:#5c3d1e;cursor:default;margin-left:0.25rem">?</span>
+                                    </label>
+                                </div>
+                                <div class="form-group" style="border-top:1px solid #f0ebe5;padding-top:0.75rem;margin-top:0.25rem">
+                                    <label class="form-label">Allergenen <span style="font-weight:400;color:#888;">(EU-14)</span></label>
+                                    <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.3rem 1rem;margin-top:0.4rem">
+                                        <label v-for="a in allAllergens" :key="a" style="display:flex;align-items:center;gap:0.4rem;font-size:0.87rem;cursor:pointer;padding:0.2rem 0">
+                                            <input type="checkbox" :value="a" v-model="ingredientForm.allergenen" style="accent-color:#3d6b3d;cursor:pointer;">
+                                            {{ a }}
+                                        </label>
                                     </div>
                                 </div>
                             </template>
-                            <div class="form-group">
-                                <label class="toggle-label">
-                                    <input type="checkbox" v-model="ingredientForm.is_biologisch" :true-value="1" :false-value="0">
-                                    Biologisch product
-                                </label>
-                            </div>
                             <div class="form-group" style="border-top:1px solid #f0ebe5;padding-top:0.75rem;margin-top:0.25rem">
-                                <label class="form-label">Allergenen <span style="font-weight:400;color:#888;">(EU-14, selecteer alles wat van toepassing is)</span></label>
-                                <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.3rem 1rem;margin-top:0.4rem">
-                                    <label v-for="a in allAllergens" :key="a" style="display:flex;align-items:center;gap:0.4rem;font-size:0.87rem;cursor:pointer;padding:0.2rem 0">
-                                        <input type="checkbox" :value="a" v-model="ingredientForm.allergenen" style="accent-color:#3d6b3d;cursor:pointer;">
-                                        {{ a }}
-                                    </label>
+                                <label class="form-label">
+                                    <span v-if="ingredientForm.parent_id">Macronutriënten <span style="font-weight:400;color:#888">per 100g (merk-specifiek)</span></span>
+                                    <span v-else>Macronutriënten <span style="font-weight:400;color:#888">per 100g (standaard — fallback als merk geen waarden heeft)</span></span>
+                                </label>
+                                <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.4rem 0.75rem;margin-top:0.5rem">
+                                    <div><label style="font-size:0.78rem;color:#666;display:block;margin-bottom:0.15rem">Energie (kcal)</label><input type="number" class="form-input" v-model.number="ingredientForm.kcal" min="0" step="0.1" placeholder="—"></div>
+                                    <div><label style="font-size:0.78rem;color:#666;display:block;margin-bottom:0.15rem">Eiwit (g)</label><input type="number" class="form-input" v-model.number="ingredientForm.protein_g" min="0" step="0.01" placeholder="—"></div>
+                                    <div><label style="font-size:0.78rem;color:#666;display:block;margin-bottom:0.15rem">Koolhydraten (g)</label><input type="number" class="form-input" v-model.number="ingredientForm.carbs_g" min="0" step="0.01" placeholder="—"></div>
+                                    <div><label style="font-size:0.78rem;color:#666;display:block;margin-bottom:0.15rem;padding-left:0.75rem">waarvan suikers (g)</label><input type="number" class="form-input" v-model.number="ingredientForm.carbs_sugars_g" min="0" step="0.01" placeholder="—"></div>
+                                    <div><label style="font-size:0.78rem;color:#666;display:block;margin-bottom:0.15rem">Vet (g)</label><input type="number" class="form-input" v-model.number="ingredientForm.fat_g" min="0" step="0.01" placeholder="—"></div>
+                                    <div><label style="font-size:0.78rem;color:#666;display:block;margin-bottom:0.15rem;padding-left:0.75rem">waarvan verzadigd (g)</label><input type="number" class="form-input" v-model.number="ingredientForm.fat_saturated_g" min="0" step="0.01" placeholder="—"></div>
+                                    <div><label style="font-size:0.78rem;color:#666;display:block;margin-bottom:0.15rem">Vezels (g)</label><input type="number" class="form-input" v-model.number="ingredientForm.fiber_g" min="0" step="0.01" placeholder="—"></div>
+                                    <div><label style="font-size:0.78rem;color:#666;display:block;margin-bottom:0.15rem">Zout (g)</label><input type="number" class="form-input" v-model.number="ingredientForm.salt_g" min="0" step="0.01" placeholder="—"></div>
                                 </div>
-                            </div>
-                            <div class="form-group" style="border-top:1px solid #f0ebe5;padding-top:0.75rem;margin-top:0.25rem">
-                                <label class="toggle-label">
-                                    <input type="checkbox" v-model="ingredientForm.use_verpakkingen" :true-value="1" :false-value="0">
-                                    Komt in verpakkingen
-                                    <span title="Als dit ingrediënt in losse verpakkingen komt (bijv. boter in blokken): een eenmaal geopende verpakking wordt altijd afgemaakt voordat een nieuwe batch wordt geopend, ook als die nieuwere batch een eerdere T.H.T. heeft." style="display:inline-flex;align-items:center;justify-content:center;width:1rem;height:1rem;background:#e0d5c7;border-radius:50%;font-size:0.65rem;font-weight:700;color:#5c3d1e;cursor:default;margin-left:0.25rem">?</span>
-                                </label>
                             </div>
                         </div>
                         <div class="modal-footer">
@@ -849,11 +978,18 @@ require_once '../components/sidebar.php'; ?>
                             <div class="form-group">
                                 <label class="form-label">Ingrediënt *</label>
                                 <select class="form-select" v-model="batchForm.ingredient_id" :disabled="editingBatch">
-                                    <option value="">Selecteer ingrediënt</option>
-                                    <option v-for="ing in ingredients" :value="ing.id">{{ ing.name }}</option>
+                                    <option value="">Selecteer ingrediënt / merk</option>
+                                    <template v-for="grp in batchIngredientGroups" :key="grp.id">
+                                        <optgroup v-if="grp.children.length" :label="grp.name">
+                                            <option v-for="c in grp.children" :key="c.id" :value="c.id">
+                                                {{ c.brand_name || 'Standaard' }}{{ parseInt(c.is_biologisch) ? ' (BIO)' : '' }}
+                                            </option>
+                                        </optgroup>
+                                        <option v-else :value="grp.id">{{ grp.name }}</option>
+                                    </template>
                                 </select>
                             </div>
-                            <div class="form-row">
+                            <div class="form-row" v-if="!batchUsesVerpakkingen">
                                 <div class="form-group">
                                     <label class="form-label">Hoeveelheid *</label>
                                     <div class="input-with-unit">
@@ -872,6 +1008,44 @@ require_once '../components/sidebar.php'; ?>
                                     </div>
                                 </div>
                             </div>
+                            <template v-if="batchUsesVerpakkingen">
+                                <div class="form-row">
+                                    <div class="form-group">
+                                        <label class="form-label">Aantal verpakkingen *</label>
+                                        <input type="number" class="form-input" v-model.number="batchForm.num_verpakkingen" min="1" step="1">
+                                    </div>
+                                    <div class="form-group">
+                                        <label class="form-label">Kg per verpakking *</label>
+                                        <div class="input-with-unit">
+                                            <input type="number" class="form-input" v-model.number="batchForm.kg_per_verpakking" min="0" step="0.001">
+                                            <span class="input-unit">kg</span>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div v-if="calculatedQuantityKg > 0" style="margin:-0.25rem 0 0.75rem;color:#666;font-size:0.875rem">
+                                    Totaal: <strong>{{ calculatedQuantityKg.toFixed(2) }} kg</strong>
+                                </div>
+                                <div class="form-row">
+                                    <div class="form-group">
+                                        <label class="form-label">Kosten invoeren als *</label>
+                                        <select class="form-select" v-model="batchForm.cost_type">
+                                            <option value="per_kg">Per kg</option>
+                                            <option value="per_verpakking">Per verpakking</option>
+                                            <option value="totaal">Totale kosten aanvulling</option>
+                                        </select>
+                                    </div>
+                                    <div class="form-group">
+                                        <label class="form-label">Bedrag *</label>
+                                        <div class="input-with-unit">
+                                            <input type="number" class="form-input" v-model.number="batchForm.cost_amount" min="0" step="0.01">
+                                            <span class="input-unit">€</span>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div v-if="calculatedPricePerKg > 0" style="margin:-0.25rem 0 0.75rem;color:#666;font-size:0.875rem">
+                                    = <strong>€ {{ calculatedPricePerKg.toFixed(4) }}</strong> per kg
+                                </div>
+                            </template>
                             <div class="form-row">
                                 <div class="form-group">
                                     <label class="form-label">Inkoopdatum</label>
@@ -1011,7 +1185,7 @@ require_once '../components/sidebar.php'; ?>
     const app = createApp({
         data() {
             return {
-                activeTab: 'overzicht',
+                activeTab: new URLSearchParams(location.search).get('tab') || 'overzicht',
                 ingredientSubTab: 'meel',
                 ingredients: [],
                 batches: [],
@@ -1024,7 +1198,9 @@ require_once '../components/sidebar.php'; ?>
 
                 showIngredientModal: false,
                 editingIngredient: null,
-                ingredientForm: { name: '', category: 'meel', unit: 'g', grain_type_id: '', is_whole_grain: 0, is_biologisch: 0, allergenen: [], use_verpakkingen: 0 },
+                bioFilter: 'bio',
+                expandedGroups: {},
+                ingredientForm: { name: '', category: 'meel', unit: 'g', grain_type_id: '', is_whole_grain: 0, parent_id: null, brand_name: '', is_biologisch: 1, allergenen: [], use_verpakkingen: 0, kcal: '', protein_g: '', carbs_g: '', carbs_sugars_g: '', fat_g: '', fat_saturated_g: '', fiber_g: '', salt_g: '' },
                 allAllergens: ['Gluten','Schaaldieren','Eieren','Vis',"Pinda's",'Soja','Melk','Noten','Selderij','Mosterd','Sesam','Sulfieten','Lupine','Weekdieren'],
 
                 showGrainTypeModal: false,
@@ -1032,7 +1208,7 @@ require_once '../components/sidebar.php'; ?>
 
                 showBatchModal: false,
                 editingBatch: null,
-                batchForm: { ingredient_id: '', quantity: '', unit: 'kg', price_per_kg: '', purchase_date: '', thd_date: '' },
+                batchForm: { ingredient_id: '', quantity: '', unit: 'kg', price_per_kg: '', purchase_date: '', thd_date: '', num_verpakkingen: '', kg_per_verpakking: '', cost_type: 'per_kg', cost_amount: '' },
 
                 currentMonth: new Date().getFullYear() + '-' + String(new Date().getMonth() + 1).padStart(2, '0'),
                 waterCost: { cost: null, estimated_cost: null },
@@ -1077,23 +1253,29 @@ require_once '../components/sidebar.php'; ?>
                 return this.ingredients.filter(i => i.category === this.filterCategory);
             },
             filteredMeel() {
-                let list = this.ingredients.filter(i => i.category === 'meel');
-                if (this.filterGrainType) {
-                    list = list.filter(i => i.grain_type_id == this.filterGrainType);
-                }
-                if (this.filterWholeGrain !== '') {
-                    list = list.filter(i => i.is_whole_grain == this.filterWholeGrain);
-                }
+                let list = this.ingredients.filter(i => i.category === 'meel' && i.parent_id == null);
+                if (this.filterGrainType) list = list.filter(i => i.grain_type_id == this.filterGrainType);
+                if (this.filterWholeGrain !== '') list = list.filter(i => i.is_whole_grain == this.filterWholeGrain);
                 return list;
             },
             gistIngredients() {
-                return this.ingredients.filter(i => i.category === 'gist');
+                return this.ingredients.filter(i => i.category === 'gist' && i.parent_id == null);
             },
             extrasIngredients() {
-                return this.ingredients.filter(i => i.category === 'mixin' || i.category === 'topping');
+                return this.ingredients.filter(i => (i.category === 'mixin' || i.category === 'topping') && i.parent_id == null);
             },
             overigIngredients() {
-                return this.ingredients.filter(i => i.category === 'overig' || i.category === 'gist');
+                return this.ingredients.filter(i => (i.category === 'overig' || i.category === 'gist') && i.parent_id == null);
+            },
+            batchIngredientGroups() {
+                return this.ingredients
+                    .filter(i => i.parent_id == null && i.is_active != 0)
+                    .map(g => ({ ...g, children: this.childrenOf(g.id) }));
+            },
+            ingredientModalParentName() {
+                if (!this.ingredientForm.parent_id) return null;
+                const p = this.ingredients.find(i => i.id == this.ingredientForm.parent_id);
+                return p ? p.name : '';
             },
             filteredBatches() {
                 let list = this.batches;
@@ -1106,7 +1288,11 @@ require_once '../components/sidebar.php'; ?>
                 return list;
             },
             lowStockItems() {
-                return this.ingredients.filter(i => parseFloat(i.total_stock || 0) < 1000);
+                const parentIds = new Set(this.ingredients.filter(i => i.parent_id != null).map(i => i.parent_id));
+                return this.ingredients.filter(i => {
+                    if (parentIds.has(i.id)) return false; // skip parent groups — their children are listed instead
+                    return parseFloat(i.total_stock || 0) < 1000;
+                });
             },
             lowStockCount() {
                 return this.lowStockItems.length;
@@ -1156,6 +1342,32 @@ require_once '../components/sidebar.php'; ?>
                 const months = ['Januari','Februari','Maart','April','Mei','Juni','Juli','Augustus','September','Oktober','November','December'];
                 return months[parseInt(m)-1] + ' ' + y;
             },
+            selectedIngredient() {
+                return this.ingredients.find(i => i.id == this.batchForm.ingredient_id) || null;
+            },
+            batchUsesVerpakkingen() {
+                return !this.editingBatch && this.selectedIngredient && parseInt(this.selectedIngredient.use_verpakkingen);
+            },
+            calculatedQuantityKg() {
+                const n = parseFloat(this.batchForm.num_verpakkingen);
+                const k = parseFloat(this.batchForm.kg_per_verpakking);
+                if (!n || !k) return 0;
+                return n * k;
+            },
+            calculatedPricePerKg() {
+                const amount = parseFloat(this.batchForm.cost_amount);
+                if (!amount) return 0;
+                if (this.batchForm.cost_type === 'per_kg') return amount;
+                if (this.batchForm.cost_type === 'per_verpakking') {
+                    const kpv = parseFloat(this.batchForm.kg_per_verpakking);
+                    return kpv ? amount / kpv : 0;
+                }
+                if (this.batchForm.cost_type === 'totaal') {
+                    const qty = this.calculatedQuantityKg;
+                    return qty ? amount / qty : 0;
+                }
+                return 0;
+            },
             groupedLowStockDisplay() {
                 return this.groupedLowStock.map(group => {
                     if (group.category !== 'meel') return { ...group, subGroups: null };
@@ -1177,6 +1389,13 @@ require_once '../components/sidebar.php'; ?>
         },
 
         methods: {
+            setTab(tab) {
+                this.activeTab = tab;
+                const url = new URL(window.location);
+                url.searchParams.set('tab', tab);
+                history.replaceState(null, '', url);
+            },
+
             toggleGrainType(id) {
                 this.collapsedGrainTypes = { ...this.collapsedGrainTypes, [id]: !this.collapsedGrainTypes[id] };
             },
@@ -1191,7 +1410,13 @@ require_once '../components/sidebar.php'; ?>
                 try {
                     const res = await fetch('../../api/ingredients.php');
                     const data = await res.json();
-                    if (data.success) this.ingredients = data.ingredients;
+                    if (data.success) {
+                        this.ingredients = data.ingredients;
+                        const expanded = {};
+                        const parentIds = new Set(data.ingredients.filter(i => i.parent_id).map(i => i.parent_id));
+                        parentIds.forEach(id => expanded[id] = true);
+                        this.expandedGroups = expanded;
+                    }
                 } catch(e) { console.error(e); }
             },
 
@@ -1327,6 +1552,44 @@ require_once '../components/sidebar.php'; ?>
                 this.loadingForecast = false;
             },
 
+            childrenOf(parentId) {
+                return this.ingredients.filter(i => i.parent_id == parentId);
+            },
+            filteredChildrenOf(parentId) {
+                return this.childrenOf(parentId).filter(c =>
+                    this.bioFilter === 'bio' ? parseInt(c.is_biologisch) === 1 : !parseInt(c.is_biologisch)
+                );
+            },
+            filteredGroupStock(group) {
+                const children = this.childrenOf(group.id);
+                if (children.length > 0) {
+                    return this.filteredChildrenOf(group.id).reduce((s, c) => s + parseFloat(c.total_stock || 0), 0);
+                }
+                return parseFloat(group.total_stock || 0);
+            },
+            toggleGroupExpand(id) {
+                this.expandedGroups = { ...this.expandedGroups, [id]: !this.expandedGroups[id] };
+            },
+
+            openSubProductModal(group) {
+                this.editingIngredient = null;
+                this.ingredientForm = {
+                    name: group.name,
+                    category: group.category,
+                    unit: group.unit,
+                    grain_type_id: group.grain_type_id || '',
+                    is_whole_grain: parseInt(group.is_whole_grain) || 0,
+                    parent_id: group.id,
+                    brand_name: '',
+                    is_biologisch: this.bioFilter === 'bio' ? 1 : 0,
+                    allergenen: [],
+                    use_verpakkingen: parseInt(group.use_verpakkingen) || 0,
+                    kcal: '', protein_g: '', carbs_g: '', carbs_sugars_g: '',
+                    fat_g: '', fat_saturated_g: '', fiber_g: '', salt_g: '',
+                };
+                this.showIngredientModal = true;
+            },
+
             openIngredientModal(ing = null, defaultCategory = null, defaultGrainTypeId = null) {
                 this.editingIngredient = ing;
                 if (ing) {
@@ -1336,9 +1599,14 @@ require_once '../components/sidebar.php'; ?>
                         unit: ing.unit,
                         grain_type_id: ing.grain_type_id || '',
                         is_whole_grain: ing.is_whole_grain || 0,
+                        parent_id: ing.parent_id || null,
+                        brand_name: ing.brand_name || '',
                         is_biologisch: parseInt(ing.is_biologisch) || 0,
                         allergenen: Array.isArray(ing.allergenen) ? [...ing.allergenen] : [],
                         use_verpakkingen: parseInt(ing.use_verpakkingen) || 0,
+                        kcal: ing.kcal ?? '', protein_g: ing.protein_g ?? '', carbs_g: ing.carbs_g ?? '',
+                        carbs_sugars_g: ing.carbs_sugars_g ?? '', fat_g: ing.fat_g ?? '',
+                        fat_saturated_g: ing.fat_saturated_g ?? '', fiber_g: ing.fiber_g ?? '', salt_g: ing.salt_g ?? '',
                     };
                 } else {
                     this.ingredientForm = {
@@ -1347,9 +1615,13 @@ require_once '../components/sidebar.php'; ?>
                         unit: 'g',
                         grain_type_id: defaultGrainTypeId || '',
                         is_whole_grain: 0,
+                        parent_id: null,
+                        brand_name: '',
                         is_biologisch: 0,
                         allergenen: [],
                         use_verpakkingen: 0,
+                        kcal: '', protein_g: '', carbs_g: '', carbs_sugars_g: '',
+                        fat_g: '', fat_saturated_g: '', fiber_g: '', salt_g: '',
                     };
                 }
                 this.showIngredientModal = true;
@@ -1436,7 +1708,11 @@ require_once '../components/sidebar.php'; ?>
                     unit: 'kg',
                     price_per_kg: '',
                     purchase_date: new Date().toISOString().slice(0, 10),
-                    thd_date: ''
+                    thd_date: '',
+                    num_verpakkingen: '',
+                    kg_per_verpakking: '',
+                    cost_type: 'per_kg',
+                    cost_amount: ''
                 };
                 this.showBatchModal = true;
             },
@@ -1455,7 +1731,12 @@ require_once '../components/sidebar.php'; ?>
             },
 
             async saveBatch() {
-                if (!this.batchForm.ingredient_id || !this.batchForm.quantity || !this.batchForm.price_per_kg) {
+                if (this.batchUsesVerpakkingen) {
+                    if (!this.batchForm.ingredient_id || !this.batchForm.num_verpakkingen || !this.batchForm.kg_per_verpakking || !this.batchForm.cost_amount) {
+                        this.showToast('Vul alle verplichte velden in', 'error');
+                        return;
+                    }
+                } else if (!this.batchForm.ingredient_id || !this.batchForm.quantity || !this.batchForm.price_per_kg) {
                     this.showToast('Vul alle verplichte velden in', 'error');
                     return;
                 }
@@ -1484,13 +1765,22 @@ require_once '../components/sidebar.php'; ?>
                             this.loadIngredients();
                         }
                     } else {
+                        const batchData = this.batchUsesVerpakkingen ? {
+                            action: 'add_batch',
+                            ingredient_id: this.batchForm.ingredient_id,
+                            quantity: this.calculatedQuantityKg,
+                            unit: 'kg',
+                            price_per_kg: this.calculatedPricePerKg,
+                            purchase_date: this.batchForm.purchase_date,
+                            thd_date: this.batchForm.thd_date || null
+                        } : {
+                            action: 'add_batch',
+                            ...this.batchForm
+                        };
                         const res = await fetch('../../api/inventory.php', {
                             method: 'POST',
                             headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({
-                                action: 'add_batch',
-                                ...this.batchForm
-                            })
+                            body: JSON.stringify(batchData)
                         });
                         const data = await res.json();
                         if (data.success) {
@@ -1547,7 +1837,7 @@ require_once '../components/sidebar.php'; ?>
                         .filter(i => parseFloat(i.total_stock) > 0)
                         .map(i => ({
                             ingredient_id: i.id,
-                            name: i.name,
+                            name: i.brand_name ? i.name + ' – ' + i.brand_name : i.name,
                             expected: parseFloat(i.total_stock),
                             counted_kg: parseFloat(i.total_stock) / 1000
                         }));
@@ -1775,13 +2065,13 @@ require_once '../components/sidebar.php'; ?>
     <script>
     function newGrainType() {
         if (!window.vueApp) return;
-        window.vueApp.activeTab = 'ingredienten';
+        window.vueApp.setTab('ingredienten');
         window.vueApp.ingredientSubTab = 'meel';
         window.vueApp.showGrainTypeModal = true;
     }
     function newIngredient() {
         if (!window.vueApp) return;
-        if (window.vueApp.activeTab !== 'ingredienten') window.vueApp.activeTab = 'ingredienten';
+        if (window.vueApp.activeTab !== 'ingredienten') window.vueApp.setTab('ingredienten');
         const typeMap = { meel: 'meel', extras: 'mixin', overig: 'overig' };
         const type = typeMap[window.vueApp.ingredientSubTab] || 'meel';
         window.vueApp.openIngredientModal(null, type);

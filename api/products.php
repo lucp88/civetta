@@ -19,7 +19,8 @@ $isAdmin = isset($_SESSION['admin_logged_in']) && $_SESSION['admin_logged_in'] =
 try {
     switch ($method) {
         case 'GET':
-            $stmt = $pdo->query("SELECT p.id, p.naam, p.ingredienten, p.beschrijving, p.prijs, p.foto, p.category_id, pc.naam as category_naam FROM products p LEFT JOIN product_categories pc ON p.category_id = pc.id ORDER BY p.sort_order ASC, p.naam ASC");
+            $whereClause = $isAdmin ? '' : 'WHERE p.is_hidden = 0';
+            $stmt = $pdo->query("SELECT p.id, p.naam, p.ingredienten, p.beschrijving, p.prijs, p.foto, p.category_id, p.is_active, p.is_hidden, pc.naam as category_naam FROM products p LEFT JOIN product_categories pc ON p.category_id = pc.id $whereClause ORDER BY p.sort_order ASC, p.naam ASC");
             $products = $stmt->fetchAll();
 
             $variantStmt = $pdo->query("SELECT * FROM product_variants ORDER BY product_id ASC, sort_order ASC, gewicht ASC");
@@ -28,6 +29,7 @@ try {
             $variantsByProduct = [];
             $allRecipeIds = [];
             foreach ($allVariants as $v) {
+                if (!$isAdmin && $v['is_hidden']) continue;
                 $pid = $v['product_id'];
                 $variantsByProduct[$pid][] = [
                     'id' => (int)$v['id'],
@@ -35,7 +37,9 @@ try {
                     'gewicht' => (int)$v['gewicht'],
                     'prijs' => (float)$v['prijs'],
                     'foto' => $v['foto'] ?? null,
-                    'recipe_id' => !empty($v['recipe_id']) ? (int)$v['recipe_id'] : null
+                    'recipe_id' => !empty($v['recipe_id']) ? (int)$v['recipe_id'] : null,
+                    'is_active' => (bool)$v['is_active'],
+                    'is_hidden' => (bool)$v['is_hidden'],
                 ];
                 if (!empty($v['recipe_id'])) {
                     $allRecipeIds[] = (int)$v['recipe_id'];
@@ -44,6 +48,8 @@ try {
 
             // Attach variants (without recipe derivation — that's done below)
             foreach ($products as &$product) {
+                $product['is_active'] = (bool)$product['is_active'];
+                $product['is_hidden'] = (bool)$product['is_hidden'];
                 $product['variants'] = $variantsByProduct[$product['id']] ?? [];
             }
             unset($product);
@@ -289,6 +295,25 @@ try {
                 $stmt = $pdo->prepare("UPDATE product_categories SET naam = ? WHERE id = ?");
                 $stmt->execute([$naam, (int)$data['id']]);
                 echo json_encode(['success' => true, 'naam' => htmlspecialchars($naam)]);
+            } elseif (($data['action'] ?? '') === 'toggle' && isset($data['type'], $data['id'], $data['field'], $data['value'])) {
+                $allowedFields = ['is_active', 'is_hidden'];
+                $field = $data['field'];
+                if (!in_array($field, $allowedFields)) {
+                    echo json_encode(['success' => false, 'error' => 'Ongeldig veld']);
+                    break;
+                }
+                $id = (int)$data['id'];
+                $value = $data['value'] ? 1 : 0;
+                if ($data['type'] === 'product') {
+                    $stmt = $pdo->prepare("UPDATE products SET `$field` = ? WHERE id = ?");
+                } elseif ($data['type'] === 'variant') {
+                    $stmt = $pdo->prepare("UPDATE product_variants SET `$field` = ? WHERE id = ?");
+                } else {
+                    echo json_encode(['success' => false, 'error' => 'Ongeldig type']);
+                    break;
+                }
+                $stmt->execute([$value, $id]);
+                echo json_encode(['success' => true]);
             } else {
                 echo json_encode(['success' => false, 'error' => 'Onbekende actie']);
             }

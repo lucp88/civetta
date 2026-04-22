@@ -35,7 +35,7 @@ createApp({
                         return;
                     }
                     sessionStorage.setItem('businessAccount', JSON.stringify(data.account));
-                    window.location.href = 'zakelijk-dashboard.html';
+                    window.location.href = 'mijn-dashboard.html';
                 } else {
                     this.error = data.error || 'Inloggen mislukt';
                 }

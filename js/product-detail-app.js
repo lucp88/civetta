@@ -9,7 +9,11 @@ createApp({
             error: null,
             showDetails: false,
             showAllergens: true,
-            selectedVariantId: null
+            selectedVariantId: null,
+            // Cart
+            isBusinessUser: false,
+            addQuantity: 1,
+            addedToCart: false
         };
     },
 
@@ -76,10 +80,28 @@ createApp({
 
         hasBiologisch() {
             return this.displayIngredients && this.displayIngredients.includes('*');
+        },
+
+        isComingSoon() {
+            return this.selectedVariant && !this.selectedVariant.is_active;
+        },
+
+        canAddToCart() {
+            return this.isBusinessUser && this.selectedVariant && this.selectedVariant.is_active;
+        },
+
+        cartCountForVariant() {
+            if (!this.selectedVariant) return 0;
+            try {
+                const data = JSON.parse(sessionStorage.getItem('checkoutData') || '{}');
+                const item = (data.items || []).find(i => i.variant_id == this.selectedVariant.id);
+                return item ? item.quantity : 0;
+            } catch(e) { return 0; }
         }
     },
 
     mounted() {
+        this.isBusinessUser = !!sessionStorage.getItem('businessAccount');
         this.loadProduct();
     },
 
@@ -115,9 +137,10 @@ createApp({
                 this.allAllergens = data.all_allergens || [];
                 document.title = product.naam + ' | Bakkerij Civetta';
 
-                // Auto-select first variant
+                // Auto-select first active variant, fall back to first
                 if (product.variants && product.variants.length > 0) {
-                    this.selectedVariantId = this.selectableVariants[0].id;
+                    const firstActive = this.selectableVariants.find(v => v.is_active);
+                    this.selectedVariantId = (firstActive || this.selectableVariants[0]).id;
                 }
             } catch (e) {
                 this.error = 'Er ging iets mis bij het laden van het product.';
@@ -126,21 +149,56 @@ createApp({
             }
         },
 
+        addToCart() {
+            if (!this.canAddToCart) return;
+
+            const variant = this.selectedVariant;
+            const qty = Math.max(1, parseInt(this.addQuantity) || 1);
+
+            let productName = this.product.naam;
+            if (variant.naam && variant.gewicht) productName += ' ' + variant.naam + ' (' + variant.gewicht + 'g)';
+            else if (variant.naam) productName += ' ' + variant.naam;
+            else if (variant.gewicht) productName += ' (' + variant.gewicht + 'g)';
+
+            try {
+                const stored = JSON.parse(sessionStorage.getItem('checkoutData') || '{}');
+                const items = stored.items || [];
+                const existing = items.findIndex(i => i.variant_id == variant.id);
+                if (existing >= 0) {
+                    items[existing].quantity += qty;
+                } else {
+                    items.push({
+                        product_name: productName,
+                        product_image: this.product.foto || null,
+                        quantity: qty,
+                        unit_price: parseFloat(variant.prijs),
+                        variant_id: variant.id,
+                        product_id: this.product.id
+                    });
+                }
+                const total = items.reduce((s, i) => s + i.unit_price * i.quantity, 0);
+                sessionStorage.setItem('checkoutData', JSON.stringify({ items, total_amount: total }));
+                if (typeof updateNavCart === 'function') updateNavCart();
+            } catch(e) {}
+
+            this.addedToCart = true;
+            this.addQuantity = 1;
+            setTimeout(() => { this.addedToCart = false; }, 1800);
+        },
+
         variantLabel(v) {
             let label = '';
             if (v.naam && v.gewicht) label = v.naam + ' - ' + v.gewicht + 'g';
             else if (v.naam) label = v.naam;
             else label = v.gewicht + 'g';
             if (parseFloat(v.prijs) > 0) label += ' — ' + this.formatPrice(v.prijs);
+            if (!v.is_active) label += ' (binnenkort beschikbaar)';
             return label;
         },
 
         formatPrice(price) {
             if (!parseFloat(price)) return null;
-            return new Intl.NumberFormat('nl-NL', {
-                style: 'currency',
-                currency: 'EUR'
-            }).format(price);
+            return new Intl.NumberFormat('nl-NL', { style: 'currency', currency: 'EUR' }).format(price);
         }
     }
 }).mount('#product-detail-app');

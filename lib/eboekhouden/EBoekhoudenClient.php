@@ -10,9 +10,11 @@ class EBoekhoudenClient {
     private $baseUrl = 'https://api.e-boekhouden.nl';
     private $appName = 'Civetta';
     private $sessionToken = null;
+    private $pdo = null;
 
-    public function __construct($apiToken) {
+    public function __construct($apiToken, $pdo = null) {
         $this->apiToken = $apiToken;
+        $this->pdo = $pdo;
     }
 
     private function startSession() {
@@ -277,12 +279,12 @@ class EBoekhoudenClient {
         if ($sendEmail && !empty($accountData['email'])) {
             $deliveryDate = $accountData['delivery_date'] ?? null;
             $btwTarief = $accountData['btw_tarief'] ?? 9;
-            $htmlBody = buildInvoiceEmailBody($accountData, $orderItems, null, $deliveryDate, $btwTarief);
+            $htmlBody = buildInvoiceEmailBody($accountData, $orderItems, null, $deliveryDate, $btwTarief, $this->pdo);
 
             $invoiceData['email'] = [
                 'fromEmail' => 'info@bakkerij-civetta.nl',
                 'fromName' => 'Bakkerij Civetta',
-                'subject' => 'Uw factuur van Bakkerij Civetta',
+                'subject' => getEmailSubject($this->pdo, 'factuur', 'Uw factuur van Bakkerij Civetta'),
                 'body' => $htmlBody
             ];
         }
@@ -414,7 +416,7 @@ function getEBoekhoudenClient($pdo) {
         return null;
     }
 
-    return new EBoekhoudenClient($settings['eboekhouden_api_token']);
+    return new EBoekhoudenClient($settings['eboekhouden_api_token'], $pdo);
 }
 
 function getEBoekhoudenSettings($pdo) {

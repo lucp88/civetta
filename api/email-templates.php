@@ -1,5 +1,43 @@
 <?php
 
+/**
+ * Read an email template setting from DB. Returns null if not set or $pdo not provided.
+ * Private to this file — prefix avoids naming conflicts.
+ */
+function _emailSetting($pdo, $key) {
+    if (!$pdo) return null;
+    static $cache = [];
+    if (array_key_exists($key, $cache)) return $cache[$key];
+    try {
+        $stmt = $pdo->prepare("SELECT setting_value FROM settings WHERE setting_key = ?");
+        $stmt->execute([$key]);
+        $val = $stmt->fetchColumn();
+        $cache[$key] = ($val !== false && $val !== '') ? $val : null;
+    } catch (Exception $e) {
+        $cache[$key] = null;
+    }
+    return $cache[$key];
+}
+
+/**
+ * Get the subject for an email template from DB, with fallback to $default.
+ */
+function getEmailSubject($pdo, $slug, $default) {
+    return _emailSetting($pdo, 'email_tpl_' . $slug . '_subject') ?? $default;
+}
+
+/**
+ * Get the intro/body text for an email template, substitute $placeholders, return as HTML.
+ * $default is the fallback plain-text string.
+ */
+function getEmailIntroHtml($pdo, $slug, $default, $placeholders = []) {
+    $text = _emailSetting($pdo, 'email_tpl_' . $slug . '_body') ?? $default;
+    if (!empty($placeholders)) {
+        $text = str_replace(array_keys($placeholders), array_values($placeholders), $text);
+    }
+    return nl2br(htmlspecialchars($text, ENT_QUOTES, 'UTF-8'));
+}
+
 function getEmailStyles() {
     return '
         body { margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; background-color: #f5f2ed; }
@@ -98,7 +136,7 @@ function formatEuro($amount) {
     return '€ ' . number_format($amount, 2, ',', '.');
 }
 
-function buildOrderConfirmationEmail($order, $items, $bedrijf, $btwTarief = 9) {
+function buildOrderConfirmationEmail($order, $items, $bedrijf, $btwTarief = 9, $pdo = null) {
     $totalInclBtw = floatval($order['total_amount']);
     $btwBedrag = $totalInclBtw - ($totalInclBtw / (1 + $btwTarief / 100));
     $exclBtw = $totalInclBtw - $btwBedrag;
@@ -123,7 +161,7 @@ function buildOrderConfirmationEmail($order, $items, $bedrijf, $btwTarief = 9) {
             
             <h2>Bedankt voor uw bestelling!</h2>
             
-            <p>Wij hebben uw bestelling in goede orde ontvangen. Hieronder vindt u een overzicht van uw bestelling.</p>
+            <p>' . getEmailIntroHtml($pdo, 'bestelbevestiging', 'Wij hebben uw bestelling in goede orde ontvangen. Hieronder vindt u een overzicht van uw bestelling.') . '</p>
             
             <div class="info-box">
                 <h3>Bestelgegevens</h3>
@@ -230,7 +268,7 @@ function buildOrderConfirmationEmail($order, $items, $bedrijf, $btwTarief = 9) {
     return $html;
 }
 
-function buildCancellationEmail($order, $items, $bedrijf, $btwTarief = 9) {
+function buildCancellationEmail($order, $items, $bedrijf, $btwTarief = 9, $pdo = null) {
     $totalInclBtw = floatval($order['total_amount']);
     $bestelbonNummer = $order['bestelbon_number'] ?? 'B' . date('Y') . '-' . str_pad($order['id'], 4, '0', STR_PAD_LEFT);
     $leverDatum = date('j F Y', strtotime($order['delivery_date']));
@@ -248,7 +286,7 @@ function buildCancellationEmail($order, $items, $bedrijf, $btwTarief = 9) {
             
             <h2>Uw bestelling is geannuleerd</h2>
             
-            <p>Hierbij bevestigen wij de annulering van uw bestelling. De bestelling zal niet worden geleverd.</p>
+            <p>' . getEmailIntroHtml($pdo, 'annulering', 'Hierbij bevestigen wij de annulering van uw bestelling. De bestelling zal niet worden geleverd.') . '</p>
             
             <div class="info-box">
                 <h3>Geannuleerde bestelling</h3>
@@ -303,7 +341,7 @@ function buildCancellationEmail($order, $items, $bedrijf, $btwTarief = 9) {
     return $html;
 }
 
-function buildAccountRegistrationEmail($account, $bedrijf = []) {
+function buildAccountRegistrationEmail($account, $bedrijf = [], $pdo = null) {
     $html = getEmailHeader('Aanvraag ontvangen');
     
     $html .= '
@@ -312,7 +350,7 @@ function buildAccountRegistrationEmail($account, $bedrijf = []) {
             
             <h2>Uw aanvraag is ontvangen!</h2>
             
-            <p>Bedankt voor uw interesse in Bakkerij Civetta. Wij hebben uw zakelijke accountaanvraag voor <strong>' . htmlspecialchars($account['bedrijfsnaam']) . '</strong> in goede orde ontvangen.</p>
+            <p>' . getEmailIntroHtml($pdo, 'account_aanvraag', 'Bedankt voor uw interesse in Bakkerij Civetta. Wij hebben uw zakelijke accountaanvraag voor {bedrijfsnaam} in goede orde ontvangen.', ['{bedrijfsnaam}' => $account['bedrijfsnaam'], '{contactpersoon}' => $account['contactpersoon']]) . '</p>
             
             <div class="info-box">
                 <h3>Uw gegevens</h3>
@@ -342,7 +380,7 @@ function buildAccountRegistrationEmail($account, $bedrijf = []) {
     return $html;
 }
 
-function buildAccountApprovedEmail($account, $password, $bedrijf = []) {
+function buildAccountApprovedEmail($account, $password, $bedrijf = [], $pdo = null) {
     $html = getEmailHeader('Uw zakelijk account is goedgekeurd');
     
     $html .= '
@@ -351,9 +389,7 @@ function buildAccountApprovedEmail($account, $password, $bedrijf = []) {
             
             <h2>Welkom bij Bakkerij Civetta!</h2>
             
-            <p>Goed nieuws! Uw zakelijke accountaanvraag voor <strong>' . htmlspecialchars($account['bedrijfsnaam']) . '</strong> is goedgekeurd.</p>
-            
-            <p>U kunt nu inloggen op ons zakelijk portaal en direct beginnen met bestellen van ons ambachtelijke brood en gebak.</p>
+            <p>' . getEmailIntroHtml($pdo, 'account_goedgekeurd', "Goed nieuws! Uw zakelijke accountaanvraag voor {bedrijfsnaam} is goedgekeurd.\n\nU kunt nu inloggen op ons zakelijk portaal en direct beginnen met bestellen van ons ambachtelijke brood en gebak.", ['{bedrijfsnaam}' => $account['bedrijfsnaam'], '{contactpersoon}' => $account['contactpersoon']]) . '</p>
             
             <div class="credentials-box">
                 <h3>Uw inloggegevens</h3>
@@ -397,7 +433,7 @@ function buildAccountApprovedEmail($account, $password, $bedrijf = []) {
     return $html;
 }
 
-function buildPasswordResetEmail($account, $password, $bedrijf = []) {
+function buildPasswordResetEmail($account, $password, $bedrijf = [], $pdo = null) {
     $html = getEmailHeader('Nieuw wachtwoord');
     
     $html .= '
@@ -406,7 +442,7 @@ function buildPasswordResetEmail($account, $password, $bedrijf = []) {
             
             <h2>Nieuw wachtwoord aangemaakt</h2>
             
-            <p>Er is een nieuw wachtwoord aangemaakt voor uw zakelijke account bij Bakkerij Civetta.</p>
+            <p>' . getEmailIntroHtml($pdo, 'wachtwoord_reset', 'Er is een nieuw wachtwoord aangemaakt voor uw zakelijke account bij Bakkerij Civetta.', ['{contactpersoon}' => $account['contactpersoon']]) . '</p>
             
             <div class="credentials-box">
                 <h3>Uw nieuwe inloggegevens</h3>
@@ -441,7 +477,7 @@ function buildPasswordResetEmail($account, $password, $bedrijf = []) {
     return $html;
 }
 
-function buildForgotPasswordEmail($account, $resetUrl, $bedrijf = []) {
+function buildForgotPasswordEmail($account, $resetUrl, $bedrijf = [], $pdo = null) {
     $html = getEmailHeader('Wachtwoord opnieuw instellen');
 
     $html .= '
@@ -450,7 +486,7 @@ function buildForgotPasswordEmail($account, $resetUrl, $bedrijf = []) {
 
             <h2>Wachtwoord opnieuw instellen</h2>
 
-            <p>We hebben een verzoek ontvangen om het wachtwoord van uw account bij Bakkerij Civetta opnieuw in te stellen.</p>
+            <p>' . getEmailIntroHtml($pdo, 'wachtwoord_vergeten', 'We hebben een verzoek ontvangen om het wachtwoord van uw account bij Bakkerij Civetta opnieuw in te stellen.', ['{contactpersoon}' => $account['contactpersoon']]) . '</p>
 
             <p style="text-align: center; margin: 2rem 0;">
                 <a href="' . htmlspecialchars($resetUrl) . '" class="cta-button">Nieuw wachtwoord instellen</a>
@@ -475,7 +511,7 @@ function buildForgotPasswordEmail($account, $resetUrl, $bedrijf = []) {
     return $html;
 }
 
-function buildAccountInviteEmail($account, $inviteUrl, $bedrijf = []) {
+function buildAccountInviteEmail($account, $inviteUrl, $bedrijf = [], $pdo = null) {
     $html = getEmailHeader('Activeer uw account');
 
     $html .= '
@@ -484,7 +520,7 @@ function buildAccountInviteEmail($account, $inviteUrl, $bedrijf = []) {
 
             <h2>Welkom bij Bakkerij Civetta!</h2>
 
-            <p>Uw zakelijke account voor <strong>' . htmlspecialchars($account['bedrijfsnaam']) . '</strong> is aangemaakt. Klik op de knop hieronder om uw eigen wachtwoord in te stellen en uw account te activeren.</p>
+            <p>' . getEmailIntroHtml($pdo, 'account_uitnodiging', 'Uw zakelijke account voor {bedrijfsnaam} is aangemaakt. Klik op de knop hieronder om uw eigen wachtwoord in te stellen en uw account te activeren.', ['{bedrijfsnaam}' => $account['bedrijfsnaam'], '{contactpersoon}' => $account['contactpersoon']]) . '</p>
 
             <p style="text-align: center; margin: 2rem 0;">
                 <a href="' . htmlspecialchars($inviteUrl) . '" class="cta-button">Account activeren</a>
@@ -519,7 +555,7 @@ function buildAccountInviteEmail($account, $inviteUrl, $bedrijf = []) {
     return $html;
 }
 
-function buildRecurringConfirmationEmail($order, $items, $upcomingOrders, $bedrijf, $btwTarief = 9) {
+function buildRecurringConfirmationEmail($order, $items, $upcomingOrders, $bedrijf, $btwTarief = 9, $pdo = null) {
     $frequentieLabels = ['weekly' => 'Wekelijks', 'biweekly' => 'Tweewekelijks', 'monthly' => 'Maandelijks'];
     $frequentie = $frequentieLabels[$order['recurring_frequency']] ?? $order['recurring_frequency'];
     
@@ -542,7 +578,7 @@ function buildRecurringConfirmationEmail($order, $items, $upcomingOrders, $bedri
             
             <h2>Uw terugkerende bestelling is bevestigd!</h2>
             
-            <p>Bedankt! Uw terugkerende bestelling is succesvol ingesteld. U ontvangt nu automatisch uw bestelling volgens onderstaand schema.</p>
+            <p>' . getEmailIntroHtml($pdo, 'terugkerend_bevestiging', 'Bedankt! Uw terugkerende bestelling is succesvol ingesteld. U ontvangt nu automatisch uw bestelling volgens onderstaand schema.', ['{contactpersoon}' => $order['contactpersoon'], '{bedrijfsnaam}' => $order['bedrijfsnaam']]) . '</p>
             
             <div class="info-box">
                 <h3>' . htmlspecialchars($order['recurring_name'] ?? 'Terugkerende bestelling') . '</h3>
@@ -632,7 +668,7 @@ function buildRecurringConfirmationEmail($order, $items, $upcomingOrders, $bedri
     return $html;
 }
 
-function buildAdminOrderNotificationEmail($order, $items, $isNew = true, $bedrijf = []) {
+function buildAdminOrderNotificationEmail($order, $items, $isNew = true, $bedrijf = [], $pdo = null) {
     $action = $isNew ? 'Nieuwe bestelling' : 'Bestelling gewijzigd';
     $leverDatum = date('j F Y', strtotime($order['delivery_date']));
     $maandNamen = ['January' => 'januari', 'February' => 'februari', 'March' => 'maart', 'April' => 'april', 'May' => 'mei', 'June' => 'juni', 'July' => 'juli', 'August' => 'augustus', 'September' => 'september', 'October' => 'oktober', 'November' => 'november', 'December' => 'december'];
@@ -716,7 +752,7 @@ function buildAdminOrderNotificationEmail($order, $items, $isNew = true, $bedrij
     return $html;
 }
 
-function buildInvoiceEmailBody($accountData, $orderItems, $invoiceNumber = null, $deliveryDate = null, $btwTarief = 9) {
+function buildInvoiceEmailBody($accountData, $orderItems, $invoiceNumber = null, $deliveryDate = null, $btwTarief = 9, $pdo = null) {
     $contactpersoon = $accountData['contactpersoon'] ?? 'klant';
     $bedrijfsnaam = $accountData['bedrijfsnaam'] ?? '';
     
@@ -744,7 +780,7 @@ function buildInvoiceEmailBody($accountData, $orderItems, $invoiceNumber = null,
             
             <h2>Uw factuur van Bakkerij Civetta</h2>
             
-            <p>Hartelijk dank voor uw bestelling! Bijgaand vindt u uw factuur.</p>';
+            <p>' . getEmailIntroHtml($pdo, 'factuur', 'Hartelijk dank voor uw bestelling! Bijgaand vindt u uw factuur.', ['{contactpersoon}' => $contactpersoon, '{bedrijfsnaam}' => $bedrijfsnaam]) . '</p>';
     
     if ($invoiceNumber || $leverDatumStr) {
         $html .= '
@@ -825,7 +861,7 @@ function buildInvoiceEmailBody($accountData, $orderItems, $invoiceNumber = null,
     return $html;
 }
 
-function buildRecurringPauseEmail($accountInfo, $affectedOrders, $unaffectedOrders, $isPause, $bedrijf = []) {
+function buildRecurringPauseEmail($accountInfo, $affectedOrders, $unaffectedOrders, $isPause, $bedrijf = [], $pdo = null) {
     $maandNamen = ['January' => 'januari', 'February' => 'februari', 'March' => 'maart', 'April' => 'april', 'May' => 'mei', 'June' => 'juni', 'July' => 'juli', 'August' => 'augustus', 'September' => 'september', 'October' => 'oktober', 'November' => 'november', 'December' => 'december'];
     $frequentieLabels = ['weekly' => 'Wekelijks', 'biweekly' => 'Tweewekelijks', 'monthly' => 'Maandelijks'];
     
@@ -836,7 +872,7 @@ function buildRecurringPauseEmail($accountInfo, $affectedOrders, $unaffectedOrde
         $title = 'Terugkerende bestelling gepauzeerd';
         $headerText = 'LEVERINGEN GEPAUZEERD';
         $headerBg = '#f0ad4e';
-        $introText = 'Uw terugkerende bestelling is gepauzeerd. De onderstaande leveringen worden <strong>niet uitgevoerd</strong> tenzij u de bestelling weer activeert via uw dashboard.';
+        $introText = getEmailIntroHtml($pdo, 'terugkerend_gepauzeerd', 'Uw terugkerende bestelling is gepauzeerd. De onderstaande leveringen worden niet uitgevoerd tenzij u de bestelling weer activeert via uw dashboard.', ['{contactpersoon}' => $accountInfo['contactpersoon'], '{bedrijfsnaam}' => $accountInfo['bedrijfsnaam']]);
         $affectedLabel = 'Gepauzeerde leveringen (worden niet uitgevoerd)';
         $unaffectedLabel = 'Leveringen in bereiding (gaan wel door)';
         $unaffectedNote = 'Deze leveringen waren al in bereiding en kunnen niet meer worden gepauzeerd. Deze gaan gewoon door.';
@@ -844,7 +880,7 @@ function buildRecurringPauseEmail($accountInfo, $affectedOrders, $unaffectedOrde
         $title = 'Terugkerende bestelling hervat';
         $headerText = 'LEVERINGEN HERVAT';
         $headerBg = '#28a745';
-        $introText = 'Uw terugkerende bestelling is weer actief. De onderstaande leveringen worden weer uitgevoerd.';
+        $introText = getEmailIntroHtml($pdo, 'terugkerend_hervat', 'Uw terugkerende bestelling is weer actief. De onderstaande leveringen worden weer uitgevoerd.', ['{contactpersoon}' => $accountInfo['contactpersoon'], '{bedrijfsnaam}' => $accountInfo['bedrijfsnaam']]);
         $affectedLabel = 'Hervatte leveringen';
         $unaffectedLabel = 'Gemiste leveringen (geannuleerd)';
         $unaffectedNote = 'Deze leveringen konden niet meer worden hervat omdat de bereidingsdeadline is verstreken.';
@@ -945,7 +981,7 @@ function buildRecurringPauseEmail($accountInfo, $affectedOrders, $unaffectedOrde
     return $html;
 }
 
-function buildRecurringUpdateEmail($order, $oldItems, $newItems, $upcomingOrders, $bedrijf, $btwTarief = 9) {
+function buildRecurringUpdateEmail($order, $oldItems, $newItems, $upcomingOrders, $bedrijf, $btwTarief = 9, $pdo = null) {
     $maandNamen = ['January' => 'januari', 'February' => 'februari', 'March' => 'maart', 'April' => 'april', 'May' => 'mei', 'June' => 'juni', 'July' => 'juli', 'August' => 'augustus', 'September' => 'september', 'October' => 'oktober', 'November' => 'november', 'December' => 'december'];
     $frequentieLabels = ['weekly' => 'Wekelijks', 'biweekly' => 'Tweewekelijks', 'monthly' => 'Maandelijks'];
     
@@ -970,7 +1006,7 @@ function buildRecurringUpdateEmail($order, $oldItems, $newItems, $upcomingOrders
             
             <h2>Uw terugkerende bestelling is aangepast</h2>
             
-            <p>Hierbij bevestigen wij de wijziging van uw terugkerende bestelling. De nieuwe producten gelden voor alle toekomstige leveringen.</p>
+            <p>' . getEmailIntroHtml($pdo, 'terugkerend_gewijzigd', 'Hierbij bevestigen wij de wijziging van uw terugkerende bestelling. De nieuwe producten gelden voor alle toekomstige leveringen.', ['{contactpersoon}' => $order['contactpersoon'], '{bedrijfsnaam}' => $order['bedrijfsnaam']]) . '</p>
             
             <div class="info-box">
                 <h3>' . htmlspecialchars($recurringName) . '</h3>
@@ -1076,7 +1112,7 @@ function buildRecurringUpdateEmail($order, $oldItems, $newItems, $upcomingOrders
     return $html;
 }
 
-function buildDeliveryOnRouteEmail($order, $items, $bedrijf, $deliveryCount = 1, $estimatedPosition = null) {
+function buildDeliveryOnRouteEmail($order, $items, $bedrijf, $deliveryCount = 1, $estimatedPosition = null, $pdo = null) {
     $maandNamen = ['January' => 'januari', 'February' => 'februari', 'March' => 'maart', 'April' => 'april', 'May' => 'mei', 'June' => 'juni', 'July' => 'juli', 'August' => 'augustus', 'September' => 'september', 'October' => 'oktober', 'November' => 'november', 'December' => 'december'];
     $dagNamen = ['Sunday' => 'zondag', 'Monday' => 'maandag', 'Tuesday' => 'dinsdag', 'Wednesday' => 'woensdag', 'Thursday' => 'donderdag', 'Friday' => 'vrijdag', 'Saturday' => 'zaterdag'];
     
@@ -1094,7 +1130,7 @@ function buildDeliveryOnRouteEmail($order, $items, $bedrijf, $deliveryCount = 1,
         <div class="email-body">
             <p class="greeting">Beste ' . htmlspecialchars($order['contactpersoon']) . ',</p>
             
-            <p style="font-size: 16px;">Goed nieuws! Onze bakker is vertrokken met uw versgebakken bestelling. We zijn nu onderweg naar ' . htmlspecialchars($order['bedrijfsnaam']) . '.</p>
+            <p style="font-size: 16px;">' . getEmailIntroHtml($pdo, 'levering_onderweg', 'Goed nieuws! Onze bakker is vertrokken met uw versgebakken bestelling. We zijn nu onderweg naar {bedrijfsnaam}.', ['{contactpersoon}' => $order['contactpersoon'], '{bedrijfsnaam}' => $order['bedrijfsnaam']]) . '</p>
             
             <div class="info-box" style="background: #e3f2fd; border-left-color: #2196f3;">
                 <h3 style="color: #1565c0; display: flex; align-items: center; gap: 10px;">
@@ -1164,7 +1200,7 @@ function buildDeliveryOnRouteEmail($order, $items, $bedrijf, $deliveryCount = 1,
     return $html;
 }
 
-function buildAdminOrderEditEmail($order, $oldItems, $newItems, $bedrijf = [], $btwTarief = 9) {
+function buildAdminOrderEditEmail($order, $oldItems, $newItems, $bedrijf = [], $btwTarief = 9, $pdo = null) {
     $maandNamen = ['January' => 'januari', 'February' => 'februari', 'March' => 'maart', 'April' => 'april', 'May' => 'mei', 'June' => 'juni', 'July' => 'juli', 'August' => 'augustus', 'September' => 'september', 'October' => 'oktober', 'November' => 'november', 'December' => 'december'];
     $dagNamen = ['Sunday' => 'zondag', 'Monday' => 'maandag', 'Tuesday' => 'dinsdag', 'Wednesday' => 'woensdag', 'Thursday' => 'donderdag', 'Friday' => 'vrijdag', 'Saturday' => 'zaterdag'];
 
@@ -1190,7 +1226,7 @@ function buildAdminOrderEditEmail($order, $oldItems, $newItems, $bedrijf = [], $
 
             <h2>Uw bestelling is aangepast</h2>
 
-            <p>Wij hebben wijzigingen aangebracht in uw bestelling. Hieronder vindt u het bijgewerkte overzicht.</p>
+            <p>' . getEmailIntroHtml($pdo, 'bestelling_aangepast', 'Wij hebben wijzigingen aangebracht in uw bestelling. Hieronder vindt u het bijgewerkte overzicht.', ['{contactpersoon}' => $order['contactpersoon'], '{bedrijfsnaam}' => $order['bedrijfsnaam']]) . '</p>
 
             <div class="info-box">
                 <h3>Bestelgegevens</h3>
