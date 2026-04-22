@@ -23,7 +23,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET' && ($_GET['action'] ?? '') === 'check')
             'account' => [
                 'id' => $_SESSION['business_account_id'],
                 'bedrijfsnaam' => $_SESSION['business_name'] ?? '',
-                'email' => $_SESSION['business_email'] ?? ''
+                'email' => $_SESSION['business_email'] ?? '',
+                'contactpersoon' => $_SESSION['business_contact_naam'] ?? ''
             ]
         ]);
     } else {
@@ -91,11 +92,23 @@ try {
             'is_admin' => true
         ]);
     } else {
+        // Check primary email first
         $stmt = $pdo->prepare("SELECT * FROM business_accounts WHERE email = ? AND status = 'approved'");
         $stmt->execute([$email]);
         $account = $stmt->fetch();
+        $isPersoon2 = false;
 
-        if (!$account || !$account['password_hash'] || !password_verify($password, $account['password_hash'])) {
+        // If not found via primary email, check tweede_email
+        if (!$account) {
+            $stmt = $pdo->prepare("SELECT * FROM business_accounts WHERE tweede_email = ? AND status = 'approved'");
+            $stmt->execute([$email]);
+            $account = $stmt->fetch();
+            $isPersoon2 = true;
+        }
+
+        $passwordHash = $isPersoon2 ? ($account['tweede_password_hash'] ?? null) : ($account['password_hash'] ?? null);
+
+        if (!$account || !$passwordHash || !password_verify($password, $passwordHash)) {
             recordLoginAttempt($pdo, $ip, false);
             sleep(1);
             http_response_code(401);
@@ -108,8 +121,12 @@ try {
         $_SESSION['business_logged_in'] = true;
         $_SESSION['business_account_id'] = $account['id'];
         $_SESSION['business_name'] = $account['bedrijfsnaam'];
-        $_SESSION['business_email'] = $account['email'];
+        $_SESSION['business_email'] = $email;
         $_SESSION['account_type'] = $account['account_type'] ?? 'zakelijk';
+        $_SESSION['business_persoon'] = $isPersoon2 ? 2 : 1;
+        $_SESSION['business_contact_naam'] = $isPersoon2 ? ($account['tweede_contactpersoon'] ?? '') : $account['contactpersoon'];
+
+        $contactNaam = $isPersoon2 ? ($account['tweede_contactpersoon'] ?? '') : $account['contactpersoon'];
 
         echo json_encode([
             'success' => true,
@@ -117,8 +134,8 @@ try {
             'account' => [
                 'id' => $account['id'],
                 'bedrijfsnaam' => $account['bedrijfsnaam'],
-                'contactpersoon' => $account['contactpersoon'],
-                'email' => $account['email'],
+                'contactpersoon' => $contactNaam,
+                'email' => $email,
                 'account_type' => $account['account_type'] ?? 'zakelijk',
                 'has_balance' => (int)($account['has_balance'] ?? 0),
                 'balance' => floatval($account['balance'] ?? 0)

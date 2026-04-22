@@ -27,11 +27,11 @@ try {
                     $params[] = $ingredientId;
                 }
 
-                $sql = "SELECT b.*, i.name as ingredient_name, i.category, i.unit
+                $sql = "SELECT b.*, i.name as ingredient_name, i.category, i.unit, i.brand_name, i.parent_id
                         FROM ingredient_batches b
                         JOIN ingredients i ON b.ingredient_id = i.id
                         WHERE $where
-                        ORDER BY i.name, COALESCE(b.thd_date, '9999-12-31') ASC, b.purchase_date ASC";
+                        ORDER BY i.name, i.brand_name, COALESCE(b.thd_date, '9999-12-31') ASC, b.purchase_date ASC";
 
                 $stmt = $pdo->prepare($sql);
                 $stmt->execute($params);
@@ -40,7 +40,7 @@ try {
                 echo json_encode(['success' => true, 'batches' => $batches]);
 
             } elseif ($action === 'stock_summary') {
-                $sql = "SELECT i.id, i.name, i.category, i.unit,
+                $sql = "SELECT i.id, i.name, i.category, i.unit, i.brand_name, i.parent_id,
                         COALESCE(SUM(b.quantity_remaining), 0) as total_stock,
                         COUNT(b.id) as batch_count,
                         (SELECT price_per_kg FROM ingredient_batches
@@ -50,7 +50,7 @@ try {
                         LEFT JOIN ingredient_batches b ON i.id = b.ingredient_id AND b.quantity_remaining > 0
                         WHERE i.is_active = 1
                         GROUP BY i.id
-                        ORDER BY i.category, i.name";
+                        ORDER BY i.category, i.name, i.brand_name";
 
                 $stmt = $pdo->query($sql);
                 $summary = $stmt->fetchAll();
@@ -129,13 +129,17 @@ try {
                 $endDate = date('Y-m-d', strtotime('+14 days'));
 
                 // Load all active ingredients for name/id matching
-                $stmt = $pdo->query("SELECT id, name, category FROM ingredients WHERE is_active = 1");
+                $stmt = $pdo->query("SELECT id, name, category, parent_id FROM ingredients WHERE is_active = 1");
                 $allIngredients = $stmt->fetchAll();
                 $ingredientsByName = [];
                 $ingredientsById = [];
                 foreach ($allIngredients as $ing) {
-                    $ingredientsByName[strtolower($ing['name'])] = $ing;
                     $ingredientsById[$ing['id']] = $ing;
+                    $key = strtolower($ing['name']);
+                    // Prefer parent ingredients over brands for name-based lookups
+                    if (!isset($ingredientsByName[$key]) || !$ing['parent_id']) {
+                        $ingredientsByName[$key] = $ing;
+                    }
                 }
 
                 // Load current stock per ingredient
@@ -148,6 +152,14 @@ try {
                 $stockMap = [];
                 foreach ($stmt->fetchAll() as $row) {
                     $stockMap[$row['ingredient_id']] = floatval($row['available_grams']);
+                }
+
+                // Roll up brand (child) stock to their parent ingredient IDs so recipes that
+                // reference a parent ingredient see the total stock across all brands.
+                foreach ($allIngredients as $ing) {
+                    if ($ing['parent_id'] && isset($stockMap[$ing['id']])) {
+                        $stockMap[$ing['parent_id']] = ($stockMap[$ing['parent_id']] ?? 0) + $stockMap[$ing['id']];
+                    }
                 }
 
                 // Load future orders with recipe data
@@ -650,7 +662,8 @@ function calculateForecastIngredients($recipeData, $totalQty, $totalWeight, $ing
         $mainFlour -= $pfFlour;
         foreach ($recipeData['preFermentGrains'] ?? [] as $grain) {
             if (($grain['pct'] ?? 0) > 0) {
-                $addIngredient($grain['type'], $pfFlour * ($grain['pct'] / 100));
+                $ingredientRef = !empty($grain['brand_ingredient_id']) ? $grain['brand_ingredient_id'] : $grain['type'];
+                $addIngredient($ingredientRef, $pfFlour * ($grain['pct'] / 100));
             }
         }
     }
@@ -663,7 +676,8 @@ function calculateForecastIngredients($recipeData, $totalQty, $totalWeight, $ing
         $mainFlour -= $sdFlour;
         foreach ($recipeData['sourdoughGrains'] ?? [] as $grain) {
             if (($grain['pct'] ?? 0) > 0) {
-                $addIngredient($grain['type'], $sdFlour * ($grain['pct'] / 100));
+                $ingredientRef = !empty($grain['brand_ingredient_id']) ? $grain['brand_ingredient_id'] : $grain['type'];
+                $addIngredient($ingredientRef, $sdFlour * ($grain['pct'] / 100));
             }
         }
     }
@@ -671,7 +685,8 @@ function calculateForecastIngredients($recipeData, $totalQty, $totalWeight, $ing
     // Main dough grains
     foreach ($recipeData['mainDoughGrains'] ?? [] as $grain) {
         if (($grain['pct'] ?? 0) > 0) {
-            $addIngredient($grain['type'], $mainFlour * ($grain['pct'] / 100));
+            $ingredientRef = !empty($grain['brand_ingredient_id']) ? $grain['brand_ingredient_id'] : $grain['type'];
+            $addIngredient($ingredientRef, $mainFlour * ($grain['pct'] / 100));
         }
     }
 

@@ -13,11 +13,12 @@ $voorbereidingDagen = (int)($stmtVd->fetchColumn() ?: 3);
 
 // Load ingredient names from DB (for flour grain names)
 $ingredientNames = [];
-$ingStmt = $pdo->query("SELECT id, name FROM ingredients");
+$ingStmt = $pdo->query("SELECT id, name, brand_name FROM ingredients");
 if ($ingStmt) {
     foreach ($ingStmt->fetchAll() as $ing) {
-        $ingredientNames[$ing['id']] = $ing['name'];
-        $ingredientNames[strval($ing['id'])] = $ing['name'];
+        $displayName = $ing['brand_name'] ? $ing['name'] . ' – ' . $ing['brand_name'] : $ing['name'];
+        $ingredientNames[$ing['id']] = $displayName;
+        $ingredientNames[strval($ing['id'])] = $displayName;
     }
 }
 
@@ -40,7 +41,8 @@ $stmt = $pdo->prepare("
         br.recipe_data,
         br.dough_type_id,
         COALESCE(dt.name, 'Geen deegsoort') as dough_type_name,
-        dt.recipe_data as dough_type_recipe_data
+        dt.recipe_data as dough_type_recipe_data,
+        COALESCE(dt.current_version, 1) as dough_type_version
     FROM business_orders bo
     JOIN business_accounts ba ON bo.account_id = ba.id
     JOIN business_order_items boi ON bo.id = boi.order_id
@@ -107,7 +109,9 @@ foreach ($allItems as $item) {
             if (!isset($doughGroups[$doughTypeName])) {
                 $dtRecipeData = !empty($item['dough_type_recipe_data']) ? json_decode($item['dough_type_recipe_data'], true) : null;
                 $doughGroups[$doughTypeName] = [
+                    'dough_type_id' => (int)($item['dough_type_id'] ?? 0),
                     'dough_type_data' => $dtRecipeData,
+                    'dough_type_version' => (int)$item['dough_type_version'],
                     'recipes' => [],
                     'products' => [],
                     'orders' => [],
@@ -234,9 +238,11 @@ function calculateIngredients($recipeData, $totalQty, $totalWeight, $ingredientN
     foreach ($mainGrains as $grain) {
         if ($grain['pct'] > 0) {
             $grainWeight = $mainFlour * ($grain['pct'] / 100);
-            // Resolve grain name: try DB ingredients first, then fallback map, then raw type
             $grainType = $grain['type'] ?? '';
-            $grainName = $ingredientNames[$grainType] ?? $grainTypesFallback[$grainType] ?? $grainType;
+            $brandId = $grain['brand_ingredient_id'] ?? null;
+            $grainName = ($brandId && isset($ingredientNames[$brandId]))
+                ? $ingredientNames[$brandId]
+                : ($ingredientNames[$grainType] ?? $grainTypesFallback[$grainType] ?? $grainType);
             $grains[] = [
                 'name' => $grainName,
                 'weight' => round($grainWeight),
@@ -322,6 +328,7 @@ function formatDutchDate($date) {
     return getDutchDayName($date) . ' ' . $date->format('j') . ' ' . getDutchMonthName($date);
 }
 
+
 $totalProducts = 0;
 $totalWeight = 0;
 $totalDoughTypeCount = count($doughGroups);
@@ -331,56 +338,47 @@ foreach ($doughGroups as $dg) {
 }
 $totalProducts += $noRecipeGroup['total_qty'];
 $totalWeight += $noRecipeGroup['total_weight'];
+
+// Fetch all existing bakacties for this date, keyed by dough_type_name
+$existingBakactiesByType = [];
+$stmtAllBa = $pdo->prepare("SELECT id, COALESCE(dough_type_name, '') as dough_type_name FROM bak_acties WHERE DATE(datum) = ?");
+$stmtAllBa->execute([$date]);
+foreach ($stmtAllBa->fetchAll() as $ba) {
+    $existingBakactiesByType[$ba['dough_type_name']] = (int)$ba['id'];
+}
+// For the filtered view: check if a bakactie exists for this specific dough type
+$existingBakactieId = $filterDoughType ? ($existingBakactiesByType[$filterDoughType] ?? null) : null;
+
+// Build minimal payload for "Start Bakactie" — only safe scalar values (no recipe text blobs)
+$bakactieSimple = null;
+if ($filterDoughType && !empty($doughGroups[$filterDoughType])) {
+    $dg = $doughGroups[$filterDoughType];
+    $allOids = [];
+    foreach (array_keys($dg['orders']) as $oid) { $allOids[] = (int)$oid; }
+    $bakactieSimple = [
+        'dough_type_id'   => (int)($dg['dough_type_id'] ?? 0),
+        'version'         => (int)$dg['dough_type_version'],
+        'total_qty'       => (int)$dg['total_qty'],
+        'total_weight_g'  => (int)$dg['total_weight'],
+        'order_ids'       => array_values(array_unique($allOids)),
+    ];
+}
 ?>
-<!DOCTYPE html>
-<html lang="nl">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Dagproductie <?= $bereidingDate->format('d-m-Y') ?> | Civetta Admin</title>
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+<?php
+$adminPageTitle = 'Dagproductie';
+$adminBasePath = '../';
+$currentPage = 'dagproductie';
+ob_start();
+?>
+    <link rel="stylesheet" href="/css/bootstrap-icons.min.css">
     <style>
-        * { box-sizing: border-box; margin: 0; padding: 0; }
-        body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-            background: #f5f2ed;
-            min-height: 100vh;
-            color: #333;
-        }
-        .header {
-            background: linear-gradient(135deg, #c8913a, #a0722e);
-            color: white;
-            padding: 1.25rem 2rem;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            flex-wrap: wrap;
-            gap: 1rem;
-        }
-        .header h1 { 
-            font-size: 1.5rem; 
-            display: flex; 
-            align-items: center; 
-            gap: 0.5rem;
-        }
-        .header-links { display: flex; gap: 0.75rem; flex-wrap: wrap; }
-        .header a {
-            color: white;
-            text-decoration: none;
-            padding: 0.5rem 1rem;
-            background: rgba(255,255,255,0.2);
-            border-radius: 6px;
-            font-size: 0.9rem;
-            display: flex;
-            align-items: center;
-            gap: 0.4rem;
-        }
-        .header a:hover { background: rgba(255,255,255,0.3); }
         .container {
-            max-width: 1100px;
+            max-width: 1300px;
             margin: 0 auto;
             padding: 2rem;
         }
+        .page-layout { display: block; }
+        .page-main { min-width: 0; }
         .date-nav {
             display: flex;
             align-items: center;
@@ -615,17 +613,40 @@ $totalWeight += $noRecipeGroup['total_weight'];
             color: #5c8db8;
             margin-left: 0.5rem;
         }
+        .btn-bakactie {
+            background: linear-gradient(135deg, #92400e, #78350f);
+            color: white;
+        }
+        .btn-bakactie:hover { background: linear-gradient(135deg, #78350f, #5c3d1e); }
+        .dough-type-nav { display: flex; flex-direction: column; gap: 0.75rem; margin-bottom: 2rem; }
+        .dough-type-nav-card {
+            display: flex;
+            align-items: center;
+            padding: 1.25rem 1.5rem;
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.08);
+            text-decoration: none;
+            color: inherit;
+            border-left: 4px solid #3d6b3d;
+            gap: 1rem;
+            transition: box-shadow 0.15s, transform 0.1s;
+        }
+        .dough-type-nav-card:hover { box-shadow: 0 6px 20px rgba(0,0,0,0.13); transform: translateX(3px); }
+        .dough-type-nav-info { flex: 1; min-width: 0; }
+        .dough-type-nav-name { font-size: 1.1rem; font-weight: 700; color: #2d4a2d; display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.35rem; flex-wrap: wrap; }
+        .dough-type-nav-stats { font-size: 0.85rem; color: #888; display: flex; gap: 1.25rem; flex-wrap: wrap; }
+        .dough-type-nav-badge { background: #d4edda; color: #155724; font-size: 0.72rem; padding: 0.1rem 0.5rem; border-radius: 10px; font-weight: 600; }
+        .dough-type-nav-arrow { color: #3d6b3d; font-size: 1.25rem; flex-shrink: 0; }
         @media print {
-            body { background: white; }
-            .header, .date-nav, .print-section { display: none !important; }
+            .topbar, .admin-topbar, .sidebar, .date-nav, .print-section { display: none !important; }
+            .admin-main { margin-left: 0 !important; }
             .container { max-width: 100%; padding: 0; }
             .recipe-card { break-inside: avoid; box-shadow: none; border: 1px solid #ddd; }
             .recipe-header { background: #3d6b3d !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
             .ingredient-section { background: #f5f5f5 !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
         }
         @media (max-width: 768px) {
-            .header { padding: 1rem; }
-            .header h1 { font-size: 1.2rem; }
             .container { padding: 1rem; }
             .summary-bar { gap: 1rem; }
             .summary-stat { padding: 1rem; flex: 1; min-width: 140px; }
@@ -633,19 +654,19 @@ $totalWeight += $noRecipeGroup['total_weight'];
             .ingredients-grid { grid-template-columns: 1fr; }
         }
     </style>
-</head>
-<body>
-    <div class="header">
-        <h1><i class="bi bi-calculator"></i> Dagproductie<?= $filterDoughType ? ' — ' . htmlspecialchars($filterDoughType) : '' ?></h1>
-        <div class="header-links">
-            <?php if ($filterDoughType): ?>
-                <a href="dagproductie.php?date=<?= $date ?>"><i class="bi bi-list"></i> Alle deegsoorten</a>
-            <?php endif; ?>
-            <a href="planning.php?filter=bakken&date=<?= $date ?>&mode=day"><i class="bi bi-fire"></i> Bereiden</a>
-            <a href="bakker-dashboard.php"><i class="bi bi-grid"></i> Overzicht</a>
-            <a href="../index.php"><i class="bi bi-house"></i> Admin</a>
-        </div>
-    </div>
+<?php $adminExtraHead = ob_get_clean(); require_once '../components/sidebar.php'; ?>
+
+        <header class="topbar">
+            <div class="topbar-left">
+                <span class="topbar-title"><i class="bi bi-calculator"></i> Dagproductie<?= $filterDoughType ? ' — ' . htmlspecialchars($filterDoughType) : '' ?></span>
+            </div>
+            <div class="topbar-right">
+                <?php if ($filterDoughType): ?>
+                    <a class="topbar-link" href="dagproductie.php?date=<?= $date ?>"><i class="bi bi-list"></i> <span>Alle deegsoorten</span></a>
+                <?php endif; ?>
+                <a class="topbar-link" href="planning.php?filter=bakken&date=<?= $date ?>&mode=day"><i class="bi bi-fire"></i> <span>Bereiden</span></a>
+            </div>
+        </header>
 
     <div class="container">
         <div class="date-nav">
@@ -669,11 +690,24 @@ $totalWeight += $noRecipeGroup['total_weight'];
                 <p>Geen bestellingen om te bereiden op deze dag</p>
             </div>
         <?php else: ?>
+        <div class="page-layout">
+        <div class="page-main">
 
             <div class="print-section">
                 <button class="btn btn-primary" onclick="window.print()">
                     <i class="bi bi-printer"></i> Print overzicht
                 </button>
+                <?php if (!empty($doughGroups) && $filterDoughType): ?>
+                <?php if ($existingBakactieId): ?>
+                <a href="bak-actie.php?id=<?= (int)$existingBakactieId ?>" class="btn btn-bakactie">
+                    <i class="bi bi-journal-bookmark"></i> Bakactie
+                </a>
+                <?php else: ?>
+                <a href="bak-actie.php?date=<?= urlencode($date) ?>&dough_type=<?= urlencode($filterDoughType) ?>&dough_type_id=<?= $bakactieSimple ? (int)$bakactieSimple['dough_type_id'] : 0 ?>&qty=<?= $bakactieSimple ? (int)$bakactieSimple['total_qty'] : 0 ?>&weight=<?= $bakactieSimple ? (int)$bakactieSimple['total_weight_g'] : 0 ?>" class="btn btn-bakactie">
+                    <i class="bi bi-journal-plus"></i> Bakactie
+                </a>
+                <?php endif; ?>
+                <?php endif; ?>
             </div>
 
             <div class="summary-bar">
@@ -702,15 +736,43 @@ $totalWeight += $noRecipeGroup['total_weight'];
                 </div>
             <?php endif; ?>
 
+            <?php if (!$filterDoughType): ?>
+            <div class="dough-type-nav">
+                <?php foreach ($doughGroups as $doughTypeName => $doughGroup): ?>
+                <a href="?date=<?= $date ?>&dough_type=<?= urlencode($doughTypeName) ?>" class="dough-type-nav-card">
+                    <div class="dough-type-nav-info">
+                        <div class="dough-type-nav-name">
+                            <i class="bi bi-layers"></i>
+                            <?= htmlspecialchars($doughTypeName) ?>
+                            <span style="font-size:0.75rem;color:#888;font-weight:400">v<?= $doughGroup['dough_type_version'] ?></span>
+                            <?php if (isset($existingBakactiesByType[$doughTypeName])): ?>
+                                <span class="dough-type-nav-badge"><i class="bi bi-journal-check"></i> Bakactie gestart</span>
+                            <?php endif; ?>
+                        </div>
+                        <div class="dough-type-nav-stats">
+                            <span><i class="bi bi-box"></i> <?= $doughGroup['total_qty'] ?> stuks</span>
+                            <span><i class="bi bi-speedometer"></i> <?= number_format($doughGroup['total_weight']/1000, 1, ',', '.') ?> kg deeg</span>
+                        </div>
+                    </div>
+                    <i class="bi bi-chevron-right dough-type-nav-arrow"></i>
+                </a>
+                <?php endforeach; ?>
+            </div>
+            <?php else: ?>
             <?php foreach ($doughGroups as $doughTypeName => $doughGroup):
-                // Use first recipe's data for the combined calculation
-                $firstRecipe = reset($doughGroup['recipes']);
-                $calcData = $firstRecipe['data'];
+                $firstRecipe = !empty($doughGroup['recipes']) ? reset($doughGroup['recipes']) : [];
+                $calcData = $firstRecipe['data'] ?? [];
                 $calc = calculateIngredients($calcData, $doughGroup['total_qty'], $doughGroup['total_weight'], $ingredientNames);
             ?>
                 <div class="recipe-card">
                     <div class="recipe-header">
-                        <h2><i class="bi bi-layers"></i> <?= htmlspecialchars($doughTypeName) ?></h2>
+                        <h2><i class="bi bi-layers"></i> <?= htmlspecialchars($doughTypeName) ?>
+                            <?php if ($doughGroup['dough_type_id']): ?>
+                                <a href="recepten.php#dt-<?= $doughGroup['dough_type_id'] ?>/versies" style="font-size:0.78rem;opacity:0.8;font-weight:400;color:rgba(255,255,255,0.85);text-decoration:none;border:1px solid rgba(255,255,255,0.3);padding:0.1rem 0.4rem;border-radius:4px;margin-left:0.4rem" title="Bekijk receptversies">v<?= $doughGroup['dough_type_version'] ?> <i class="bi bi-box-arrow-up-right" style="font-size:0.7rem"></i></a>
+                            <?php else: ?>
+                                <span style="font-size:0.8rem;opacity:0.7;font-weight:400">v<?= $doughGroup['dough_type_version'] ?></span>
+                            <?php endif; ?>
+                        </h2>
                         <div class="stats">
                             <span><i class="bi bi-box"></i> <?= $doughGroup['total_qty'] ?> stuks</span>
                             <span><i class="bi bi-speedometer"></i> <?= number_format($doughGroup['total_weight']/1000, 1, ',', '.') ?> kg deeg</span>
@@ -889,8 +951,9 @@ $totalWeight += $noRecipeGroup['total_weight'];
                                         </div>
                                         <?php if (!empty($day['steps'])): ?>
                                             <?php foreach ($day['steps'] as $si => $step): ?>
-                                                <?php if (trim($step)): ?>
-                                                    <div style="color:#666;font-size:0.9rem;padding-left:1.5rem;margin-top:0.2rem"><span style="color:#c8913a;font-weight:600">Stap <?= $si + 1 ?>:</span> <?= htmlspecialchars($step) ?></div>
+                                                <?php $stepTitle = is_array($step) ? ($step['title'] ?? '') : (string)$step; ?>
+                                                <?php if (trim($stepTitle)): ?>
+                                                    <div style="color:#666;font-size:0.9rem;padding-left:1.5rem;margin-top:0.2rem"><span style="color:#c8913a;font-weight:600">Stap <?= $si + 1 ?>:</span> <?= htmlspecialchars($stepTitle) ?></div>
                                                 <?php endif; ?>
                                             <?php endforeach; ?>
                                         <?php endif; ?>
@@ -932,8 +995,18 @@ $totalWeight += $noRecipeGroup['total_weight'];
                         </div>
                     </div>
                 <?php endforeach; ?>
+            <?php endif; ?>
+
+        </div><!-- /.page-main -->
+        </div><!-- /.page-layout -->
 
         <?php endif; ?>
     </div>
+
+    <script>
+
+    </script>
+</div><!-- /.admin-main -->
+</div><!-- /.admin-layout -->
 </body>
 </html>

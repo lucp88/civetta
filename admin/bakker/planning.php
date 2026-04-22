@@ -35,17 +35,20 @@ $stmtVd = $pdo->prepare("SELECT setting_value FROM settings WHERE setting_key = 
 $stmtVd->execute();
 $voorbereidingDagen = (int)($stmtVd->fetchColumn() ?: 3);
 
-$stmtExtra = $pdo->prepare("SELECT datum, notitie FROM bakdagen_extra WHERE datum BETWEEN ? AND ? ORDER BY datum");
+$stmtExtra = $pdo->prepare("SELECT datum, notitie, COALESCE(type,'extra') as type FROM bakdagen_extra WHERE datum BETWEEN ? AND ? ORDER BY datum");
 $stmtExtra->execute([$startDate->format('Y-m-d'), $endDate->format('Y-m-d')]);
-$extraDagen = $stmtExtra->fetchAll();
-$extraDatums = array_column($extraDagen, 'datum');
+$allExtraDagen = $stmtExtra->fetchAll();
+$extraDagen    = array_values(array_filter($allExtraDagen, fn($r) => $r['type'] === 'extra'));
+$sluitingDagen = array_values(array_filter($allExtraDagen, fn($r) => $r['type'] === 'sluiting'));
+$extraDatums    = array_column($extraDagen, 'datum');
+$sluitingDatums = array_column($sluitingDagen, 'datum');
 
 $bakdagen = [];
 $iterDt = clone $startDate;
 while ($iterDt <= $endDate) {
     $weekday = (int)$iterDt->format('N');
     $dateStr = $iterDt->format('Y-m-d');
-    if (in_array($weekday, $bakdagenPatroon) || in_array($dateStr, $extraDatums)) {
+    if (!in_array($dateStr, $sluitingDatums) && (in_array($weekday, $bakdagenPatroon) || in_array($dateStr, $extraDatums))) {
         $bakdagen[] = $dateStr;
     }
     $iterDt->modify('+1 day');
@@ -336,7 +339,11 @@ ob_start();
             padding: 0.75rem 0 0.4rem; border-bottom: 3px solid #c8913a;
             margin-top: 0.75rem; display: flex; justify-content: space-between; align-items: center;
             background: linear-gradient(to bottom, #faf6f1, transparent);
+            text-decoration: none; cursor: pointer;
         }
+        a.dough-type-header:hover { background: linear-gradient(to bottom, #f0e8dc, transparent); color: #92400e; }
+        a.dough-type-header:hover .dth-arrow { opacity: 1; }
+        .dth-arrow { opacity: 0; font-size: 0.75rem; margin-left: 0.35rem; transition: opacity 0.15s; }
         .dough-type-header:first-child { margin-top: 0; }
         .dough-type-header i { margin-right: 0.4rem; color: #c8913a; }
         .recipe-group-title {
@@ -783,14 +790,13 @@ ob_start();
                                     $doughWeight = $item['dough_weight'] ?? 0;
                                     $productName = $item['product_name'];
                                     if ($doughWeight > 0) {
-                                        if (!isset($doughTypeTotals[$doughTypeName])) $doughTypeTotals[$doughTypeName] = ['recipes' => [], 'total_dough' => 0];
+                                        if (!isset($doughTypeTotals[$doughTypeName])) $doughTypeTotals[$doughTypeName] = ['recipes' => [], 'total_dough' => 0, 'total_qty' => 0];
                                         if (!isset($doughTypeTotals[$doughTypeName]['recipes'][$recipeName])) $doughTypeTotals[$doughTypeName]['recipes'][$recipeName] = ['weights' => [], 'total_dough' => 0];
-                                        if (!isset($doughTypeTotals[$doughTypeName]['recipes'][$recipeName]['weights'][$doughWeight])) $doughTypeTotals[$doughTypeName]['recipes'][$recipeName]['weights'][$doughWeight] = ['qty' => 0, 'products' => []];
+                                        if (!isset($doughTypeTotals[$doughTypeName]['recipes'][$recipeName]['weights'][$doughWeight])) $doughTypeTotals[$doughTypeName]['recipes'][$recipeName]['weights'][$doughWeight] = ['qty' => 0];
                                         $doughTypeTotals[$doughTypeName]['recipes'][$recipeName]['weights'][$doughWeight]['qty'] += $item['quantity'];
-                                        if (!isset($doughTypeTotals[$doughTypeName]['recipes'][$recipeName]['weights'][$doughWeight]['products'][$productName])) $doughTypeTotals[$doughTypeName]['recipes'][$recipeName]['weights'][$doughWeight]['products'][$productName] = 0;
-                                        $doughTypeTotals[$doughTypeName]['recipes'][$recipeName]['weights'][$doughWeight]['products'][$productName] += $item['quantity'];
                                         $doughTypeTotals[$doughTypeName]['recipes'][$recipeName]['total_dough'] += $item['quantity'] * $doughWeight;
                                         $doughTypeTotals[$doughTypeName]['total_dough'] += $item['quantity'] * $doughWeight;
+                                        $doughTypeTotals[$doughTypeName]['total_qty'] += $item['quantity'];
                                     }
                                 }
                             }
@@ -800,27 +806,13 @@ ob_start();
                             ?>
                             <div class="totals-section">
                                 <h4><i class="bi bi-fire type-bakken"></i> Te bereiden (<?= count($orders) ?> bestelling<?= count($orders) !== 1 ? 'en' : '' ?>)</h4>
-                                <div class="totals-tabs">
-                                    <button class="totals-tab active" onclick="switchTotalsTab(this, 'producten')">Producten</button>
-                                    <button class="totals-tab" onclick="switchTotalsTab(this, 'recepten')">Recepten</button>
-                                </div>
-                                <div class="totals-tab-content active" data-tab="producten">
-                                    <div class="product-totals-list">
-                                        <?php foreach ($productTotals as $product => $data): ?>
-                                            <div class="product-total-item">
-                                                <span><span class="product-total-qty"><?= $data['qty'] ?>x</span> <span class="product-total-name"><?= htmlspecialchars($product) ?></span></span>
-                                                <span class="product-total-price">&euro;<?= number_format($data['amount'], 2, ',', '.') ?></span>
-                                            </div>
-                                        <?php endforeach; ?>
-                                    </div>
-                                </div>
-                                <div class="totals-tab-content" data-tab="recepten">
+                                <div class="totals-tab-content active" data-tab="recepten">
                                     <div class="product-totals-list">
                                         <?php foreach ($doughTypeTotals as $doughType => $dtData): ?>
-                                            <div class="dough-type-header">
-                                                <span><i class="bi bi-layers"></i> <?= htmlspecialchars($doughType) ?></span>
-                                                <span style="font-weight:700;color:#2d4a2d"><?= number_format($dtData['total_dough']/1000, 2, ',', '.') ?> kg</span>
-                                            </div>
+                                            <a href="dagproductie.php?date=<?= $currentDate->format('Y-m-d') ?>&dough_type=<?= urlencode($doughType) ?>" class="dough-type-header">
+                                                <span><i class="bi bi-layers"></i> <span class="product-total-qty"><?= $dtData['total_qty'] ?>x</span> <?= htmlspecialchars($doughType) ?></span>
+                                                <span style="font-weight:700;color:#2d4a2d"><?= number_format($dtData['total_dough']/1000, 2, ',', '.') ?> kg <i class="bi bi-arrow-right dth-arrow"></i></span>
+                                            </a>
                                             <?php foreach ($dtData['recipes'] as $recipe => $rData): ?>
                                                 <div class="recipe-group-title" style="margin-left:0.75rem">
                                                     <span><i class="bi bi-journal-bookmark"></i> <?= htmlspecialchars($recipe) ?></span>
@@ -830,18 +822,15 @@ ob_start();
                                                     <div class="product-total-item" style="margin-left:1.5rem;font-weight:600">
                                                         <span><span class="product-total-qty"><?= $wdata['qty'] ?>x</span> <span class="product-total-name"><?= $weight ?>g</span></span>
                                                     </div>
-                                                    <?php foreach ($wdata['products'] as $pname => $pqty): ?>
-                                                    <div class="product-total-item" style="margin-left:2.5rem;font-size:0.85rem;color:#666">
-                                                        <span><?= $pqty ?>x <?= htmlspecialchars($pname) ?></span>
-                                                    </div>
-                                                    <?php endforeach; ?>
                                                 <?php endforeach; ?>
                                             <?php endforeach; ?>
                                         <?php endforeach; ?>
                                     </div>
-                                    <a href="dagproductie.php?date=<?= $currentDate->format('Y-m-d') ?>" class="btn-dagproductie">
-                                        <i class="bi bi-calculator"></i> Bekijk ingrediënten
+                                    <?php if (count($doughTypeTotals) > 1): ?>
+                                    <a href="dagproductie.php?date=<?= $currentDate->format('Y-m-d') ?>" class="btn-dagproductie" style="margin-top:0.75rem;opacity:0.7;font-size:0.82rem">
+                                        <i class="bi bi-calculator"></i> Alle deegsoorten
                                     </a>
+                                    <?php endif; ?>
                                 </div>
                             </div>
                         <?php endif; ?>
@@ -1119,6 +1108,25 @@ ob_start();
                         <button onclick="addExtraBakdagFromModal()"><i class="bi bi-plus"></i> Toevoegen</button>
                     </div>
                 </div>
+                <div class="bakdagen-modal-section">
+                    <h4><i class="bi bi-calendar-x"></i> Sluitingsdagen <span style="font-weight:400;font-size:0.8rem;color:#888;">(blokkeert vaste bakdagen)</span></h4>
+                    <div class="extra-bakdagen-list" id="sluitingDagenList">
+                        <?php if (empty($sluitingDagen)): ?>
+                            <div style="color:#bbb;font-size:0.85rem;">Geen sluitingsdagen</div>
+                        <?php endif; ?>
+                        <?php foreach ($sluitingDagen as $sluiting): ?>
+                            <div class="extra-bakdag-item">
+                                <span style="color:#dc3545"><i class="bi bi-x-circle-fill"></i> <?= (new DateTime($sluiting['datum']))->format('d-m-Y') ?><?= $sluiting['notitie'] ? ' — ' . htmlspecialchars($sluiting['notitie']) : '' ?></span>
+                                <button class="extra-bakdag-remove" onclick="removeSluitingDag('<?= $sluiting['datum'] ?>')" title="Verwijderen"><i class="bi bi-trash"></i></button>
+                            </div>
+                        <?php endforeach; ?>
+                    </div>
+                    <div class="add-extra-bakdag">
+                        <input type="date" id="sluitingDate">
+                        <input type="text" id="sluitingNotitie" placeholder="Reden (bijv. vakantie)" style="flex:1;">
+                        <button onclick="addSluitingDag()" style="background:#dc3545;"><i class="bi bi-plus"></i> Toevoegen</button>
+                    </div>
+                </div>
                 <button class="btn-save-bakdagen" onclick="saveBakdagenPatroon()"><i class="bi bi-check-lg"></i> Opslaan</button>
             </div>
         </div>
@@ -1202,6 +1210,11 @@ ob_start();
                 <button class="modal-close" onclick="closeNewOrderModal()">&times;</button>
             </div>
             <div class="modal-body">
+                <div id="loadDataError" style="display:none;background:#fef2f2;border:1px solid #fca5a5;border-radius:8px;padding:0.75rem 1rem;margin-bottom:1rem;font-size:0.875rem;color:#991b1b;">
+                    <strong><i class="bi bi-exclamation-triangle-fill"></i> Fout bij laden</strong>
+                    <div id="loadDataErrorMsg" style="margin-top:0.3rem;"></div>
+                    <button onclick="retryLoadData()" style="margin-top:0.5rem;padding:0.3rem 0.75rem;background:#991b1b;color:white;border:none;border-radius:5px;cursor:pointer;font-size:0.8rem;"><i class="bi bi-arrow-clockwise"></i> Opnieuw proberen</button>
+                </div>
                 <div class="form-group">
                     <label class="internal-toggle">
                         <input type="checkbox" id="newOrderInternal" onchange="onInternalToggle()">
@@ -1285,6 +1298,7 @@ ob_start();
     const appointmentsByDate = <?= json_encode($appointmentsByDate) ?>;
     const bakdagen = <?= json_encode($bakdagen) ?>;
     const voorbereidingDagen = <?= $voorbereidingDagen ?>;
+    const phpSluitingDagen = <?= json_encode($sluitingDagen) ?>;
 
     // Filter state
     let activeFilters = { bakken: true, bezorging: true, afspraak: true };
@@ -1358,6 +1372,26 @@ ob_start();
         showConfirm('Extra bakdag verwijderen?').then(function(ok) {
             if (!ok) return;
             fetch('/api/bakdagen.php', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'remove_extra', datum: datum }) })
+            .then(r => r.json()).then(data => {
+                if (data.success) { window.location.reload(); } else { showToast(data.error || 'Fout bij verwijderen', 'error'); }
+            });
+        });
+    }
+
+    function addSluitingDag() {
+        const datum = document.getElementById('sluitingDate').value;
+        const notitie = document.getElementById('sluitingNotitie').value;
+        if (!datum) { showToast('Kies een datum', 'warning'); return; }
+        fetch('/api/bakdagen.php', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'add_sluiting', datum, notitie }) })
+        .then(r => r.json()).then(data => {
+            if (data.success) { window.location.reload(); } else { showToast(data.error || 'Fout bij toevoegen', 'error'); }
+        });
+    }
+
+    function removeSluitingDag(datum) {
+        showConfirm('Sluitingsdag verwijderen?').then(function(ok) {
+            if (!ok) return;
+            fetch('/api/bakdagen.php', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'remove_sluiting', datum }) })
             .then(r => r.json()).then(data => {
                 if (data.success) { window.location.reload(); } else { showToast(data.error || 'Fout bij verwijderen', 'error'); }
             });
@@ -1448,7 +1482,8 @@ ob_start();
 
     function closeAllModals() { document.querySelectorAll('.modal-overlay').forEach(m => m.classList.remove('active')); }
 
-    document.getElementById('appointmentModal').addEventListener('click', function(e) { if (e.target === this) closeAppointmentModal(); });
+    document.getElementById('appointmentModal').addEventListener('mousedown', function(e) { this._md = e.target === this; });
+    document.getElementById('appointmentModal').addEventListener('click', function(e) { if (e.target === this && this._md) closeAppointmentModal(); });
 
     // Multi-select orders
     let selectedOrderIds = [];
@@ -1647,31 +1682,25 @@ ob_start();
                     const doughWeight = parseInt(item.dough_weight) || 0;
                     const productName = item.product_name;
                     if (doughWeight > 0) {
-                        if (!doughTypeTotals[doughTypeName]) doughTypeTotals[doughTypeName] = { recipes: {}, totalDough: 0 };
+                        if (!doughTypeTotals[doughTypeName]) doughTypeTotals[doughTypeName] = { recipes: {}, totalDough: 0, totalQty: 0 };
                         if (!doughTypeTotals[doughTypeName].recipes[recipeName]) doughTypeTotals[doughTypeName].recipes[recipeName] = { weights: {}, totalDough: 0 };
-                        if (!doughTypeTotals[doughTypeName].recipes[recipeName].weights[doughWeight]) doughTypeTotals[doughTypeName].recipes[recipeName].weights[doughWeight] = { qty: 0, products: {} };
+                        if (!doughTypeTotals[doughTypeName].recipes[recipeName].weights[doughWeight]) doughTypeTotals[doughTypeName].recipes[recipeName].weights[doughWeight] = { qty: 0 };
                         const qty = parseInt(item.quantity);
                         doughTypeTotals[doughTypeName].recipes[recipeName].weights[doughWeight].qty += qty;
-                        if (!doughTypeTotals[doughTypeName].recipes[recipeName].weights[doughWeight].products[productName]) doughTypeTotals[doughTypeName].recipes[recipeName].weights[doughWeight].products[productName] = 0;
-                        doughTypeTotals[doughTypeName].recipes[recipeName].weights[doughWeight].products[productName] += qty;
                         doughTypeTotals[doughTypeName].recipes[recipeName].totalDough += qty * doughWeight;
                         doughTypeTotals[doughTypeName].totalDough += qty * doughWeight;
+                        doughTypeTotals[doughTypeName].totalQty += qty;
                     }
                 });
             });
 
             html += '<div class="totals-section"><h4><i class="bi bi-list-check"></i> Totaal te bereiden</h4>';
-            html += '<div class="totals-tabs"><button class="totals-tab active" onclick="switchTotalsTab(this, \'producten\')">Producten</button><button class="totals-tab" onclick="switchTotalsTab(this, \'recepten\')">Recepten</button></div>';
-            html += '<div class="totals-tab-content active" data-tab="producten"><div class="product-totals-list">';
-            for (const [product, data] of sortedProducts) {
-                html += '<div class="product-total-item"><span><span class="product-total-qty">' + data.qty + 'x</span> <span class="product-total-name">' + escapeHtml(product) + '</span></span><span class="product-total-price">\u20AC' + data.amount.toFixed(2).replace('.', ',') + '</span></div>';
-            }
-            html += '</div></div>';
-            html += '<div class="totals-tab-content" data-tab="recepten"><div class="product-totals-list">';
+            html += '<div class="totals-tab-content active" data-tab="recepten"><div class="product-totals-list">';
             for (const doughType of Object.keys(doughTypeTotals).sort()) {
                 const dtData = doughTypeTotals[doughType];
                 const kgTotal = (dtData.totalDough / 1000).toFixed(2).replace('.', ',');
-                html += '<div class="dough-type-header"><span><i class="bi bi-layers"></i> ' + escapeHtml(doughType) + '</span><span style="font-weight:700;color:#2d4a2d">' + kgTotal + ' kg</span></div>';
+                const dtLink = 'dagproductie.php?date=' + date + '&dough_type=' + encodeURIComponent(doughType);
+                html += '<a href="' + dtLink + '" class="dough-type-header"><span><i class="bi bi-layers"></i> <span class="product-total-qty">' + dtData.totalQty + 'x</span> ' + escapeHtml(doughType) + '</span><span style="font-weight:700;color:#2d4a2d">' + kgTotal + ' kg <i class="bi bi-arrow-right dth-arrow"></i></span></a>';
                 for (const recipe of Object.keys(dtData.recipes).sort()) {
                     const rData = dtData.recipes[recipe];
                     const kgRecipe = (rData.totalDough / 1000).toFixed(2).replace('.', ',');
@@ -1680,15 +1709,14 @@ ob_start();
                     for (const weight of sortedWeights) {
                         const wdata = rData.weights[weight];
                         html += '<div class="product-total-item" style="margin-left:1.5rem;font-weight:600"><span><span class="product-total-qty">' + wdata.qty + 'x</span> <span class="product-total-name">' + weight + 'g</span></span></div>';
-                        for (const [pname, pqty] of Object.entries(wdata.products)) {
-                            html += '<div class="product-total-item" style="margin-left:2.5rem;font-size:0.85rem;color:#666"><span>' + pqty + 'x ' + escapeHtml(pname) + '</span></div>';
-                        }
                     }
                 }
             }
             html += '</div>';
-            const doughParam = filterDoughType ? '&dough_type=' + encodeURIComponent(filterDoughType) : '';
-            html += '<a href="dagproductie.php?date=' + date + doughParam + '" class="btn-dagproductie"><i class="bi bi-calculator"></i> Bekijk ingredi\u00ebnten</a>';
+            const doughTypeCount = Object.keys(doughTypeTotals).length;
+            if (doughTypeCount > 1) {
+                html += '<a href="dagproductie.php?date=' + date + '" class="btn-dagproductie" style="margin-top:0.75rem;opacity:0.7;font-size:0.82rem"><i class="bi bi-calculator"></i> Alle deegsoorten</a>';
+            }
             html += '</div></div>';
 
             html += '<div class="orders-section"><h4><i class="bi bi-people"></i> Klanten (' + filteredOrders.length + ')</h4>';
@@ -1852,29 +1880,61 @@ ob_start();
     // New order functions (from leveren.php)
     function toLocalDateStr(d) { return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); }
 
+    function showLoadError(msgs) {
+        const box = document.getElementById('loadDataError');
+        const msgEl = document.getElementById('loadDataErrorMsg');
+        if (box && msgEl) { msgEl.innerHTML = msgs.map(m => escapeHtml(m)).join('<br>'); box.style.display = ''; }
+    }
+    function hideLoadError() {
+        const box = document.getElementById('loadDataError');
+        if (box) box.style.display = 'none';
+    }
+    async function retryLoadData() {
+        allCustomers = []; allProducts = []; allBakdagen = [];
+        hideLoadError();
+        await loadNewOrderData();
+        const custSelect = document.getElementById('newOrderCustomer');
+        if (custSelect) {
+            custSelect.innerHTML = '<option value="">Selecteer een klant...</option>';
+            allCustomers.filter(c => !c.is_internal).forEach(c => { custSelect.innerHTML += '<option value="' + c.id + '">' + escapeHtml(c.bedrijfsnaam) + ' (' + escapeHtml(c.contactpersoon) + ')</option>'; });
+        }
+        checkBakdag();
+    }
+
     async function loadNewOrderData() {
         if (allCustomers.length && allProducts.length) return;
+        const errors = [];
         try {
-            const [custRes, prodRes] = await Promise.all([fetch('../../api/admin-orders.php?action=customers'), fetch('../../api/admin-orders.php?action=products')]);
-            const custData = await custRes.json(); const prodData = await prodRes.json();
-            if (custData.success) allCustomers = custData.customers;
-            if (prodData.success) allProducts = prodData.products;
-            await loadBakdagen();
-        } catch (e) { console.error('Error loading data:', e); }
+            const [custRes, prodRes] = await Promise.all([
+                fetch('../../api/admin-orders.php?action=customers'),
+                fetch('../../api/admin-orders.php?action=products')
+            ]);
+            let custData, prodData;
+            try { custData = await custRes.json(); } catch(e) { errors.push('Klanten: ongeldige response (HTTP ' + custRes.status + ')'); }
+            try { prodData = await prodRes.json(); } catch(e) { errors.push('Producten: ongeldige response (HTTP ' + prodRes.status + ')'); }
+            if (custData) { if (custData.success) allCustomers = custData.customers; else errors.push('Klanten: ' + (custData.error || 'onbekende fout')); }
+            if (prodData) { if (prodData.success) allProducts = prodData.products; else errors.push('Producten: ' + (prodData.error || 'onbekende fout')); }
+        } catch (e) {
+            errors.push('Netwerk: ' + e.message);
+            console.error('Error loading order data:', e);
+        }
+        try { await loadBakdagen(); } catch(e) { errors.push('Bakdagen: ' + e.message); }
+        if (errors.length) showLoadError(errors); else hideLoadError();
     }
 
     async function loadBakdagen() {
-        try {
-            const today = new Date();
-            const start = toLocalDateStr(today);
-            const end = toLocalDateStr(new Date(today.getFullYear(), today.getMonth() + 3, today.getDate()));
-            const response = await fetch('../../api/bakdagen.php?start=' + start + '&end=' + end);
-            const data = await response.json();
-            if (data.success) allBakdagen = data.bakdagen || [];
-        } catch (e) { console.error('Error loading bakdagen:', e); }
+        const today = new Date();
+        const start = toLocalDateStr(today);
+        const end = toLocalDateStr(new Date(today.getFullYear(), today.getMonth() + 3, today.getDate()));
+        const response = await fetch('../../api/bakdagen.php?start=' + start + '&end=' + end);
+        if (!response.ok) throw new Error('HTTP ' + response.status);
+        const data = await response.json();
+        if (data.success) allBakdagen = data.bakdagen || [];
+        else throw new Error(data.error || 'onbekende fout');
     }
 
     function getAvailableBakdagen() {
+        if (document.getElementById('newOrderInternal').checked) return 999;
         const dateStr = document.getElementById('newOrderDate').value;
         if (!dateStr) return 999;
         const today = new Date(); today.setHours(0, 0, 0, 0);
@@ -1978,6 +2038,7 @@ ob_start();
         if (isInternal) { customerGroup.style.display = 'none'; customerCard.classList.remove('show'); }
         else { customerGroup.style.display = ''; }
         if (document.getElementById('newOrderDate').value) checkBakdag();
+        refreshProductOptions();
     }
 
     function getInternalAccountId() {
@@ -2126,7 +2187,8 @@ ob_start();
         finally { btn.disabled = false; btn.innerHTML = '<i class="bi bi-check-lg"></i> Bestelling plaatsen'; }
     }
 
-    document.getElementById('newOrderModal').addEventListener('click', function(e) { if (e.target === this) closeNewOrderModal(); });
+    document.getElementById('newOrderModal').addEventListener('mousedown', function(e) { this._md = e.target === this; });
+    document.getElementById('newOrderModal').addEventListener('click', function(e) { if (e.target === this && this._md) closeNewOrderModal(); });
 
     // Inline route functions for day view
     let inlineRouteOrders = [];

@@ -294,7 +294,6 @@ function closeOrderModal() {
     document.getElementById('orderDetailModal').classList.remove('active');
 }
 
-document.getElementById('orderDetailModal').addEventListener('click', function(e) {
-    if (e.target === this) closeOrderModal();
-});
+document.getElementById('orderDetailModal').addEventListener('mousedown', function(e) { this._md = e.target === this; });
+document.getElementById('orderDetailModal').addEventListener('click', function(e) { if (e.target === this && this._md) closeOrderModal(); });
 </script>

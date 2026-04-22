@@ -18,7 +18,7 @@ createApp({
                 const response = await fetch('api/products.php');
                 const data = await response.json();
                 if (data.success) {
-                    this.products = data.products;
+                    this.products = data.products.filter(p => p.is_active);
                 }
             } catch (error) {
                 console.error('Error loading products:', error);
@@ -29,27 +29,23 @@ createApp({
 
         formatPrice(price) {
             if (!price) return null;
-            return new Intl.NumberFormat('nl-NL', {
-                style: 'currency',
-                currency: 'EUR'
-            }).format(price);
+            return new Intl.NumberFormat('nl-NL', { style: 'currency', currency: 'EUR' }).format(price);
         },
 
-        getLowestPrice(product) {
-            if (!product.variants || product.variants.length === 0) return product.prijs;
+        priceDisplay(product) {
+            if (!product.variants || product.variants.length === 0) {
+                return product.prijs ? this.formatPrice(product.prijs) : null;
+            }
             const priced = product.variants.filter(v => parseFloat(v.prijs) > 0);
-            if (priced.length === 0) return product.prijs;
-            return Math.min(...priced.map(v => parseFloat(v.prijs)));
+            if (priced.length === 0) return null;
+            const min = Math.min(...priced.map(v => parseFloat(v.prijs)));
+            const max = Math.max(...priced.map(v => parseFloat(v.prijs)));
+            return min === max ? this.formatPrice(min) : this.formatPrice(min) + ' – ' + this.formatPrice(max);
         },
 
-        getOtherVariants(product) {
-            if (!product.variants || product.variants.length <= 1) return '';
-            const sorted = [...product.variants].sort((a, b) => parseFloat(a.prijs) - parseFloat(b.prijs));
-            const others = sorted.slice(1).filter(v => parseFloat(v.prijs) > 0);
-            return others.map(v => {
-                const label = v.naam ? (v.gewicht ? `${v.naam} ${v.gewicht}g` : v.naam) : `${v.gewicht}g`;
-                return `${label} ${this.formatPrice(v.prijs)}`;
-            }).join(' · ');
+        activeVariantCount(product) {
+            if (!product.variants) return 0;
+            return product.variants.filter(v => v.is_active).length;
         }
     }
 }).mount('#products-app');

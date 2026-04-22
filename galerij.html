@@ -87,7 +87,7 @@
                     </div>
 
                     <!-- Password change modal -->
-                    <div v-if="showPasswordChange" class="modal-overlay" @click.self="showPasswordChange = false">
+                    <div v-if="showPasswordChange" class="modal-overlay" @mousedown="$event.currentTarget._md = ($event.target === $event.currentTarget)" @click.self="$event.currentTarget._md && (showPasswordChange = false)">
                         <div class="modal">
                             <h3>Wachtwoord wijzigen</h3>
                             <div v-if="passwordError" class="error-msg">{{ passwordError }}</div>
@@ -114,7 +114,7 @@
                     </div>
 
                     <!-- Upload modal -->
-                    <div v-if="showUpload" class="modal-overlay" @click.self="showUpload = false">
+                    <div v-if="showUpload" class="modal-overlay" @mousedown="$event.currentTarget._md = ($event.target === $event.currentTarget)" @click.self="$event.currentTarget._md && (showUpload = false)">
                         <div class="modal">
                             <h3>Foto toevoegen</h3>
                             <div v-if="uploadError" class="error-msg">{{ uploadError }}</div>
@@ -173,7 +173,7 @@
     </footer>
 
     <script src="https://cdn.jsdelivr.net/npm/vue@3/dist/vue.global.prod.js"></script>
-    <script src="js/main.js"></script>
+    <script src="js/main.js?v=4"></script>
     <script src="js/admin-auth.js?v=1"></script>
     <script src="js/ui-notifications.js?v=1"></script>
     <script src="js/galerij-app.js?v=2"></script>

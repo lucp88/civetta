@@ -55,11 +55,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $itemsStmt->execute([$order['id']]);
                 $items = $itemsStmt->fetchAll();
                 
-                $emailBody = buildDeliveryOnRouteEmail($order, $items, $bedrijfSettings, $deliveryCount, $position + 1);
-                
+                $emailBody = buildDeliveryOnRouteEmail($order, $items, $bedrijfSettings, $deliveryCount, $position + 1, $pdo);
+
                 $sent = sendHtmlEmail(
                     $order['email'],
-                    'Uw bestelling van Bakkerij Civetta is onderweg! 🚚',
+                    getEmailSubject($pdo, 'levering_onderweg', 'Uw bestelling van Bakkerij Civetta is onderweg!'),
                     $emailBody
                 );
                 

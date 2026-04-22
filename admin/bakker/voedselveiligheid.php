@@ -127,11 +127,38 @@ ob_start(); ?>
         .cat-header-cell { display: flex; align-items: center; justify-content: space-between; gap: 0.5rem; }
         .cat-header-label-wrap { display: flex; align-items: center; gap: 0.35rem; }
         .cat-header-actions { display: flex; gap: 0.25rem; opacity: 0; transition: opacity 0.15s; }
-        table.items tr.cat-header:hover .cat-header-actions { opacity: 1; }
-        .cat-add-footer { display: flex; gap: 0.5rem; padding: 0.75rem 0.75rem 0; border-top: 1px solid #e8e0d5; margin-top: 0.5rem; }
-        .cat-add-footer input { flex: 1; padding: 0.45rem 0.7rem; border: 1.5px solid #e0d5c7; border-radius: 7px; font-size: 0.88rem; font-family: inherit; background: white; }
-        .cat-add-footer input:focus { outline: none; border-color: #3d6b3d; }
-        .cat-empty { padding: 0.75rem; color: #999; font-size: 0.85rem; text-align: center; border: 1px solid #e8e0d5; border-radius: 8px; }
+        table.items tr.item-cat-header:hover .cat-header-actions { opacity: 1; }
+
+        /* Unified products-table style for items */
+        table.items tr.item-cat-header { cursor: pointer; }
+        table.items tr.item-cat-header td { background: #f5f0e8; font-weight: 700; color: #2d4a2d; font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.05em; border-bottom: 1px solid #e8dfd2; padding: 0.45rem 0.75rem; }
+        table.items tr.item-cat-header:hover td { background: #ede8e0 !important; }
+        .item-cat-chevron { display: inline-flex; align-items: center; margin-right: 0.35rem; color: #888; transition: transform 0.15s; font-size: 0.75rem; }
+        .item-cat-chevron.collapsed { transform: rotate(-90deg); }
+        .category-header-count { display: inline-block; background: #e8dfd2; color: #5c3d1e; font-size: 0.7rem; font-weight: 700; border-radius: 10px; padding: 0.1rem 0.4rem; margin-left: 0.3rem; vertical-align: middle; }
+        table.items tr.item-row td { background: #fafaf8; border-bottom: 1px solid #f0ebe5; }
+        table.items tr.item-row { cursor: pointer; }
+        table.items tr.item-row:hover td { background: #f5f2ed; }
+        table.items tr.item-row.item-inactive td { opacity: 0.45; }
+        .item-naam { display: flex; align-items: center; gap: 0.4rem; padding-left: 0.5rem; color: #4a433d; font-size: 0.9rem; }
+        .drag-cell { width: 28px; padding-right: 0 !important; }
+        .drag-handle { color: #ccc; cursor: grab; padding: 0 0.25rem; font-size: 1rem; display: inline-flex; align-items: center; }
+        .drag-handle:active { cursor: grabbing; }
+        table.items tr.drag-over td { background: #dbeafe !important; }
+        table.items tr.dragging { opacity: 0.4; }
+        table.items tr.item-add-row td { background: #fafaf8; border-bottom: 1px solid #e8dfd2; padding: 0.3rem 0.75rem !important; }
+        table.items tr.item-add-row { cursor: pointer; }
+        table.items tr.item-add-row:hover td { background: #f5f2ed; }
+        .btn-add { border: 1px dashed #d1d5db; border-radius: 4px; background: transparent; color: #9ca3af; cursor: pointer; font-size: 0.78rem; display: inline-flex; align-items: center; gap: 0.3rem; padding: 0.25rem 0.5rem; }
+        .btn-add:hover { border-color: #3d6b3d; color: #3d6b3d; background: #f0f7f0; }
+        tr.item-edit-row td { background: #f0ece6; border-bottom: 1px solid #c8bfb5; padding: 0.75rem !important; }
+        .ie-form { display: flex; flex-wrap: wrap; gap: 0.5rem; align-items: flex-end; }
+        .ie-form input[type="text"] { padding: 0.4rem 0.6rem; border: 1.5px solid #d4c8b8; border-radius: 6px; font-size: 0.88rem; font-family: inherit; background: white; width: 200px; }
+        .ie-form select { padding: 0.4rem 0.6rem; border: 1.5px solid #d4c8b8; border-radius: 6px; font-size: 0.88rem; font-family: inherit; background: white; }
+        .ie-form input[type="text"]:focus, .ie-form select:focus { outline: none; border-color: #3d6b3d; }
+        .ie-check-label { font-size: 0.84rem; display: flex; align-items: center; gap: 0.4rem; color: #333; white-space: nowrap; }
+        .ie-actions { display: flex; gap: 0.4rem; align-items: center; margin-top: 0.35rem; width: 100%; }
+        .ie-spacer { flex: 1; }
 
         /* Empty state */
         .empty-state { text-align: center; padding: 2.5rem 1rem; color: #999; }
@@ -201,7 +228,10 @@ require_once '../components/sidebar.php'; ?>
                 <div class="topbar-left">
                     <span class="topbar-title"><i class="bi bi-check2-square"></i> Voedselveiligheid</span>
                 </div>
-                <div class="topbar-right"></div>
+                <div class="topbar-right" style="display:flex;gap:0.5rem;">
+                    <button class="btn btn-ghost btn-sm" onclick="openNewCatModal()"><i class="bi bi-plus-lg"></i> Nieuwe Categorie</button>
+                    <button class="btn btn-primary btn-sm" onclick="switchTab('items'); openItemModal()"><i class="bi bi-plus-lg"></i> Nieuw Item</button>
+                </div>
             </header>
 
     <div class="admin-content">
@@ -222,7 +252,7 @@ require_once '../components/sidebar.php'; ?>
                         <input type="date" class="date-input" id="filterVan" style="font-size:0.83rem;">
                         <label style="font-size:0.83rem; color:#666;">Tot:</label>
                         <input type="date" class="date-input" id="filterTot" style="font-size:0.83rem;">
-                        <button class="btn btn-ghost btn-sm" onclick="loadOverzicht()"><i class="bi bi-search"></i></button>
+                        <button class="btn btn-ghost btn-sm" onclick="loadOverzicht()"><i class="bi bi-search"></i> Zoeken</button>
                         <button class="btn btn-primary" onclick="nieuwFormulier()">
                             <i class="bi bi-plus-lg"></i> Nieuw formulier
                         </button>
@@ -249,17 +279,16 @@ require_once '../components/sidebar.php'; ?>
             <div class="panel">
                 <div class="panel-header">
                     <div class="panel-title"><i class="bi bi-list-ul"></i> Schoonmaakitems per categorie</div>
-                    <button class="btn btn-primary btn-sm" onclick="openItemModal()"><i class="bi bi-plus-lg"></i> Nieuw item</button>
                 </div>
                 <div id="itemsLoading" class="loading"><i class="bi bi-arrow-clockwise spin"></i> Laden…</div>
                 <div class="table-wrapper" id="itemsTableWrap" style="display:none;">
                     <table class="items">
                         <thead>
                             <tr>
+                                <th class="drag-cell"></th>
                                 <th>Item naam</th>
                                 <th>Frequentie</th>
                                 <th>Status</th>
-                                <th style="width:80px;"></th>
                             </tr>
                         </thead>
                         <tbody id="itemsBody"></tbody>
@@ -268,11 +297,6 @@ require_once '../components/sidebar.php'; ?>
                 <div id="itemsEmpty" class="empty-state" style="display:none;">
                     <i class="bi bi-inbox"></i>
                     <p>Nog geen items. Voeg eerst een categorie toe, dan kun je items toevoegen.</p>
-                </div>
-                <div class="cat-add-footer">
-                    <input type="text" id="newCatNaam" placeholder="Nieuwe categorie…"
-                        onkeydown="if(event.key==='Enter') addCategorie()">
-                    <button class="btn btn-ghost btn-sm" onclick="addCategorie()"><i class="bi bi-plus-lg"></i> Categorie toevoegen</button>
                 </div>
             </div>
         </div>
@@ -471,7 +495,7 @@ require_once '../components/sidebar.php'; ?>
 <!-- CAT EDIT MODAL -->
 <div class="modal-overlay" id="catModal">
     <div class="modal" style="max-width:380px;">
-        <div class="modal-title"><i class="bi bi-tag" style="color:#3d6b3d;"></i> Categorie bewerken</div>
+        <div class="modal-title"><i class="bi bi-tag" style="color:#3d6b3d;"></i> <span id="catModalTitle">Categorie bewerken</span></div>
         <div class="modal-body">
             <input type="hidden" id="catEditId">
             <div class="form-group">
@@ -493,6 +517,9 @@ require_once '../components/sidebar.php'; ?>
 const API = '../../api/voedselveiligheid.php';
 
 let currentList  = null;
+const collapsedItemCategories = new Set();
+let draggingItem = null;
+let activeItemEditTr = null;
 let currentItems = [];
 let masterItems  = [];
 let categorieen  = [];
@@ -504,6 +531,9 @@ function switchTab(tab) {
     document.querySelectorAll('.tab-content').forEach(c => c.classList.toggle('active', c.id === 'tab-' + tab));
     if (tab === 'items') loadItemsTab();
     if (tab === 'allergenen') loadAllergenStatus();
+    const url = new URL(window.location);
+    url.searchParams.set('tab', tab);
+    history.replaceState(null, '', url);
 }
 
 // ==================== FORMULIER MODAL ====================
@@ -761,22 +791,20 @@ function renderCategorieen() {
     // Categories are now rendered inline in renderItems() — nothing to do here separately.
 }
 
-async function addCategorie() {
-    const input = document.getElementById('newCatNaam');
-    const naam  = input.value.trim();
-    if (!naam) return;
-    try {
-        await callApi(null, { action: 'save_categorie', naam });
-        input.value = '';
-        await loadCategorieen();
-        await loadItems();
-        showToast('Categorie toegevoegd', 'success');
-    } catch (e) { showToast('Fout: ' + e.message, 'error'); }
+
+function openNewCatModal() {
+    switchTab('items');
+    document.getElementById('catModalTitle').textContent = 'Nieuwe categorie';
+    document.getElementById('catEditId').value   = '';
+    document.getElementById('catEditNaam').value = '';
+    document.getElementById('catModal').classList.add('open');
+    setTimeout(() => document.getElementById('catEditNaam').focus(), 80);
 }
 
 function openCatEdit(id) {
     const c = categorieen.find(x => x.id == id);
     if (!c) return;
+    document.getElementById('catModalTitle').textContent = 'Categorie bewerken';
     document.getElementById('catEditId').value   = id;
     document.getElementById('catEditNaam').value = c.naam;
     document.getElementById('catModal').classList.add('open');
@@ -787,12 +815,13 @@ async function saveCatEdit() {
     const id   = document.getElementById('catEditId').value;
     const naam = document.getElementById('catEditNaam').value.trim();
     if (!naam) return;
+    const isNew = !id;
     try {
         await callApi(null, { action: 'save_categorie', id, naam });
         closeModal('catModal');
         await loadCategorieen();
         await loadItems();
-        showToast('Categorie bijgewerkt', 'success');
+        showToast(isNew ? 'Categorie toegevoegd' : 'Categorie bijgewerkt', 'success');
     } catch (e) { showToast('Fout: ' + e.message, 'error'); }
 }
 
@@ -830,86 +859,214 @@ function renderItems() {
     }
     showEl('itemsTableWrap'); hideEl('itemsEmpty');
 
-    const groups = {};
-    const order  = [];
-    masterItems.forEach(item => {
-        const cat = item.categorie_naam || '—';
-        if (!groups[cat]) { groups[cat] = []; order.push(cat); }
-        groups[cat].push(item);
-    });
-
-    // Build a map of categorie_id → categorie object for inline controls
     const catById = {};
     (categorieen || []).forEach(c => { catById[c.id] = c; });
 
+    // Build groups keyed by catId, in category order
+    const groups = {};
+    (categorieen || []).forEach(c => { groups[c.id] = { naam: c.naam, items: [], catObj: c }; });
+
+    masterItems.forEach(item => {
+        const cid = item.categorie_id || '_none';
+        if (!groups[cid]) groups[cid] = { naam: item.categorie_naam || '—', items: [], catObj: null };
+        groups[cid].items.push(item);
+    });
+
+    // Category display order: categories first (already ordered by volgorde from API), then uncategorised
+    const order = (categorieen || []).map(c => c.id);
+    if (groups['_none'] && groups['_none'].items.length > 0) order.push('_none');
+
     let html = '';
-    for (const cat of order) {
-        const firstItem = groups[cat][0];
-        const catId     = firstItem ? (firstItem.categorie_id || null) : null;
-        const catObj    = catId ? catById[catId] : null;
+    for (const catId of order) {
+        const group = groups[catId];
+        if (!group) continue;
+        const catObj    = group.catObj;
+        const isCollapsed = collapsedItemCategories.has(String(catId));
+        const chevronCls = 'item-cat-chevron' + (isCollapsed ? ' collapsed' : '');
+        const hiddenStyle = isCollapsed ? ' style="display:none"' : '';
 
-        const catControls = catObj ? `
-            <div class="cat-header-actions">
-                <button class="btn-icon" onclick="openCatEdit(${catObj.id})" title="Categorie hernoemen"><i class="bi bi-pencil"></i></button>
-                <button class="btn-icon danger" onclick="deleteCategorie(${catObj.id})" title="Categorie verwijderen"><i class="bi bi-trash"></i></button>
-                <button class="btn-icon" onclick="openItemModal(null, ${catObj.id})" title="Nieuw item in deze categorie" style="color:#3d6b3d;"><i class="bi bi-plus-lg"></i></button>
-            </div>` : '';
-
-        html += `<tr class="cat-header">
-            <td colspan="4">
+        html += `<tr class="item-cat-header" data-cat-id="${catId}" onclick="toggleItemCategory('${catId}')">
+            <td class="drag-cell"></td>
+            <td colspan="3">
                 <div class="cat-header-cell">
-                    <span class="cat-header-label-wrap"><i class="bi bi-tag-fill" style="color:#c8913a;"></i> ${escHtml(cat)}</span>
-                    ${catControls}
+                    <span class="cat-header-label-wrap">
+                        <i class="bi bi-chevron-down ${chevronCls}"></i>
+                        <i class="bi bi-tag-fill" style="color:#c8913a;margin-left:0.1rem;"></i>
+                        ${escHtml(group.naam)}
+                        <span class="category-header-count">${group.items.length}</span>
+                        ${group.items.filter(i => !parseInt(i.actief)).length > 0 ? `<span style="font-size:0.7rem;color:#bbb;font-weight:400;margin-left:0.25rem;">(${group.items.filter(i => !parseInt(i.actief)).length} inactief)</span>` : ''}
+                    </span>
+                    ${catObj ? `<div class="cat-header-actions">
+                        <button class="btn-icon" onclick="event.stopPropagation();openCatEdit(${catObj.id})" title="Naam wijzigen"><i class="bi bi-pencil"></i></button>
+                        <button class="btn-icon danger" onclick="event.stopPropagation();deleteCategorie(${catObj.id})" title="Verwijderen"><i class="bi bi-trash"></i></button>
+                    </div>` : ''}
                 </div>
             </td>
         </tr>`;
-        groups[cat].forEach(item => {
+
+        group.items.forEach(item => {
             const active   = parseInt(item.actief) === 1;
             const kritisch = parseInt(item.is_allergeen_kritisch) === 1;
-            html += `<tr class="${active ? '' : 'inactive'}">
+            html += `<tr class="item-row${active ? '' : ' item-inactive'}" data-id="${item.id}" data-cat-id="${catId}"
+                draggable="true" onclick="if(!this._dragged) openItemInlineEdit(this)" title="Klik om te bewerken"${hiddenStyle}>
+                <td class="drag-cell"><span class="drag-handle" onclick="event.stopPropagation()"><i class="bi bi-grip-vertical"></i></span></td>
                 <td>
-                    <strong>${escHtml(item.naam)}</strong>
-                    ${kritisch ? ' <span class="badge" style="background:#fff3e0;color:#e65100;font-size:0.7rem;">Allergeen-kritisch</span>' : ''}
-                </td>
-                <td style="font-size:0.84rem; color:#666;">${formatFreq(item.frequentie)}</td>
-                <td>
-                    <span class="badge" style="${active ? 'background:#e8f5e9;color:#2e7d32;' : 'background:#f5f5f5;color:#999;'}">
-                        ${active ? 'Actief' : 'Inactief'}
-                    </span>
-                </td>
-                <td>
-                    <div style="display:flex; gap:0.35rem;">
-                        <button class="btn-icon" onclick="openItemModal(${item.id})" title="Bewerken"><i class="bi bi-pencil"></i></button>
-                        <button class="btn-icon ${active ? 'danger' : ''}"
-                            title="${active ? 'Deactiveren' : 'Activeren'}"
-                            onclick="toggleItemActief(${item.id}, ${active ? 0 : 1})">
-                            <i class="bi bi-toggle-${active ? 'on' : 'off'}"></i>
-                        </button>
+                    <div class="item-naam">
+                        ${escHtml(item.naam)}
+                        ${kritisch ? '<span class="badge" style="background:#fff3e0;color:#e65100;font-size:0.7rem;margin-left:0.3rem;">Allergeen-kritisch</span>' : ''}
                     </div>
                 </td>
+                <td style="font-size:0.84rem;color:#666;">${formatFreq(item.frequentie)}</td>
+                <td><span class="badge" style="${active ? 'background:#e8f5e9;color:#2e7d32;' : 'background:#f5f5f5;color:#999;'}">${active ? 'Actief' : 'Inactief'}</span></td>
             </tr>`;
         });
+
+        html += `<tr class="item-add-row" data-cat-id="${catId}"${hiddenStyle}>
+            <td class="drag-cell"></td>
+            <td colspan="3"><button class="btn-add" onclick="event.stopPropagation();openItemModal(null, ${catObj ? catObj.id : 'null'})"><i class="bi bi-plus"></i> Nieuw item</button></td>
+        </tr>`;
     }
 
-    // Empty categories (in categorieen but no items yet)
-    (categorieen || []).forEach(c => {
-        if (!order.includes(c.naam)) {
-            html += `<tr class="cat-header">
-                <td colspan="4">
-                    <div class="cat-header-cell">
-                        <span class="cat-header-label-wrap"><i class="bi bi-tag-fill" style="color:#c8913a;"></i> ${escHtml(c.naam)} <span style="font-size:0.75rem;color:#bbb;font-weight:400;">(leeg)</span></span>
-                        <div class="cat-header-actions">
-                            <button class="btn-icon" onclick="openCatEdit(${c.id})" title="Categorie hernoemen"><i class="bi bi-pencil"></i></button>
-                            <button class="btn-icon danger" onclick="deleteCategorie(${c.id})" title="Categorie verwijderen"><i class="bi bi-trash"></i></button>
-                            <button class="btn-icon" onclick="openItemModal(null, ${c.id})" title="Nieuw item in deze categorie" style="color:#3d6b3d;"><i class="bi bi-plus-lg"></i></button>
-                        </div>
-                    </div>
-                </td>
-            </tr>`;
-        }
-    });
-
     body.innerHTML = html;
+    initItemDrag();
+}
+
+function toggleItemCategory(catId) {
+    const key = String(catId);
+    if (collapsedItemCategories.has(key)) {
+        collapsedItemCategories.delete(key);
+    } else {
+        collapsedItemCategories.add(key);
+    }
+    const headerRow = document.querySelector(`tr.item-cat-header[data-cat-id="${catId}"]`);
+    if (headerRow) {
+        const chevron = headerRow.querySelector('.item-cat-chevron');
+        if (chevron) chevron.classList.toggle('collapsed', collapsedItemCategories.has(key));
+    }
+    const isHidden = collapsedItemCategories.has(key);
+    document.querySelectorAll(`tr.item-row[data-cat-id="${catId}"], tr.item-add-row[data-cat-id="${catId}"]`).forEach(r => {
+        r.style.display = isHidden ? 'none' : '';
+    });
+}
+
+function initItemDrag() {
+    document.querySelectorAll('tr.item-row').forEach(row => {
+        row.addEventListener('dragstart', e => {
+            draggingItem = row;
+            row.classList.add('dragging');
+            e.dataTransfer.effectAllowed = 'move';
+            e.stopPropagation();
+            row._dragged = true;
+        });
+        row.addEventListener('dragend', () => {
+            draggingItem = null;
+            row.classList.remove('dragging');
+            document.querySelectorAll('tr.item-row').forEach(r => r.classList.remove('drag-over'));
+            setTimeout(() => { row._dragged = false; }, 50);
+        });
+        row.addEventListener('dragover', e => {
+            if (!draggingItem || draggingItem === row) return;
+            if (draggingItem.dataset.catId !== row.dataset.catId) return;
+            e.preventDefault(); e.stopPropagation();
+            document.querySelectorAll('tr.item-row').forEach(r => r.classList.remove('drag-over'));
+            row.classList.add('drag-over');
+        });
+        row.addEventListener('dragleave', () => row.classList.remove('drag-over'));
+        row.addEventListener('drop', e => {
+            e.preventDefault(); e.stopPropagation();
+            if (!draggingItem || draggingItem === row) return;
+            if (draggingItem.dataset.catId !== row.dataset.catId) return;
+            row.classList.remove('drag-over');
+            const catId = row.dataset.catId;
+            const rows = [...document.querySelectorAll(`tr.item-row[data-cat-id="${catId}"]`)];
+            const fromIdx = rows.indexOf(draggingItem);
+            const toIdx   = rows.indexOf(row);
+            if (fromIdx === -1 || toIdx === -1) return;
+            if (fromIdx < toIdx) row.after(draggingItem);
+            else row.before(draggingItem);
+            saveItemOrder(catId);
+        });
+    });
+}
+
+async function saveItemOrder(catId) {
+    const rows = [...document.querySelectorAll(`tr.item-row[data-cat-id="${catId}"]`)];
+    const items = rows.map((r, i) => ({ id: parseInt(r.dataset.id), sort_order: i }));
+    try { await callApi(null, { action: 'reorder_items', items }); } catch (e) { /* silent */ }
+}
+
+function closeItemInlineEdit() {
+    if (!activeItemEditTr) return;
+    if (activeItemEditTr._originalRow) activeItemEditTr._originalRow.style.display = '';
+    activeItemEditTr.remove();
+    activeItemEditTr = null;
+}
+
+function openItemInlineEdit(itemRow) {
+    closeItemInlineEdit();
+    const id   = itemRow.dataset.id;
+    const item = masterItems.find(i => String(i.id) === String(id));
+    if (!item) return;
+
+    const tr = document.createElement('tr');
+    tr.className = 'item-edit-row';
+    tr.innerHTML = `
+        <td class="drag-cell"></td>
+        <td colspan="3">
+            <div class="ie-form">
+                <input type="text" class="ie-naam" placeholder="Item naam" value="${escAttr(item.naam)}">
+                <select class="ie-freq">
+                    <option value="dagelijks"${item.frequentie === 'dagelijks' ? ' selected' : ''}>Dagelijks</option>
+                    <option value="dagelijks_mits_gebruikt"${item.frequentie === 'dagelijks_mits_gebruikt' ? ' selected' : ''}>Dagelijks (mits gebruikt)</option>
+                    <option value="wekelijks"${item.frequentie === 'wekelijks' ? ' selected' : ''}>Wekelijks</option>
+                    <option value="maandelijks"${item.frequentie === 'maandelijks' ? ' selected' : ''}>Maandelijks</option>
+                </select>
+                <label class="ie-check-label"><input type="checkbox" class="ie-kritisch"${parseInt(item.is_allergeen_kritisch) ? ' checked' : ''}> Allergeen-kritisch</label>
+                <div class="ie-actions">
+                    <button class="btn btn-danger btn-sm" onclick="toggleItemInlineActief(this, ${item.id}, ${parseInt(item.actief) ? 0 : 1})">${parseInt(item.actief) ? 'Deactiveren' : 'Activeren'}</button>
+                    <span class="ie-spacer"></span>
+                    <button class="btn btn-ghost btn-sm" onclick="closeItemInlineEdit()">Annuleren</button>
+                    <button class="btn btn-primary btn-sm" onclick="saveItemInlineEdit(this)"><i class="bi bi-floppy"></i> Opslaan</button>
+                </div>
+            </div>
+        </td>`;
+
+    tr._originalRow = itemRow;
+    tr._itemId = id;
+    itemRow.after(tr);
+    itemRow.style.display = 'none';
+    activeItemEditTr = tr;
+    tr.querySelector('.ie-naam').focus();
+}
+
+async function saveItemInlineEdit(btn) {
+    const tr   = btn.closest('tr.item-edit-row');
+    const id   = tr._itemId;
+    const naam = tr.querySelector('.ie-naam').value.trim();
+    const freq = tr.querySelector('.ie-freq').value;
+    const krit = tr.querySelector('.ie-kritisch').checked ? 1 : 0;
+    if (!naam) return;
+    const item = masterItems.find(i => String(i.id) === String(id));
+    try {
+        await callApi(null, {
+            action: 'save_item', id: parseInt(id), naam,
+            categorie_id: item?.categorie_id || null, type: 'schoonmaak',
+            frequentie: freq, actief: item?.actief ?? 1, is_allergeen_kritisch: krit,
+        });
+        showToast('Item bijgewerkt', 'success');
+        await loadItems();
+    } catch (e) { showToast('Fout: ' + e.message, 'error'); }
+}
+
+async function toggleItemInlineActief(btn, id, actief) {
+    const item = masterItems.find(i => i.id == id);
+    if (!await showConfirm(`Item "${item?.naam || id}" ${actief ? 'activeren' : 'deactiveren'}?`)) return;
+    try {
+        await callApi(null, { action: 'toggle_item', id, actief });
+        showToast(actief ? 'Item geactiveerd' : 'Item gedeactiveerd', 'success');
+        closeItemInlineEdit();
+        await loadItems();
+    } catch (e) { showToast('Fout: ' + e.message, 'error'); }
 }
 
 function openItemModal(id, defaultCategorieId) {
@@ -1011,7 +1168,7 @@ function renderAllergenStatus(statuses, criticalCount) {
             daysRemainingHtml = '<span style="color:#aaa;font-size:0.82rem;">Actief in gebruik</span>';
             cleaningStatus = '—';
             actionBtn      = `<span style="color:#aaa;font-size:0.82rem;" title="Zolang dit allergeen op voorraad is, wordt het automatisch als sporenallergeen getoond. Verwijder de voorraad om de 60-dagenperiode te starten.">Geen actie mogelijk</span>
-                              <button class="btn btn-danger btn-sm" style="margin-left:0.5rem" onclick="deleteAllergenRecord('${escAttr(s.allergeen_naam)}')" title="Admin: verwijder dit record volledig uit de tracking-tabel (bijv. voor testdata)."><i class="bi bi-trash3"></i></button>`;
+                              <button class="btn btn-danger btn-sm" style="margin-left:0.5rem" onclick="deleteAllergenRecord('${escAttr(s.allergeen_naam)}')" title="Admin: verwijder dit record volledig uit de tracking-tabel (bijv. voor testdata)."><i class="bi bi-trash3"></i> Verwijderen</button>`;
         } else if (isDepleted) {
             rowClass      = 'row-depleted';
             statusBadge   = '<span class="badge" style="background:#ffebee;color:#c62828;"><i class="bi bi-clock-history"></i> Uitgeput</span>';
@@ -1031,7 +1188,8 @@ function renderAllergenStatus(statuses, criticalCount) {
                 : (s.cleaning_complete
                     ? `<span style="color:#2e7d32;"><i class="bi bi-check-circle"></i> Afgerond (${s.cleaning_done}/${s.cleaning_total})</span>`
                     : `<span style="color:#e65100;">${s.cleaning_done}/${s.cleaning_total} afgerond</span>`);
-            actionBtn = `<button class="btn btn-ghost btn-sm" onclick="clearAllergen('${escAttr(s.allergeen_naam)}')" title="Handmatig vrijgeven: dit allergeen wordt niet meer als sporenallergeen getoond op productpagina's. Gebruik dit alleen als de ruimte grondig schoongemaakt is en je zeker weet dat er geen kruiscontaminatie meer mogelijk is."><i class="bi bi-check-lg"></i> Vrijgeven</button>`;
+            actionBtn = `<button class="btn btn-ghost btn-sm" onclick="clearAllergen('${escAttr(s.allergeen_naam)}')" title="Handmatig vrijgeven: dit allergeen wordt niet meer als sporenallergeen getoond op productpagina's. Gebruik dit alleen als de ruimte grondig schoongemaakt is en je zeker weet dat er geen kruiscontaminatie meer mogelijk is."><i class="bi bi-check-lg"></i> Vrijgeven</button>
+                         <button class="btn btn-danger btn-sm" style="margin-left:0.35rem" onclick="deleteAllergenRecord('${escAttr(s.allergeen_naam)}')" title="Record volledig verwijderen uit de tracking-tabel."><i class="bi bi-trash3"></i></button>`;
         } else {
             rowClass      = 'row-cleared';
             statusBadge   = '<span class="badge" style="background:#e8f5e9;color:#2e7d32;"><i class="bi bi-check-circle-fill"></i> Vrijgegeven</span>';
@@ -1039,7 +1197,8 @@ function renderAllergenStatus(statuses, criticalCount) {
             daysRemainingHtml = '<span style="color:#2e7d32;font-size:0.82rem;">Periode afgerond</span>';
             const clearedBy = s.cleared_by === 'auto' ? 'Automatisch' : escHtml(s.cleared_by || '?');
             cleaningStatus = `<span class="release-by"><i class="bi bi-person-check"></i> ${clearedBy}</span>`;
-            actionBtn = `<button class="btn btn-ghost btn-sm" onclick="resetAllergen('${escAttr(s.allergeen_naam)}')" title="Terugzetten naar 'Uitgeput': het allergeen wordt weer als sporenallergeen getoond. Gebruik dit als blijkt dat de vrijgave te vroeg was of per ongeluk is gedaan."><i class="bi bi-arrow-counterclockwise"></i> Terugzetten</button>`;
+            actionBtn = `<button class="btn btn-ghost btn-sm" onclick="resetAllergen('${escAttr(s.allergeen_naam)}')" title="Terugzetten naar 'Uitgeput': het allergeen wordt weer als sporenallergeen getoond. Gebruik dit als blijkt dat de vrijgave te vroeg was of per ongeluk is gedaan."><i class="bi bi-arrow-counterclockwise"></i> Terugzetten</button>
+                         <button class="btn btn-danger btn-sm" style="margin-left:0.35rem" onclick="deleteAllergenRecord('${escAttr(s.allergeen_naam)}')" title="Record volledig verwijderen uit de tracking-tabel."><i class="bi bi-trash3"></i></button>`;
         }
 
         return `<tr class="${rowClass}">
@@ -1114,7 +1273,7 @@ async function loadOverzicht() {
                         <i class="bi bi-eye"></i> Openen
                     </button>
                     <button class="btn-icon danger" style="margin-left:0.35rem;" onclick="deleteList(${l.id}, '${l.datum}')" title="Verwijderen">
-                        <i class="bi bi-trash"></i>
+                        <i class="bi bi-trash"></i> Verwijderen
                     </button>
                 </td>
             </tr>`;
@@ -1189,6 +1348,7 @@ document.querySelectorAll('.modal-overlay').forEach(el => {
 
 document.addEventListener('keydown', e => {
     if (e.key === 'Escape') {
+        if (activeItemEditTr) { closeItemInlineEdit(); return; }
         // Only close small modals on Escape, not the formulier modal
         document.querySelectorAll('.modal-overlay.open').forEach(m => {
             if (m.id !== 'formulierModal') m.classList.remove('open');
@@ -1211,6 +1371,8 @@ document.addEventListener('keydown', e => {
     document.getElementById('filterVan').value = toLocal(firstDay);
     document.getElementById('filterTot').value = toLocal(lastDay);
     loadOverzicht();
+    const urlTab = new URLSearchParams(location.search).get('tab');
+    if (urlTab && ['overzicht', 'items', 'allergenen'].includes(urlTab)) switchTab(urlTab);
 })();
 </script>
 </body>

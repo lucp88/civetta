@@ -116,10 +116,8 @@ switch ($method) {
             $adminCreate = !empty($data['admin_create']) && isset($_SESSION['admin_logged_in']) && $_SESSION['admin_logged_in'];
 
             if ($adminCreate) {
-                // Generate invite token; do NOT send email yet (soft account — configure balance etc. first)
-                $inviteToken = bin2hex(random_bytes(32));
-                $stmt = $pdo->prepare("UPDATE business_accounts SET status = 'approved', approved_at = NOW(), invite_token = ? WHERE id = ?");
-                $stmt->execute([$inviteToken, $id]);
+                $stmt = $pdo->prepare("UPDATE business_accounts SET status = 'approved', approved_at = NOW() WHERE id = ?");
+                $stmt->execute([$id]);
 
                 echo json_encode(['success' => true, 'id' => $id, 'message' => 'Account aangemaakt. Stuur een uitnodiging wanneer je klaar bent.']);
             } else {
@@ -133,8 +131,8 @@ switch ($method) {
                 ];
                 
                 $bedrijf = getBedrijfsGegevens($pdo);
-                $htmlBody = buildAccountRegistrationEmail($account, $bedrijf);
-                sendHtmlEmail($email, "Aanvraag ontvangen - Bakkerij Civetta", $htmlBody);
+                $htmlBody = buildAccountRegistrationEmail($account, $bedrijf, $pdo);
+                sendHtmlEmail($email, getEmailSubject($pdo, 'account_aanvraag', 'Aanvraag ontvangen - Bakkerij Civetta'), $htmlBody);
                 
                 $adminHtml = getEmailHeader('Nieuwe accountaanvraag');
                 $adminHtml .= '
@@ -199,12 +197,7 @@ switch ($method) {
                 $stmt = $pdo->prepare("UPDATE business_accounts SET status = 'approved', approved_at = NOW(), invite_token = ? WHERE id = ?");
                 $stmt->execute([$inviteToken, $id]);
 
-                $inviteUrl = 'https://bakkerij-civetta.nl/uitnodiging.php?token=' . $inviteToken;
-                $bedrijf = getBedrijfsGegevens($pdo);
-                $htmlBody = buildAccountInviteEmail($account, $inviteUrl, $bedrijf);
-                sendHtmlEmail($account['email'], "Welkom bij Bakkerij Civetta — activeer je account", $htmlBody);
-
-                echo json_encode(['success' => true, 'message' => 'Goedgekeurd! Uitnodigingsmail is verstuurd.']);
+                echo json_encode(['success' => true, 'message' => 'Goedgekeurd! Stuur een uitnodiging wanneer je klaar bent.']);
             } elseif ($action === 'reject') {
                 $stmt = $pdo->prepare("UPDATE business_accounts SET status = 'rejected' WHERE id = ?");
                 $stmt->execute([$id]);
@@ -286,13 +279,85 @@ switch ($method) {
 
                 $inviteUrl = 'https://bakkerij-civetta.nl/uitnodiging.php?token=' . $inviteToken;
                 $bedrijf = getBedrijfsGegevens($pdo);
-                $htmlBody = buildAccountInviteEmail($account, $inviteUrl, $bedrijf);
+                $htmlBody = buildAccountInviteEmail($account, $inviteUrl, $bedrijf, $pdo);
                 $subject = $action === 'reset_password'
-                    ? "Wachtwoord opnieuw instellen — Bakkerij Civetta"
-                    : "Uitnodiging — Bakkerij Civetta";
+                    ? getEmailSubject($pdo, 'wachtwoord_reset', 'Wachtwoord opnieuw instellen — Bakkerij Civetta')
+                    : getEmailSubject($pdo, 'account_uitnodiging', 'Uitnodiging — Bakkerij Civetta');
                 sendHtmlEmail($account['email'], $subject, $htmlBody);
 
                 echo json_encode(['success' => true, 'message' => 'Uitnodigingsmail verstuurd naar ' . $account['email']]);
+            } elseif ($action === 'send_tweede_invite' || $action === 'reset_tweede_password') {
+                $tweedeEmail = trim($data['tweede_email'] ?? $account['tweede_email'] ?? '');
+                $tweedeContactpersoon = trim($data['tweede_contactpersoon'] ?? $account['tweede_contactpersoon'] ?? '');
+
+                if (!$tweedeEmail || !filter_var($tweedeEmail, FILTER_VALIDATE_EMAIL)) {
+                    http_response_code(400);
+                    echo json_encode(['success' => false, 'error' => 'Geldig e-mailadres voor tweede contactpersoon is verplicht']);
+                    exit;
+                }
+
+                // Ensure tweede_email is unique across all accounts (excluding this one)
+                $stmt = $pdo->prepare("SELECT id FROM business_accounts WHERE tweede_email = ? AND id != ?");
+                $stmt->execute([$tweedeEmail, $id]);
+                if ($stmt->fetch()) {
+                    http_response_code(400);
+                    echo json_encode(['success' => false, 'error' => 'Dit e-mailadres is al in gebruik']);
+                    exit;
+                }
+                $stmt = $pdo->prepare("SELECT id FROM business_accounts WHERE email = ? AND id != ?");
+                $stmt->execute([$tweedeEmail, $id]);
+                if ($stmt->fetch()) {
+                    http_response_code(400);
+                    echo json_encode(['success' => false, 'error' => 'Dit e-mailadres is al in gebruik als primair e-mailadres']);
+                    exit;
+                }
+
+                $tweedeToken = bin2hex(random_bytes(32));
+                $stmt = $pdo->prepare("UPDATE business_accounts SET tweede_email = ?, tweede_contactpersoon = ?, tweede_invite_token = ?, tweede_invite_accepted_at = NULL WHERE id = ?");
+                $stmt->execute([$tweedeEmail, $tweedeContactpersoon, $tweedeToken, $id]);
+
+                $inviteUrl = 'https://bakkerij-civetta.nl/uitnodiging.php?token=' . $tweedeToken;
+                $bedrijf = getBedrijfsGegevens($pdo);
+                $tweedeAccount = array_merge($account, ['contactpersoon' => $tweedeContactpersoon ?: $account['contactpersoon']]);
+                $htmlBody = buildAccountInviteEmail($tweedeAccount, $inviteUrl, $bedrijf, $pdo);
+                $subject = $action === 'reset_tweede_password'
+                    ? getEmailSubject($pdo, 'wachtwoord_reset', 'Wachtwoord opnieuw instellen — Bakkerij Civetta')
+                    : getEmailSubject($pdo, 'account_uitnodiging', 'Uitnodiging — Bakkerij Civetta');
+                sendHtmlEmail($tweedeEmail, $subject, $htmlBody);
+
+                echo json_encode(['success' => true, 'message' => 'Uitnodigingsmail verstuurd naar ' . $tweedeEmail]);
+            } elseif ($action === 'update_tweede_contact') {
+                $tweedeEmail = trim($data['tweede_email'] ?? '');
+                $tweedeContactpersoon = trim($data['tweede_contactpersoon'] ?? '');
+
+                if ($tweedeEmail && !filter_var($tweedeEmail, FILTER_VALIDATE_EMAIL)) {
+                    http_response_code(400);
+                    echo json_encode(['success' => false, 'error' => 'Ongeldig e-mailadres']);
+                    exit;
+                }
+                if ($tweedeEmail) {
+                    $stmt = $pdo->prepare("SELECT id FROM business_accounts WHERE tweede_email = ? AND id != ?");
+                    $stmt->execute([$tweedeEmail, $id]);
+                    if ($stmt->fetch()) {
+                        http_response_code(400);
+                        echo json_encode(['success' => false, 'error' => 'Dit e-mailadres is al in gebruik']);
+                        exit;
+                    }
+                    $stmt = $pdo->prepare("SELECT id FROM business_accounts WHERE email = ? AND id != ?");
+                    $stmt->execute([$tweedeEmail, $id]);
+                    if ($stmt->fetch()) {
+                        http_response_code(400);
+                        echo json_encode(['success' => false, 'error' => 'Dit e-mailadres is al in gebruik als primair e-mailadres']);
+                        exit;
+                    }
+                }
+                $stmt = $pdo->prepare("UPDATE business_accounts SET tweede_contactpersoon = ?, tweede_email = ? WHERE id = ?");
+                $stmt->execute([$tweedeContactpersoon ?: null, $tweedeEmail ?: null, $id]);
+                echo json_encode(['success' => true, 'message' => 'Tweede contactpersoon bijgewerkt']);
+            } elseif ($action === 'remove_tweede_contact') {
+                $stmt = $pdo->prepare("UPDATE business_accounts SET tweede_contactpersoon = NULL, tweede_email = NULL, tweede_password_hash = NULL, tweede_invite_token = NULL, tweede_invite_accepted_at = NULL, tweede_invite_opened_at = NULL, tweede_pw_reset_token = NULL, tweede_pw_reset_expires = NULL WHERE id = ?");
+                $stmt->execute([$id]);
+                echo json_encode(['success' => true, 'message' => 'Tweede contactpersoon verwijderd']);
             } else {
                 http_response_code(400);
                 echo json_encode(['success' => false, 'error' => 'Ongeldige actie']);
@@ -332,20 +397,25 @@ switch ($method) {
             // GDPR: anonymize PII instead of hard-deleting, so invoices and orders remain intact
             $stmt = $pdo->prepare("
                 UPDATE business_accounts SET
-                    bedrijfsnaam    = '[Verwijderd]',
-                    contactpersoon  = '',
-                    email           = CONCAT('deleted_', id, '@deleted.invalid'),
-                    telefoon        = '',
-                    website         = '',
-                    adres           = '',
-                    postcode        = '',
-                    plaats          = '',
-                    kvk_nummer      = '',
-                    btw_id          = '',
-                    opmerkingen     = '',
-                    password_hash   = NULL,
-                    invite_token    = NULL,
-                    status          = 'rejected'
+                    bedrijfsnaam           = '[Verwijderd]',
+                    contactpersoon         = '',
+                    email                  = CONCAT('deleted_', id, '@deleted.invalid'),
+                    telefoon               = '',
+                    website                = '',
+                    adres                  = '',
+                    postcode               = '',
+                    plaats                 = '',
+                    kvk_nummer             = '',
+                    btw_id                 = '',
+                    opmerkingen            = '',
+                    password_hash          = NULL,
+                    invite_token           = NULL,
+                    tweede_contactpersoon  = NULL,
+                    tweede_email           = NULL,
+                    tweede_password_hash   = NULL,
+                    tweede_invite_token    = NULL,
+                    tweede_invite_accepted_at = NULL,
+                    status                 = 'rejected'
                 WHERE id = ?
             ");
             $stmt->execute([$id]);

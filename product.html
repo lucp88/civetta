@@ -212,6 +212,81 @@
         .samenstelling-row strong {
             color: var(--color-crust);
         }
+        .coming-soon-badge {
+            display: inline-block;
+            background: var(--color-parchment);
+            color: var(--color-stone);
+            border: 1px solid var(--color-wheat);
+            border-radius: 6px;
+            padding: 0.4rem 0.75rem;
+            font-size: 0.9rem;
+            font-style: italic;
+        }
+        .add-to-cart-row {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+        }
+        .cart-qty-group {
+            display: flex;
+            align-items: center;
+            gap: 0.3rem;
+            background: var(--color-parchment);
+            border-radius: 8px;
+            padding: 0.25rem 0.4rem;
+        }
+        .cart-qty-btn {
+            width: 32px;
+            height: 32px;
+            border: none;
+            border-radius: 6px;
+            background: white;
+            color: var(--color-crust);
+            font-size: 1.1rem;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+            transition: background 0.15s;
+        }
+        .cart-qty-btn:hover { background: var(--color-crust); color: white; }
+        .cart-qty-input {
+            width: 40px;
+            text-align: center;
+            border: none;
+            background: transparent;
+            font-size: 1rem;
+            font-weight: 700;
+            color: var(--color-crust-dark);
+            -moz-appearance: textfield;
+        }
+        .cart-qty-input::-webkit-outer-spin-button,
+        .cart-qty-input::-webkit-inner-spin-button { -webkit-appearance: none; }
+        .add-to-cart-btn {
+            flex: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.5rem;
+            padding: 0.7rem 1.25rem;
+            background: linear-gradient(135deg, var(--color-crust), var(--color-crust-dark));
+            color: white;
+            border: none;
+            border-radius: 10px;
+            font-family: var(--font-body);
+            font-size: 0.95rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: opacity 0.2s, transform 0.1s;
+        }
+        .add-to-cart-btn:hover { opacity: 0.9; transform: translateY(-1px); }
+        .add-to-cart-btn.added { background: linear-gradient(135deg, #2d5a27, #1e3d1a); }
+        .add-to-cart-btn svg { width: 16px; height: 16px; }
+        .cart-in-cart-hint {
+            font-size: 0.8rem;
+            color: var(--color-sage);
+        }
     </style>
 
     <link rel="stylesheet" href="css/fonts.css">
@@ -301,6 +376,34 @@
                                 </select>
                             </div>
 
+                            <div v-if="isComingSoon">
+                                <span class="coming-soon-badge">Binnenkort beschikbaar</span>
+                            </div>
+
+                            <!-- Add to cart (business users only) -->
+                            <div v-if="canAddToCart">
+                                <div class="add-to-cart-row">
+                                    <div class="cart-qty-group">
+                                        <button class="cart-qty-btn" @click="addQuantity = Math.max(1, addQuantity - 1)">−</button>
+                                        <input type="number" class="cart-qty-input" v-model.number="addQuantity" min="1">
+                                        <button class="cart-qty-btn" @click="addQuantity++">+</button>
+                                    </div>
+                                    <button class="add-to-cart-btn" :class="{ added: addedToCart }" @click="addToCart">
+                                        <template v-if="addedToCart">
+                                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><path d="M20 6L9 17l-5-5"/></svg>
+                                            Toegevoegd!
+                                        </template>
+                                        <template v-else>
+                                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 2L3 6v14a2 2 0 002 2h14a2 2 0 002-2V6l-3-4z"/><line x1="3" y1="6" x2="21" y2="6"/><path d="M16 10a4 4 0 01-8 0"/></svg>
+                                            Aan winkelwagen toevoegen
+                                        </template>
+                                    </button>
+                                </div>
+                                <div v-if="cartCountForVariant > 0" class="cart-in-cart-hint">
+                                    {{ cartCountForVariant }} van dit product in uw winkelwagen
+                                </div>
+                            </div>
+
                             <hr class="product-detail-divider">
 
                             <!-- Ingredients -->
@@ -377,7 +480,7 @@
     </footer>
 
     <script src="https://cdn.jsdelivr.net/npm/vue@3/dist/vue.global.prod.js"></script>
-    <script src="js/main.js"></script>
-    <script src="js/product-detail-app.js?v=6"></script>
+    <script src="js/main.js?v=4"></script>
+    <script src="js/product-detail-app.js?v=8"></script>
 </body>
 </html>

@@ -373,10 +373,10 @@ function sendBestelbonEmail($pdo, $orderId) {
     }
 
     $bedrijf = getBedrijfsGegevens($pdo);
-    $htmlBody = buildOrderConfirmationEmail($order, $items, $bedrijf, $btwTarief);
+    $htmlBody = buildOrderConfirmationEmail($order, $items, $bedrijf, $btwTarief, $pdo);
 
     $to = $order['email'];
-    $subject = "Bestelbevestiging $bestelbonNummer - Bakkerij Civetta";
+    $subject = getEmailSubject($pdo, 'bestelbevestiging', "Bestelbevestiging $bestelbonNummer - Bakkerij Civetta");
 
     $attachments = [
         ['path' => $bestelbonFile, 'name' => "bestelbon-$orderId.pdf", 'type' => 'application/pdf']
@@ -425,10 +425,10 @@ function sendRecurringBestelbonEmail($pdo, $recurringGroupId) {
 
     $btwTarief = floatval(getSetting($pdo, 'btw_tarief', '9'));
     $bedrijf = getBedrijfsGegevens($pdo);
-    $htmlBody = buildRecurringConfirmationEmail($order, $items, $upcomingOrders, $bedrijf, $btwTarief);
+    $htmlBody = buildRecurringConfirmationEmail($order, $items, $upcomingOrders, $bedrijf, $btwTarief, $pdo);
 
     $to = $order['email'];
-    $subject = "Terugkerende bestelling bevestigd - Bakkerij Civetta";
+    $subject = getEmailSubject($pdo, 'terugkerend_bevestiging', 'Terugkerende bestelling bevestigd - Bakkerij Civetta');
 
     $attachments = [
         ['path' => $bestelbonFile, 'name' => 'overzicht-terugkerende-bestelling.pdf', 'type' => 'application/pdf']
@@ -466,10 +466,10 @@ function sendCancellationEmail($pdo, $orderId) {
     $btwTarief = floatval(getSetting($pdo, 'btw_tarief', '9'));
     $bestelbonNummer = $order['bestelbon_number'] ?: generateBestelbonNumber($pdo, $orderId);
     $bedrijf = getBedrijfsGegevens($pdo);
-    $htmlBody = buildCancellationEmail($order, $items, $bedrijf, $btwTarief);
+    $htmlBody = buildCancellationEmail($order, $items, $bedrijf, $btwTarief, $pdo);
 
     $to = $order['email'];
-    $subject = "Annulering bestelling $bestelbonNummer - Bakkerij Civetta";
+    $subject = getEmailSubject($pdo, 'annulering', "Annulering bestelling $bestelbonNummer - Bakkerij Civetta");
 
     $attachments = [];
     if (file_exists($bestelbonFile)) {
@@ -489,14 +489,14 @@ function sendRecurringPauseEmail($pdo, $accountInfo, $affectedOrders, $unaffecte
     require_once __DIR__ . '/../../api/email-templates.php';
 
     $bedrijf = getBedrijfsGegevens($pdo);
-    $htmlBody = buildRecurringPauseEmail($accountInfo, $affectedOrders, $unaffectedOrders, $isPause, $bedrijf);
+    $htmlBody = buildRecurringPauseEmail($accountInfo, $affectedOrders, $unaffectedOrders, $isPause, $bedrijf, $pdo);
 
     $to = $accountInfo['email'];
     $recurringName = $accountInfo['recurring_name'] ?? 'Terugkerende bestelling';
 
     $subject = $isPause
-        ? "Leveringen gepauzeerd: $recurringName - Bakkerij Civetta"
-        : "Leveringen hervat: $recurringName - Bakkerij Civetta";
+        ? getEmailSubject($pdo, 'terugkerend_gepauzeerd', "Leveringen gepauzeerd: $recurringName - Bakkerij Civetta")
+        : getEmailSubject($pdo, 'terugkerend_hervat', "Leveringen hervat: $recurringName - Bakkerij Civetta");
 
     $customerSent = sendHtmlEmail($to, $subject, $htmlBody);
 
@@ -545,11 +545,11 @@ function sendRecurringUpdateEmail($pdo, $recurringGroupId, $oldItems, $newItems)
 
     $btwTarief = floatval(getSetting($pdo, 'btw_tarief', '9'));
     $bedrijf = getBedrijfsGegevens($pdo);
-    $htmlBody = buildRecurringUpdateEmail($order, $oldItems, $newItems, $upcomingOrders, $bedrijf, $btwTarief);
+    $htmlBody = buildRecurringUpdateEmail($order, $oldItems, $newItems, $upcomingOrders, $bedrijf, $btwTarief, $pdo);
 
     $to = $order['email'];
     $recurringName = $order['recurring_name'] ?? 'Terugkerende bestelling';
-    $subject = "Bestelling gewijzigd: $recurringName - Bakkerij Civetta";
+    $subject = getEmailSubject($pdo, 'terugkerend_gewijzigd', "Bestelling gewijzigd: $recurringName - Bakkerij Civetta");
 
     $attachments = [];
     if (file_exists($bestelbonFile)) {

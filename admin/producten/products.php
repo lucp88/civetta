@@ -4,7 +4,7 @@ requireLogin();
 
 $categories = $pdo->query("SELECT * FROM product_categories ORDER BY sort_order ASC, naam ASC")->fetchAll();
 $products = $pdo->query("SELECT * FROM products ORDER BY sort_order ASC, naam ASC")->fetchAll();
-$variants = $pdo->query("SELECT id, product_id, naam, gewicht, prijs, recipe_id, foto FROM product_variants ORDER BY product_id ASC, sort_order ASC, gewicht ASC")->fetchAll();
+$variants = $pdo->query("SELECT id, product_id, naam, gewicht, prijs, recipe_id, foto, is_active, is_hidden FROM product_variants ORDER BY product_id ASC, sort_order ASC, gewicht ASC")->fetchAll();
 $variantsByProduct = [];
 foreach ($variants as $v) {
     $variantsByProduct[$v['product_id']][] = $v;
@@ -22,6 +22,219 @@ $stmt->execute();
 $sidebarUnprocessedOrders = $stmt->fetch()['count'];
 
 $recipes = $pdo->query("SELECT id, name, dough_type_id FROM baker_recipes ORDER BY name ASC")->fetchAll();
+
+// ── Kostprijs calculation (low–high range across ingredient price ranges) ──────
+function computeVariantKostprijs(array $rd, int $doughWeightG, array $priceRangeById, array $priceRangeByName): ?array {
+    if ($doughWeightG <= 0) return null;
+
+    $hydration        = (float)($rd['hydration']          ?? 65);
+    $saltPct          = (float)($rd['saltPct']            ?? 2.6);
+    $useYeast         = !empty($rd['useYeast']);
+    $yeastPct         = $useYeast ? (float)($rd['yeastPct'] ?? 0) : 0;
+    $useSourdough     = !empty($rd['useSourdough']);
+    $usePreFerment    = !empty($rd['usePreFerment']);
+    $mixinMode        = $rd['mixinMode']        ?? 'flour';
+    $mainDoughPctMode = $rd['mainDoughPctMode'] ?? 'separate';
+
+    $totalFlour = $doughWeightG / (1 + $hydration / 100 + $saltPct / 100);
+
+    $sourdoughFlour = 0;
+    if ($useSourdough && ($rd['sourdoughPct'] ?? 0) > 0) {
+        $sdHyd = (float)($rd['sourdoughHydration'] ?? 100);
+        $sourdoughFlour = ($totalFlour * (float)$rd['sourdoughPct'] / 100) / (1 + $sdHyd / 100);
+    }
+    $preFermentFlour = 0;
+    if ($usePreFerment && ($rd['preFermentPct'] ?? 0) > 0) {
+        $pfHyd = (float)($rd['preFermentHydration'] ?? 100);
+        $preFermentFlour = ($totalFlour * (float)$rd['preFermentPct'] / 100) / (1 + $pfHyd / 100);
+    }
+
+    $mainDoughFlour = $totalFlour - $sourdoughFlour - $preFermentFlour;
+    $mixinBase      = ($mixinMode === 'dough') ? $doughWeightG : $totalFlour;
+
+    $integratedMixinWeight = 0;
+    foreach ($rd['mixins'] ?? [] as $m) {
+        if (($m['category'] ?? '') === 'integrated' && ($m['pct'] ?? 0) > 0) {
+            $integratedMixinWeight += $mixinBase * (float)$m['pct'] / 100;
+        }
+    }
+    $saltWeight  = ($totalFlour + $integratedMixinWeight) * $saltPct / 100;
+    $yeastWeight = $totalFlour * $yeastPct / 100;
+
+    $low = 0.0; $high = 0.0; $hasAny = false;
+    $add = function(float $wg, ?array $range) use (&$low, &$high, &$hasAny) {
+        if (!$range || ($range['min'] === null && $range['max'] === null)) return;
+        $mn = $range['min'] ?? $range['max'];
+        $mx = $range['max'] ?? $range['min'];
+        $low  += $wg / 1000 * $mn;
+        $high += $wg / 1000 * $mx;
+        $hasAny = true;
+    };
+
+    // Sourdough / pre-ferment grains
+    foreach ([
+        ['key' => 'sourdoughGrains',  'flour' => $sourdoughFlour,  'active' => $useSourdough],
+        ['key' => 'preFermentGrains', 'flour' => $preFermentFlour, 'active' => $usePreFerment],
+    ] as $sec) {
+        if (!$sec['active'] || $sec['flour'] <= 0) continue;
+        foreach ($rd[$sec['key']] ?? [] as $grain) {
+            $pct = (float)($grain['pct'] ?? 0);
+            if ($pct <= 0 || !is_numeric($grain['type'] ?? '')) continue;
+            $add($sec['flour'] * $pct / 100, $priceRangeById[(int)$grain['type']] ?? null);
+        }
+    }
+    // Main dough grains
+    $mainBase = ($mainDoughPctMode === 'integrated') ? $totalFlour : $mainDoughFlour;
+    foreach ($rd['mainDoughGrains'] ?? [] as $grain) {
+        $pct = (float)($grain['pct'] ?? 0);
+        if ($pct <= 0 || !is_numeric($grain['type'] ?? '')) continue;
+        $add($mainBase * $pct / 100, $priceRangeById[(int)$grain['type']] ?? null);
+    }
+    // Yeast
+    if ($useYeast && $yeastWeight > 0 && is_numeric($rd['yeastType'] ?? '')) {
+        $add($yeastWeight, $priceRangeById[(int)$rd['yeastType']] ?? null);
+    }
+    // Salt
+    $add($saltWeight, $priceRangeByName['zout'] ?? null);
+    // Mixins
+    foreach ($rd['mixins'] ?? [] as $m) {
+        $pct = (float)($m['pct'] ?? 0);
+        if ($pct <= 0 || empty($m['ingredient'])) continue;
+        $add($mixinBase * $pct / 100, $priceRangeByName[strtolower($m['ingredient'])] ?? null);
+    }
+    // Toppings (always % of doughWeight)
+    foreach ($rd['toppings'] ?? [] as $t) {
+        $pct = (float)($t['pct'] ?? 0);
+        if ($pct <= 0 || empty($t['ingredient'])) continue;
+        $add($doughWeightG * $pct / 100, $priceRangeByName[strtolower($t['ingredient'])] ?? null);
+    }
+
+    if (!$hasAny) return null;
+    return ['low' => round($low, 4), 'high' => round($high, 4)];
+}
+
+$kostprijsByVariant = [];  // [variant_id => ['low' => float, 'high' => float]]
+$kostprijsByProduct = [];  // [product_id => ['low' => float, 'high' => float]]
+
+try {
+    $allRecipeIds = array_values(array_filter(array_unique(array_column($variants, 'recipe_id'))));
+    if (!empty($allRecipeIds)) {
+        $ph = implode(',', array_fill(0, count($allRecipeIds), '?'));
+        $stmt = $pdo->prepare("SELECT id, recipe_data FROM baker_recipes WHERE id IN ($ph)");
+        $stmt->execute($allRecipeIds);
+        $recipesById = [];
+        foreach ($stmt->fetchAll() as $r) {
+            $rd = json_decode($r['recipe_data'], true);
+            if ($rd) $recipesById[(int)$r['id']] = $rd;
+        }
+
+        // Collect all ingredient IDs (grains + yeast) and names (mixins, toppings, salt)
+        $neededIds   = [];
+        $neededNames = ['zout'];
+        foreach ($recipesById as $rd) {
+            foreach (['sourdoughGrains', 'preFermentGrains', 'mainDoughGrains'] as $key) {
+                foreach ($rd[$key] ?? [] as $grain) {
+                    if (is_numeric($grain['type'] ?? '')) $neededIds[] = (int)$grain['type'];
+                }
+            }
+            if (!empty($rd['useYeast']) && is_numeric($rd['yeastType'] ?? '')) {
+                $neededIds[] = (int)$rd['yeastType'];
+            }
+            foreach (array_merge($rd['mixins'] ?? [], $rd['toppings'] ?? []) as $item) {
+                if (!empty($item['ingredient'])) $neededNames[] = strtolower($item['ingredient']);
+            }
+        }
+        $neededIds   = array_values(array_unique($neededIds));
+        $neededNames = array_values(array_unique($neededNames));
+
+        // Price ranges by ID: check own batches AND children's batches (for group ingredients)
+        $priceRangeById = [];
+        if (!empty($neededIds)) {
+            $ph2 = implode(',', array_fill(0, count($neededIds), '?'));
+            // Own batches
+            $stmt = $pdo->prepare("
+                SELECT i.id, MIN(b.price_per_kg) as min_p, MAX(b.price_per_kg) as max_p
+                FROM ingredients i
+                JOIN ingredient_batches b ON b.ingredient_id = i.id AND b.quantity_remaining > 0
+                WHERE i.id IN ($ph2)
+                GROUP BY i.id
+            ");
+            $stmt->execute($neededIds);
+            foreach ($stmt->fetchAll() as $r) {
+                $priceRangeById[(int)$r['id']] = ['min' => (float)$r['min_p'], 'max' => (float)$r['max_p']];
+            }
+            // Children's batches (group ingredients have no own batches)
+            $stmt = $pdo->prepare("
+                SELECT c.parent_id, MIN(b.price_per_kg) as min_p, MAX(b.price_per_kg) as max_p
+                FROM ingredients c
+                JOIN ingredient_batches b ON b.ingredient_id = c.id AND b.quantity_remaining > 0
+                WHERE c.parent_id IN ($ph2)
+                GROUP BY c.parent_id
+            ");
+            $stmt->execute($neededIds);
+            foreach ($stmt->fetchAll() as $r) {
+                $pid = (int)$r['parent_id'];
+                if (!isset($priceRangeById[$pid])) {
+                    $priceRangeById[$pid] = ['min' => (float)$r['min_p'], 'max' => (float)$r['max_p']];
+                } else {
+                    $priceRangeById[$pid]['min'] = min($priceRangeById[$pid]['min'], (float)$r['min_p']);
+                    $priceRangeById[$pid]['max'] = max($priceRangeById[$pid]['max'], (float)$r['max_p']);
+                }
+            }
+        }
+
+        // Price ranges by name (mixins, toppings, salt — matched case-insensitively)
+        $priceRangeByName = [];
+        if (!empty($neededNames)) {
+            $ph3 = implode(',', array_fill(0, count($neededNames), '?'));
+            $stmt = $pdo->prepare("
+                SELECT LOWER(i.name) as name_lower, MIN(b.price_per_kg) as min_p, MAX(b.price_per_kg) as max_p
+                FROM ingredients i
+                JOIN ingredient_batches b ON b.ingredient_id = i.id AND b.quantity_remaining > 0
+                WHERE LOWER(i.name) IN ($ph3) AND i.is_active = 1
+                GROUP BY LOWER(i.name)
+            ");
+            $stmt->execute($neededNames);
+            foreach ($stmt->fetchAll() as $r) {
+                $priceRangeByName[$r['name_lower']] = ['min' => (float)$r['min_p'], 'max' => (float)$r['max_p']];
+            }
+        }
+
+        // Compute per-variant kostprijs range
+        foreach ($variants as $v) {
+            if (empty($v['recipe_id']) || !isset($recipesById[$v['recipe_id']])) continue;
+            $result = computeVariantKostprijs(
+                $recipesById[$v['recipe_id']],
+                (int)$v['gewicht'],
+                $priceRangeById,
+                $priceRangeByName
+            );
+            if ($result !== null) $kostprijsByVariant[$v['id']] = $result;
+        }
+
+        // Aggregate per-product range (min of lows, max of highs across variants)
+        foreach ($products as $p) {
+            $costs = [];
+            foreach ($variantsByProduct[$p['id']] ?? [] as $v) {
+                if (isset($kostprijsByVariant[$v['id']])) $costs[] = $kostprijsByVariant[$v['id']];
+            }
+            if (!empty($costs)) {
+                $kostprijsByProduct[$p['id']] = [
+                    'low'  => min(array_column($costs, 'low')),
+                    'high' => max(array_column($costs, 'high')),
+                ];
+            }
+        }
+    }
+} catch (Exception $e) {
+    // Kostprijs unavailable — products still render without it
+}
+
+function fmtKp(float $low, float $high): string {
+    $lo = '€' . number_format($low,  2, ',', '.');
+    $hi = '€' . number_format($high, 2, ',', '.');
+    return (abs($high - $low) < 0.005) ? $lo : $lo . '&nbsp;–&nbsp;' . $hi;
+}
 
 $adminPageTitle = 'Producten';
 $currentPage = 'products';
@@ -117,9 +330,10 @@ ob_start(); ?>
         tr.variant-row:hover td { background: #f5f2ed; }
         .variant-naam {
             display: flex;
-            align-items: center;
-            gap: 0.4rem;
-            padding-left: 1rem;
+            flex-direction: column;
+            align-items: flex-start;
+            gap: 0.05rem;
+            padding-left: 0.25rem;
             color: #4a433d;
             font-size: 0.9rem;
         }
@@ -169,6 +383,9 @@ ob_start(); ?>
         .ve-actions { display: flex; gap: 0.4rem; align-items: center; margin-top: 0.35rem; width: 100%; }
         .ve-spacer { flex: 1; }
         .variant-foto-thumb { width: 36px; height: 27px; object-fit: cover; border-radius: 3px; opacity: 0.85; }
+        .kp-cell { font-size: 0.8rem; white-space: nowrap; font-variant-numeric: tabular-nums; color: #6b5c4e; }
+        .variant-kp { color: #888; }
+        .kp-na { color: #ccc; }
 
         /* Category sections */
         .category-section { margin-bottom: 1.25rem; }
@@ -189,10 +406,45 @@ ob_start(); ?>
         .cat-card { border-radius: 0; box-shadow: none; margin: 0; padding: 0; }
         .cat-card table { border-radius: 0; }
 
-        /* Add category form */
-        .add-cat-form { display: flex; align-items: center; gap: 0.5rem; padding: 0.75rem 1rem; background: white; border: 1px dashed #c8bfb5; border-radius: 10px; }
-        .add-cat-form input { padding: 0.4rem 0.7rem; border: 1.5px solid #d4c8b8; border-radius: 6px; font-size: 0.95rem; font-family: inherit; width: 220px; }
-        .add-cat-form input:focus { outline: none; border-color: #c8913a; }
+        /* Category tabs */
+        .cat-tabs { display: flex; align-items: center; gap: 0; border-bottom: 2px solid #e8dfd2; margin-bottom: 1.5rem; overflow-x: auto; scrollbar-width: none; }
+        .cat-tabs::-webkit-scrollbar { display: none; }
+        .cat-tab { padding: 0.7rem 1.2rem; cursor: pointer; font-weight: 500; color: #888; border-bottom: 3px solid transparent; margin-bottom: -2px; white-space: nowrap; transition: all 0.2s; user-select: none; display: flex; align-items: center; gap: 0.4rem; }
+        .cat-tab:hover { color: #2d4a2d; }
+        .cat-tab.active { color: #3d6b3d; border-bottom-color: #c8913a; font-weight: 700; }
+        .cat-tab-actions { display: none; align-items: center; gap: 0.1rem; margin-left: 0.2rem; }
+        .cat-tab.active .cat-tab-actions { display: flex; }
+        .cat-tab-icon-btn { background: none; border: none; cursor: pointer; color: #aaa; font-size: 0.7rem; padding: 0.15rem 0.3rem; border-radius: 3px; line-height: 1; }
+        .cat-tab-icon-btn:hover { color: #3d6b3d; background: #f0ebe0; }
+        .cat-tab-icon-btn.danger:hover { color: #c62828; background: #ffebee; }
+        .cat-tab-add { padding: 0.7rem 0.875rem; cursor: pointer; color: #bbb; border: none; background: none; border-bottom: 3px solid transparent; margin-bottom: -2px; font-size: 0.9rem; transition: color 0.15s; }
+        .cat-tab-add:hover { color: #3d6b3d; }
+        /* Tab content */
+        .cat-tab-pane { display: none; }
+        .cat-tab-pane.active { display: block; min-height: 300px; }
+        .cat-tab-empty { text-align: center; padding: 4rem 2rem; color: #bbb; background: white; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.06); }
+        .cat-tab-empty i { font-size: 3rem; display: block; margin-bottom: 1rem; color: #d5c9bc; }
+        .cat-tab-empty p { font-size: 0.95rem; }
+        /* Toggle switches */
+        .tog-sw { display: inline-flex; align-items: center; cursor: pointer; }
+        .tog-sw input { position: absolute; opacity: 0; width: 0; height: 0; }
+        .tog-track { width: 32px; height: 18px; background: #ccc; border-radius: 9px; position: relative; transition: background 0.2s; flex-shrink: 0; }
+        .tog-sw input:checked + .tog-track { background: #3d6b3d; }
+        .tog-thumb { position: absolute; width: 14px; height: 14px; background: white; border-radius: 50%; top: 2px; left: 2px; transition: left 0.2s; box-shadow: 0 1px 3px rgba(0,0,0,0.25); }
+        .tog-sw input:checked + .tog-track .tog-thumb { left: 16px; }
+        .tog-sw input:disabled + .tog-track { opacity: 0.5; }
+
+        /* Category add modal */
+        .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.45); display: none; align-items: center; justify-content: center; z-index: 1000; padding: 1rem; }
+        .modal-overlay.open { display: flex; }
+        .modal-box { background: white; border-radius: 12px; width: 100%; max-width: 420px; box-shadow: 0 20px 60px rgba(0,0,0,0.2); }
+        .modal-box-header { display: flex; justify-content: space-between; align-items: center; padding: 1rem 1.25rem; border-bottom: 1px solid #eee; font-size: 1rem; font-weight: 700; color: #2d4a2d; }
+        .modal-box-body { padding: 1.25rem; }
+        .modal-input { width: 100%; padding: 0.6rem 0.75rem; border: 2px solid #e8dfd2; border-radius: 8px; font-size: 0.95rem; font-family: inherit; box-sizing: border-box; }
+        .modal-input:focus { outline: none; border-color: #c8913a; }
+        .modal-box-footer { display: flex; gap: 0.75rem; justify-content: flex-end; padding: 0.875rem 1.25rem; border-top: 1px solid #f0ebe5; }
+        .modal-close-btn { background: none; border: none; font-size: 1.5rem; color: #999; cursor: pointer; line-height: 1; padding: 0; }
+        .modal-close-btn:hover { color: #333; }
     </style>
 <?php $adminExtraHead = ob_get_clean();
 require_once '../components/sidebar.php'; ?>
@@ -201,229 +453,237 @@ require_once '../components/sidebar.php'; ?>
                 <div class="topbar-left">
                     <span class="topbar-title">Producten</span>
                 </div>
-                <div class="topbar-right">
-                    <button onclick="startAddCategory()" class="btn btn-small">+ Nieuwe categorie</button>
+                <div class="topbar-right" style="display:flex;gap:0.5rem;">
+                    <button onclick="startAddCategory()" class="btn btn-ghost btn-small"><i class="bi bi-plus-lg"></i> Nieuwe Categorie</button>
+                    <button onclick="nieuwProduct()" class="btn btn-small"><i class="bi bi-plus-lg"></i> Nieuw Product</button>
                 </div>
             </header>
 
             <div class="admin-content">
 
-                <?php foreach ($categories as $cat):
-                    $catId = $cat['id'];
-                    $catProducts = $productsByCategory[$catId] ?? [];
-                ?>
-                <div class="category-section" id="cat-section-<?= $catId ?>" data-cat-id="<?= $catId ?>">
-                    <div class="category-header">
-                        <span class="cat-chevron" id="cat-chevron-<?= $catId ?>" onclick="toggleCategory(<?= $catId ?>)"><i class="bi bi-chevron-down"></i></span>
-                        <span class="cat-naam" id="cat-naam-display-<?= $catId ?>"><?= htmlspecialchars($cat['naam']) ?></span>
-                        <div class="cat-actions">
-                            <button class="btn btn-ghost btn-small" onclick="startRenameCategory(<?= $catId ?>)" title="Naam wijzigen"><i class="bi bi-pencil"></i></button>
-                            <?php if (empty($catProducts)): ?>
-                            <button class="btn btn-danger btn-small" onclick="deleteCategory(<?= $catId ?>)" title="Verwijderen"><i class="bi bi-trash"></i></button>
+                <!-- Category tabs -->
+                <?php if (!empty($categories)): ?>
+                <div class="cat-tabs">
+                    <?php $firstCat = true; foreach ($categories as $cat): $catId = $cat['id']; ?>
+                    <div class="cat-tab<?= $firstCat ? ' active' : '' ?>" data-cat-id="<?= $catId ?>" id="cat-tab-<?= $catId ?>" onclick="switchCatTab(<?= $catId ?>)">
+                        <span id="cat-tab-name-<?= $catId ?>"><?= htmlspecialchars($cat['naam']) ?></span>
+                        <span class="cat-tab-actions">
+                            <button class="cat-tab-icon-btn" onclick="event.stopPropagation();startRenameCategory(<?= $catId ?>)" title="Naam wijzigen"><i class="bi bi-pencil"></i></button>
+                            <?php if (empty($productsByCategory[$catId])): ?>
+                            <button class="cat-tab-icon-btn danger" onclick="event.stopPropagation();deleteCategory(<?= $catId ?>)" title="Verwijderen"><i class="bi bi-trash"></i></button>
                             <?php endif; ?>
-                            <a href="product-edit.php?category_id=<?= $catId ?>" class="btn btn-small">+ Nieuw product</a>
-                        </div>
+                        </span>
                     </div>
-                    <div class="cat-body" id="cat-body-<?= $catId ?>">
-                        <div class="card cat-card">
-                            <?php if (empty($catProducts)): ?>
-                                <div class="empty">Geen producten. <a href="product-edit.php?category_id=<?= $catId ?>">Voeg een product toe</a></div>
-                            <?php else: ?>
-                                <table>
-                                    <thead>
-                                        <tr>
-                                            <th class="drag-cell"></th>
-                                            <th>Product / Variant</th>
-                                            <th>Beschrijving</th>
-                                            <th>Prijs</th>
-                                            <th>Recept</th>
-                                            <th>Acties</th>
-                                        </tr>
-                                    </thead>
-                                    <?php foreach ($catProducts as $product):
-                                        $pv = $variantsByProduct[$product['id']] ?? [];
-                                    ?>
-                                    <tbody id="product-group-<?= $product['id'] ?>" data-product-id="<?= $product['id'] ?>" data-dough-type-id="<?= $product['dough_type_id'] ?? '' ?>" data-cat-id="<?= $catId ?>">
-                                        <tr class="product-group-row" draggable="true" data-id="<?= $product['id'] ?>"
-                                            onclick="toggleGroup(<?= $product['id'] ?>)">
-                                            <td class="drag-cell" onclick="event.stopPropagation()">
-                                                <span class="drag-handle"><i class="bi bi-grip-vertical"></i></span>
-                                            </td>
-                                            <td>
-                                                <span class="product-chevron" id="chevron-<?= $product['id'] ?>"><i class="bi bi-chevron-down"></i></span>
-                                                <span class="product-naam"><?= htmlspecialchars($product['naam']) ?></span>
-                                                <?php if (!empty($pv)): ?>
-                                                    <span class="product-count"><?= count($pv) ?></span>
-                                                <?php endif; ?>
-                                            </td>
-                                            <td class="product-beschrijving"><?= htmlspecialchars(substr($product['beschrijving'] ?? '', 0, 60)) ?><?= strlen($product['beschrijving'] ?? '') > 60 ? '...' : '' ?></td>
-                                            <td></td>
-                                            <td></td>
-                                            <td class="actions" onclick="event.stopPropagation()">
-                                                <a href="product-edit.php?id=<?= $product['id'] ?>" class="btn btn-small">Bewerken</a>
-                                                <a href="product-delete.php?id=<?= $product['id'] ?>" class="btn btn-small btn-danger"
-                                                   onclick="return confirmLink(this.href, 'Weet je zeker dat je dit product wilt verwijderen?')">Verwijderen</a>
-                                            </td>
-                                        </tr>
-                                        <?php foreach ($pv as $v): ?>
-                                        <tr class="variant-row" draggable="true"
-                                            data-id="<?= $v['id'] ?>"
-                                            data-product-id="<?= $product['id'] ?>"
-                                            data-naam="<?= htmlspecialchars($v['naam'] ?? '') ?>"
-                                            data-gewicht="<?= intval($v['gewicht']) ?>"
-                                            data-prijs="<?= $v['prijs'] ?>"
-                                            data-recipe-id="<?= $v['recipe_id'] ?? '' ?>"
-                                            data-foto="<?= htmlspecialchars($v['foto'] ?? '') ?>"
-                                            onclick="if(!this._dragged)openInlineEdit(this)"
-                                            title="Klik om te bewerken">
-                                            <td class="drag-cell"><span class="drag-handle"><i class="bi bi-grip-vertical"></i></span></td>
-                                            <td>
-                                                <div class="variant-naam">
-                                                    <?php
-                                                    $label = $v['naam'] ?? '';
-                                                    $weightStr = $v['gewicht'] ? intval($v['gewicht']) . 'g' : '';
-                                                    if ($label && $weightStr) {
-                                                        echo htmlspecialchars($label) . ' <span class="variant-weight">— ' . $weightStr . '</span>';
-                                                    } elseif ($label) {
-                                                        echo htmlspecialchars($label);
-                                                    } else {
-                                                        echo '<span class="variant-weight">' . $weightStr . '</span>';
-                                                    }
-                                                    ?>
-                                                </div>
-                                            </td>
-                                            <td><?php if (!empty($v['foto'])): ?><img src="../../<?= htmlspecialchars($v['foto']) ?>" class="variant-foto-thumb"><?php endif; ?></td>
-                                            <td class="variant-price">&euro;<?= number_format($v['prijs'], 2, ',', '.') ?></td>
-                                            <td class="variant-recipe-icon">
-                                                <?php if (!empty($v['recipe_id'])): ?>
-                                                    <span style="color:#2e7d32;font-size:0.85rem"><i class="bi bi-check-circle-fill"></i></span>
-                                                <?php else: ?>
-                                                    <span style="color:#ddd;font-size:0.85rem"><i class="bi bi-dash"></i></span>
-                                                <?php endif; ?>
-                                            </td>
-                                            <td></td>
-                                        </tr>
-                                        <?php endforeach; ?>
-                                        <tr class="variant-add-row" onclick="openInlineEdit(null, <?= $product['id'] ?>)">
-                                            <td class="drag-cell"></td>
-                                            <td colspan="5"><button class="btn-add"><i class="bi bi-plus"></i> Nieuwe variant</button></td>
-                                        </tr>
-                                    </tbody>
-                                    <?php endforeach; ?>
-                                </table>
-                            <?php endif; ?>
-                        </div>
-                    </div>
+                    <?php $firstCat = false; endforeach; ?>
+                    <button class="cat-tab-add" onclick="startAddCategory()" title="Nieuwe categorie"><i class="bi bi-plus-lg"></i></button>
                 </div>
-                <?php endforeach; ?>
 
-                <?php if (empty($categories)): ?>
-                    <div class="card"><div class="empty">Nog geen categorieën. Voeg een categorie toe via de knop rechtsboven.</div></div>
-                <?php endif; ?>
-
-                <!-- Uncategorized products -->
-                <?php $uncategorized = $productsByCategory[0] ?? []; if (!empty($uncategorized)): ?>
-                <div class="card" style="margin-top:1rem">
-                    <h2>Overige producten <span style="font-size:0.8rem;color:#888;font-weight:400">(geen categorie)</span></h2>
-                    <table>
-                        <thead>
-                            <tr>
-                                <th class="drag-cell"></th>
-                                <th>Product / Variant</th>
-                                <th>Beschrijving</th>
-                                <th>Prijs</th>
-                                <th>Recept</th>
-                                <th>Acties</th>
-                            </tr>
-                        </thead>
-                        <?php foreach ($uncategorized as $product):
-                            $pv = $variantsByProduct[$product['id']] ?? [];
-                        ?>
-                        <tbody id="product-group-<?= $product['id'] ?>" data-product-id="<?= $product['id'] ?>" data-dough-type-id="<?= $product['dough_type_id'] ?? '' ?>" data-cat-id="0">
-                            <tr class="product-group-row" draggable="true" data-id="<?= $product['id'] ?>" onclick="toggleGroup(<?= $product['id'] ?>)">
-                                <td class="drag-cell" onclick="event.stopPropagation()"><span class="drag-handle"><i class="bi bi-grip-vertical"></i></span></td>
-                                <td>
-                                    <span class="product-chevron" id="chevron-<?= $product['id'] ?>"><i class="bi bi-chevron-down"></i></span>
-                                    <span class="product-naam"><?= htmlspecialchars($product['naam']) ?></span>
-                                    <?php if (!empty($pv)): ?><span class="product-count"><?= count($pv) ?></span><?php endif; ?>
-                                </td>
-                                <td class="product-beschrijving"><?= htmlspecialchars(substr($product['beschrijving'] ?? '', 0, 60)) ?></td>
-                                <td></td><td></td>
-                                <td class="actions" onclick="event.stopPropagation()">
-                                    <a href="product-edit.php?id=<?= $product['id'] ?>" class="btn btn-small">Bewerken</a>
-                                    <a href="product-delete.php?id=<?= $product['id'] ?>" class="btn btn-small btn-danger" onclick="return confirmLink(this.href, 'Weet je zeker dat je dit product wilt verwijderen?')">Verwijderen</a>
-                                </td>
-                            </tr>
-                            <?php foreach ($pv as $v): ?>
-                            <tr class="variant-row" draggable="true" data-id="<?= $v['id'] ?>" data-product-id="<?= $product['id'] ?>" data-naam="<?= htmlspecialchars($v['naam'] ?? '') ?>" data-gewicht="<?= intval($v['gewicht']) ?>" data-prijs="<?= $v['prijs'] ?>" data-recipe-id="<?= $v['recipe_id'] ?? '' ?>" data-foto="<?= htmlspecialchars($v['foto'] ?? '') ?>" onclick="if(!this._dragged)openInlineEdit(this)" title="Klik om te bewerken">
-                                <td class="drag-cell"><span class="drag-handle"><i class="bi bi-grip-vertical"></i></span></td>
-                                <td><div class="variant-naam"><?php $label=$v['naam']??'';$ws=$v['gewicht']?intval($v['gewicht']).'g':'';if($label&&$ws)echo htmlspecialchars($label).' <span class="variant-weight">— '.$ws.'</span>';elseif($label)echo htmlspecialchars($label);else echo'<span class="variant-weight">'.$ws.'</span>'; ?></div></td>
-                                <td><?php if(!empty($v['foto'])):?><img src="../../<?=htmlspecialchars($v['foto'])?>" class="variant-foto-thumb"><?php endif;?></td>
-                                <td class="variant-price">&euro;<?=number_format($v['prijs'],2,',','.')?></td>
-                                <td><?php if(!empty($v['recipe_id'])):?><span style="color:#2e7d32;font-size:0.85rem"><i class="bi bi-check-circle-fill"></i></span><?php else:?><span style="color:#ddd;font-size:0.85rem"><i class="bi bi-dash"></i></span><?php endif;?></td>
-                                <td></td>
-                            </tr>
+                <!-- Tab content panes -->
+                <?php $firstCat = true; foreach ($categories as $cat): $catId = $cat['id']; $catProducts = $productsByCategory[$catId] ?? []; ?>
+                <div class="cat-tab-pane<?= $firstCat ? ' active' : '' ?>" id="cat-pane-<?= $catId ?>" data-cat-id="<?= $catId ?>">
+                    <?php if (empty($catProducts)): ?>
+                        <div class="empty" style="padding:2rem;text-align:center;color:#aaa;">
+                            Nog geen producten. <a href="product-edit.php?category_id=<?= $catId ?>">Voeg een product toe.</a>
+                        </div>
+                    <?php else: ?>
+                    <div class="card" style="margin:0;border-radius:0 0 12px 12px;box-shadow:0 4px 15px rgba(0,0,0,0.08);">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th class="drag-cell"></th>
+                                    <th>Product / Variant</th>
+                                    <th>Beschrijving</th>
+                                    <th>Prijs</th>
+                                    <th>Kostprijs</th>
+                                    <th>Recept</th>
+                                    <th title="Beschikbaar voor aankoop">Actief</th>
+                                    <th title="Zichtbaar op de website">Zichtbaar</th>
+                                    <th>Acties</th>
+                                </tr>
+                            </thead>
+                            <?php foreach ($catProducts as $product):
+                                $pv = $variantsByProduct[$product['id']] ?? [];
+                            ?>
+                            <tbody id="product-group-<?= $product['id'] ?>" data-product-id="<?= $product['id'] ?>" data-dough-type-id="<?= $product['dough_type_id'] ?? '' ?>" data-cat-id="<?= $catId ?>">
+                                <tr class="product-group-row" draggable="true" data-id="<?= $product['id'] ?>" onclick="toggleGroup(<?= $product['id'] ?>)">
+                                    <td class="drag-cell" onclick="event.stopPropagation()"><span class="drag-handle"><i class="bi bi-grip-vertical"></i></span></td>
+                                    <td>
+                                        <span class="product-chevron" id="chevron-<?= $product['id'] ?>"><i class="bi bi-chevron-down"></i></span>
+                                        <span class="product-naam"><?= htmlspecialchars($product['naam']) ?></span>
+                                        <?php if (!empty($pv)): ?><span class="product-count"><?= count($pv) ?></span><?php endif; ?>
+                                    </td>
+                                    <td class="product-beschrijving"><?= htmlspecialchars(substr($product['beschrijving'] ?? '', 0, 60)) ?><?= strlen($product['beschrijving'] ?? '') > 60 ? '…' : '' ?></td>
+                                    <td></td>
+                                    <td></td>
+                                    <td></td>
+                                    <td onclick="event.stopPropagation()">
+                                        <label class="tog-sw" title="Actief: beschikbaar voor aankoop">
+                                            <input type="checkbox" <?= !empty($product['is_active']) ? 'checked' : '' ?>
+                                                   onchange="toggleField(this,'product',<?= $product['id'] ?>,'is_active')">
+                                            <span class="tog-track"><span class="tog-thumb"></span></span>
+                                        </label>
+                                    </td>
+                                    <td onclick="event.stopPropagation()">
+                                        <label class="tog-sw" title="Zichtbaar: zichtbaar op de website">
+                                            <input type="checkbox" <?= empty($product['is_hidden']) ? 'checked' : '' ?>
+                                                   onchange="toggleField(this,'product',<?= $product['id'] ?>,'is_hidden',true)">
+                                            <span class="tog-track"><span class="tog-thumb"></span></span>
+                                        </label>
+                                    </td>
+                                    <td class="actions" onclick="event.stopPropagation()">
+                                        <a href="product-edit.php?id=<?= $product['id'] ?>" class="btn btn-small">Bewerken</a>
+                                        <a href="product-delete.php?id=<?= $product['id'] ?>" class="btn btn-small btn-danger"
+                                           onclick="return confirmLink(this.href, 'Weet je zeker dat je dit product wilt verwijderen?')">Verwijderen</a>
+                                    </td>
+                                </tr>
+                                <?php foreach ($pv as $v): ?>
+                                <tr class="variant-row" draggable="true"
+                                    data-id="<?= $v['id'] ?>"
+                                    data-product-id="<?= $product['id'] ?>"
+                                    data-naam="<?= htmlspecialchars($v['naam'] ?? '') ?>"
+                                    data-gewicht="<?= intval($v['gewicht']) ?>"
+                                    data-prijs="<?= $v['prijs'] ?>"
+                                    data-recipe-id="<?= $v['recipe_id'] ?? '' ?>"
+                                    data-foto="<?= htmlspecialchars($v['foto'] ?? '') ?>"
+                                    onclick="if(!this._dragged)openInlineEdit(this)"
+                                    title="Klik om te bewerken">
+                                    <td class="drag-cell"><span class="drag-handle"><i class="bi bi-grip-vertical"></i></span></td>
+                                    <td>
+                                        <div class="variant-naam">
+                                            <?php
+                                            $label = $v['naam'] ?? '';
+                                            $weightStr = $v['gewicht'] ? intval($v['gewicht']) . 'g' : '';
+                                            if ($label && $weightStr) {
+                                                echo htmlspecialchars($label) . '<span class="variant-weight">' . $weightStr . '</span>';
+                                            } elseif ($label) {
+                                                echo htmlspecialchars($label);
+                                            } else {
+                                                echo '<span class="variant-weight">' . $weightStr . '</span>';
+                                            }
+                                            ?>
+                                        </div>
+                                    </td>
+                                    <td><?php if (!empty($v['foto'])): ?><img src="../../<?= htmlspecialchars($v['foto']) ?>" class="variant-foto-thumb"><?php endif; ?></td>
+                                    <td class="variant-price">&euro;<?= number_format($v['prijs'], 2, ',', '.') ?></td>
+                                    <td class="kp-cell variant-kp"><?php $vkp = $kostprijsByVariant[$v['id']] ?? null; echo $vkp ? fmtKp($vkp['low'], $vkp['high']) : '<span class="kp-na">–</span>'; ?></td>
+                                    <td>
+                                        <?php if (!empty($v['recipe_id'])): ?>
+                                            <span style="color:#2e7d32;font-size:0.85rem"><i class="bi bi-check-circle-fill"></i></span>
+                                        <?php else: ?>
+                                            <span style="color:#ddd;font-size:0.85rem"><i class="bi bi-dash"></i></span>
+                                        <?php endif; ?>
+                                    </td>
+                                    <td onclick="event.stopPropagation()">
+                                        <label class="tog-sw" title="Actief">
+                                            <input type="checkbox" <?= !empty($v['is_active']) ? 'checked' : '' ?>
+                                                   onchange="toggleField(this,'variant',<?= $v['id'] ?>,'is_active')">
+                                            <span class="tog-track"><span class="tog-thumb"></span></span>
+                                        </label>
+                                    </td>
+                                    <td onclick="event.stopPropagation()">
+                                        <label class="tog-sw" title="Zichtbaar">
+                                            <input type="checkbox" <?= empty($v['is_hidden']) ? 'checked' : '' ?>
+                                                   onchange="toggleField(this,'variant',<?= $v['id'] ?>,'is_hidden',true)">
+                                            <span class="tog-track"><span class="tog-thumb"></span></span>
+                                        </label>
+                                    </td>
+                                    <td></td>
+                                </tr>
+                                <?php endforeach; ?>
+                                <tr class="variant-add-row" onclick="openInlineEdit(null, <?= $product['id'] ?>)">
+                                    <td class="drag-cell"></td>
+                                    <td colspan="8"><button class="btn-add"><i class="bi bi-plus"></i> Nieuwe variant</button></td>
+                                </tr>
+                            </tbody>
                             <?php endforeach; ?>
-                            <tr class="variant-add-row" onclick="openInlineEdit(null, <?= $product['id'] ?>)">
-                                <td class="drag-cell"></td>
-                                <td colspan="5"><button class="btn-add"><i class="bi bi-plus"></i> Nieuwe variant</button></td>
-                            </tr>
-                        </tbody>
-                        <?php endforeach; ?>
-                    </table>
+                        </table>
+                    </div>
+                    <?php endif; ?>
+                </div>
+                <?php $firstCat = false; endforeach; ?>
+
+                <?php else: ?>
+                <div class="cat-tab-empty">
+                    <i class="bi bi-tag"></i>
+                    <p>Nog geen categorieën. Gebruik <strong>Nieuwe Categorie</strong> rechtsboven om te beginnen.</p>
                 </div>
                 <?php endif; ?>
 
-                <!-- Add category form -->
-                <div id="add-cat-form" class="add-cat-form" style="display:none;margin-top:1rem">
-                    <input type="text" id="new-cat-naam" placeholder="Naam nieuwe categorie (bijv. Granola)"
-                           onkeydown="if(event.key==='Enter')addCategory();if(event.key==='Escape')cancelAddCategory()">
-                    <button class="btn btn-small" onclick="addCategory()">Toevoegen</button>
-                    <button class="btn btn-ghost btn-small" onclick="cancelAddCategory()">Annuleren</button>
-                </div>
 
             </div>
         </div>
     </div>
+
+<!-- Add category modal -->
+<div class="modal-overlay" id="addCatModal" onclick="if(this===event.target)closeAddCatModal()">
+    <div class="modal-box">
+        <div class="modal-box-header">
+            <strong>Nieuwe Categorie</strong>
+            <button class="modal-close-btn" onclick="closeAddCatModal()">&times;</button>
+        </div>
+        <div class="modal-box-body">
+            <input type="text" id="new-cat-naam" class="modal-input" placeholder="Naam (bijv. Brood, Koeken, Granola)"
+                   onkeydown="if(event.key==='Enter')addCategory();if(event.key==='Escape')closeAddCatModal()">
+        </div>
+        <div class="modal-box-footer">
+            <button class="btn btn-ghost btn-small" onclick="closeAddCatModal()">Annuleren</button>
+            <button class="btn btn-small" onclick="addCategory()"><i class="bi bi-plus-lg"></i> Toevoegen</button>
+        </div>
+    </div>
+</div>
 
 
 <script src="../../js/ui-notifications.js?v=1"></script>
 <script>
 const recipesData = <?= json_encode(array_values($recipes)) ?>;
 
-(function() {
-    // ── Category collapse / expand ─────────────────────────────────────
-    const catCollapsed = new Set();
+window.toggleField = async function(el, type, id, field, invert) {
+    const dbVal = el.checked ? (invert ? 0 : 1) : (invert ? 1 : 0);
+    el.disabled = true;
+    try {
+        const res = await fetch('../../api/products.php', {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ action: 'toggle', type, id, field, value: dbVal })
+        });
+        const json = await res.json();
+        if (!json.success) el.checked = !el.checked;
+    } catch(e) {
+        el.checked = !el.checked;
+    }
+    el.disabled = false;
+};
 
-    window.toggleCategory = function(catId) {
-        const body = document.getElementById('cat-body-' + catId);
-        const chevron = document.getElementById('cat-chevron-' + catId);
-        const section = document.getElementById('cat-section-' + catId);
-        if (catCollapsed.has(catId)) {
-            catCollapsed.delete(catId);
-            body.classList.remove('collapsed');
-            chevron.classList.remove('collapsed');
-            section.classList.remove('cat-collapsed');
+(function() {
+    // ── Tab switching ──────────────────────────────────────────────────
+    let activeCatId = <?= !empty($categories) ? (int)$categories[0]['id'] : 'null' ?>;
+
+    window.switchCatTab = function(catId) {
+        activeCatId = catId;
+        document.querySelectorAll('.cat-tab').forEach(t => t.classList.toggle('active', parseInt(t.dataset.catId) === catId));
+        document.querySelectorAll('.cat-tab-pane').forEach(p => p.classList.toggle('active', parseInt(p.dataset.catId) === catId));
+    };
+
+    window.nieuwProduct = function() {
+        if (activeCatId) {
+            window.location = 'product-edit.php?category_id=' + activeCatId;
         } else {
-            catCollapsed.add(catId);
-            body.classList.add('collapsed');
-            chevron.classList.add('collapsed');
-            section.classList.add('cat-collapsed');
+            alert('Maak eerst een categorie aan via Nieuwe Categorie.');
         }
     };
 
     // ── Category rename ────────────────────────────────────────────────
     window.startRenameCategory = function(catId) {
-        const span = document.getElementById('cat-naam-display-' + catId);
+        const span = document.getElementById('cat-tab-name-' + catId);
         if (!span) return;
         const current = span.textContent.trim();
         const input = document.createElement('input');
         input.type = 'text';
-        input.className = 'cat-naam-input';
+        input.style.cssText = 'border:1.5px solid #c8913a;border-radius:4px;padding:0.1rem 0.3rem;font-size:0.9rem;font-family:inherit;width:120px;outline:none;';
         input.value = current;
-        input.onblur = () => saveRenameCategory(catId, input);
+        input.onblur = () => saveRenameCategory(catId, input, span);
         input.onkeydown = e => {
-            if (e.key === 'Enter') saveRenameCategory(catId, input);
+            if (e.key === 'Enter') saveRenameCategory(catId, input, span);
             if (e.key === 'Escape') { input.replaceWith(span); }
         };
         span.replaceWith(input);
@@ -431,34 +691,33 @@ const recipesData = <?= json_encode(array_values($recipes)) ?>;
         input.select();
     };
 
-    window.saveRenameCategory = async function(catId, input) {
+    window.saveRenameCategory = async function(catId, input, originalSpan) {
         const naam = input.value.trim();
-        if (!naam) { input.focus(); return; }
+        if (!naam) { input.replaceWith(originalSpan); return; }
         const res = await fetch('../../api/products.php', {
             method: 'PATCH',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ action: 'rename_category', id: catId, naam })
         });
         const json = await res.json();
-        if (json.success) {
-            const span = document.createElement('span');
-            span.className = 'cat-naam';
-            span.id = 'cat-naam-display-' + catId;
-            span.textContent = json.naam;
-            input.replaceWith(span);
-        }
+        const span = document.getElementById('cat-tab-name-' + catId) || originalSpan;
+        span.textContent = json.success ? json.naam : naam;
+        if (input.parentNode) input.replaceWith(span);
     };
 
     // ── Add category ───────────────────────────────────────────────────
+    window.closeAddCatModal = function() {
+        document.getElementById('addCatModal').classList.remove('open');
+        document.getElementById('new-cat-naam').value = '';
+    };
+
     window.startAddCategory = function() {
-        const form = document.getElementById('add-cat-form');
-        form.style.display = 'flex';
-        document.getElementById('new-cat-naam').focus();
+        document.getElementById('addCatModal').classList.add('open');
+        setTimeout(() => document.getElementById('new-cat-naam').focus(), 80);
     };
 
     window.cancelAddCategory = function() {
-        document.getElementById('add-cat-form').style.display = 'none';
-        document.getElementById('new-cat-naam').value = '';
+        closeAddCatModal();
     };
 
     window.addCategory = async function() {
@@ -625,7 +884,7 @@ const recipesData = <?= json_encode(array_values($recipes)) ?>;
         return html;
     }
 
-    function closeInlineEdit() {
+    window.closeInlineEdit = function closeInlineEdit() {
         if (!activeEditTr) return;
         if (activeEditTr._originalRow) activeEditTr._originalRow.style.display = '';
         activeEditTr.remove();
@@ -655,7 +914,7 @@ const recipesData = <?= json_encode(array_values($recipes)) ?>;
         tr.className = 'variant-edit-row';
         tr.innerHTML = `
             <td class="drag-cell"></td>
-            <td colspan="5">
+            <td colspan="7">
                 <div class="ve-form">
                     <input type="text"   class="ve-naam"    placeholder="Naam (optioneel)" value="${naam.replace(/"/g,'&quot;')}">
                     <input type="number" class="ve-gewicht" placeholder="Gewicht (g)" value="${gewicht}" min="0">

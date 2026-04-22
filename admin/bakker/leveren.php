@@ -144,11 +144,11 @@ function formatDutchDate($date) {
     <title>Leveren | Civetta Admin</title>
     <link rel="manifest" href="../manifest.json">
     <meta name="theme-color" content="#1976d2">
-    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <link rel="apple-touch-icon" sizes="192x192" href="/img/icon-192.png">
     <link rel="apple-touch-icon" sizes="512x512" href="/img/icon-512.png">
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+    <link rel="stylesheet" href="/css/bootstrap-icons.min.css">
     <link rel="stylesheet" href="../../css/admin-bakker.css?v=2">
     <style>
         :root {
@@ -1089,6 +1089,22 @@ function formatDutchDate($date) {
         </div>
     </div>
     
+    <div class="modal-overlay" id="bakdagConfirmModal">
+        <div class="modal" style="max-width:420px">
+            <div class="modal-header">
+                <h3><i class="bi bi-exclamation-triangle"></i> Geen bakdag</h3>
+                <button class="modal-close" onclick="closeBakdagConfirm()">&times;</button>
+            </div>
+            <div class="modal-body">
+                <p id="bakdagConfirmText" style="margin:0"></p>
+            </div>
+            <div style="display:flex;gap:.75rem;justify-content:flex-end;padding:1rem 1.5rem;border-top:1px solid #eee">
+                <button class="btn btn-outline" onclick="closeBakdagConfirm()">Annuleren</button>
+                <button class="btn btn-route" onclick="confirmBakdagOverride()">Toch plaatsen</button>
+            </div>
+        </div>
+    </div>
+
     <?php $detailAccentColor = '#1976d2'; $detailAccentColorDark = '#1565c0'; include 'order-detail-modal.php'; ?>
 
     <script>
@@ -1210,9 +1226,8 @@ function formatDutchDate($date) {
         document.querySelectorAll('.modal-overlay').forEach(m => m.classList.remove('active'));
     }
 
-    document.getElementById('appointmentModal').addEventListener('click', function(e) {
-        if (e.target === this) closeAppointmentModal();
-    });
+    document.getElementById('appointmentModal').addEventListener('mousedown', function(e) { this._md = e.target === this; });
+    document.getElementById('appointmentModal').addEventListener('click', function(e) { if (e.target === this && this._md) closeAppointmentModal(); });
 
     async function openDayModal(date, dateLabel) {
         currentDayDate = date;
@@ -1486,6 +1501,7 @@ function formatDutchDate($date) {
     }
 
     function getAvailableBakdagen() {
+        if (document.getElementById('newOrderInternal').checked) return 999;
         const dateStr = document.getElementById('newOrderDate').value;
         if (!dateStr) return 999;
         const today = new Date();
@@ -1607,6 +1623,7 @@ function formatDutchDate($date) {
         } else {
             customerGroup.style.display = '';
         }
+        refreshProductOptions();
     }
 
     function getInternalAccountId() {
@@ -1843,6 +1860,31 @@ function formatDutchDate($date) {
             payload.is_internal = true;
         }
 
+        await doSubmitOrder(payload);
+    }
+
+    let pendingOrderPayload = null;
+
+    function openBakdagConfirm(message) {
+        document.getElementById('bakdagConfirmText').textContent = message;
+        document.getElementById('bakdagConfirmModal').classList.add('active');
+    }
+
+    function closeBakdagConfirm() {
+        document.getElementById('bakdagConfirmModal').classList.remove('active');
+        pendingOrderPayload = null;
+    }
+
+    async function confirmBakdagOverride() {
+        document.getElementById('bakdagConfirmModal').classList.remove('active');
+        if (pendingOrderPayload) {
+            const payload = Object.assign({}, pendingOrderPayload, { confirm_override: true });
+            pendingOrderPayload = null;
+            await doSubmitOrder(payload);
+        }
+    }
+
+    async function doSubmitOrder(payload) {
         const btn = document.getElementById('btnSubmitOrder');
         btn.disabled = true;
         btn.innerHTML = '<i class="bi bi-hourglass-split"></i> Bezig...';
@@ -1859,6 +1901,9 @@ function formatDutchDate($date) {
                 closeNewOrderModal();
                 showToast(data.message, 'success');
                 setTimeout(function() { window.location.reload(); }, 1500);
+            } else if (data.needs_confirm) {
+                pendingOrderPayload = payload;
+                openBakdagConfirm(data.warning);
             } else {
                 showToast('Fout: ' + (data.error || 'Onbekende fout'), 'error');
             }
@@ -1871,10 +1916,9 @@ function formatDutchDate($date) {
         }
     }
     
-    document.getElementById('newOrderModal').addEventListener('click', function(e) {
-        if (e.target === this) closeNewOrderModal();
-    });
-    
+    document.getElementById('newOrderModal').addEventListener('mousedown', function(e) { this._md = e.target === this; });
+    document.getElementById('newOrderModal').addEventListener('click', function(e) { if (e.target === this && this._md) closeNewOrderModal(); });
+
     <?php if ($viewMode === 'day' && !empty($ordersByDate[$currentDate->format('Y-m-d')])): ?>
     document.addEventListener('DOMContentLoaded', function() {
         loadRouteData('<?= $currentDate->format('Y-m-d') ?>').then(() => {

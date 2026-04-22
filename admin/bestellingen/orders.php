@@ -1263,7 +1263,7 @@ require_once '../components/sidebar.php'; ?>
         </div>
     </div>
 
-    <div class="modal-overlay" id="editModal" onclick="if(event.target===this)closeEditModal()">
+    <div class="modal-overlay" id="editModal" onmousedown="this._md=(event.target===this)" onclick="if(event.target===this&&this._md)closeEditModal()">
         <div class="modal">
             <div class="modal-header">
                 <h3 id="editModalTitle">Bestelling aanpassen</h3>
@@ -1359,6 +1359,7 @@ require_once '../components/sidebar.php'; ?>
     }
 
     function getAvailableBakdagen() {
+        if (document.getElementById('newOrderInternal').checked) return 999;
         const dateStr = document.getElementById('newOrderDate').value;
         if (!dateStr) return 999;
         const today = new Date();
@@ -1783,9 +1784,8 @@ require_once '../components/sidebar.php'; ?>
         }
     }
 
-    document.getElementById('newOrderModal').addEventListener('click', function(e) {
-        if (e.target === this) closeNewOrderModal();
-    });
+    document.getElementById('newOrderModal').addEventListener('mousedown', function(e) { this._md = e.target === this; });
+    document.getElementById('newOrderModal').addEventListener('click', function(e) { if (e.target === this && this._md) closeNewOrderModal(); });
 
     // ===== Settle Functions =====
 
@@ -1817,9 +1817,8 @@ require_once '../components/sidebar.php'; ?>
         settleOrderId = null;
     }
 
-    document.getElementById('settleModal').addEventListener('click', function(e) {
-        if (e.target === this) closeSettleModal();
-    });
+    document.getElementById('settleModal').addEventListener('mousedown', function(e) { this._md = e.target === this; });
+    document.getElementById('settleModal').addEventListener('click', function(e) { if (e.target === this && this._md) closeSettleModal(); });
 
     function updateSettleTotals() {
         let total = 0;
@@ -2012,20 +2011,41 @@ require_once '../components/sidebar.php'; ?>
         let html = '';
 
         allProducts.forEach(p => {
-            const key = p.naam.toLowerCase();
-            const qty = editItems[key] ? editItems[key].quantity : 0;
-            const prijs = parseFloat(p.prijs) || 0;
+            const variants = p.variants && p.variants.length > 0 ? p.variants : null;
+            if (variants) {
+                variants.forEach(v => {
+                    const label = p.naam + ' - ' + (v.naam || '') + ' (' + v.gewicht + 'g)';
+                    const key = label.toLowerCase();
+                    const qty = editItems[key] ? editItems[key].quantity : 0;
+                    const prijs = parseFloat(v.prijs) || 0;
 
-            html += '<div class="edit-product-row' + (qty > 0 ? ' in-order' : '') + '" data-key="' + key + '">';
-            html += '<div class="edit-product-info">';
-            html += '<div class="edit-product-name">' + escHtml(p.naam) + '</div>';
-            html += '<div class="edit-product-price">&euro;' + prijs.toFixed(2).replace('.', ',') + '</div>';
-            html += '</div>';
-            html += '<div class="edit-product-controls">';
-            html += '<button class="qty-btn" onclick="changeQty(\'' + escAttr(key) + '\', \'' + escAttr(p.naam) + '\', ' + prijs + ', -1)">-</button>';
-            html += '<span class="qty-display">' + qty + '</span>';
-            html += '<button class="qty-btn" onclick="changeQty(\'' + escAttr(key) + '\', \'' + escAttr(p.naam) + '\', ' + prijs + ', 1)">+</button>';
-            html += '</div></div>';
+                    html += '<div class="edit-product-row' + (qty > 0 ? ' in-order' : '') + '" data-key="' + escAttr(key) + '">';
+                    html += '<div class="edit-product-info">';
+                    html += '<div class="edit-product-name">' + escHtml(label) + '</div>';
+                    html += '<div class="edit-product-price">&euro;' + prijs.toFixed(2).replace('.', ',') + '</div>';
+                    html += '</div>';
+                    html += '<div class="edit-product-controls">';
+                    html += '<button class="qty-btn" onclick="changeQty(\'' + escAttr(key) + '\', \'' + escAttr(label) + '\', ' + prijs + ', -1)">-</button>';
+                    html += '<span class="qty-display">' + qty + '</span>';
+                    html += '<button class="qty-btn" onclick="changeQty(\'' + escAttr(key) + '\', \'' + escAttr(label) + '\', ' + prijs + ', 1)">+</button>';
+                    html += '</div></div>';
+                });
+            } else {
+                const key = p.naam.toLowerCase();
+                const qty = editItems[key] ? editItems[key].quantity : 0;
+                const prijs = parseFloat(p.prijs) || 0;
+
+                html += '<div class="edit-product-row' + (qty > 0 ? ' in-order' : '') + '" data-key="' + escAttr(key) + '">';
+                html += '<div class="edit-product-info">';
+                html += '<div class="edit-product-name">' + escHtml(p.naam) + '</div>';
+                html += '<div class="edit-product-price">&euro;' + prijs.toFixed(2).replace('.', ',') + '</div>';
+                html += '</div>';
+                html += '<div class="edit-product-controls">';
+                html += '<button class="qty-btn" onclick="changeQty(\'' + escAttr(key) + '\', \'' + escAttr(p.naam) + '\', ' + prijs + ', -1)">-</button>';
+                html += '<span class="qty-display">' + qty + '</span>';
+                html += '<button class="qty-btn" onclick="changeQty(\'' + escAttr(key) + '\', \'' + escAttr(p.naam) + '\', ' + prijs + ', 1)">+</button>';
+                html += '</div></div>';
+            }
         });
 
         container.innerHTML = html;

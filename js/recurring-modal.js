@@ -53,7 +53,7 @@ const RecurringModal = {
     },
     
     template: `
-        <div class="modal-overlay" v-if="show" @click.self="close">
+        <div class="modal-overlay" v-if="show" @mousedown="$event.currentTarget._md = ($event.target === $event.currentTarget)" @click.self="$event.currentTarget._md && close()">
             <div class="modal recurring-modal delivery-modal">
                 <div class="modal-header">
                     <h3>Levering wijzigen</h3>

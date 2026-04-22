@@ -2,7 +2,7 @@
 window.RECAPTCHA_SITE_KEY = '6LfXDocsAAAAABbTwZUzQXnYdaRvyWa5cVGulfwd';
 
 // Only load reCAPTCHA on pages that actually use it
-const _rcPages = ['login.html', 'zakelijk.html', 'contact.html', 'bestelling-plaatsen.html', 'checkout.html'];
+const _rcPages = ['login.html', 'zakelijk.html', 'contact.html', 'bestelling-plaatsen.html', 'checkout.html', 'financiering.html'];
 const _rcPath = window.location.pathname.split('/').pop() || '';
 if (window.RECAPTCHA_SITE_KEY && _rcPages.some(p => _rcPath === p)) {
     const script = document.createElement('script');
@@ -23,6 +23,13 @@ window.getRecaptchaToken = function(action) {
     });
 };
 
+// Remove fade-out class when page is restored from bfcache (browser back/forward)
+window.addEventListener('pageshow', function(e) {
+    if (e.persisted) {
+        document.body.classList.remove('page-leaving');
+    }
+});
+
 // Page-leaving fade-out transition
 document.addEventListener('click', function(e) {
     const link = e.target.closest('a[href]');
@@ -38,7 +45,39 @@ document.addEventListener('click', function(e) {
 });
 
 
+function updateNavCart() {
+    const navLinks = document.querySelector('header .nav-links');
+    if (!navLinks) return;
+
+    const existing = document.getElementById('nav-cart-item');
+
+    if (!sessionStorage.getItem('businessAccount')) {
+        if (existing) existing.remove();
+        return;
+    }
+
+    let count = 0;
+    try {
+        const data = JSON.parse(sessionStorage.getItem('checkoutData') || '{}');
+        count = (data.items || []).reduce(function(s, i) { return s + (parseInt(i.quantity) || 1); }, 0);
+    } catch(e) {}
+
+    const li = existing || document.createElement('li');
+    li.id = 'nav-cart-item';
+    li.innerHTML =
+        '<a href="winkelwagen.html" class="nav-cart-link" title="Winkelwagen">' +
+        '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 2L3 6v14a2 2 0 002 2h14a2 2 0 002-2V6l-3-4z"/><line x1="3" y1="6" x2="21" y2="6"/><path d="M16 10a4 4 0 01-8 0"/></svg>' +
+        (count > 0 ? '<span class="nav-cart-count">' + count + '</span>' : '') +
+        '</a>';
+
+    if (!existing) {
+        const navLogin = navLinks.querySelector('.nav-login');
+        navLogin ? navLogin.insertAdjacentElement('afterend', li) : navLinks.appendChild(li);
+    }
+}
+
 document.addEventListener('DOMContentLoaded', function() {
+    updateNavCart();
     const mobileMenuBtn = document.querySelector('.mobile-menu-btn');
     const navLinks = document.querySelector('.nav-links');
     
@@ -65,23 +104,23 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         });
 
+        const personIcon = '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>';
+
+        function attachDropdownToggle() {
+            navLogin.querySelector('.login-trigger').addEventListener('click', function(e) {
+                e.stopPropagation();
+                navLogin.classList.toggle('open');
+            });
+        }
+
         // Always verify login state server-side to avoid stale cache/sessionStorage
         fetch('api/auth.php?action=check').then(r => r.json()).then(data => {
-            const chevron = '<svg class="nav-login-arrow" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>';
-
-            function attachDropdownToggle() {
-                navLogin.querySelector('.login-trigger').addEventListener('click', function(e) {
-                    e.stopPropagation();
-                    navLogin.classList.toggle('open');
-                });
-            }
-
             if (data.authenticated) {
                 const displayName = data.display_name || data.user || 'Mijn Account';
                 navLogin.innerHTML =
-                    '<button class="login-trigger" type="button">' + displayName + chevron + '</button>' +
+                    '<button class="login-trigger nav-icon-btn" type="button" title="' + displayName + '">' + personIcon + '</button>' +
                     '<div class="login-dropdown">' +
-                    '<a href="admin/index.php">Mijn account</a>' +
+                    '<div class="login-dropdown-name">' + displayName + '</div>' +
                     '<a href="admin/index.php">Admin Dashboard</a>' +
                     '<a href="#" id="nav-logout-admin">Uitloggen</a>' +
                     '</div>';
@@ -98,13 +137,16 @@ document.addEventListener('DOMContentLoaded', function() {
                 // Check business session
                 return fetch('api/business-login.php?action=check').then(r => r.json()).then(bdata => {
                     if (bdata.success && bdata.account) {
+                        const name = bdata.account.bedrijfsnaam || bdata.account.naam || 'Mijn Account';
                         navLogin.innerHTML =
-                            '<button class="login-trigger" type="button">Mijn Account' + chevron + '</button>' +
+                            '<button class="login-trigger nav-icon-btn" type="button" title="' + name + '">' + personIcon + '</button>' +
                             '<div class="login-dropdown">' +
-                            '<a href="zakelijk-dashboard.html">Dashboard</a>' +
+                            '<div class="login-dropdown-name">' + name + '</div>' +
+                            '<a href="mijn-dashboard.html">Dashboard</a>' +
                             '<a href="#" id="nav-logout-business">Uitloggen</a>' +
                             '</div>';
                         attachDropdownToggle();
+                        updateNavCart();
                         navLogin.querySelector('#nav-logout-business').addEventListener('click', function(e) {
                             e.preventDefault();
                             sessionStorage.removeItem('businessAccount');

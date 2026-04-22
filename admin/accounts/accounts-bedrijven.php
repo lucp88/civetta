@@ -17,12 +17,12 @@ $pendingAccounts = [];
 $approvedAccounts = [];
 
 try {
-    $stmt = $pdo->query("SELECT * FROM business_accounts WHERE status = 'pending' ORDER BY created_at DESC");
+    $stmt = $pdo->query("SELECT * FROM business_accounts WHERE status = 'pending' AND (account_type IS NULL OR account_type != 'particulier') ORDER BY created_at DESC");
     $pendingAccounts = $stmt->fetchAll();
-    
-    $stmt = $pdo->query("SELECT * FROM business_accounts WHERE status = 'approved' ORDER BY approved_at DESC");
+
+    $stmt = $pdo->query("SELECT * FROM business_accounts WHERE status = 'approved' AND (account_type IS NULL OR account_type != 'particulier') ORDER BY approved_at DESC");
     $approvedAccounts = $stmt->fetchAll();
-    $stmt = $pdo->query("SELECT * FROM business_accounts WHERE status = 'rejected' ORDER BY created_at DESC");
+    $stmt = $pdo->query("SELECT * FROM business_accounts WHERE status = 'rejected' AND (account_type IS NULL OR account_type != 'particulier') ORDER BY created_at DESC");
     $rejectedAccounts = $stmt->fetchAll();
 } catch (PDOException $e) {
     $error = "Database fout: " . $e->getMessage();
@@ -193,19 +193,6 @@ ob_start(); ?>
         .opmerkingen dt {
             margin-bottom: 0.25rem;
         }
-        .message {
-            padding: 1rem;
-            border-radius: 8px;
-            margin-bottom: 1rem;
-        }
-        .message.success {
-            background: #d4edda;
-            color: #155724;
-        }
-        .message.error {
-            background: #f8d7da;
-            color: #721c24;
-        }
         .btn-secondary {
             background: #6c757d;
         }
@@ -310,18 +297,48 @@ ob_start(); ?>
             transition: background 0.2s;
         }
         .btn-new:hover { background: #2d4a2d; }
-        .invite-badge {
-            display: inline-block;
-            font-size: 0.75rem;
-            padding: 0.2rem 0.55rem;
-            border-radius: 10px;
-            font-weight: 500;
-            vertical-align: middle;
-            margin-left: 0.4rem;
+        .account-name .badge { margin-left: 0.4rem; }
+        .search-filter { margin-bottom: 1rem; }
+        .search-filter input {
+            width: 100%;
+            padding: 0.6rem 1rem;
+            border: 1px solid var(--border, #d4d9d4);
+            border-radius: 8px;
+            font-size: 0.9rem;
+            color: var(--text-primary, #1a1e1a);
+            background: white;
+            outline: none;
+            transition: border-color 0.15s, box-shadow 0.15s;
         }
-        .invite-badge.pending { background: #fff3cd; color: #856404; }
-        .invite-badge.not-sent { background: #f8d7da; color: #721c24; }
-        .invite-badge.accepted { background: #d4edda; color: #155724; }
+        .search-filter input:focus {
+            border-color: var(--green-medium, #3d6b3d);
+            box-shadow: 0 0 0 3px rgba(61,107,61,0.1);
+        }
+        .account-timestamp {
+            font-size: 0.78rem;
+            color: #888;
+            margin-top: 0.15rem;
+        }
+        .tweede-contact {
+            margin-top: 0.75rem;
+            padding-top: 0.75rem;
+            border-top: 1px dashed #e8dfd2;
+        }
+        .tweede-contact-title {
+            font-size: 0.75rem;
+            font-weight: 600;
+            color: #8b5a2b;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            margin-bottom: 0.35rem;
+        }
+        .tweede-contact-details {
+            font-size: 0.9rem;
+            color: #555;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.5rem 1.5rem;
+        }
     </style>
 <?php $adminExtraHead = ob_get_clean();
 require_once '../components/sidebar.php'; ?>
@@ -341,8 +358,6 @@ require_once '../components/sidebar.php'; ?>
             <span>›</span>
             Bedrijven
         </div>
-
-        <div id="message-container"></div>
 
         <div class="section pending">
             <h2>
@@ -424,26 +439,46 @@ require_once '../components/sidebar.php'; ?>
             <?php if (empty($approvedAccounts)): ?>
                 <div class="empty">Nog geen goedgekeurde bedrijfsaccounts</div>
             <?php else: ?>
-                <div class="account-list">
+                <div class="search-filter">
+                    <input type="search" id="approved-search" placeholder="Zoek op bedrijf, contactpersoon of e-mail…" oninput="filterApproved(this)">
+                </div>
+                <div class="account-list" id="approved-list">
                     <?php foreach ($approvedAccounts as $account):
                         $hasToken = !empty($account['invite_token']);
+                        $hasOpened = !empty($account['invite_opened_at']);
                         $hasAccepted = !empty($account['invite_accepted_at']);
                         if ($hasAccepted) {
-                            $inviteStatus = 'accepted';
-                            $inviteLabel = 'Actief';
+                            $inviteBadgeClass = 'badge--green';
+                            $inviteLabel = 'Actief · ' . date('j M', strtotime($account['invite_accepted_at']));
+                        } elseif ($hasOpened) {
+                            $inviteBadgeClass = 'badge--blue';
+                            $inviteLabel = 'Link geopend · ' . date('j M H:i', strtotime($account['invite_opened_at']));
                         } elseif ($hasToken) {
-                            $inviteStatus = 'pending';
+                            $inviteBadgeClass = 'badge--orange';
                             $inviteLabel = 'Uitnodiging verstuurd';
                         } else {
-                            $inviteStatus = 'not-sent';
+                            $inviteBadgeClass = 'badge--red';
                             $inviteLabel = 'Niet uitgenodigd';
+                        }
+                        $hasSecond = !empty($account['tweede_email']);
+                        $secondAccepted = !empty($account['tweede_invite_accepted_at']);
+                        $secondOpened = !empty($account['tweede_invite_opened_at']);
+                        $secondToken = !empty($account['tweede_invite_token']);
+                        if ($hasSecond) {
+                            if ($secondAccepted) { $secondBadgeClass = 'badge--green'; $secondLabel = 'Actief'; }
+                            elseif ($secondOpened) { $secondBadgeClass = 'badge--blue'; $secondLabel = 'Link geopend'; }
+                            elseif ($secondToken) { $secondBadgeClass = 'badge--orange'; $secondLabel = 'Uitnodiging verstuurd'; }
+                            else { $secondBadgeClass = 'badge--red'; $secondLabel = 'Niet uitgenodigd'; }
                         }
                     ?>
                         <div class="account-item approved" id="approved-<?= $account['id'] ?>">
                             <div class="account-header">
                                 <div class="account-name">
                                     <?= htmlspecialchars($account['bedrijfsnaam']) ?>
-                                    <span class="invite-badge <?= $inviteStatus ?>"><?= $inviteLabel ?></span>
+                                    <span class="badge <?= $inviteBadgeClass ?>"><?= $inviteLabel ?></span>
+                                    <?php if ($hasSecond): ?>
+                                        <span class="badge badge--blue" title="Gedeeld account">2 contacten</span>
+                                    <?php endif; ?>
                                 </div>
                                 <div class="account-date">Aangemaakt: <?= date('d-m-Y', strtotime($account['approved_at'])) ?></div>
                             </div>
@@ -479,6 +514,15 @@ require_once '../components/sidebar.php'; ?>
                                 </div>
                                 <?php endif; ?>
                             </dl>
+                            <?php if ($hasSecond): ?>
+                            <div class="tweede-contact">
+                                <div class="tweede-contact-title">Tweede contactpersoon <span class="badge <?= $secondBadgeClass ?>"><?= $secondLabel ?></span></div>
+                                <div class="tweede-contact-details">
+                                    <span><?= htmlspecialchars($account['tweede_contactpersoon'] ?: '-') ?></span>
+                                    <span><a href="mailto:<?= htmlspecialchars($account['tweede_email']) ?>"><?= htmlspecialchars($account['tweede_email']) ?></a></span>
+                                </div>
+                            </div>
+                            <?php endif; ?>
                             <div class="account-actions">
                                 <button class="btn btn-small" onclick="openEditModal(<?= htmlspecialchars(json_encode($account), ENT_QUOTES) ?>)">
                                     ✏️ Bewerken
@@ -490,6 +534,15 @@ require_once '../components/sidebar.php'; ?>
                                 <?php else: ?>
                                 <button class="btn btn-warning btn-small" onclick="sendInvite(<?= $account['id'] ?>, '<?= htmlspecialchars($account['email'], ENT_QUOTES) ?>')">
                                     🔑 Wachtwoord reset
+                                </button>
+                                <?php endif; ?>
+                                <?php if ($hasSecond): ?>
+                                <button class="btn btn-small" style="background:#8b5a2b" onclick="openTweedeModal(<?= htmlspecialchars(json_encode(['id' => $account['id'], 'tweede_contactpersoon' => $account['tweede_contactpersoon'], 'tweede_email' => $account['tweede_email']]), ENT_QUOTES) ?>, <?= $secondAccepted ? 'true' : 'false' ?>)">
+                                    👥 Tweede contact
+                                </button>
+                                <?php else: ?>
+                                <button class="btn btn-small" style="background:#8b5a2b" onclick="openTweedeModal(<?= htmlspecialchars(json_encode(['id' => $account['id'], 'tweede_contactpersoon' => '', 'tweede_email' => '']), ENT_QUOTES) ?>, false)">
+                                    + Tweede contact
                                 </button>
                                 <?php endif; ?>
                                 <button class="btn btn-danger btn-small" onclick="deleteAccount(<?= $account['id'] ?>, '<?= htmlspecialchars($account['bedrijfsnaam'], ENT_QUOTES) ?>')">
@@ -513,19 +566,19 @@ require_once '../components/sidebar.php'; ?>
                     <label>Bedrijfsnaam *</label>
                     <input type="text" id="create-bedrijfsnaam" required>
                 </div>
-                <div class="form-group">
-                    <label>Adres *</label>
-                    <input type="text" id="create-adres" required>
-                </div>
                 <div class="form-row">
                     <div class="form-group">
                         <label>Postcode</label>
-                        <input type="text" id="create-postcode">
+                        <input type="text" id="create-postcode" placeholder="1234 AB">
                     </div>
                     <div class="form-group">
                         <label>Plaats</label>
                         <input type="text" id="create-plaats">
                     </div>
+                </div>
+                <div class="form-group">
+                    <label>Adres *</label>
+                    <input type="text" id="create-adres" placeholder="Straat en huisnummer" required>
                 </div>
                 <div class="form-group">
                     <label>Contactpersoon *</label>
@@ -582,19 +635,19 @@ require_once '../components/sidebar.php'; ?>
                     <label>Bedrijfsnaam *</label>
                     <input type="text" id="edit-bedrijfsnaam" required>
                 </div>
-                <div class="form-group">
-                    <label>Adres *</label>
-                    <input type="text" id="edit-adres" required>
-                </div>
                 <div class="form-row">
                     <div class="form-group">
                         <label>Postcode</label>
-                        <input type="text" id="edit-postcode">
+                        <input type="text" id="edit-postcode" placeholder="1234 AB">
                     </div>
                     <div class="form-group">
                         <label>Plaats</label>
                         <input type="text" id="edit-plaats">
                     </div>
+                </div>
+                <div class="form-group">
+                    <label>Adres *</label>
+                    <input type="text" id="edit-adres" placeholder="Straat en huisnummer" required>
                 </div>
                 <div class="form-group">
                     <label>Contactpersoon *</label>
@@ -642,11 +695,39 @@ require_once '../components/sidebar.php'; ?>
         </div>
     </div>
 
-    <script src="../../js/ui-notifications.js?v=1"></script>
+    <div class="modal-overlay" id="tweede-modal">
+        <div class="modal">
+            <h3>Tweede contactpersoon</h3>
+            <form id="tweede-form" onsubmit="saveTweedeContact(event)">
+                <input type="hidden" id="tweede-account-id">
+                <div class="form-group">
+                    <label>Naam</label>
+                    <input type="text" id="tweede-contactpersoon" placeholder="Voornaam achternaam">
+                </div>
+                <div class="form-group">
+                    <label>E-mail *</label>
+                    <input type="email" id="tweede-email" required placeholder="contactpersoon@bedrijf.nl">
+                </div>
+                <div style="margin-top:0.5rem;">
+                    <label style="display:flex;align-items:center;gap:0.5rem;font-weight:600;color:#2d4a2d;font-size:0.85rem;cursor:pointer;">
+                        <input type="checkbox" id="tweede-send-invite">
+                        Stuur uitnodigingsmail
+                    </label>
+                </div>
+                <div class="modal-actions">
+                    <button type="button" class="btn btn-secondary" onclick="closeTweedeModal()">Annuleren</button>
+                    <button type="button" id="tweede-remove-btn" class="btn btn-danger" style="display:none" onclick="removeTweedeContact()">Verwijderen</button>
+                    <button type="submit" class="btn btn-success">Opslaan</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script src="../../js/ui-notifications.js?v=2"></script>
     <script>
         async function approveAccount(id, name) {
-            if (!await showConfirm(`Weet je zeker dat je "${name}" wilt goedkeuren? Er wordt automatisch een e-mail verzonden.`)) return;
-            
+            if (!await showConfirm(`"${name}" goedkeuren? Je kunt daarna handmatig een uitnodiging sturen.`)) return;
+
             try {
                 const response = await fetch('../../api/business-accounts.php', {
                     method: 'PUT',
@@ -654,21 +735,21 @@ require_once '../components/sidebar.php'; ?>
                     body: JSON.stringify({ id: id, action: 'approve' })
                 });
                 const data = await response.json();
-                
+
                 if (data.success) {
-                    showMessage('Account goedgekeurd! E-mail is verzonden naar het bedrijf.', 'success');
+                    showToast(data.message, 'success');
                     setTimeout(() => location.reload(), 1500);
                 } else {
-                    showMessage(data.error || 'Er ging iets mis', 'error');
+                    showToast(data.error || 'Er ging iets mis', 'error');
                 }
             } catch (error) {
-                showMessage('Er ging iets mis', 'error');
+                showToast('Er ging iets mis', 'error');
             }
         }
 
         async function rejectAccount(id, name) {
             if (!await showConfirm(`Weet je zeker dat je "${name}" wilt afwijzen?`)) return;
-            
+
             try {
                 const response = await fetch('../../api/business-accounts.php', {
                     method: 'PUT',
@@ -676,23 +757,17 @@ require_once '../components/sidebar.php'; ?>
                     body: JSON.stringify({ id: id, action: 'reject' })
                 });
                 const data = await response.json();
-                
+
                 if (data.success) {
-                    showMessage('Account afgewezen', 'success');
+                    showToast('Account afgewezen', 'info');
                     document.getElementById('account-' + id).remove();
                     updateCounts();
                 } else {
-                    showMessage(data.error || 'Er ging iets mis', 'error');
+                    showToast(data.error || 'Er ging iets mis', 'error');
                 }
             } catch (error) {
-                showMessage('Er ging iets mis', 'error');
+                showToast('Er ging iets mis', 'error');
             }
-        }
-
-        function showMessage(text, type) {
-            const container = document.getElementById('message-container');
-            container.innerHTML = `<div class="message ${type}">${text}</div>`;
-            setTimeout(() => container.innerHTML = '', 8000);
         }
 
         async function fetchJSON(url, options) {
@@ -777,35 +852,35 @@ require_once '../components/sidebar.php'; ?>
                 const result = await response.json();
                 
                 if (result.success) {
-                    showMessage('Account bijgewerkt!', 'success');
+                    showToast('Account bijgewerkt!', 'success');
                     closeEditModal();
                     setTimeout(() => location.reload(), 1000);
                 } else {
-                    showMessage(result.error || 'Er ging iets mis', 'error');
+                    showToast(result.error || 'Er ging iets mis', 'error');
                 }
             } catch (error) {
-                showMessage('Er ging iets mis', 'error');
+                showToast('Er ging iets mis', 'error');
             }
         }
 
         async function deleteAccount(id, name) {
-            if (!await showConfirm(`Weet je zeker dat je "${name}" permanent wilt verwijderen? Dit kan niet ongedaan worden gemaakt.`)) return;
-            
+            if (!await showConfirm(`Weet je zeker dat je "${name}" permanent wilt verwijderen? Dit kan niet ongedaan worden gemaakt.`, 'Verwijderen')) return;
+
             try {
                 const response = await fetch(`../../api/business-accounts.php?id=${id}`, {
                     method: 'DELETE'
                 });
                 const data = await response.json();
-                
+
                 if (data.success) {
-                    showMessage('Account verwijderd', 'success');
+                    showToast('Account verwijderd', 'info');
                     document.getElementById('approved-' + id).remove();
                     updateApprovedCount();
                 } else {
-                    showMessage(data.error || 'Er ging iets mis', 'error');
+                    showToast(data.error || 'Er ging iets mis', 'error');
                 }
             } catch (error) {
-                showMessage('Er ging iets mis', 'error');
+                showToast('Er ging iets mis', 'error');
             }
         }
 
@@ -821,14 +896,21 @@ require_once '../components/sidebar.php'; ?>
                 const data = await response.json();
 
                 if (data.success) {
-                    showMessage(data.message, 'success');
+                    showToast(data.message, 'success');
                     setTimeout(() => location.reload(), 1500);
                 } else {
-                    showMessage(data.error || 'Er ging iets mis', 'error');
+                    showToast(data.error || 'Er ging iets mis', 'error');
                 }
             } catch (error) {
-                showMessage('Er ging iets mis', 'error');
+                showToast('Er ging iets mis', 'error');
             }
+        }
+
+        function filterApproved(input) {
+            const q = input.value.toLowerCase();
+            document.querySelectorAll('#approved-list .account-item').forEach(item => {
+                item.style.display = item.textContent.toLowerCase().includes(q) ? '' : 'none';
+            });
         }
 
         function updateApprovedCount() {
@@ -883,24 +965,122 @@ require_once '../components/sidebar.php'; ?>
                 const result = await response.json();
                 
                 if (result.success) {
-                    showMessage(result.message, 'success');
+                    showToast(result.message, 'success');
                     closeCreateModal();
                     setTimeout(() => location.reload(), 1500);
                 } else {
-                    showMessage(result.error || 'Er ging iets mis', 'error');
+                    showToast(result.error || 'Er ging iets mis', 'error');
                 }
             } catch (error) {
-                showMessage('Er ging iets mis', 'error');
+                showToast('Er ging iets mis', 'error');
             }
         }
 
-        document.getElementById('create-modal').addEventListener('click', function(e) {
-            if (e.target === this) closeCreateModal();
-        });
+        document.getElementById('create-modal').addEventListener('mousedown', function(e) { this._md = e.target === this; });
+        document.getElementById('create-modal').addEventListener('click', function(e) { if (e.target === this && this._md) closeCreateModal(); });
+        document.getElementById('edit-modal').addEventListener('mousedown', function(e) { this._md = e.target === this; });
+        document.getElementById('edit-modal').addEventListener('click', function(e) { if (e.target === this && this._md) closeEditModal(); });
 
-        document.getElementById('edit-modal').addEventListener('click', function(e) {
-            if (e.target === this) closeEditModal();
-        });
+        async function pdokPostcodeOpzoeken(postcode) {
+            const p = postcode.replace(/\s/g, '').toUpperCase();
+            if (!/^[0-9]{4}[A-Z]{2}$/.test(p)) return null;
+            try {
+                const resp = await fetch(`https://api.pdok.nl/bzk/locatieserver/search/v3_1/free?q=${p}&fq=type:adres&rows=1`);
+                if (!resp.ok) return null;
+                const data = await resp.json();
+                const hit = data.response?.docs?.[0];
+                return hit ? { straat: hit.straatnaam || '', plaats: hit.woonplaatsnaam || '' } : null;
+            } catch { return null; }
+        }
+
+        function setupPostcodeLookup(postcodeId, adresId, plaatsId) {
+            const el = document.getElementById(postcodeId);
+            if (!el) return;
+            el.addEventListener('blur', async () => {
+                const result = await pdokPostcodeOpzoeken(el.value);
+                if (result) {
+                    const adresEl = document.getElementById(adresId);
+                    const plaatsEl = document.getElementById(plaatsId);
+                    if (adresEl && !adresEl.value) adresEl.value = result.straat ? result.straat + ' ' : '';
+                    if (plaatsEl) plaatsEl.value = result.plaats;
+                }
+            });
+        }
+
+        setupPostcodeLookup('create-postcode', 'create-adres', 'create-plaats');
+        setupPostcodeLookup('edit-postcode', 'edit-adres', 'edit-plaats');
+
+        let tweedeAccountId = null;
+        let tweedeHasExisting = false;
+
+        function openTweedeModal(account, isAccepted) {
+            tweedeAccountId = account.id;
+            tweedeHasExisting = !!(account.tweede_email);
+            document.getElementById('tweede-account-id').value = account.id;
+            document.getElementById('tweede-contactpersoon').value = account.tweede_contactpersoon || '';
+            document.getElementById('tweede-email').value = account.tweede_email || '';
+            document.getElementById('tweede-remove-btn').style.display = tweedeHasExisting ? '' : 'none';
+            document.getElementById('tweede-send-invite').checked = false;
+            document.getElementById('tweede-modal').classList.add('active');
+        }
+
+        function closeTweedeModal() {
+            document.getElementById('tweede-modal').classList.remove('active');
+        }
+
+        async function saveTweedeContact(event) {
+            event.preventDefault();
+            const tweedeEmail = document.getElementById('tweede-email').value;
+            const tweedeContactpersoon = document.getElementById('tweede-contactpersoon').value;
+            const sendInvite = document.getElementById('tweede-send-invite').checked;
+
+            try {
+                const response = await fetch('../../api/business-accounts.php', {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        id: tweedeAccountId,
+                        action: sendInvite ? 'send_tweede_invite' : 'update_tweede_contact',
+                        tweede_email: tweedeEmail,
+                        tweede_contactpersoon: tweedeContactpersoon
+                    })
+                });
+                const data = await response.json();
+                if (data.success) {
+                    showToast(data.message, 'success');
+                    closeTweedeModal();
+                    setTimeout(() => location.reload(), 1500);
+                } else {
+                    showToast(data.error || 'Er ging iets mis', 'error');
+                }
+            } catch (e) {
+                showToast('Er ging iets mis', 'error');
+            }
+        }
+
+        async function removeTweedeContact() {
+            if (!await showConfirm('Tweede contactpersoon verwijderen? Ze kunnen dan niet meer inloggen.', 'Verwijderen')) return;
+            try {
+                const response = await fetch('../../api/business-accounts.php', {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ id: tweedeAccountId, action: 'remove_tweede_contact' })
+                });
+                const data = await response.json();
+                if (data.success) {
+                    showToast(data.message, 'info');
+                    closeTweedeModal();
+                    setTimeout(() => location.reload(), 1500);
+                } else {
+                    showToast(data.error || 'Er ging iets mis', 'error');
+                }
+            } catch (e) {
+                showToast('Er ging iets mis', 'error');
+            }
+        }
+
+        document.getElementById('tweede-modal').addEventListener('mousedown', function(e) { this._md = e.target === this; });
+        document.getElementById('tweede-modal').addEventListener('click', function(e) { if (e.target === this && this._md) closeTweedeModal(); });
     </script>
 </body>
 </html>

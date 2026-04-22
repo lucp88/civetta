@@ -291,7 +291,7 @@
                 <li><a href="financiering.html">Crowdfunding</a></li>
                 <li><a href="contact.html">Contact</a></li>
                 <li class="nav-login">
-                    <a href="zakelijk-dashboard.html" class="login-trigger active">Dashboard</a>
+                    <a href="mijn-dashboard.html" class="login-trigger active">Dashboard</a>
                 </li>
             </ul>
             <button class="mobile-menu-btn" aria-label="Menu">
@@ -311,7 +311,7 @@
             <div class="container">
                 <div id="profile-app" v-cloak>
                     <div class="page-header-bar">
-                        <a href="zakelijk-dashboard.html" class="back-link">
+                        <a href="mijn-dashboard.html" class="back-link">
                             <span>&larr;</span> Terug naar Dashboard
                         </a>
                     </div>
@@ -423,7 +423,7 @@
                         </div>
                     </template>
 
-                    <div class="modal-overlay" :class="{ active: activeModal === 'business' }" @click.self="closeModal">
+                    <div class="modal-overlay" :class="{ active: activeModal === 'business' }" @mousedown="$event.currentTarget._md = ($event.target === $event.currentTarget)" @click.self="$event.currentTarget._md && closeModal()">
                         <div class="modal">
                             <h3>{{ account.account_type === 'particulier' ? 'Gegevens bewerken' : 'Bedrijfsinformatie bewerken' }}</h3>
                             <div v-if="editError" class="error-msg">{{ editError }}</div>
@@ -433,19 +433,20 @@
                                     <label>{{ account.account_type === 'particulier' ? 'Naam' : 'Bedrijfsnaam' }} *</label>
                                     <input type="text" v-model="businessForm.bedrijfsnaam" required>
                                 </div>
-                                <div class="form-group">
-                                    <label>Adres *</label>
-                                    <input type="text" v-model="businessForm.adres" required>
-                                </div>
                                 <div class="form-row">
                                     <div class="form-group">
                                         <label>Postcode</label>
-                                        <input type="text" v-model="businessForm.postcode">
+                                        <input type="text" v-model="businessForm.postcode" @blur="lookupBusinessPostcode">
+                                        <small v-if="businessPostcodeLoading" style="color: #888;">Adres opzoeken...</small>
                                     </div>
                                     <div class="form-group">
                                         <label>Plaats</label>
                                         <input type="text" v-model="businessForm.plaats">
                                     </div>
+                                </div>
+                                <div class="form-group">
+                                    <label>Adres *</label>
+                                    <input type="text" v-model="businessForm.adres" required>
                                 </div>
                                 <template v-if="account.account_type !== 'particulier'">
                                     <div class="form-group">
@@ -471,7 +472,7 @@
                         </div>
                     </div>
 
-                    <div class="modal-overlay" :class="{ active: activeModal === 'contact' }" @click.self="closeModal">
+                    <div class="modal-overlay" :class="{ active: activeModal === 'contact' }" @mousedown="$event.currentTarget._md = ($event.target === $event.currentTarget)" @click.self="$event.currentTarget._md && closeModal()">
                         <div class="modal">
                             <h3>Contactgegevens bewerken</h3>
                             <div v-if="editError" class="error-msg">{{ editError }}</div>
@@ -498,25 +499,26 @@
                         </div>
                     </div>
 
-                    <div class="modal-overlay" :class="{ active: activeModal === 'delivery' }" @click.self="closeModal">
+                    <div class="modal-overlay" :class="{ active: activeModal === 'delivery' }" @mousedown="$event.currentTarget._md = ($event.target === $event.currentTarget)" @click.self="$event.currentTarget._md && closeModal()">
                         <div class="modal">
                             <h3>Leveringsadres bewerken</h3>
                             <div v-if="editError" class="error-msg">{{ editError }}</div>
                             <div v-if="editSuccess" class="success-msg">{{ editSuccess }}</div>
                             <form @submit.prevent="saveDeliveryInfo">
-                                <div class="form-group">
-                                    <label>Adres *</label>
-                                    <input type="text" v-model="deliveryForm.delivery_adres" required>
-                                </div>
                                 <div class="form-row">
                                     <div class="form-group">
                                         <label>Postcode</label>
-                                        <input type="text" v-model="deliveryForm.delivery_postcode">
+                                        <input type="text" v-model="deliveryForm.delivery_postcode" @blur="lookupDeliveryPostcode">
+                                        <small v-if="deliveryPostcodeLoading" style="color: #888;">Adres opzoeken...</small>
                                     </div>
                                     <div class="form-group">
                                         <label>Plaats</label>
                                         <input type="text" v-model="deliveryForm.delivery_plaats">
                                     </div>
+                                </div>
+                                <div class="form-group">
+                                    <label>Adres *</label>
+                                    <input type="text" v-model="deliveryForm.delivery_adres" required>
                                 </div>
                                 <div class="form-group">
                                     <label>T.a.v. (optioneel)</label>
@@ -530,7 +532,7 @@
                         </div>
                     </div>
 
-                    <div class="modal-overlay" :class="{ active: activeModal === 'password' }" @click.self="closeModal">
+                    <div class="modal-overlay" :class="{ active: activeModal === 'password' }" @mousedown="$event.currentTarget._md = ($event.target === $event.currentTarget)" @click.self="$event.currentTarget._md && closeModal()">
                         <div class="modal">
                             <h3>Wachtwoord wijzigen</h3>
                             <div v-if="passwordError" class="error-msg">{{ passwordError }}</div>
@@ -556,7 +558,7 @@
                         </div>
                     </div>
 
-                    <div class="modal-overlay" :class="{ active: activeModal === 'delete' }" @click.self="closeModal">
+                    <div class="modal-overlay" :class="{ active: activeModal === 'delete' }" @mousedown="$event.currentTarget._md = ($event.target === $event.currentTarget)" @click.self="$event.currentTarget._md && closeModal()">
                         <div class="modal modal-danger">
                             <h3>Account verwijderen</h3>
                             <div v-if="deleteError" class="error-msg">{{ deleteError }}</div>
@@ -609,10 +611,22 @@
     </footer>
 
     <script src="https://cdn.jsdelivr.net/npm/vue@3/dist/vue.global.prod.js"></script>
-    <script src="js/main.js"></script>
+    <script src="js/main.js?v=4"></script>
     <script>
         const { createApp } = Vue;
-        
+
+        async function pdokPostcodeOpzoeken(postcode) {
+            const p = postcode.replace(/\s/g, '').toUpperCase();
+            if (!/^[0-9]{4}[A-Z]{2}$/.test(p)) return null;
+            try {
+                const resp = await fetch(`https://api.pdok.nl/bzk/locatieserver/search/v3_1/free?q=${p}&fq=type:adres&rows=1`);
+                if (!resp.ok) return null;
+                const data = await resp.json();
+                const hit = data.response?.docs?.[0];
+                return hit ? { straat: hit.straatnaam || '', plaats: hit.woonplaatsnaam || '' } : null;
+            } catch { return null; }
+        }
+
         createApp({
             data() {
                 return {
@@ -625,6 +639,8 @@
                     editError: '',
                     editSuccess: '',
                     saving: false,
+                    businessPostcodeLoading: false,
+                    deliveryPostcodeLoading: false,
                     passwordForm: {
                         current: '',
                         new: '',
@@ -731,6 +747,28 @@
                     }
                 },
                 
+                async lookupBusinessPostcode() {
+                    if (!this.businessForm.postcode) return;
+                    this.businessPostcodeLoading = true;
+                    const result = await pdokPostcodeOpzoeken(this.businessForm.postcode);
+                    this.businessPostcodeLoading = false;
+                    if (result) {
+                        if (!this.businessForm.adres) this.businessForm.adres = result.straat ? result.straat + ' ' : '';
+                        this.businessForm.plaats = result.plaats;
+                    }
+                },
+
+                async lookupDeliveryPostcode() {
+                    if (!this.deliveryForm.delivery_postcode) return;
+                    this.deliveryPostcodeLoading = true;
+                    const result = await pdokPostcodeOpzoeken(this.deliveryForm.delivery_postcode);
+                    this.deliveryPostcodeLoading = false;
+                    if (result) {
+                        if (!this.deliveryForm.delivery_adres) this.deliveryForm.delivery_adres = result.straat ? result.straat + ' ' : '';
+                        this.deliveryForm.delivery_plaats = result.plaats;
+                    }
+                },
+
                 async saveBusinessInfo() {
                     this.editError = '';
                     this.editSuccess = '';
