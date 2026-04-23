@@ -72,7 +72,16 @@ $stmt = $pdo->prepare("
     FROM business_orders bo
     JOIN business_accounts ba ON bo.account_id = ba.id
     JOIN business_order_items boi ON bo.id = boi.order_id
-    LEFT JOIN product_variants pv ON boi.variant_id = pv.id
+    LEFT JOIN product_variants pv ON pv.id = COALESCE(
+        boi.variant_id,
+        (SELECT pv2.id FROM product_variants pv2
+         WHERE pv2.product_id = boi.product_id
+           AND boi.product_id IS NOT NULL
+           AND pv2.gewicht > 0
+           AND pv2.gewicht = CAST(SUBSTRING_INDEX(SUBSTRING_INDEX(boi.product_name, '(', -1), 'g)', 1) AS UNSIGNED)
+         ORDER BY pv2.recipe_id DESC
+         LIMIT 1)
+    )
     LEFT JOIN products p ON COALESCE(boi.product_id, pv.product_id) = p.id
     LEFT JOIN baker_recipes br ON pv.recipe_id = br.id
     LEFT JOIN dough_types dt ON br.dough_type_id = dt.id
@@ -237,6 +246,38 @@ function formatDutchDate($date) {
 $totalProducts = 0; $totalWeight = 0; $totalDoughTypeCount = count($doughGroups);
 foreach ($doughGroups as $dg) { $totalProducts += $dg['total_qty']; $totalWeight += $dg['total_weight']; }
 $totalProducts += $noRecipeGroup['total_qty']; $totalWeight += $noRecipeGroup['total_weight'];
+
+// Sourdough totals grouped by grain composition
+$sourdoughTotals = [];
+$sdGrainLabels = [
+    'wheat_white'=>'Tarwe','wheat_whole'=>'Tarwe volkoren','spelt_white'=>'Spelt','spelt_whole'=>'Spelt volkoren',
+    'durum'=>'Durum','emmer'=>'Emmer','rye_white'=>'Rogge','rye_whole'=>'Rogge volkoren',
+    'einkorn'=>'Einkorn','buckwheat'=>'Boekweit','rice'=>'Rijst','barley'=>'Gerst','teff'=>'Teff',
+];
+foreach ($doughGroups as $dg) {
+    $rd = $dg['dough_type_data'];
+    if (!$rd) { $first = !empty($dg['recipes']) ? reset($dg['recipes']) : null; $rd = $first['data'] ?? null; }
+    if (!$rd || empty($rd['useSourdough']) || empty($rd['sourdoughPct'])) continue;
+
+    $hydration  = $rd['hydration'] ?? 62;
+    $saltPct    = $rd['saltPct']   ?? 2.6;
+    $totalFlour = $dg['total_weight'] / (1 + $hydration/100 + $saltPct/100);
+    $sdWeight   = $totalFlour * ($rd['sourdoughPct'] / 100);
+
+    $grains = $rd['sourdoughGrains'] ?? [['type' => 'wheat_white', 'pct' => 100]];
+    usort($grains, fn($a, $b) => ($b['pct'] ?? 0) - ($a['pct'] ?? 0));
+    $keyParts = []; $labelParts = [];
+    foreach ($grains as $g) {
+        if (($g['pct'] ?? 0) <= 0) continue;
+        $t = (string)($g['type'] ?? '');
+        $keyParts[]   = $t;
+        $labelParts[] = $ingredientNames[$t] ?? $sdGrainLabels[$t] ?? $t;
+    }
+    $key   = implode('+', $keyParts) ?: 'desem';
+    $label = (implode('/', array_unique($labelParts)) ?: 'Desem') . ' desem';
+    if (!isset($sourdoughTotals[$key])) $sourdoughTotals[$key] = ['label' => $label, 'weight' => 0];
+    $sourdoughTotals[$key]['weight'] += $sdWeight;
+}
 
 // Existing bakacties for $date
 $existingBakactiesByType = [];
@@ -494,6 +535,12 @@ require_once '../components/sidebar.php'; ?>
                         <div class="label">Deegsoorten</div>
                         <div class="value"><?= $totalDoughTypeCount ?></div>
                     </div>
+                    <?php foreach ($sourdoughTotals as $sd): ?>
+                    <div class="summary-stat">
+                        <div class="label"><?= htmlspecialchars($sd['label']) ?></div>
+                        <div class="value"><?= number_format($sd['weight']/1000, 2, ',', '.') ?> kg</div>
+                    </div>
+                    <?php endforeach; ?>
                 </div>
 
                 <?php if (!empty($noRecipeGroup['products'])): ?>

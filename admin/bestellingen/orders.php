@@ -1421,6 +1421,7 @@ require_once '../components/sidebar.php'; ?>
         } else {
             customerGroup.style.display = '';
         }
+        refreshProductOptions();
     }
 
     function getInternalAccountId() {
@@ -1518,15 +1519,17 @@ require_once '../components/sidebar.php'; ?>
     }
 
     function isProductAvailable(recipeDays) {
+        if (document.getElementById('newOrderInternal').checked) return true;
         return getAvailableBakdagen() >= (recipeDays || 1);
     }
 
     function buildProductOptions() {
+        const isInternal = document.getElementById('newOrderInternal').checked;
         const available = getAvailableBakdagen();
         let html = '<option value="">Kies product...</option>';
         allProducts.forEach(p => {
             const days = p.recipe_days || 1;
-            const canMake = days <= available;
+            const canMake = isInternal || days <= available;
             if (canMake) {
                 html += '<option value="' + p.id + '">' + escHtml(p.naam) + '</option>';
             } else {
