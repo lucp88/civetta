@@ -1947,8 +1947,8 @@ ob_start();
     function getEarliestDeliveryDate(recipeDays) {
         if (!recipeDays || recipeDays <= 0) recipeDays = 1;
         const today = new Date(); today.setHours(0, 0, 0, 0);
-        let count = 0; const d = new Date(today);
-        while (count < recipeDays) { if (allBakdagen.includes(toLocalDateStr(d))) count++; if (count < recipeDays) d.setDate(d.getDate() + 1); }
+        let count = 0; const d = new Date(today); let iterations = 0;
+        while (count < recipeDays && iterations < 365) { if (allBakdagen.includes(toLocalDateStr(d))) count++; if (count < recipeDays) d.setDate(d.getDate() + 1); iterations++; }
         return toLocalDateStr(d);
     }
 
@@ -2018,6 +2018,8 @@ ob_start();
     function addBakdagFromOrder() {
         const date = document.getElementById('newOrderDate').value;
         if (!date) return;
+        const dateLabel = new Date(date + 'T00:00').toLocaleDateString('nl-NL', {weekday: 'long', day: 'numeric', month: 'long'});
+        if (!confirm(`${dateLabel} als extra bakdag instellen?`)) return;
         fetch('/api/bakdagen.php', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'add_extra', datum: date, notitie: 'Interne bestelling' }) })
         .then(r => r.json()).then(data => {
             if (data.success) { allBakdagen.push(date); showToast('Bakdag toegevoegd', 'success'); checkBakdag(); }

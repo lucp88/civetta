@@ -363,9 +363,10 @@ switch ($method) {
             $totalAmount += floatval($item['quantity']) * floatval($item['unit_price']);
         }
 
-        // Bakeday check — skip for internal orders, require confirm for regular orders
+        // Bakeday check — skip for internal orders, past dates, or when user already confirmed
         $confirmOverride = !empty($data['confirm_override']);
-        if (!$confirmOverride && !$isInternal) {
+        $isPastDate = !empty($deliveryDate) && $deliveryDate < date('Y-m-d');
+        if (!$confirmOverride && !$isInternal && !$isPastDate) {
             $stmtPatroon = $pdo->prepare("SELECT setting_value FROM settings WHERE setting_key = 'bakdagen_patroon'");
             $stmtPatroon->execute();
             $patroonStr = $stmtPatroon->fetchColumn() ?: '';
@@ -528,6 +529,7 @@ switch ($method) {
         $orderId = intval($data['order_id'] ?? 0);
         $items = $data['items'] ?? [];
         $notes = $data['notes'] ?? null;
+        $deliveryDate = isset($data['delivery_date']) && $data['delivery_date'] ? $data['delivery_date'] : null;
 
         if (!$orderId || empty($items)) {
             http_response_code(400);
@@ -586,6 +588,11 @@ switch ($method) {
             if ($notes !== null) {
                 $updateFields[] = 'notes = ?';
                 $updateValues[] = trim($notes);
+            }
+
+            if ($deliveryDate !== null) {
+                $updateFields[] = 'delivery_date = ?';
+                $updateValues[] = $deliveryDate;
             }
 
             $updateValues[] = $orderId;

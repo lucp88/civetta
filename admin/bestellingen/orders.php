@@ -1011,7 +1011,7 @@ require_once '../components/sidebar.php'; ?>
                                     </label>
                                     <button type="submit" class="btn-update">Bijwerken</button>
                                 </form>
-                                <button class="btn-edit-order" onclick="openEditModal(<?= $order['id'] ?>, <?= htmlspecialchars(json_encode($order['items']), ENT_QUOTES) ?>, <?= htmlspecialchars(json_encode($order['notes'] ?? ''), ENT_QUOTES) ?>)">
+                                <button class="btn-edit-order" onclick="openEditModal(<?= $order['id'] ?>, <?= htmlspecialchars(json_encode($order['items']), ENT_QUOTES) ?>, <?= htmlspecialchars(json_encode($order['notes'] ?? ''), ENT_QUOTES) ?>, <?= htmlspecialchars(json_encode($order['delivery_date'] ?? ''), ENT_QUOTES) ?>, <?= !empty($order['is_internal']) ? 'true' : 'false' ?>)">
                                     <i class="bi bi-pencil"></i> Aanpassen
                                 </button>
                                 <?php if (!empty($order['is_internal']) && empty($order['settled_at'])): ?>
@@ -1206,6 +1206,7 @@ require_once '../components/sidebar.php'; ?>
                     </div>
                     <div class="bakdag-warning" id="bakdagWarning" style="display:none;">
                         <i class="bi bi-exclamation-triangle-fill"></i> Dit is geen bakdag. Eerstvolgende bakdag: <strong id="nextBakdag" onclick="selectNextBakdag()"></strong>
+                        <button id="bakdagAddBtn" onclick="addBakdagFromOrder()" style="display:none;margin-left:auto;padding:0.25rem 0.6rem;background:#ff6b35;color:white;border:none;border-radius:5px;font-size:0.8rem;font-weight:600;cursor:pointer;white-space:nowrap;"><i class="bi bi-plus"></i> Als bakdag instellen</button>
                     </div>
                 </div>
                 <div class="form-group">
@@ -1270,6 +1271,17 @@ require_once '../components/sidebar.php'; ?>
                 <button class="modal-close" onclick="closeEditModal()">&times;</button>
             </div>
             <div class="modal-body">
+                <div style="margin-bottom: 1rem;">
+                    <label>Bakdag / Leverdatum</label>
+                    <input type="date" class="form-control" id="editOrderDate" onchange="checkEditBakdag()">
+                    <div class="bakdag-indicator" id="editBakdagIndicator" style="display:none;">
+                        <span class="bakdag-ok"><i class="bi bi-check-circle-fill"></i> Dit is een bakdag</span>
+                    </div>
+                    <div class="bakdag-warning" id="editBakdagWarning" style="display:none;">
+                        <i class="bi bi-exclamation-triangle-fill"></i> Dit is geen bakdag. Eerstvolgende bakdag: <strong id="editNextBakdag" onclick="selectEditNextBakdag()"></strong>
+                        <button id="editBakdagAddBtn" onclick="addEditBakdagFromOrder()" style="display:none;margin-left:auto;padding:0.25rem 0.6rem;background:#ff6b35;color:white;border:none;border-radius:5px;font-size:0.8rem;font-weight:600;cursor:pointer;white-space:nowrap;"><i class="bi bi-plus"></i> Als bakdag instellen</button>
+                    </div>
+                </div>
                 <div style="margin-bottom: 1rem;">
                     <label>Opmerkingen</label>
                     <textarea id="editNotes" placeholder="Opmerkingen voor deze bestelling"></textarea>
@@ -1385,9 +1397,12 @@ require_once '../components/sidebar.php'; ?>
             return;
         }
 
+        const isInternal = document.getElementById('newOrderInternal').checked;
+        const addBtn = document.getElementById('bakdagAddBtn');
         if (allBakdagen.includes(date)) {
             indicator.style.display = '';
             warning.style.display = 'none';
+            if (addBtn) addBtn.style.display = 'none';
         } else {
             indicator.style.display = 'none';
             warning.style.display = '';
@@ -1395,6 +1410,7 @@ require_once '../components/sidebar.php'; ?>
             document.getElementById('nextBakdag').textContent = next
                 ? new Date(next + 'T00:00').toLocaleDateString('nl-NL', {weekday: 'long', day: 'numeric', month: 'long'})
                 : 'onbekend';
+            if (addBtn) addBtn.style.display = isInternal ? '' : 'none';
         }
 
         // Refresh product rows to filter by available baking days
@@ -1408,6 +1424,18 @@ require_once '../components/sidebar.php'; ?>
             document.getElementById('newOrderDate').value = next;
             checkBakdag();
         }
+    }
+
+    function addBakdagFromOrder() {
+        const date = document.getElementById('newOrderDate').value;
+        if (!date) return;
+        const dateLabel = new Date(date + 'T00:00').toLocaleDateString('nl-NL', {weekday: 'long', day: 'numeric', month: 'long'});
+        if (!confirm(`${dateLabel} als extra bakdag instellen?`)) return;
+        fetch('../../api/bakdagen.php', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'add_extra', datum: date, notitie: 'Interne bestelling' }) })
+        .then(r => r.json()).then(data => {
+            if (data.success) { allBakdagen.push(date); allBakdagen.sort(); showToast('Bakdag toegevoegd', 'success'); checkBakdag(); }
+            else { showToast(data.error || 'Fout bij toevoegen bakdag', 'error'); }
+        });
     }
 
     function onInternalToggle() {
@@ -1507,9 +1535,11 @@ require_once '../components/sidebar.php'; ?>
         today.setHours(0, 0, 0, 0);
         let count = 0;
         const d = new Date(today);
-        while (count < recipeDays) {
+        let iterations = 0;
+        while (count < recipeDays && iterations < 365) {
             if (allBakdagen.includes(toLocalDateStr(d))) count++;
             if (count < recipeDays) d.setDate(d.getDate() + 1);
+            iterations++;
         }
         return toLocalDateStr(d);
     }
@@ -1984,8 +2014,11 @@ require_once '../components/sidebar.php'; ?>
         }
     }
 
-    function openEditModal(orderId, currentItems, notes) {
+    let editIsInternal = false;
+
+    function openEditModal(orderId, currentItems, notes, deliveryDate, isInternal) {
         editOrderId = orderId;
+        editIsInternal = !!isInternal;
         editItems = {};
 
         currentItems.forEach(item => {
@@ -1999,9 +2032,49 @@ require_once '../components/sidebar.php'; ?>
 
         document.getElementById('editModalTitle').textContent = 'Bestelling #' + orderId + ' aanpassen';
         document.getElementById('editNotes').value = notes || '';
+        document.getElementById('editOrderDate').value = deliveryDate || '';
+        checkEditBakdag();
 
         renderEditProducts();
         document.getElementById('editModal').classList.add('active');
+    }
+
+    function checkEditBakdag() {
+        const date = document.getElementById('editOrderDate').value;
+        const indicator = document.getElementById('editBakdagIndicator');
+        const warning = document.getElementById('editBakdagWarning');
+        const addBtn = document.getElementById('editBakdagAddBtn');
+        if (!date) { indicator.style.display = 'none'; warning.style.display = 'none'; return; }
+        if (allBakdagen.includes(date)) {
+            indicator.style.display = '';
+            warning.style.display = 'none';
+            if (addBtn) addBtn.style.display = 'none';
+        } else {
+            indicator.style.display = 'none';
+            warning.style.display = '';
+            const next = allBakdagen.find(d => d > date);
+            document.getElementById('editNextBakdag').textContent = next
+                ? new Date(next + 'T00:00').toLocaleDateString('nl-NL', {weekday: 'long', day: 'numeric', month: 'long'})
+                : 'onbekend';
+            if (addBtn) addBtn.style.display = editIsInternal ? '' : 'none';
+        }
+    }
+
+    function selectEditNextBakdag() {
+        const next = allBakdagen.find(d => d > document.getElementById('editOrderDate').value);
+        if (next) { document.getElementById('editOrderDate').value = next; checkEditBakdag(); }
+    }
+
+    function addEditBakdagFromOrder() {
+        const date = document.getElementById('editOrderDate').value;
+        if (!date) return;
+        const dateLabel = new Date(date + 'T00:00').toLocaleDateString('nl-NL', {weekday: 'long', day: 'numeric', month: 'long'});
+        if (!confirm(`${dateLabel} als extra bakdag instellen?`)) return;
+        fetch('../../api/bakdagen.php', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'add_extra', datum: date, notitie: 'Interne bestelling' }) })
+        .then(r => r.json()).then(data => {
+            if (data.success) { allBakdagen.push(date); allBakdagen.sort(); showToast('Bakdag toegevoegd', 'success'); checkEditBakdag(); }
+            else { showToast(data.error || 'Fout bij toevoegen bakdag', 'error'); }
+        });
     }
 
     function closeEditModal() {
@@ -2090,7 +2163,8 @@ require_once '../components/sidebar.php'; ?>
                 body: JSON.stringify({
                     order_id: editOrderId,
                     items: items,
-                    notes: document.getElementById('editNotes').value
+                    notes: document.getElementById('editNotes').value,
+                    delivery_date: document.getElementById('editOrderDate').value || null
                 })
             });
             const data = await res.json();
