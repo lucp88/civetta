@@ -36,7 +36,16 @@ $stmt = $pdo->prepare("
         dt.recipe_data as dough_type_recipe_data
     FROM business_orders bo
     JOIN business_order_items boi ON bo.id = boi.order_id
-    LEFT JOIN product_variants pv ON boi.variant_id = pv.id
+    LEFT JOIN product_variants pv ON pv.id = COALESCE(
+        boi.variant_id,
+        (SELECT pv2.id FROM product_variants pv2
+         WHERE pv2.product_id = boi.product_id
+           AND boi.product_id IS NOT NULL
+           AND pv2.gewicht > 0
+           AND pv2.gewicht = CAST(SUBSTRING_INDEX(SUBSTRING_INDEX(boi.product_name, '(', -1), 'g)', 1) AS UNSIGNED)
+         ORDER BY pv2.recipe_id DESC
+         LIMIT 1)
+    )
     LEFT JOIN products p ON COALESCE(boi.product_id, pv.product_id) = p.id
     LEFT JOIN baker_recipes br ON pv.recipe_id = br.id
     LEFT JOIN dough_types dt ON br.dough_type_id = dt.id

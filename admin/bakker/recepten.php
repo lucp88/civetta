@@ -396,6 +396,7 @@ require_once '../components/sidebar.php'; ?>
                                 <td>
                                     <span class="recipe-table-name">
                                         {{ r.name }}
+                                        <span style="font-size:0.7rem;color:#bbb;font-weight:400;margin-left:0.3rem">#{{ r.id }}</span>
                                         <span v-if="r.is_dough_type == 1" class="is-dough-type-icon" title="Is deegsoort definitie"><i class="bi bi-layers-fill"></i></span>
                                         <span v-if="r.linked_to_product == 1" style="color:#2e7d32" title="Gekoppeld aan product"><i class="bi bi-link-45deg"></i></span>
                                     </span>
