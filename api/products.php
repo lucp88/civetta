@@ -82,7 +82,7 @@ try {
                 if (!empty($allGrainIds)) {
                     $uniqueGrainIds = array_values(array_unique($allGrainIds));
                     $grainPlaceholders = implode(',', array_fill(0, count($uniqueGrainIds), '?'));
-                    $ingStmt = $pdo->prepare("SELECT id, name, is_whole_grain, is_biologisch, is_allergeen, allergeen_naam FROM ingredients WHERE id IN ($grainPlaceholders)");
+                    $ingStmt = $pdo->prepare("SELECT i.id, COALESCE(p.name, i.name) as name, i.is_whole_grain, i.is_biologisch, i.is_allergeen, i.allergeen_naam FROM ingredients i LEFT JOIN ingredients p ON i.parent_id = p.id WHERE i.id IN ($grainPlaceholders)");
                     $ingStmt->execute($uniqueGrainIds);
                     foreach ($ingStmt->fetchAll() as $ing) {
                         $ingredientLookup[(int)$ing['id']] = ['name' => $ing['name'], 'is_whole_grain' => (bool)$ing['is_whole_grain'], 'is_biologisch' => (bool)$ing['is_biologisch'], 'is_allergeen' => (bool)$ing['is_allergeen'], 'allergeen_naam' => $ing['allergeen_naam']];
