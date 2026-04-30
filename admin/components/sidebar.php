@@ -31,9 +31,9 @@ if (!isset($currentPage) || $currentPage === '') {
         --shadow-sm: 0 1px 3px rgba(20,35,20,0.06);
         --shadow-md: 0 4px 12px rgba(20,35,20,0.08);
         --shadow-lg: 0 8px 30px rgba(20,35,20,0.12);
-        --radius-sm: 8px;
-        --radius-md: 12px;
-        --radius-lg: 16px;
+        --radius-sm: 0px;
+        --radius-md: 0px;
+        --radius-lg: 0px;
         --sidebar-width: 260px;
         --header-height: 64px;
         --mobile-topbar-height: 52px;
@@ -44,7 +44,7 @@ if (!isset($currentPage) || $currentPage === '') {
         to   { opacity: 1; }
     }
 
-    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; border-radius: 0 !important; }
 
     body {
         font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
@@ -89,7 +89,7 @@ if (!isset($currentPage) || $currentPage === '') {
         width: 22px;
         height: 2px;
         background: currentColor;
-        border-radius: 2px;
+        border-radius: 0;
         transition: all 0.25s;
     }
 
@@ -169,7 +169,7 @@ if (!isset($currentPage) || $currentPage === '') {
     .sidebar-brand-icon {
         width: 36px;
         height: 36px;
-        border-radius: 10px;
+        border-radius: 0;
         object-fit: contain;
     }
 
@@ -233,7 +233,7 @@ if (!isset($currentPage) || $currentPage === '') {
         font-size: 0.65rem;
         font-weight: 700;
         padding: 0.15rem 0.5rem;
-        border-radius: 10px;
+        border-radius: 0;
         min-width: 18px;
         text-align: center;
     }
@@ -358,7 +358,7 @@ if (!isset($currentPage) || $currentPage === '') {
         font-size: 0.72rem;
         font-weight: 600;
         padding: 0.2rem 0.55rem;
-        border-radius: 20px;
+        border-radius: 0;
         vertical-align: middle;
         white-space: nowrap;
     }
@@ -439,6 +439,7 @@ if (!isset($currentPage) || $currentPage === '') {
         <a href="<?= $adminBasePath ?>settings/email-templates.php" class="nav-item <?= $currentPage === 'email-templates' ? 'active' : '' ?>">E-mail templates</a>
 
         <div class="nav-section">Web-Dev</div>
+        <a href="<?= $adminBasePath ?>settings/recipe-versions.php" class="nav-item <?= $currentPage === 'recipe-versions' ? 'active' : '' ?>">Receptversies</a>
         <a href="<?= $adminBasePath ?>migrations/index.php" class="nav-item <?= $currentPage === 'migrations' ? 'active' : '' ?>">Migraties</a>
         <button class="nav-item nav-install-btn" id="pwaInstallBtn" onclick="pwaInstall()">App installeren</button>
     </nav>

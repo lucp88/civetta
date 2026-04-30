@@ -479,7 +479,7 @@ require_once '../components/sidebar.php'; ?>
 
                     <div class="chart-card">
                         <div class="chart-header">
-                            <h3><i class="bi bi-trophy"></i> Best verkopende broden</h3>
+                            <h3>Best verkopende broden</h3>
                         </div>
                         <div class="chart-body">
                             <ul class="ranking-list" id="topProductsList">

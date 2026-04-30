@@ -1,4 +1,4 @@
-const CACHE_NAME = 'civetta-bakker-v11';
+const CACHE_NAME = 'civetta-bakker-v19';
 const PRECACHE_URLS = [
     '/admin/bakker/bakker-dashboard.php',
     '/admin/bakker/planning.php',

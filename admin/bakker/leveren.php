@@ -782,7 +782,6 @@ function formatDutchDate($date) {
                         <?php if (empty($orders)): ?>
                             <?php if (empty($dayAppointments)): ?>
                             <div class="empty-state">
-                                <i class="bi bi-emoji-smile"></i>
                                 <p>Geen leveringen vandaag</p>
                             </div>
                             <?php endif; ?>

@@ -521,7 +521,7 @@ require_once 'components/sidebar.php'; ?>
                 </div>
 
                 <div class="bakery-temp-card">
-                    <span class="bakery-temp-label"><i class="bi bi-thermometer-half" style="color:#c8913a"></i> Bakkerijtemperatuur vandaag</span>
+                    <span class="bakery-temp-label">Bakkerijtemperatuur vandaag</span>
                     <div class="bakery-temp-input-row">
                         <input type="number" id="bakery-temp" class="bakery-temp-input" min="-10" max="45" step="0.5" placeholder="—" oninput="saveBakeryTemp()">
                         <span class="bakery-temp-unit">°C</span>
@@ -703,10 +703,10 @@ require_once 'components/sidebar.php'; ?>
 
                 <div class="quick-links-bar">
                     <a href="../index.html" target="_blank" class="quick-link">
-                        <i class="bi bi-globe2"></i> Website
+                        Website
                     </a>
                     <a href="../financiering.html" target="_blank" class="quick-link">
-                        <i class="bi bi-piggy-bank"></i> Crowdfunding
+                        Crowdfunding
                     </a>
                     <a href="../contact.html" target="_blank" class="quick-link">
                         <i class="bi bi-envelope"></i> Contact

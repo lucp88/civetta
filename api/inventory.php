@@ -72,7 +72,7 @@ try {
 
             } elseif ($action === 'history') {
                 $ingredientId = $_GET['ingredient_id'] ?? null;
-                $limit = intval($_GET['limit'] ?? 50);
+                $limit = intval($_GET['limit'] ?? 100);
 
                 $where = "1=1";
                 $params = [];
@@ -81,16 +81,27 @@ try {
                     $where .= " AND c.ingredient_id = ?";
                     $params[] = $ingredientId;
                 }
+                $bakactieIdFilter = $_GET['bakactie_id'] ?? null;
+                if ($bakactieIdFilter) {
+                    $where .= " AND c.bakactie_id = ?";
+                    $params[] = (int)$bakactieIdFilter;
+                }
 
-                $sql = "SELECT c.*, i.name as ingredient_name, b.price_per_kg
+                $sql = "SELECT c.id, c.ingredient_id, c.bakactie_id, c.movement_id, c.quantity_consumed, c.cost, c.consumed_at,
+                               COALESCE(p.name, i.name) as group_name,
+                               i.name as ingredient_name, i.brand_name,
+                               b.thd_date, b.purchase_date,
+                               ba.locked_recipe_name as bakactie_name, DATE(ba.datum) as bakactie_datum,
+                               vm.created_at as movement_created_at, vm.movement_type
                         FROM inventory_consumption c
                         JOIN ingredients i ON c.ingredient_id = i.id
+                        LEFT JOIN ingredients p ON p.id = i.parent_id
                         JOIN ingredient_batches b ON c.batch_id = b.id
+                        LEFT JOIN bak_acties ba ON ba.id = c.bakactie_id
+                        LEFT JOIN voorraad_movements vm ON vm.id = c.movement_id
                         WHERE $where
                         ORDER BY c.consumed_at DESC
-                        LIMIT ?";
-
-                $params[] = $limit;
+                        LIMIT $limit";
                 $stmt = $pdo->prepare($sql);
                 $stmt->execute($params);
                 $history = $stmt->fetchAll();
@@ -236,6 +247,54 @@ try {
         case 'POST':
             $data = json_decode(file_get_contents('php://input'), true);
             $action = $data['action'] ?? 'add_batch';
+
+            if ($action === 'delete_movement') {
+                $movId = (int)($data['id'] ?? 0);
+                if (!$movId) { echo json_encode(['success' => false, 'error' => 'id is verplicht']); break; }
+
+                $mov = $pdo->prepare("SELECT id, batch_id, ingredient_id, quantity_consumed, bakactie_id, movement_id FROM inventory_consumption WHERE id = ?");
+                $mov->execute([$movId]);
+                $row = $mov->fetch();
+                if (!$row) { echo json_encode(['success' => false, 'error' => 'Beweging niet gevonden']); break; }
+
+                $pdo->beginTransaction();
+                try {
+                    // Restore quantity to the batch
+                    $pdo->prepare("UPDATE ingredient_batches SET quantity_remaining = quantity_remaining + ?, is_open = 1 WHERE id = ?")
+                        ->execute([$row['quantity_consumed'], $row['batch_id']]);
+                    // Delete the consumption row
+                    $pdo->prepare("DELETE FROM inventory_consumption WHERE id = ?")->execute([$movId]);
+                    // If this was the last row for its movement group, remove the movement record too
+                    if ($row['movement_id']) {
+                        $remaining = $pdo->prepare("SELECT COUNT(*) FROM inventory_consumption WHERE movement_id = ?");
+                        $remaining->execute([$row['movement_id']]);
+                        if ((int)$remaining->fetchColumn() === 0) {
+                            $pdo->prepare("DELETE FROM voorraad_movements WHERE id = ?")->execute([$row['movement_id']]);
+                        }
+                    }
+                    // Any deletion leaves the consumption state incomplete — reset both flags
+                    if ($row['bakactie_id']) {
+                        $pdo->prepare("UPDATE bak_acties SET inventory_consumed = 0, sourdough_consumed = 0 WHERE id = ?")
+                            ->execute([$row['bakactie_id']]);
+                    }
+                    $pdo->commit();
+                    updateAllergenTraceStatus($pdo, $row['ingredient_id']);
+                    echo json_encode(['success' => true]);
+                } catch (Exception $e) {
+                    $pdo->rollBack();
+                    throw $e;
+                }
+                break;
+            }
+
+            if ($action === 'update_movement') {
+                $movId = (int)($data['id'] ?? 0);
+                $date  = $data['consumed_at'] ?? null;
+                if (!$movId || !$date) { echo json_encode(['success' => false, 'error' => 'id en consumed_at zijn verplicht']); break; }
+                $pdo->prepare("UPDATE inventory_consumption SET consumed_at = ? WHERE id = ?")->execute([$date, $movId]);
+                echo json_encode(['success' => true]);
+                break;
+            }
 
             if ($action === 'add_batch') {
                 if (empty($data['ingredient_id']) || empty($data['quantity']) || empty($data['price_per_kg'])) {

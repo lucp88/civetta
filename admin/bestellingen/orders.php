@@ -65,14 +65,14 @@ $completedOrders = $pdo->query("
 ")->fetchAll();
 
 foreach ($upcomingOrders as &$order) {
-    $stmt = $pdo->prepare("SELECT id, product_name, quantity, unit_price, quantity_sold FROM business_order_items WHERE order_id = ?");
+    $stmt = $pdo->prepare("SELECT id, product_name, quantity, unit_price, quantity_sold, variant_id, product_id FROM business_order_items WHERE order_id = ?");
     $stmt->execute([$order['id']]);
     $order['items'] = $stmt->fetchAll();
 }
 unset($order);
 
 foreach ($completedOrders as &$order) {
-    $stmt = $pdo->prepare("SELECT id, product_name, quantity, unit_price, quantity_sold FROM business_order_items WHERE order_id = ?");
+    $stmt = $pdo->prepare("SELECT id, product_name, quantity, unit_price, quantity_sold, variant_id, product_id FROM business_order_items WHERE order_id = ?");
     $stmt->execute([$order['id']]);
     $order['items'] = $stmt->fetchAll();
 }
@@ -1129,7 +1129,10 @@ require_once '../components/sidebar.php'; ?>
                                     <?php endif; ?>
                                 </div>
                                 <div style="margin-top: 0.75rem; padding-top: 0.75rem; border-top: 1px solid #eee;">
-                                    <form method="POST" style="display:inline;" onsubmit="return handleDeleteConfirm(event, '<?= $order['id'] ?>', '<?= htmlspecialchars($order['bedrijfsnaam'], ENT_QUOTES) ?>')">
+                                    <button class="btn-edit-order" onclick="openEditModal(<?= $order['id'] ?>, <?= htmlspecialchars(json_encode($order['items']), ENT_QUOTES) ?>, <?= htmlspecialchars(json_encode($order['notes'] ?? ''), ENT_QUOTES) ?>, <?= htmlspecialchars(json_encode($order['delivery_date'] ?? ''), ENT_QUOTES) ?>, <?= !empty($order['is_internal']) ? 'true' : 'false' ?>)">
+                                        <i class="bi bi-pencil"></i> Aanpassen
+                                    </button>
+                                    <form method="POST" style="display:inline;margin-left:0.5rem;" onsubmit="return handleDeleteConfirm(event, '<?= $order['id'] ?>', '<?= htmlspecialchars($order['bedrijfsnaam'], ENT_QUOTES) ?>')">
                                         <input type="hidden" name="delete_order" value="1">
                                         <input type="hidden" name="order_id" value="<?= $order['id'] ?>">
                                         <button type="submit" class="btn-delete-order"><i class="bi bi-trash"></i> Verwijderen</button>
@@ -1474,6 +1477,7 @@ require_once '../components/sidebar.php'; ?>
         document.getElementById('newOrderProducts').innerHTML = '';
         newOrderProductIndex = 0;
 
+
         if (prefillItems && prefillItems.length > 0) {
             prefillItems.forEach(item => {
                 addProductRowPrefilled(item.product_name, item.quantity, item.unit_price);
@@ -1648,13 +1652,16 @@ require_once '../components/sidebar.php'; ?>
         if (!product) return;
 
         if (product.variants && product.variants.length > 0) {
+            const isInternal = document.getElementById('newOrderInternal').checked;
             const available = getAvailableBakdagen();
             let variantOptions = '<option value="">Kies variant...</option>';
+            let firstAvailableVariant = null;
             product.variants.forEach(v => {
                 const label = v.gewicht + 'g' + (v.naam ? ' - ' + v.naam : '');
                 const days = v.recipe_days || 1;
-                const canMake = days <= available;
+                const canMake = isInternal || days <= available;
                 if (canMake) {
+                    if (!firstAvailableVariant) firstAvailableVariant = v;
                     variantOptions += '<option value="' + v.id + '" data-price="' + v.prijs + '" data-weight="' + v.gewicht + '" data-naam="' + escAttr(v.naam || '') + '">' + escHtml(label) + ' (\u20AC' + parseFloat(v.prijs).toFixed(2).replace('.', ',') + ')</option>';
                 } else {
                     const earliest = getEarliestDeliveryDate(days);
@@ -1663,7 +1670,12 @@ require_once '../components/sidebar.php'; ?>
             });
             variantSelect.innerHTML = variantOptions;
             variantSelect.style.display = '';
-            priceEl.textContent = '\u20AC0,00';
+            if (isInternal && firstAvailableVariant) {
+                variantSelect.value = firstAvailableVariant.id;
+                priceEl.textContent = '\u20AC' + parseFloat(firstAvailableVariant.prijs).toFixed(2).replace('.', ',');
+            } else {
+                priceEl.textContent = '\u20AC0,00';
+            }
         } else {
             variantSelect.style.display = 'none';
             variantSelect.innerHTML = '';
@@ -1722,6 +1734,23 @@ require_once '../components/sidebar.php'; ?>
         if (!isInternal && !accountId) { showToast('Selecteer een klant', 'error'); return; }
         if (isInternal && !accountId) { showToast('Intern account niet gevonden. Voer eerst migration 028 uit.', 'error'); return; }
         if (!deliveryDate) { showToast('Selecteer een leverdatum', 'error'); return; }
+
+        // Validate variant required for internal orders
+        if (isInternal) {
+            let missingVariant = null;
+            document.querySelectorAll('#newOrderProducts .product-select-row').forEach(row => {
+                if (missingVariant) return;
+                const productId = parseInt(row.querySelector('.product-select')?.value);
+                if (!productId) return;
+                const product = allProducts.find(p => p.id == productId);
+                const variantSelect = row.querySelector('.variant-select');
+                const qty = parseInt(row.querySelector('.product-qty').value) || 0;
+                if (qty > 0 && product && product.variants && product.variants.length > 0 && (!variantSelect || !variantSelect.value)) {
+                    missingVariant = product.naam;
+                }
+            });
+            if (missingVariant) { showToast('Kies een variant voor ' + missingVariant, 'error'); return; }
+        }
 
         const items = [];
         document.querySelectorAll('#newOrderProducts .product-select-row').forEach(row => {
@@ -2026,7 +2055,9 @@ require_once '../components/sidebar.php'; ?>
             editItems[key] = {
                 product_name: item.product_name,
                 quantity: parseInt(item.quantity) || 0,
-                unit_price: parseFloat(item.unit_price) || 0
+                unit_price: parseFloat(item.unit_price) || 0,
+                variant_id: item.variant_id || null,
+                product_id: item.product_id || null
             };
         });
 
@@ -2101,9 +2132,9 @@ require_once '../components/sidebar.php'; ?>
                     html += '<div class="edit-product-price">&euro;' + prijs.toFixed(2).replace('.', ',') + '</div>';
                     html += '</div>';
                     html += '<div class="edit-product-controls">';
-                    html += '<button class="qty-btn" onclick="changeQty(\'' + escAttr(key) + '\', \'' + escAttr(label) + '\', ' + prijs + ', -1)">-</button>';
+                    html += '<button class="qty-btn" onclick="changeQty(\'' + escAttr(key) + '\', \'' + escAttr(label) + '\', ' + prijs + ', -1, ' + (v.id || 'null') + ', ' + (p.id || 'null') + ')">-</button>';
                     html += '<span class="qty-display">' + qty + '</span>';
-                    html += '<button class="qty-btn" onclick="changeQty(\'' + escAttr(key) + '\', \'' + escAttr(label) + '\', ' + prijs + ', 1)">+</button>';
+                    html += '<button class="qty-btn" onclick="changeQty(\'' + escAttr(key) + '\', \'' + escAttr(label) + '\', ' + prijs + ', 1, ' + (v.id || 'null') + ', ' + (p.id || 'null') + ')">+</button>';
                     html += '</div></div>';
                 });
             } else {
@@ -2117,9 +2148,9 @@ require_once '../components/sidebar.php'; ?>
                 html += '<div class="edit-product-price">&euro;' + prijs.toFixed(2).replace('.', ',') + '</div>';
                 html += '</div>';
                 html += '<div class="edit-product-controls">';
-                html += '<button class="qty-btn" onclick="changeQty(\'' + escAttr(key) + '\', \'' + escAttr(p.naam) + '\', ' + prijs + ', -1)">-</button>';
+                html += '<button class="qty-btn" onclick="changeQty(\'' + escAttr(key) + '\', \'' + escAttr(p.naam) + '\', ' + prijs + ', -1, null, ' + (p.id || 'null') + ')">-</button>';
                 html += '<span class="qty-display">' + qty + '</span>';
-                html += '<button class="qty-btn" onclick="changeQty(\'' + escAttr(key) + '\', \'' + escAttr(p.naam) + '\', ' + prijs + ', 1)">+</button>';
+                html += '<button class="qty-btn" onclick="changeQty(\'' + escAttr(key) + '\', \'' + escAttr(p.naam) + '\', ' + prijs + ', 1, null, ' + (p.id || 'null') + ')">+</button>';
                 html += '</div></div>';
             }
         });
@@ -2128,9 +2159,9 @@ require_once '../components/sidebar.php'; ?>
         updateEditTotal();
     }
 
-    function changeQty(key, name, price, delta) {
+    function changeQty(key, name, price, delta, variantId, productId) {
         if (!editItems[key]) {
-            editItems[key] = { product_name: name, quantity: 0, unit_price: price };
+            editItems[key] = { product_name: name, quantity: 0, unit_price: price, variant_id: variantId || null, product_id: productId || null };
         }
         editItems[key].quantity = Math.max(0, editItems[key].quantity + delta);
         if (editItems[key].quantity === 0) delete editItems[key];

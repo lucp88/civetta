@@ -203,6 +203,7 @@ require_once '../components/sidebar.php'; ?>
                     <div class="tab" :class="{active: activeTab==='kosten'}" @click="setTab('kosten')">Vaste Kosten</div>
                     <div class="tab" :class="{active: activeTab==='prognose'}" @click="setTab('prognose'); loadForecast()">Prognose</div>
                     <div class="tab" :class="{active: activeTab==='afgemaakt'}" @click="setTab('afgemaakt'); loadAfgemaakt()"><i class="bi bi-box-seam-fill"></i> Producten</div>
+                    <div class="tab" :class="{active: activeTab==='bewegingen'}" @click="setTab('bewegingen'); loadMovements()"><i class="bi bi-arrow-left-right"></i> Bewegingen</div>
                 </div>
 
                 <!-- OVERZICHT TAB -->
@@ -298,7 +299,7 @@ require_once '../components/sidebar.php'; ?>
 
                     <div v-show="ingredientSubTab==='meel'" class="panel">
                         <div class="panel-header">
-                            <div class="panel-title"><i class="bi bi-moisture"></i> Meelsoorten</div>
+                            <div class="panel-title">Meelsoorten</div>
                         </div>
 
                         <div class="filter-row">
@@ -407,6 +408,7 @@ require_once '../components/sidebar.php'; ?>
                                             <td>{{ child.current_price_per_kg ? '€'+formatNumber(child.current_price_per_kg)+'/kg' : '-' }}</td>
                                             <td>
                                                 <button class="btn btn-success btn-sm" @click="openBatchModal(child)"><i class="bi bi-plus"></i> Bijvullen</button>
+                                                <button class="btn btn-ghost btn-sm" @click.stop="goToMovements(child.id)" title="Afschrijvingen bekijken" style="margin-left:0.25rem"><i class="bi bi-clock-history"></i></button>
                                             </td>
                                         </tr>
                                     </template>
@@ -481,7 +483,10 @@ require_once '../components/sidebar.php'; ?>
                                                 </div>
                                             </td>
                                             <td>{{ child.current_price_per_kg ? '€'+formatNumber(child.current_price_per_kg)+'/kg' : '-' }}</td>
-                                            <td><button class="btn btn-success btn-sm" @click="openBatchModal(child)"><i class="bi bi-plus"></i> Bijvullen</button></td>
+                                            <td>
+                                                <button class="btn btn-success btn-sm" @click="openBatchModal(child)"><i class="bi bi-plus"></i> Bijvullen</button>
+                                                <button class="btn btn-ghost btn-sm" @click.stop="goToMovements(child.id)" title="Afschrijvingen bekijken" style="margin-left:0.25rem"><i class="bi bi-clock-history"></i></button>
+                                            </td>
                                         </tr>
                                     </template>
                                     <tr class="ingredient-add-row" @click="openIngredientModal(null, 'mixin')">
@@ -559,7 +564,10 @@ require_once '../components/sidebar.php'; ?>
                                                 </div>
                                             </td>
                                             <td>{{ child.current_price_per_kg ? '€'+formatNumber(child.current_price_per_kg)+'/kg' : '-' }}</td>
-                                            <td><button class="btn btn-success btn-sm" @click="openBatchModal(child)"><i class="bi bi-plus"></i> Bijvullen</button></td>
+                                            <td>
+                                                <button class="btn btn-success btn-sm" @click="openBatchModal(child)"><i class="bi bi-plus"></i> Bijvullen</button>
+                                                <button class="btn btn-ghost btn-sm" @click.stop="goToMovements(child.id)" title="Afschrijvingen bekijken" style="margin-left:0.25rem"><i class="bi bi-clock-history"></i></button>
+                                            </td>
                                         </tr>
                                     </template>
                                     <tr class="ingredient-add-row" @click="openIngredientModal(null, 'overig')">
@@ -684,7 +692,7 @@ require_once '../components/sidebar.php'; ?>
                 <div v-show="activeTab==='kosten'">
                     <div class="panel">
                         <div class="panel-header">
-                            <div class="panel-title"><i class="bi bi-lightning"></i> Vaste Kosten</div>
+                            <div class="panel-title">Vaste Kosten</div>
                         </div>
 
                         <div class="month-nav">
@@ -695,7 +703,7 @@ require_once '../components/sidebar.php'; ?>
 
                         <div class="utility-card">
                             <div class="utility-header">
-                                <div class="utility-title"><i class="bi bi-droplet"></i> Water</div>
+                                <div class="utility-title">Water</div>
                             </div>
                             <div class="form-row" style="grid-template-columns:1fr 1fr auto;align-items:flex-end">
                                 <div class="form-group" style="margin-bottom:0">
@@ -722,7 +730,7 @@ require_once '../components/sidebar.php'; ?>
 
                         <div class="utility-card">
                             <div class="utility-header">
-                                <div class="utility-title"><i class="bi bi-lightning-charge"></i> Elektriciteit</div>
+                                <div class="utility-title">Elektriciteit</div>
                             </div>
                             <div class="form-row" style="grid-template-columns:1fr 1fr auto;align-items:flex-end">
                                 <div class="form-group" style="margin-bottom:0">
@@ -935,6 +943,7 @@ require_once '../components/sidebar.php'; ?>
                         </div>
                         <div class="modal-footer">
                             <button class="btn btn-ghost" @click="showIngredientModal=false">Annuleren</button>
+                            <button v-if="editingIngredient" class="btn btn-danger" @click="deleteIngredient" :disabled="saving" style="margin-right:auto">Verwijderen</button>
                             <button class="btn btn-primary" @click="saveIngredient" :disabled="saving">
                                 {{ editingIngredient ? 'Opslaan' : 'Aanmaken' }}
                             </button>
@@ -1126,7 +1135,7 @@ require_once '../components/sidebar.php'; ?>
                             <button class="btn btn-primary btn-sm" @click="showAfgemaaktModal=true; afgemaaktForm={product_variant_id:'',product_name:'',quantity:1,unit:'stuks',location:'kast',notes:'',production_date:TODAY}"><i class="bi bi-plus"></i> Toevoegen</button>
                         </div>
                         <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:1rem;margin-top:1rem">
-                            <div v-for="loc in [{key:'kast',label:'Kast',icon:'bi-house-fill'},{key:'koelkast',label:'Koelkast',icon:'bi-snow'},{key:'vriezer',label:'Vriezer',icon:'bi-thermometer-snow'}]" :key="loc.key" style="background:#f9fafb;border-radius:10px;padding:1rem;border:1px solid #e5e7eb">
+                            <div v-for="loc in [{key:'kast',label:'Kast',icon:'bi-archive'},{key:'koelkast',label:'Koelkast',icon:'bi-archive'},{key:'vriezer',label:'Vriezer',icon:'bi-archive'}]" :key="loc.key" style="background:#f9fafb;border-radius:10px;padding:1rem;border:1px solid #e5e7eb">
                                 <div style="display:flex;align-items:center;gap:0.5rem;margin-bottom:0.75rem;font-weight:700;color:#2d4a2d;font-size:0.9rem"><i class="bi" :class="loc.icon"></i> {{ loc.label }}</div>
                                 <div v-if="afgemaaktByLocation(loc.key).length===0" style="color:#bbb;font-size:0.82rem;text-align:center;padding:0.75rem 0">Leeg</div>
                                 <div v-for="item in afgemaaktByLocation(loc.key)" :key="item.id" style="display:flex;justify-content:space-between;align-items:flex-start;padding:0.4rem 0;border-bottom:1px solid #f0f0f0;font-size:0.85rem">
@@ -1171,6 +1180,123 @@ require_once '../components/sidebar.php'; ?>
                         </div>
                     </div>
                 </div>
+                <!-- BEWEGINGEN TAB -->
+                <div v-show="activeTab==='bewegingen'">
+                    <div class="panel">
+                        <div class="panel-header" style="flex-wrap:wrap;gap:0.5rem">
+                            <div class="panel-title"><i class="bi bi-arrow-left-right"></i> Voorraadafschrijvingen</div>
+                            <div style="display:flex;gap:0.5rem;align-items:center;flex-wrap:wrap;margin-left:auto">
+                                <input v-model="movSearch" class="form-input" style="width:200px;padding:0.3rem 0.6rem;font-size:0.82rem" placeholder="Zoek ingrediënt...">
+                                <button v-if="movIngredientFilter" class="btn btn-ghost btn-sm" @click="movIngredientFilter=null;loadMovements()" title="Filter wissen"><i class="bi bi-x-lg"></i> Filter wissen</button>
+                                <button class="btn btn-ghost btn-sm" @click="loadMovements" :disabled="movLoading"><i class="bi bi-arrow-clockwise"></i> Vernieuwen</button>
+                                <button class="btn btn-ghost btn-sm" @click="movGroupByBakactie=!movGroupByBakactie" :style="movGroupByBakactie ? 'background:#fef3c7;border-color:#d97706;color:#92400e' : ''" title="Groepeer op bakactie"><i class="bi bi-collection"></i> Groepeer</button>
+                            </div>
+                        </div>
+                        <div v-if="movIngredientFilter" style="padding:0.5rem 0 0.75rem;font-size:0.82rem;color:#92400e;display:flex;align-items:center;gap:0.4rem">
+                            <i class="bi bi-funnel-fill"></i> Gefilterd op ingrediënt
+                        </div>
+                        <div v-if="movLoading" style="padding:2rem;text-align:center;color:#9ca3af">Laden...</div>
+                        <div v-else-if="filteredMovements.length===0" style="padding:2rem;text-align:center;color:#9ca3af">
+                            <i class="bi bi-inbox" style="font-size:2rem;display:block;margin-bottom:0.5rem"></i>
+                            Geen afschrijvingen gevonden.
+                        </div>
+                        <div v-else class="table-wrapper" style="margin-top:0.75rem">
+                            <table>
+                                <thead>
+                                    <tr>
+                                        <th>Datum</th>
+                                        <th>Ingrediënt</th>
+                                        <th>Partij THD</th>
+                                        <th style="text-align:right">Gebruikt</th>
+                                        <th style="text-align:right">Kosten</th>
+                                        <th>Bron</th>
+                                        <th>Actie</th>
+                                        <th></th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <template v-if="!movGroupByBakactie">
+                                        <tr v-for="m in filteredMovements" :key="m.id">
+                                            <td style="white-space:nowrap;font-size:0.8rem">
+                                                <template v-if="movEditingDateId === m.id">
+                                                    <input type="date" v-model="movEditingDateVal" class="form-input" style="padding:0.15rem 0.35rem;font-size:0.78rem;width:130px" @keyup.enter="saveMovDate(m)" @keyup.escape="movEditingDateId=null">
+                                                    <button class="btn btn-ghost btn-sm" @click="saveMovDate(m)" style="padding:0.1rem 0.4rem;font-size:0.78rem">✓</button>
+                                                    <button class="btn btn-ghost btn-sm" @click="movEditingDateId=null" style="padding:0.1rem 0.4rem;font-size:0.78rem">✕</button>
+                                                </template>
+                                                <span v-else @click="movEditingDateId=m.id; movEditingDateVal=m.consumed_at ? m.consumed_at.slice(0,10) : ''" style="color:#6b7280;cursor:pointer;text-decoration:underline dotted" title="Klik om datum te wijzigen">{{ formatDateTime(m.consumed_at) }}</span>
+                                            </td>
+                                            <td>
+                                                <span style="font-weight:600;color:#1f2937">{{ m.group_name }}</span>
+                                                <span v-if="m.brand_name" style="color:#6b7280;font-size:0.78rem"> · {{ m.brand_name }}</span>
+                                            </td>
+                                            <td style="font-size:0.8rem;color:#6b7280">{{ m.thd_date || '—' }}</td>
+                                            <td style="text-align:right;font-weight:600;font-variant-numeric:tabular-nums">{{ formatStock(m.quantity_consumed) }}</td>
+                                            <td style="text-align:right;color:#6b7280;font-size:0.82rem;font-variant-numeric:tabular-nums">{{ m.cost ? '€'+parseFloat(m.cost).toFixed(2) : '—' }}</td>
+                                            <td>
+                                                <a v-if="m.bakactie_id" :href="'bak-actie.php?id='+m.bakactie_id" style="color:#92400e;font-size:0.82rem;display:inline-flex;align-items:center;gap:0.3rem;text-decoration:none">
+                                                    <i class="bi bi-fire"></i> {{ m.bakactie_name || 'Bakactie' }}
+                                                    <span style="color:#9ca3af">{{ m.bakactie_datum }}</span>
+                                                </a>
+                                                <span v-else style="color:#9ca3af;font-size:0.8rem">—</span>
+                                            </td>
+                                            <td><span v-if="m.movement_type" :style="movTypeBadgeStyle(m.movement_type)" style="font-size:0.72rem;font-weight:700;padding:0.15rem 0.5rem;border-radius:999px;white-space:nowrap">{{ movTypeLabel(m.movement_type) }}</span></td>
+                                            <td style="text-align:right">
+                                                <button @click="deleteMovement(m)" class="btn btn-ghost btn-sm" style="color:#dc2626;border-color:#fecaca;padding:0.15rem 0.4rem" title="Verwijder en draai terug"><i class="bi bi-trash"></i></button>
+                                            </td>
+                                        </tr>
+                                    </template>
+                                    <template v-else>
+                                        <template v-for="grp in movementsByBakactie" :key="grp.key">
+                                            <tr style="background:#faf8f4;cursor:pointer" @click="expandedMovements[grp.key] = !expandedMovements[grp.key]">
+                                                <td colspan="8" style="padding:0.45rem 1rem;border-top:2px solid #d97706">
+                                                    <i class="bi" :class="expandedMovements[grp.key] ? 'bi-chevron-down' : 'bi-chevron-right'" style="font-size:0.75rem;color:#9ca3af;margin-right:0.4rem"></i>
+                                                    <a v-if="grp.bakactie_id" :href="'bak-actie.php?id='+grp.bakactie_id" @click.stop style="font-weight:700;color:#92400e;text-decoration:none;font-size:0.85rem"><i class="bi bi-fire"></i> {{ grp.bakactie_name || 'Bakactie #'+grp.bakactie_id }}</a>
+                                                    <span v-else style="font-weight:600;color:#9ca3af;font-size:0.85rem">Handmatig</span>
+                                                    <span v-if="grp.bakactie_datum" style="color:#6b7280;font-size:0.8rem;margin-left:0.5rem">{{ grp.bakactie_datum }}</span>
+                                                    <span style="color:#9ca3af;font-size:0.78rem;margin-left:1rem">{{ grp.items.length }} afschrijving{{ grp.items.length !== 1 ? 'en' : '' }}</span>
+                                                    <span style="color:#6b7280;font-size:0.78rem;margin-left:0.3rem">· €{{ grp.items.reduce((s,m) => s + (parseFloat(m.cost)||0), 0).toFixed(2) }}</span>
+                                                    <span v-if="grp.first_consumed_at" style="color:#9ca3af;font-size:0.78rem;margin-left:0.75rem">{{ formatDateTime(grp.first_consumed_at) }}</span>
+                                                </td>
+                                            </tr>
+                                            <tr v-show="expandedMovements[grp.key]" v-for="m in grp.items" :key="m.id">
+                                                <td style="white-space:nowrap;font-size:0.8rem">
+                                                    <template v-if="movEditingDateId === m.id">
+                                                        <input type="date" v-model="movEditingDateVal" class="form-input" style="padding:0.15rem 0.35rem;font-size:0.78rem;width:130px" @keyup.enter="saveMovDate(m)" @keyup.escape="movEditingDateId=null">
+                                                        <button class="btn btn-ghost btn-sm" @click="saveMovDate(m)" style="padding:0.1rem 0.4rem;font-size:0.78rem">✓</button>
+                                                        <button class="btn btn-ghost btn-sm" @click="movEditingDateId=null" style="padding:0.1rem 0.4rem;font-size:0.78rem">✕</button>
+                                                    </template>
+                                                    <span v-else @click="movEditingDateId=m.id; movEditingDateVal=m.consumed_at ? m.consumed_at.slice(0,10) : ''" style="color:#6b7280;cursor:pointer;text-decoration:underline dotted" title="Klik om datum te wijzigen">{{ formatDateTime(m.consumed_at) }}</span>
+                                                </td>
+                                                <td>
+                                                    <span style="font-weight:600;color:#1f2937">{{ m.group_name }}</span>
+                                                    <span v-if="m.brand_name" style="color:#6b7280;font-size:0.78rem"> · {{ m.brand_name }}</span>
+                                                </td>
+                                                <td style="font-size:0.8rem;color:#6b7280">{{ m.thd_date || '—' }}</td>
+                                                <td style="text-align:right;font-weight:600;font-variant-numeric:tabular-nums">{{ formatStock(m.quantity_consumed) }}</td>
+                                                <td style="text-align:right;color:#6b7280;font-size:0.82rem;font-variant-numeric:tabular-nums">{{ m.cost ? '€'+parseFloat(m.cost).toFixed(2) : '—' }}</td>
+                                                <td>
+                                                    <a v-if="m.bakactie_id" :href="'bak-actie.php?id='+m.bakactie_id" style="color:#92400e;font-size:0.82rem;display:inline-flex;align-items:center;gap:0.3rem;text-decoration:none">
+                                                        <i class="bi bi-fire"></i> {{ m.bakactie_name || 'Bakactie' }}
+                                                        <span style="color:#9ca3af">{{ m.bakactie_datum }}</span>
+                                                    </a>
+                                                    <span v-else style="color:#9ca3af;font-size:0.8rem">—</span>
+                                                </td>
+                                                <td><span v-if="m.movement_type" :style="movTypeBadgeStyle(m.movement_type)" style="font-size:0.72rem;font-weight:700;padding:0.15rem 0.5rem;border-radius:999px;white-space:nowrap">{{ movTypeLabel(m.movement_type) }}</span></td>
+                                                <td style="text-align:right">
+                                                    <button @click="deleteMovement(m)" class="btn btn-ghost btn-sm" style="color:#dc2626;border-color:#fecaca;padding:0.15rem 0.4rem" title="Verwijder en draai terug"><i class="bi bi-trash"></i></button>
+                                                </td>
+                                            </tr>
+                                        </template>
+                                    </template>
+                                </tbody>
+                            </table>
+                        </div>
+                        <div v-if="!movLoading && movements.length >= 100" style="padding:0.75rem;text-align:center;font-size:0.8rem;color:#9ca3af">
+                            Toont meest recente 100 afschrijvingen.
+                        </div>
+                    </div>
+                </div>
+
                 <div class="toast" :class="toastType" v-if="toastMsg">{{ toastMsg }}</div>
             </div>
         </div>
@@ -1239,6 +1365,16 @@ require_once '../components/sidebar.php'; ?>
                 collapsedGrainTypes: {},
                 collapsedBatchCategories: {},
 
+                // Bewegingen (inventory consumption)
+                movements: [],
+                movLoading: false,
+                movIngredientFilter: null,
+                movSearch: '',
+                movGroupByBakactie: true,
+                expandedMovements: {},
+                movEditingDateId: null,
+                movEditingDateVal: '',
+
                 // Producten in opslag
                 afgemaaktItems: [],
                 showAfgemaaktModal: false,
@@ -1248,6 +1384,35 @@ require_once '../components/sidebar.php'; ?>
         },
 
         computed: {
+            filteredMovements() {
+                if (!this.movSearch.trim()) return this.movements;
+                const q = this.movSearch.toLowerCase();
+                return this.movements.filter(m =>
+                    (m.group_name || '').toLowerCase().includes(q) ||
+                    (m.brand_name || '').toLowerCase().includes(q) ||
+                    (m.bakactie_name || '').toLowerCase().includes(q)
+                );
+            },
+            movementsByBakactie() {
+                const groups = {};
+                this.filteredMovements.forEach(m => {
+                    const key = m.bakactie_id ? 'ba_' + m.bakactie_id : '__manual__';
+                    if (!groups[key]) groups[key] = {
+                        key,
+                        bakactie_id: m.bakactie_id || null,
+                        bakactie_name: m.bakactie_name || null,
+                        bakactie_datum: m.bakactie_datum || null,
+                        first_consumed_at: m.consumed_at || null,
+                        items: []
+                    };
+                    groups[key].items.push(m);
+                });
+                return Object.values(groups).sort((a, b) => {
+                    if (!a.bakactie_id) return 1;
+                    if (!b.bakactie_id) return -1;
+                    return (b.first_consumed_at || '').localeCompare(a.first_consumed_at || '');
+                });
+            },
             filteredIngredients() {
                 if (!this.filterCategory) return this.ingredients;
                 return this.ingredients.filter(i => i.category === this.filterCategory);
@@ -1700,6 +1865,25 @@ require_once '../components/sidebar.php'; ?>
                 this.saving = false;
             },
 
+            async deleteIngredient() {
+                if (!this.editingIngredient) return;
+                const name = this.editingIngredient.brand_name || this.editingIngredient.name;
+                if (!confirm(`"${name}" verwijderen? Dit kan niet ongedaan worden gemaakt.`)) return;
+                this.saving = true;
+                try {
+                    const res = await fetch(`../../api/ingredients.php?id=${this.editingIngredient.id}`, { method: 'DELETE' });
+                    const data = await res.json();
+                    if (data.success) {
+                        this.showToast('Ingrediënt verwijderd');
+                        this.showIngredientModal = false;
+                        this.loadIngredients();
+                    } else {
+                        this.showToast(data.error || 'Fout bij verwijderen', 'error');
+                    }
+                } catch(e) { this.showToast('Fout bij verwijderen', 'error'); }
+                this.saving = false;
+            },
+
             openBatchModal(ing = null) {
                 this.editingBatch = null;
                 this.batchForm = {
@@ -1975,7 +2159,7 @@ require_once '../components/sidebar.php'; ?>
             },
 
             categoryIcon(cat) {
-                const icons = { meel: 'bi-moisture', mixin: 'bi-plus-circle', topping: 'bi-stars', gist: 'bi-flower1', overig: 'bi-grid' };
+                const icons = { meel: 'bi-box', mixin: 'bi-plus-circle', topping: 'bi-tag', gist: 'bi-plus-circle', overig: 'bi-grid' };
                 return icons[cat] || 'bi-grid';
             },
 
@@ -2042,6 +2226,88 @@ require_once '../components/sidebar.php'; ?>
                 const d = await r.json();
                 if (d.success) { this.showToast("Verwijderd"); this.loadAfgemaakt(); }
                 else { this.showToast(d.error || "Fout", "error"); }
+            },
+
+            async loadMovements() {
+                this.movLoading = true;
+                try {
+                    const params = new URLSearchParams({ action: 'history', limit: 100 });
+                    if (this.movIngredientFilter) params.set('ingredient_id', this.movIngredientFilter);
+                    const r = await fetch('../../api/inventory.php?' + params);
+                    const d = await r.json();
+                    if (d.success) this.movements = d.history;
+                    else this.showToast(d.error || 'Fout bij laden', 'error');
+                } catch (e) {
+                    this.showToast('Verbindingsfout', 'error');
+                } finally {
+                    this.movLoading = false;
+                }
+            },
+
+            async saveMovDate(m) {
+                if (!this.movEditingDateVal) return;
+                const newDatetime = this.movEditingDateVal + ' ' + (m.consumed_at ? m.consumed_at.slice(11, 19) : '00:00:00');
+                try {
+                    const r = await fetch('../../api/inventory.php', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ action: 'update_movement', id: m.id, consumed_at: newDatetime }),
+                    });
+                    const d = await r.json();
+                    if (d.success) {
+                        m.consumed_at = newDatetime;
+                        this.movEditingDateId = null;
+                        this.showToast('Datum bijgewerkt');
+                    } else {
+                        this.showToast(d.error || 'Opslaan mislukt', 'error');
+                    }
+                } catch (e) { this.showToast('Verbindingsfout', 'error'); }
+            },
+
+            async deleteMovement(m) {
+                const label = m.group_name + (m.brand_name ? ' · ' + m.brand_name : '') + ' — ' + this.formatStock(m.quantity_consumed);
+                if (!await showConfirm('Beweging verwijderen en voorraad terugboeken?\n\n' + label)) return;
+                try {
+                    const r = await fetch('../../api/inventory.php', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ action: 'delete_movement', id: m.id }),
+                    });
+                    const d = await r.json();
+                    if (d.success) {
+                        this.movements = this.movements.filter(x => x.id !== m.id);
+                        this.showToast('Beweging verwijderd en voorraad teruggeboekt');
+                        await this.loadIngredients();
+                    } else {
+                        this.showToast(d.error || 'Verwijderen mislukt', 'error');
+                    }
+                } catch (e) { this.showToast('Verbindingsfout', 'error'); }
+            },
+
+            goToMovements(ingredientId) {
+                this.movIngredientFilter = ingredientId;
+                this.setTab('bewegingen');
+                this.loadMovements();
+            },
+
+            movTypeLabel(type) {
+                return { 'pre-ferment': 'Pre-ferment', 'deeg': 'Deeg', 'vormen': 'Vormen', 'bakken': 'Bakken' }[type] || type;
+            },
+            movTypeBadgeStyle(type) {
+                const styles = {
+                    'pre-ferment': 'background:#d1fae5;color:#065f46',
+                    'deeg':        'background:#dbeafe;color:#1e40af',
+                    'vormen':      'background:#fef3c7;color:#92400e',
+                    'bakken':      'background:#fee2e2;color:#991b1b',
+                };
+                return styles[type] || 'background:#f3f4f6;color:#374151';
+            },
+
+            formatDateTime(dt) {
+                if (!dt) return '—';
+                const d = new Date(dt);
+                return d.toLocaleDateString('nl-NL', { day: '2-digit', month: '2-digit', year: 'numeric' })
+                    + ' ' + d.toLocaleTimeString('nl-NL', { hour: '2-digit', minute: '2-digit' });
             },
 
             showToast(msg, type = 'success') {

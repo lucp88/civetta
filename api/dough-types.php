@@ -35,6 +35,9 @@ switch ($method) {
                 }
                 unset($v);
                 $row['versions'] = $versions;
+                $lcStmt = $pdo->prepare("SELECT COUNT(*) FROM baker_recipes WHERE dough_type_id = ?");
+                $lcStmt->execute([$_GET['id']]);
+                $row['linked_recipe_count'] = (int)$lcStmt->fetchColumn();
                 echo json_encode(['success' => true, 'dough_type' => $row]);
             } else {
                 echo json_encode(['success' => false, 'error' => 'Niet gevonden']);
@@ -91,34 +94,55 @@ switch ($method) {
         }
 
         $recipeData = $data['recipe_data'] ?? null;
+        $note = isset($data['version_note']) && $data['version_note'] !== '' ? $data['version_note'] : null;
+
+        // Fetch existing row BEFORE updating to detect real changes
+        $existingStmt = $pdo->prepare("SELECT name, recipe_data FROM dough_types WHERE id = ?");
+        $existingStmt->execute([$id]);
+        $existingRow = $existingStmt->fetch();
+        $existingNormalized = $existingRow ? json_encode(json_decode($existingRow['recipe_data'], true)) : null;
+        $newNormalized = $recipeData !== null ? json_encode(json_decode(json_encode($recipeData), true)) : null;
+        $dataChanged = !$existingRow || $existingRow['name'] !== $name || $existingNormalized !== $newNormalized;
+
         $pdo->prepare("UPDATE dough_types SET name = ?, recipe_data = ? WHERE id = ?")
             ->execute([$name, $recipeData !== null ? json_encode($recipeData) : null, $id]);
 
-        try {
-            $note = isset($data['version_note']) && $data['version_note'] !== '' ? $data['version_note'] : null;
-            // Only create a new version if name or recipe_data actually changed
-            $existingStmt = $pdo->prepare("SELECT name, recipe_data FROM dough_types WHERE id = ?");
-            $existingStmt->execute([$id]);
-            $existingRow = $existingStmt->fetch();
-            $existingNormalized = $existingRow ? json_encode(json_decode($existingRow['recipe_data'], true)) : null;
-            $newNormalized = $recipeData !== null ? json_encode(json_decode(json_encode($recipeData), true)) : null;
-            $dataChanged = !$existingRow || $existingRow['name'] !== $name || $existingNormalized !== $newNormalized;
-            if ($dataChanged || $note !== null) {
+        $newDtVersionNum = null;
+        if ($dataChanged || $note !== null) {
+            try {
                 saveDtVersion($pdo, (int)$id, $name, $recipeData ?? [], $note);
-            }
-        } catch (PDOException $e) { /* version table may not exist yet */ }
+            } catch (PDOException $e) { /* version table may not exist yet */ }
+            // Fetch outside the try so a version-table exception can't suppress it
+            $nvStmt = $pdo->prepare("SELECT current_version FROM dough_types WHERE id = ?");
+            $nvStmt->execute([(int)$id]);
+            $newDtVersionNum = ($v = (int)$nvStmt->fetchColumn()) ? $v : null;
+        }
 
         // Cascade: re-merge all child baker_recipes with the updated base formula
         if ($recipeData !== null) {
             $recipeSpecificFields = ['doughWeight', 'numberOfBalls', 'weightFromOrder', 'mixinMode', 'mixins', 'toppings', 'method'];
-            $children = $pdo->prepare("SELECT id, recipe_data FROM baker_recipes WHERE dough_type_id = ?");
+            $children = $pdo->prepare("SELECT id, name, recipe_data FROM baker_recipes WHERE dough_type_id = ?");
             $children->execute([$id]);
+            $childVersionNote = $newDtVersionNum ? "Deegsoort v$newDtVersionNum" : "Deegsoort '$name' bijgewerkt";
             foreach ($children->fetchAll() as $child) {
                 $existing = json_decode($child['recipe_data'], true) ?? [];
                 $childFields = array_intersect_key($existing, array_flip($recipeSpecificFields));
                 $merged = array_merge($recipeData, $childFields);
+                $mergedJson = json_encode($merged);
                 $pdo->prepare("UPDATE baker_recipes SET recipe_data = ? WHERE id = ?")
-                    ->execute([json_encode($merged), $child['id']]);
+                    ->execute([$mergedJson, $child['id']]);
+                // Save a version snapshot: new major = new dough version, minor resets to 1
+                try {
+                    $vStmt = $pdo->prepare("
+                        INSERT INTO baker_recipe_versions (recipe_id, version_number, dough_type_version_number, loaf_minor_version, name, recipe_data, note)
+                        SELECT ?, COALESCE(MAX(version_number), 0) + 1, ?, 1, ?, ?, ?
+                        FROM baker_recipe_versions WHERE recipe_id = ?
+                    ");
+                    $vStmt->execute([$child['id'], $newDtVersionNum, $child['name'], $mergedJson, $childVersionNote, $child['id']]);
+                    $newVId = (int)$pdo->lastInsertId();
+                    $pdo->prepare("UPDATE baker_recipes SET current_version = (SELECT version_number FROM baker_recipe_versions WHERE id = ?) WHERE id = ?")
+                        ->execute([$newVId, $child['id']]);
+                } catch (PDOException $e) { /* version table may not exist yet */ }
             }
         }
 
@@ -154,6 +178,11 @@ switch ($method) {
             $vStmt->execute([$data['version_id']]);
             $v = $vStmt->fetch();
             if (!$v) { echo json_encode(['success' => false, 'error' => 'Versie niet gevonden']); break; }
+            $useStmt = $pdo->prepare("SELECT COUNT(*) FROM bak_acties WHERE dough_type_version_id = ?");
+            $useStmt->execute([$data['version_id']]);
+            if ((int)$useStmt->fetchColumn() > 0) {
+                echo json_encode(['success' => false, 'error' => 'Versie is gekoppeld aan één of meer bakacties en kan niet worden gewijzigd']); break;
+            }
             $pdo->prepare("UPDATE dough_type_versions SET version_number = ? WHERE id = ?")->execute([$newNum, $data['version_id']]);
             // If this was the active version, update current_version on dough_types too
             $dtStmt = $pdo->prepare("SELECT current_version FROM dough_types WHERE id = ?");
@@ -166,6 +195,30 @@ switch ($method) {
         } elseif (($data['action'] ?? '') === 'update_version_note' && !empty($data['version_id'])) {
             $note = isset($data['note']) && $data['note'] !== '' ? trim($data['note']) : null;
             $pdo->prepare("UPDATE dough_type_versions SET note = ? WHERE id = ?")->execute([$note, $data['version_id']]);
+            echo json_encode(['success' => true]);
+        } elseif (($data['action'] ?? '') === 'update_version_data' && !empty($data['version_id'])) {
+            if (!isset($data['recipe_data']) || !is_array($data['recipe_data'])) {
+                echo json_encode(['success' => false, 'error' => 'recipe_data is verplicht']);
+                break;
+            }
+            $vStmt = $pdo->prepare("SELECT dough_type_id, version_number FROM dough_type_versions WHERE id = ?");
+            $vStmt->execute([$data['version_id']]);
+            $v = $vStmt->fetch();
+            if (!$v) { echo json_encode(['success' => false, 'error' => 'Versie niet gevonden']); break; }
+            $useStmt = $pdo->prepare("SELECT COUNT(*) FROM bak_acties WHERE dough_type_version_id = ?");
+            $useStmt->execute([$data['version_id']]);
+            if ((int)$useStmt->fetchColumn() > 0) {
+                echo json_encode(['success' => false, 'error' => 'Versie is gekoppeld aan één of meer bakacties en kan niet worden gewijzigd']); break;
+            }
+            $encoded = json_encode($data['recipe_data']);
+            $pdo->prepare("UPDATE dough_type_versions SET recipe_data = ? WHERE id = ?")->execute([$encoded, $data['version_id']]);
+            // If this is the active version, update the parent dough_type too
+            $dtStmt = $pdo->prepare("SELECT current_version FROM dough_types WHERE id = ?");
+            $dtStmt->execute([$v['dough_type_id']]);
+            $dt = $dtStmt->fetch();
+            if ($dt && (int)$dt['current_version'] === (int)$v['version_number']) {
+                $pdo->prepare("UPDATE dough_types SET recipe_data = ? WHERE id = ?")->execute([$encoded, $v['dough_type_id']]);
+            }
             echo json_encode(['success' => true]);
         } elseif (($data['action'] ?? '') === 'delete_version' && !empty($data['version_id'])) {
             $vStmt = $pdo->prepare("SELECT id, dough_type_id, version_number FROM dough_type_versions WHERE id = ?");
@@ -181,6 +234,14 @@ switch ($method) {
             $dt = $dtStmt->fetch();
             if ($dt && (int)$dt['current_version'] === (int)$v['version_number']) {
                 echo json_encode(['success' => false, 'error' => 'De actieve versie kan niet worden verwijderd']);
+                break;
+            }
+            // Prevent deleting a version used by bak_acties
+            $usageStmt = $pdo->prepare("SELECT COUNT(*) FROM bak_acties WHERE dough_type_version_id = ?");
+            $usageStmt->execute([$data['version_id']]);
+            $usageCount = (int)$usageStmt->fetchColumn();
+            if ($usageCount > 0) {
+                echo json_encode(['success' => false, 'error' => "Versie wordt gebruikt door {$usageCount} bakacti" . ($usageCount === 1 ? 'e' : 'es') . " en kan niet worden verwijderd"]);
                 break;
             }
             $pdo->prepare("DELETE FROM dough_type_versions WHERE id = ?")->execute([$data['version_id']]);

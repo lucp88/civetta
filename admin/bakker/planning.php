@@ -856,7 +856,6 @@ ob_start();
 
                         <?php if (empty($orders) && empty($dayAppointments)): ?>
                             <div class="empty-state">
-                                <i class="bi bi-emoji-smile"></i>
                                 <p>Geen activiteit vandaag</p>
                             </div>
                         <?php endif; ?>
@@ -1051,6 +1050,7 @@ ob_start();
             <div class="modal-header">
                 <h3><i class="bi bi-calendar3"></i> <span id="dayModalDate"></span></h3>
                 <div style="display:flex;align-items:center;gap:0.5rem;margin-left:auto;">
+                    <button id="dayModalBakdagBtn" style="display:none;padding:0.35rem 0.75rem;border:none;border-radius:7px;font-size:0.82rem;font-weight:600;cursor:pointer;display:none" onclick="toggleDayBakdag()"></button>
                     <div class="modal-add-menu">
                         <button class="modal-add-btn" onclick="toggleAddMenu(event)"><i class="bi bi-plus-lg"></i> Nieuw</button>
                         <div class="modal-add-dropdown" id="addMenuDropdown">
@@ -1297,6 +1297,7 @@ ob_start();
     const ordersByDate = <?= json_encode($ordersByDate) ?>;
     const appointmentsByDate = <?= json_encode($appointmentsByDate) ?>;
     const bakdagen = <?= json_encode($bakdagen) ?>;
+    const extraBakdagen = <?= json_encode($extraDatums) ?>;
     const voorbereidingDagen = <?= $voorbereidingDagen ?>;
     const phpSluitingDagen = <?= json_encode($sluitingDagen) ?>;
 
@@ -1409,6 +1410,31 @@ ob_start();
     }
 
     if (new URLSearchParams(window.location.search).get('settings') === 'bakdagen') { openBakdagenModal(); }
+
+    function toggleDayBakdag() {
+        const date = currentDayDate;
+        if (!date) return;
+        const isBakdag = bakdagen.includes(date);
+        const isExtra = extraBakdagen.includes(date);
+        if (!isBakdag) {
+            const dateLabel = new Date(date + 'T00:00').toLocaleDateString('nl-NL', { weekday: 'long', day: 'numeric', month: 'long' });
+            showConfirm(dateLabel + ' als bakdag instellen?', 'Bakdag toevoegen').then(ok => {
+                if (!ok) return;
+                fetch('/api/bakdagen.php', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'add_extra', datum: date, notitie: '' }) })
+                .then(r => r.json()).then(data => {
+                    if (data.success) { window.location.reload(); } else { showToast(data.error || 'Fout bij toevoegen', 'error'); }
+                });
+            });
+        } else if (isExtra) {
+            showConfirm('Bakdag verwijderen?').then(ok => {
+                if (!ok) return;
+                fetch('/api/bakdagen.php', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'remove_extra', datum: date }) })
+                .then(r => r.json()).then(data => {
+                    if (data.success) { window.location.reload(); } else { showToast(data.error || 'Fout bij verwijderen', 'error'); }
+                });
+            });
+        }
+    }
 
     // Appointment functions
     let selectedApptColor = '#3d6b3d';
@@ -1630,6 +1656,25 @@ ob_start();
         const isBakdagDay = bakdagen.includes(date);
         const badgeHtml = isBakdagDay ? ' <span class="bakdag-badge"><i class="bi bi-fire"></i> Bakdag</span>' : '';
         document.getElementById('dayModalDate').innerHTML = escapeHtml(dateLabel) + badgeHtml;
+
+        // Bakdag toggle button in modal header
+        const btn = document.getElementById('dayModalBakdagBtn');
+        const isExtra = extraBakdagen.includes(date);
+        if (!isBakdagDay) {
+            btn.style.display = 'inline-flex';
+            btn.style.background = '#fff5f0';
+            btn.style.color = '#e55a2b';
+            btn.style.border = '1px solid #ffc9a8';
+            btn.innerHTML = '<i class="bi bi-fire" style="margin-right:0.3rem"></i> Als bakdag instellen';
+        } else if (isExtra) {
+            btn.style.display = 'inline-flex';
+            btn.style.background = '#fef2f2';
+            btn.style.color = '#dc3545';
+            btn.style.border = '1px solid #fca5a5';
+            btn.innerHTML = '<i class="bi bi-fire" style="margin-right:0.3rem"></i> Bakdag verwijderen';
+        } else {
+            btn.style.display = 'none';
+        }
 
         let html = '';
 
@@ -2108,17 +2153,28 @@ ob_start();
         const priceEl = document.querySelector('.product-price[data-idx="' + idx + '"]');
         if (!productId) { variantSelect.style.display = 'none'; variantSelect.innerHTML = ''; priceEl.textContent = '\u20AC0,00'; updateNewOrderTotal(); return; }
         const product = allProducts.find(p => p.id == productId);
-        if (!product) return;
         if (product.variants && product.variants.length > 0) {
+            const isInternal = document.getElementById('newOrderInternal').checked;
             const available = getAvailableBakdagen();
             let variantOptions = '<option value="">Kies variant...</option>';
+            let firstAvailableVariant = null;
             product.variants.forEach(v => {
                 const label = v.gewicht + 'g' + (v.naam ? ' - ' + v.naam : '');
                 const days = v.recipe_days || 1;
-                if (days <= available) { variantOptions += '<option value="' + v.id + '" data-price="' + v.prijs + '" data-weight="' + v.gewicht + '" data-naam="' + escapeHtml(v.naam || '') + '">' + escapeHtml(label) + ' (\u20AC' + parseFloat(v.prijs).toFixed(2).replace('.', ',') + ')</option>'; }
-                else { const earliest = getEarliestDeliveryDate(days); variantOptions += '<option value="' + v.id + '" disabled style="color:#999;">' + escapeHtml(label) + ' \u2014 pas vanaf ' + formatDateNL(earliest) + '</option>'; }
+                const canMake = isInternal || days <= available;
+                if (canMake) {
+                    if (!firstAvailableVariant) firstAvailableVariant = v;
+                    variantOptions += '<option value="' + v.id + '" data-price="' + v.prijs + '" data-weight="' + v.gewicht + '" data-naam="' + escapeHtml(v.naam || '') + '">' + escapeHtml(label) + ' (€' + parseFloat(v.prijs).toFixed(2).replace('.', ',') + ')</option>';
+                } else {
+                    const earliest = getEarliestDeliveryDate(days);
+                    variantOptions += '<option value="' + v.id + '" disabled style="color:#999;">' + escapeHtml(label) + ' — pas vanaf ' + formatDateNL(earliest) + '</option>';
+                }
             });
-            variantSelect.innerHTML = variantOptions; variantSelect.style.display = ''; priceEl.textContent = '\u20AC0,00';
+            variantSelect.innerHTML = variantOptions; variantSelect.style.display = '';
+            if (isInternal && firstAvailableVariant) {
+                variantSelect.value = firstAvailableVariant.id;
+                priceEl.textContent = '\u20AC' + parseFloat(firstAvailableVariant.prijs).toFixed(2).replace('.', ',');
+            } else { priceEl.textContent = '\u20AC0,00'; }
         } else { variantSelect.style.display = 'none'; variantSelect.innerHTML = ''; priceEl.textContent = '\u20AC' + parseFloat(product.prijs).toFixed(2).replace('.', ','); }
         updateNewOrderTotal();
     }
@@ -2157,6 +2213,23 @@ ob_start();
         if (!isInternal && !accountId) { showToast('Selecteer een klant', 'warning'); return; }
         if (isInternal && !accountId) { showToast('Intern account niet gevonden. Voer eerst migration 028 uit.', 'error'); return; }
         if (!deliveryDate) { showToast('Selecteer een leverdatum', 'warning'); return; }
+
+        if (isInternal) {
+            let missingVariant = null;
+            document.querySelectorAll('.product-select-row').forEach(row => {
+                if (missingVariant) return;
+                const productId = parseInt(row.querySelector('.product-select')?.value);
+                if (!productId) return;
+                const product = allProducts.find(p => p.id == productId);
+                const variantSelect = row.querySelector('.variant-select');
+                const qty = parseInt(row.querySelector('.product-qty').value) || 0;
+                if (qty > 0 && product && product.variants && product.variants.length > 0 && (!variantSelect || !variantSelect.value)) {
+                    missingVariant = product.naam;
+                }
+            });
+            if (missingVariant) { showToast('Kies een variant voor ' + missingVariant, 'error'); return; }
+        }
+
         const items = [];
         document.querySelectorAll('.product-select-row').forEach(row => {
             const productSelect = row.querySelector('.product-select');

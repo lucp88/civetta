@@ -348,12 +348,41 @@ foreach ($doughGroups as $dg) {
 $totalProducts += $noRecipeGroup['total_qty'];
 $totalWeight += $noRecipeGroup['total_weight'];
 
-// Fetch all existing bakacties for this date, keyed by dough_type_name
+// Fetch existing bakacties keyed by dough_type_name, matched on each group's delivery date
 $existingBakactiesByType = [];
-$stmtAllBa = $pdo->prepare("SELECT id, COALESCE(dough_type_name, '') as dough_type_name FROM bak_acties WHERE DATE(datum) = ?");
-$stmtAllBa->execute([$date]);
-foreach ($stmtAllBa->fetchAll() as $ba) {
-    $existingBakactiesByType[$ba['dough_type_name']] = (int)$ba['id'];
+if (!empty($doughGroups)) {
+    $conditions = [];
+    $baParams = [];
+    foreach ($doughGroups as $doughTypeName => $dg) {
+        $conditions[] = "(dough_type_name = ? AND DATE(datum) = ?)";
+        $baParams[] = $doughTypeName;
+        $baParams[] = $dg['delivery_date'];
+    }
+    $stmtAllBa = $pdo->prepare("SELECT id, COALESCE(dough_type_name, '') as dough_type_name FROM bak_acties WHERE " . implode(' OR ', $conditions));
+    $stmtAllBa->execute($baParams);
+    foreach ($stmtAllBa->fetchAll() as $ba) {
+        $existingBakactiesByType[$ba['dough_type_name']] = (int)$ba['id'];
+    }
+
+    // Auto-create gepland bakactie rows for dough groups that don't have one yet
+    $insStmt = $pdo->prepare("
+        INSERT INTO bak_acties (dough_type_name, dough_type_id, datum, status, total_qty, total_weight_g)
+        VALUES (?, ?, ?, 'gepland', 0, 0)
+    ");
+    foreach ($doughGroups as $doughTypeName => $dg) {
+        if (!isset($existingBakactiesByType[$doughTypeName])) {
+            try {
+                $insStmt->execute([
+                    $doughTypeName,
+                    $dg['dough_type_id'] ?: null,
+                    $dg['delivery_date'] . ' 00:00:00',
+                ]);
+                $existingBakactiesByType[$doughTypeName] = (int)$pdo->lastInsertId();
+            } catch (PDOException $e) {
+                error_log('dagproductie auto-create bakactie failed: ' . $e->getMessage());
+            }
+        }
+    }
 }
 // For the filtered view: check if a bakactie exists for this specific dough type
 $existingBakactieId = $filterDoughType ? ($existingBakactiesByType[$filterDoughType] ?? null) : null;
@@ -695,7 +724,6 @@ ob_start();
 
         <?php if (empty($doughGroups) && empty($noRecipeGroup['products'])): ?>
             <div class="empty-state">
-                <i class="bi bi-emoji-smile"></i>
                 <p>Geen bestellingen om te bereiden op deze dag</p>
             </div>
         <?php else: ?>
@@ -712,7 +740,8 @@ ob_start();
                     <i class="bi bi-journal-bookmark"></i> Bakactie
                 </a>
                 <?php else: ?>
-                <a href="bak-actie.php?date=<?= urlencode($date) ?>&dough_type=<?= urlencode($filterDoughType) ?>&dough_type_id=<?= $bakactieSimple ? (int)$bakactieSimple['dough_type_id'] : 0 ?>&qty=<?= $bakactieSimple ? (int)$bakactieSimple['total_qty'] : 0 ?>&weight=<?= $bakactieSimple ? (int)$bakactieSimple['total_weight_g'] : 0 ?>" class="btn btn-bakactie">
+                <?php $baFilterDeliveryDate = $doughGroups[$filterDoughType]['delivery_date'] ?? $date; ?>
+                <a href="bak-actie.php?date=<?= urlencode($baFilterDeliveryDate) ?>&dough_type=<?= urlencode($filterDoughType) ?>&dough_type_id=<?= $bakactieSimple ? (int)$bakactieSimple['dough_type_id'] : 0 ?>&qty=<?= $bakactieSimple ? (int)$bakactieSimple['total_qty'] : 0 ?>&weight=<?= $bakactieSimple ? (int)$bakactieSimple['total_weight_g'] : 0 ?>" class="btn btn-bakactie">
                     <i class="bi bi-journal-plus"></i> Bakactie
                 </a>
                 <?php endif; ?>
@@ -785,13 +814,13 @@ ob_start();
                         <div class="stats">
                             <span><i class="bi bi-box"></i> <?= $doughGroup['total_qty'] ?> stuks</span>
                             <span><i class="bi bi-speedometer"></i> <?= number_format($doughGroup['total_weight']/1000, 1, ',', '.') ?> kg deeg</span>
-                            <span><i class="bi bi-droplet"></i> <?= $calc['hydration'] ?>%</span>
+                            <span><?= $calc['hydration'] ?>%</span>
                         </div>
                     </div>
                     <div class="recipe-body">
                         <div class="ingredients-grid">
                             <div class="ingredient-section">
-                                <h3><i class="bi bi-moisture"></i> Hoofddeeg — Meel</h3>
+                                <h3>Hoofddeeg — Meel</h3>
                                 <?php foreach ($calc['grains'] as $grain): ?>
                                     <div class="ingredient-row">
                                         <span class="ingredient-name"><?= htmlspecialchars($grain['name']) ?></span>
@@ -808,7 +837,7 @@ ob_start();
                             </div>
 
                             <div class="ingredient-section">
-                                <h3><i class="bi bi-droplet"></i> Hoofddeeg — Water & Zout</h3>
+                                <h3>Hoofddeeg — Water & Zout</h3>
                                 <div class="ingredient-row">
                                     <span class="ingredient-name">Water</span>
                                     <span>
@@ -886,7 +915,7 @@ ob_start();
 
                                 <?php if (!empty($calc['toppings'])): ?>
                                     <div class="ingredient-section">
-                                        <h3><i class="bi bi-stars"></i> Toppings</h3>
+                                        <h3>Toppings</h3>
                                         <?php foreach ($calc['toppings'] as $topping): ?>
                                             <div class="ingredient-row">
                                                 <span class="ingredient-name"><?= htmlspecialchars($topping['name']) ?></span>
@@ -952,11 +981,18 @@ ob_start();
                                         $statusBadge = '<span style="font-size:0.8rem;background:#e3f2fd;color:#1565c0;padding:0.15rem 0.5rem;border-radius:4px;font-weight:600">Nog ' . $daysDiff . ' dagen</span>';
                                     }
                                 ?>
+                                    <?php
+                                        $baBase = $existingBakactieId
+                                            ? "bak-actie.php?id=$existingBakactieId"
+                                            : "bak-actie.php?date=".urlencode($doughGroup['delivery_date'])."&dough_type=".urlencode($doughTypeName)."&dough_type_id=".(int)$doughGroup['dough_type_id']."&qty=".(int)$doughGroup['total_qty']."&weight=".(int)$doughGroup['total_weight'];
+                                        $baDayUrl = $baBase . "&day=$di";
+                                    ?>
                                     <div style="margin-bottom:0.75rem;padding:0.75rem;border-radius:8px;<?= $isToday ? 'background:#fff5f0;border:2px solid #ff6b35;' : ($isPast ? 'background:#f5f5f5;border:1px solid #e0e0e0;opacity:0.7;' : 'background:#faf8f4;border:1px solid #e8e0d5;') ?>">
-                                        <div style="font-weight:700;color:<?= $isToday ? '#ff6b35' : ($isPast ? '#999' : '#2d4a2d') ?>;margin-bottom:0.3rem;display:flex;align-items:center;gap:0.5rem">
+                                        <div style="font-weight:700;color:<?= $isToday ? '#ff6b35' : ($isPast ? '#999' : '#2d4a2d') ?>;display:flex;align-items:center;gap:0.5rem;flex-wrap:wrap">
                                             <?php if ($isToday): ?><i class="bi bi-arrow-right-circle-fill" style="color:#ff6b35"></i><?php endif; ?>
                                             <?= htmlspecialchars($dayLabel) ?> — <?= getDutchDayName($dayDt) ?> <?= $dayDt->format('j') ?> <?= getDutchMonthName($dayDt) ?>
                                             <?= $statusBadge ?>
+                                            <a href="<?= $baDayUrl ?>" class="btn btn-bakactie" style="margin-left:auto;padding:0.3rem 0.75rem;font-size:0.78rem"><i class="bi bi-journal-bookmark"></i> Bakactie</a>
                                         </div>
                                         <?php if (!empty($day['steps'])): ?>
                                             <?php foreach ($day['steps'] as $si => $step): ?>

@@ -783,7 +783,6 @@ function formatDutchDate($date) {
                         <?php if (empty($orders)): ?>
                             <?php if (empty($dayAppointments)): ?>
                             <div class="empty-state">
-                                <i class="bi bi-emoji-smile"></i>
                                 <p>Geen bestellingen om te bereiden</p>
                             </div>
                             <?php endif; ?>
@@ -1397,7 +1396,7 @@ function formatDutchDate($date) {
         })).filter(order => order.items.length > 0) : orders;
 
         if (filteredOrders.length === 0) {
-            html = '<div class="empty-state"><i class="bi bi-emoji-smile"></i><p>Geen bestellingen om te bereiden</p></div>';
+            html = '<div class="empty-state"><p>Geen bestellingen om te bereiden</p></div>';
         } else {
             const productTotals = {};
             filteredOrders.forEach(order => {

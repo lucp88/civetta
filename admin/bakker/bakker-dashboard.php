@@ -14,7 +14,7 @@ $bakdagenPatroonStr = $stmtBp->fetchColumn() ?: '';
 $bakdagenPatroon = $bakdagenPatroonStr ? array_map('intval', explode(',', $bakdagenPatroonStr)) : [];
 
 $stmtExtra = $pdo->prepare("SELECT datum FROM bakdagen_extra WHERE datum BETWEEN ? AND ? ORDER BY datum");
-$stmtExtra->execute([$today, date('Y-m-d', strtotime('+14 days'))]);
+$stmtExtra->execute([$today, date('Y-m-d', strtotime('+90 days'))]);
 $extraDatums = array_column($stmtExtra->fetchAll(), 'datum');
 
 $stmtVd = $pdo->prepare("SELECT setting_value FROM settings WHERE setting_key = 'bakdagen_voorbereiding_dagen'");
@@ -35,12 +35,21 @@ function countBakdagenBetween($todayStr, $targetStr, $patroon, $extra) {
 }
 
 $nextBakdag = null; $nextBakdagDt = null;
-for ($d = 1; $d <= 30; $d++) {
+for ($d = 1; $d <= 90; $d++) {
     $checkDate = date('Y-m-d', strtotime("+{$d} days"));
     if (isBakdag($checkDate, $bakdagenPatroon, $extraDatums)) {
         if (countBakdagenBetween($today, $checkDate, $bakdagenPatroon, $extraDatums) >= $voorbereidingDagen) {
             $nextBakdag = $checkDate; $nextBakdagDt = new DateTime($checkDate); break;
         }
+    }
+}
+
+// Greeting: first upcoming bakdag regardless of preparation days
+$greetingNextBakdagDt = null;
+for ($d = 1; $d <= 90; $d++) {
+    $checkDate = date('Y-m-d', strtotime("+{$d} days"));
+    if (isBakdag($checkDate, $bakdagenPatroon, $extraDatums)) {
+        $greetingNextBakdagDt = new DateTime($checkDate); break;
     }
 }
 
@@ -254,7 +263,7 @@ $sdGrainLabels = [
     'durum'=>'Durum','emmer'=>'Emmer','rye_white'=>'Rogge','rye_whole'=>'Rogge volkoren',
     'einkorn'=>'Einkorn','buckwheat'=>'Boekweit','rice'=>'Rijst','barley'=>'Gerst','teff'=>'Teff',
 ];
-foreach ($doughGroups as $dg) {
+foreach ($doughGroups as $doughTypeName => $dg) {
     $rd = $dg['dough_type_data'];
     if (!$rd) { $first = !empty($dg['recipes']) ? reset($dg['recipes']) : null; $rd = $first['data'] ?? null; }
     if (!$rd || empty($rd['useSourdough']) || empty($rd['sourdoughPct'])) continue;
@@ -275,22 +284,66 @@ foreach ($doughGroups as $dg) {
     }
     $key   = implode('+', $keyParts) ?: 'desem';
     $label = (implode('/', array_unique($labelParts)) ?: 'Desem') . ' desem';
-    if (!isset($sourdoughTotals[$key])) $sourdoughTotals[$key] = ['label' => $label, 'weight' => 0];
+    if (!isset($sourdoughTotals[$key])) $sourdoughTotals[$key] = ['label' => $label, 'weight' => 0, 'dough_type_names' => []];
     $sourdoughTotals[$key]['weight'] += $sdWeight;
+    $sourdoughTotals[$key]['dough_type_names'][] = $doughTypeName;
 }
 
-// Existing bakacties for $date
+// Existing bakacties, keyed by dough_type_name, matched on each group's delivery date
 $existingBakactiesByType = [];
-$stmtAllBa = $pdo->prepare("SELECT id, COALESCE(dough_type_name,'') as dough_type_name, status, notes_data FROM bak_acties WHERE DATE(datum) = ?");
-$stmtAllBa->execute([$date]);
-foreach ($stmtAllBa->fetchAll() as $ba) {
-    $nd = $ba['notes_data'] ? json_decode($ba['notes_data'], true) : [];
-    $existingBakactiesByType[$ba['dough_type_name']] = [
-        'id'        => (int)$ba['id'],
-        'status'    => $ba['status'],
-        'day_times' => $nd['day_times'] ?? [],
-    ];
+if (!empty($doughGroups)) {
+    $conditions = [];
+    $baParams   = [];
+    foreach ($doughGroups as $doughTypeName => $dg) {
+        $conditions[] = "(dough_type_name = ? AND DATE(datum) = ?)";
+        $baParams[] = $doughTypeName;
+        $baParams[] = $dg['delivery_date'];
+    }
+    $stmtAllBa = $pdo->prepare(
+        "SELECT id, COALESCE(dough_type_name,'') as dough_type_name, status, notes_data,
+                total_weight_g, locked_recipe_data, sourdough_consumed
+         FROM bak_acties WHERE " . implode(' OR ', $conditions)
+    );
+    $stmtAllBa->execute($baParams);
+    foreach ($stmtAllBa->fetchAll() as $ba) {
+        $nd = $ba['notes_data'] ? json_decode($ba['notes_data'], true) : [];
+        $existingBakactiesByType[$ba['dough_type_name']] = [
+            'id'                 => (int)$ba['id'],
+            'status'             => $ba['status'],
+            'day_times'          => $nd['day_times'] ?? [],
+            'notes_data'         => $nd,
+            'total_weight_g'     => (int)$ba['total_weight_g'],
+            'locked_recipe_data' => $ba['locked_recipe_data'],
+            'sourdough_consumed' => (bool)$ba['sourdough_consumed'],
+        ];
+    }
 }
+
+// Enrich sourdoughTotals with per-bakactie data for the dashboard modal
+foreach ($sourdoughTotals as $key => &$sdTotal) {
+    $sdTotal['bakacties'] = [];
+    foreach ($sdTotal['dough_type_names'] as $dtName) {
+        $ba = $existingBakactiesByType[$dtName] ?? null;
+        if (!$ba || !$ba['id']) { $sdTotal['bakacties'][] = ['id'=>0,'dough_type_name'=>$dtName,'sd_flour_g'=>0,'brand_ingredient_id'=>0,'sourdough_consumed'=>false]; continue; }
+        $lockedRd = $ba['locked_recipe_data'] ? json_decode($ba['locked_recipe_data'], true) : null;
+        $rd = $lockedRd ?: ($doughGroups[$dtName]['dough_type_data'] ?? null);
+        $sdFlour = 0;
+        if ($rd && !empty($rd['useSourdough']) && !empty($rd['sourdoughPct'])) {
+            $hyd = $rd['hydration'] ?? 62; $slt = $rd['saltPct'] ?? 2.6;
+            $sdPct = $rd['sourdoughPct']; $sdHyd = $rd['sourdoughHydration'] ?? 100;
+            $tf = $ba['total_weight_g'] / (1 + $hyd/100 + $slt/100);
+            $sdFlour = (int)round($tf * ($sdPct/100) / (1 + $sdHyd/100));
+        }
+        $sdTotal['bakacties'][] = [
+            'id'                  => $ba['id'],
+            'dough_type_name'     => $dtName,
+            'sd_flour_g'          => $sdFlour,
+            'brand_ingredient_id' => (int)($ba['notes_data']['ingredient_brands']['sourdough'] ?? 0),
+            'sourdough_consumed'  => $ba['sourdough_consumed'],
+        ];
+    }
+}
+unset($sdTotal);
 $existingBakactieId = $filterDoughType ? ($existingBakactiesByType[$filterDoughType]['id'] ?? null) : null;
 
 $bakactieSimple = null;
@@ -316,6 +369,9 @@ $sidebarPendingAccounts = $stmt->fetch()['count'];
 $stmt = $pdo->prepare("SELECT COUNT(*) as count FROM business_orders WHERE delivery_date = ? AND is_cancelled = 0 AND delivery_status = 'geplaatst'");
 $stmt->execute([$today]);
 $sidebarUnprocessedOrders = $stmt->fetch()['count'];
+$stmt = $pdo->prepare("SELECT COUNT(*) as count FROM business_orders WHERE delivery_date = ? AND is_cancelled = 0");
+$stmt->execute([$date]);
+$totalOrdersForDate = $stmt->fetch()['count'];
 
 $adminPageTitle = 'Bakkersdashboard';
 $currentPage    = 'bakker-dashboard';
@@ -358,22 +414,28 @@ ob_start(); ?>
     .date-nav a { padding: 0.4rem 0.85rem; background: var(--cream); border-radius: 8px; text-decoration: none; color: #3d6b3d; font-weight: 500; font-size: 0.875rem; border: 1px solid var(--border); }
     .date-nav a:hover { background: #fff5f0; }
     .date-nav .current { font-size: 1.1rem; font-weight: 700; color: #2d4a2d; }
+    .date-nav input[type=date] { padding: 0.4rem 0.65rem; background: var(--cream); border-radius: 8px; color: #3d6b3d; font-weight: 500; font-size: 0.875rem; border: 1px solid var(--border); font-family: inherit; cursor: pointer; }
 
     /* Summary bar */
     .summary-bar { display: flex; gap: 1rem; margin-bottom: 1.5rem; flex-wrap: wrap; }
     .summary-stat { background: var(--cream); padding: 0.85rem 1.25rem; border-radius: 10px; border: 1px solid var(--border); }
     .summary-stat .label { font-size: 0.72rem; color: #888; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 0.2rem; }
     .summary-stat .value { font-size: 1.2rem; font-weight: 700; color: #c8913a; }
+    .summary-stat-clickable { cursor: pointer; border-color: #c4b5fd; }
+    .summary-stat-clickable:hover { background: #f5f3ff; border-color: #7c3aed; }
 
     /* Dough type nav */
     .dough-type-nav { display: flex; flex-direction: column; gap: 0.6rem; }
-    .dough-type-nav-card { display: flex; align-items: center; padding: 1rem 1.25rem; background: var(--cream); border-radius: 10px; color: inherit; border-left: 4px solid #3d6b3d; gap: 1rem; border: 1px solid var(--border); border-left-width: 4px; }
+    .dough-type-nav-card { display: flex; align-items: center; padding: 1rem 1.25rem; background: var(--cream); border-radius: 10px; color: inherit; border-left: 4px solid #9ca3af; gap: 1rem; border: 1px solid var(--border); border-left-width: 4px; }
+    .dough-type-nav-card.ba-gepland { border-left-color: #f59e0b; }
+    .dough-type-nav-card.ba-bezig   { border-left-color: #2196f3; background: #f0f7ff; }
+    .dough-type-nav-card.ba-voltooid{ border-left-color: #059669; background: #f0fdf4; }
     .dough-type-nav-info { flex: 1; min-width: 0; }
     .dough-type-nav-name { font-size: 1rem; font-weight: 700; color: #2d4a2d; display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.25rem; flex-wrap: wrap; }
     .dough-type-nav-stats { font-size: 0.8rem; color: #888; display: flex; gap: 1rem; flex-wrap: wrap; }
     .dough-type-nav-badge { background: #d4edda; color: #155724; font-size: 0.68rem; padding: 0.1rem 0.45rem; border-radius: 10px; font-weight: 600; }
     .dough-type-nav-links { display: flex; gap: 0.5rem; flex-shrink: 0; align-items: center; }
-    .dough-type-nav-links a { display: inline-flex; align-items: center; gap: 0.3rem; padding: 0.35rem 0.75rem; border-radius: 6px; font-size: 0.8rem; font-weight: 600; text-decoration: none; white-space: nowrap; }
+    .dough-type-nav-links a, .dough-type-nav-links button { display: inline-flex; align-items: center; gap: 0.3rem; padding: 0.35rem 0.75rem; border-radius: 6px; font-size: 0.8rem; font-weight: 600; text-decoration: none; white-space: nowrap; cursor: pointer; font-family: inherit; border: none; }
     .nav-link-overzicht { background: #e8f0e8; color: #2d4a2d; border: 1px solid #c5d9c5; }
     .nav-link-overzicht:hover { background: #d4e8d4; }
     .nav-link-bakactie { background: #92400e; color: white; }
@@ -418,7 +480,7 @@ ob_start(); ?>
     .ba-status-voltooid { background: #d1fae5; color: #065f46; }
 
     /* Summary grid (bezorging + bt) */
-    .summary-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem; }
+    .summary-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 1.5rem; }
     .summary-card { background: var(--white); border-radius: var(--radius-md); border: 1px solid var(--border); overflow: hidden; }
     .summary-header { padding: 1rem 1.25rem; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; }
     .summary-header h3 { font-size: 0.9rem; font-weight: 600; color: var(--text-primary); display: flex; align-items: center; gap: 0.5rem; }
@@ -468,6 +530,52 @@ ob_start(); ?>
         .recipe-header { background: #3d6b3d !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
         .ingredient-section { background: #f5f5f5 !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
     }
+
+    /* FAB */
+    .fab { position: fixed; bottom: 2rem; right: 2rem; width: 56px; height: 56px; border-radius: 50%; background: linear-gradient(135deg, #3d6b3d, #2d4a2d); color: white; border: none; cursor: pointer; box-shadow: 0 4px 15px rgba(139,90,43,0.4); display: flex; align-items: center; justify-content: center; font-size: 1.5rem; z-index: 900; transition: all 0.2s; }
+    .fab:hover { transform: scale(1.1); box-shadow: 0 6px 20px rgba(139,90,43,0.5); }
+    @media (max-width: 768px) { .fab { bottom: 1.5rem; right: 1.5rem; width: 48px; height: 48px; font-size: 1.25rem; } }
+
+    /* New order modal */
+    .modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 1000; justify-content: center; align-items: flex-start; padding: 2rem; overflow-y: auto; }
+    .modal-overlay.active { display: flex; }
+    .modal { background: white; border-radius: 12px; width: 100%; max-width: 600px; box-shadow: 0 20px 60px rgba(0,0,0,0.3); margin-top: 2rem; }
+    .modal-header { display: flex; justify-content: space-between; align-items: center; padding: 1.25rem 1.5rem; border-bottom: 1px solid #eee; }
+    .modal-header h3 { margin: 0; color: #2d4a2d; font-size: 1.1rem; }
+    .modal-close { background: none; border: none; font-size: 1.5rem; cursor: pointer; color: #999; line-height: 1; }
+    .modal-close:hover { color: #333; }
+    .new-order-modal { max-width: 700px; }
+    .new-order-modal .modal-body { padding: 1.25rem; }
+    .new-order-modal .form-group { margin-bottom: 1rem; }
+    .new-order-modal .form-group > label { display: block; font-size: 0.85rem; font-weight: 600; color: #333; margin-bottom: 0.4rem; }
+    .new-order-modal .form-control { width: 100%; padding: 0.6rem 0.8rem; border: 2px solid #e0e0e0; border-radius: 8px; font-size: 0.95rem; transition: border-color 0.2s; box-sizing: border-box; font-family: inherit; }
+    .new-order-modal .form-control:focus { border-color: #3d6b3d; outline: none; }
+    .product-select-row { display: flex; gap: 0.5rem; align-items: center; margin-bottom: 0.5rem; flex-wrap: wrap; }
+    .product-select-row select.product-select { flex: 3; min-width: 0; }
+    .product-select-row select.variant-select { flex: 2; min-width: 0; }
+    .product-select-row input[type="number"] { flex: 1; min-width: 60px; }
+    .product-select-row .product-price { flex: 1; min-width: 80px; text-align: right; color: #666; font-size: 0.9rem; white-space: nowrap; }
+    .product-select-row .btn-remove { width: 32px; height: 32px; border: none; background: #f8d7da; color: #dc3545; border-radius: 6px; cursor: pointer; font-size: 1rem; flex-shrink: 0; }
+    .product-select-row .btn-remove:hover { background: #dc3545; color: white; }
+    .btn-add-product { padding: 0.4rem 1rem; border: 2px dashed #3d6b3d; background: transparent; color: #3d6b3d; border-radius: 8px; cursor: pointer; font-size: 0.9rem; font-weight: 500; }
+    .btn-add-product:hover { background: #f5f2ed; }
+    .order-total-bar { display: flex; justify-content: space-between; align-items: center; padding: 1rem 1.25rem; background: #f8f9fa; border-top: 1px solid #eee; font-size: 1.1rem; font-weight: 600; }
+    .order-total-bar .total-amount { color: #2d4a2d; font-size: 1.3rem; }
+    .btn-submit-order { padding: 0.75rem 2rem; background: linear-gradient(135deg, #3d6b3d, #2d4a2d); color: white; border: none; border-radius: 8px; cursor: pointer; font-size: 1rem; font-weight: 600; }
+    .btn-submit-order:hover { background: linear-gradient(135deg, #2d4a2d, #3e2a14); }
+    .btn-submit-order:disabled { opacity: 0.6; cursor: not-allowed; }
+    .internal-toggle { display: flex; align-items: center; gap: 0.5rem; padding: 0.6rem 0.85rem; border: 2px solid #e0e0e0; border-radius: 8px; cursor: pointer; font-size: 0.9rem; font-weight: 500; color: #444; user-select: none; }
+    .internal-toggle:has(input:checked) { border-color: #3d6b3d; background: #f0f5f0; color: #2d4a2d; }
+    .internal-toggle input[type="checkbox"] { width: 18px; height: 18px; accent-color: #3d6b3d; }
+    .customer-info-card { display: none; margin-top: 0.75rem; background: #f8f9fa; border: 1px solid #e0e0e0; border-radius: 8px; padding: 0.85rem 1rem; }
+    .customer-info-card.show { display: block; }
+    .customer-info-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0.5rem 1rem; }
+    .customer-info-item .ci-label { font-size: 0.72rem; color: #888; text-transform: uppercase; letter-spacing: 0.04em; }
+    .customer-info-item .ci-value { font-size: 0.88rem; color: #333; font-weight: 500; }
+    .bakdag-indicator { margin-top: 0.4rem; font-size: 0.85rem; }
+    .bakdag-ok { color: #2e7d32; }
+    .bakdag-warning { margin-top: 0.4rem; font-size: 0.85rem; color: #856404; background: #fff3cd; border: 1px solid #ffc107; border-radius: 6px; padding: 0.4rem 0.6rem; display: flex; align-items: center; gap: 0.4rem; flex-wrap: wrap; }
+    .bakdag-warning strong { cursor: pointer; text-decoration: underline; }
 </style>
 <?php $adminExtraHead = ob_get_clean();
 require_once '../components/sidebar.php'; ?>
@@ -486,7 +594,7 @@ require_once '../components/sidebar.php'; ?>
 <div class="admin-content">
     <div class="page-header">
         <h2><?= getGreeting() ?>!</h2>
-        <p><?php if ($todayIsBakdag): ?>Vandaag is een bakdag.<?php elseif ($nextBakdagDt): ?>Volgende bakdag: <?= $dutchDayNames[(int)$nextBakdagDt->format('w')] ?> <?= $nextBakdagDt->format('j-m') ?>.<?php else: ?>Geen bakdagen gepland.<?php endif; ?></p>
+        <p><?php if ($todayIsBakdag): ?>Vandaag is een bakdag.<?php elseif ($greetingNextBakdagDt): ?>Volgende bakdag: <?= $dutchDayNames[(int)$greetingNextBakdagDt->format('w')] ?> <?= $greetingNextBakdagDt->format('j-m') ?>.<?php else: ?>Geen bakdagen gepland.<?php endif; ?></p>
     </div>
 
     <div class="agenda-btn-wrap">
@@ -513,11 +621,11 @@ require_once '../components/sidebar.php'; ?>
                 <?php if ($date !== $today): ?>
                     <a href="?date=<?= $today ?>">Vandaag</a>
                 <?php endif; ?>
+                <input type="date" value="<?= $date ?>" onchange="location.href='?date='+this.value<?= $filterDoughType ? "+'&dough_type=<?= urlencode($filterDoughType) ?>'" : '' ?>" title="Ga naar datum">
             </div>
 
             <?php if (empty($doughGroups) && empty($noRecipeGroup['products'])): ?>
                 <div class="empty-state">
-                    <i class="bi bi-emoji-smile"></i>
                     Geen bestellingen om te bereiden op deze dag
                 </div>
             <?php else: ?>
@@ -535,9 +643,14 @@ require_once '../components/sidebar.php'; ?>
                         <div class="label">Deegsoorten</div>
                         <div class="value"><?= $totalDoughTypeCount ?></div>
                     </div>
-                    <?php foreach ($sourdoughTotals as $sd): ?>
-                    <div class="summary-stat">
-                        <div class="label"><?= htmlspecialchars($sd['label']) ?></div>
+                    <?php foreach ($sourdoughTotals as $sd):
+                        $allConsumed = !empty($sd['bakacties']) && count(array_filter($sd['bakacties'], fn($b) => !$b['sourdough_consumed'])) === 0;
+                        $hasBakacties = !empty(array_filter($sd['bakacties'], fn($b) => $b['id'] > 0));
+                    ?>
+                    <div class="summary-stat<?= $hasBakacties ? ' summary-stat-clickable' : '' ?>"
+                         <?= $hasBakacties ? 'onclick="openSdGroupModal(' . htmlspecialchars(json_encode($sd['bakacties']), ENT_QUOTES) . ',' . htmlspecialchars(json_encode($sd['label']), ENT_QUOTES) . ')"' : '' ?>
+                         title="<?= $hasBakacties ? 'Klik om desem af te schrijven' : '' ?>">
+                        <div class="label"><?= htmlspecialchars($sd['label']) ?><?= $allConsumed ? ' <i class="bi bi-check-circle-fill" style="color:#059669;font-size:0.75rem"></i>' : '' ?></div>
                         <div class="value"><?= number_format($sd['weight']/1000, 2, ',', '.') ?> kg</div>
                     </div>
                     <?php endforeach; ?>
@@ -569,26 +682,35 @@ require_once '../components/sidebar.php'; ?>
                             elseif ($baEntry['status'] === 'bezig')    $baStatus = 'bezig';
                         }
                         $baLabels = ['gepland'=>'Gepland','bezig'=>'Bezig','voltooid'=>'Klaar'];
+                        $dgDeliveryDt = new DateTime($doughGroup['delivery_date']);
+                        $dgViewDt = new DateTime($date);
+                        $dgDaysToDelivery = (int)$dgViewDt->diff($dgDeliveryDt)->format('%r%a');
+                        $dgNDays = max(1, $doughGroup['method_days_count']);
+                        $dgTodayIdx = $dgNDays - 1 - $dgDaysToDelivery;
+                        $dgDayParam = ($dgNDays > 1 && $dgTodayIdx >= 0 && $dgTodayIdx < $dgNDays) ? '&day=' . $dgTodayIdx : '';
                     ?>
-                    <div class="dough-type-nav-card">
+                    <div class="dough-type-nav-card<?= $baEntry ? ' ba-' . $baStatus : '' ?>">
                         <div class="dough-type-nav-info">
                             <div class="dough-type-nav-name">
                                 <i class="bi bi-layers"></i>
                                 <?= htmlspecialchars($doughTypeName) ?>
                                 <span style="font-size:0.72rem;color:#888;font-weight:400">v<?= $doughGroup['dough_type_version'] ?></span>
-                                <span class="ba-status-badge ba-status-<?= $baStatus ?>"><?= $baLabels[$baStatus] ?></span>
+                                <span class="ba-status-badge ba-status-<?= $baEntry ? $baStatus : 'gepland' ?>"><?= $baLabels[$baEntry ? $baStatus : 'gepland'] ?></span>
                             </div>
                             <div class="dough-type-nav-stats">
                                 <span><i class="bi bi-box"></i> <?= $doughGroup['total_qty'] ?> stuks</span>
                                 <span><i class="bi bi-speedometer"></i> <?= number_format($doughGroup['total_weight']/1000, 1, ',', '.') ?> kg deeg</span>
+                                <?php if ($dgNDays > 1 && $dgTodayIdx >= 0 && $dgTodayIdx < $dgNDays): ?>
+                                    <span style="color:#c8913a;font-weight:600"><i class="bi bi-calendar-day"></i> Dag <?= $dgTodayIdx + 1 ?> van <?= $dgNDays ?></span>
+                                <?php endif; ?>
                             </div>
                         </div>
                         <div class="dough-type-nav-links">
                             <a href="?date=<?= $date ?>&dough_type=<?= urlencode($doughTypeName) ?>" class="nav-link-overzicht"><i class="bi bi-list-ul"></i> Overzicht</a>
                             <?php if ($baEntry): ?>
-                                <a href="bak-actie.php?id=<?= $baEntry['id'] ?>" class="nav-link-bakactie"><i class="bi bi-journal-bookmark"></i> Bakactie</a>
+                                <a href="bak-actie.php?id=<?= $baEntry['id'] ?><?= $dgDayParam ?>" class="nav-link-bakactie"><i class="bi bi-journal-bookmark"></i> Bakactie</a>
                             <?php else: ?>
-                                <a href="bak-actie.php?date=<?= urlencode($date) ?>&dough_type=<?= urlencode($doughTypeName) ?>&dough_type_id=<?= $doughGroup['dough_type_id'] ?>&qty=<?= $doughGroup['total_qty'] ?>&weight=<?= $doughGroup['total_weight'] ?>" class="nav-link-bakactie"><i class="bi bi-journal-plus"></i> Bakactie</a>
+                                <button onclick='createGeplandBakactie(this, <?= htmlspecialchars(json_encode(['datum' => $doughGroup['delivery_date'], 'dough_type_name' => $doughTypeName, 'day_param' => $dgDayParam]), ENT_QUOTES) ?>)' class="nav-link-bakactie"><i class="bi bi-journal-plus"></i> Aanmaken</button>
                             <?php endif; ?>
                         </div>
                     </div>
@@ -600,10 +722,19 @@ require_once '../components/sidebar.php'; ?>
                 <div class="print-row">
                     <button class="btn btn-primary" onclick="window.print()"><i class="bi bi-printer"></i> Print overzicht</button>
                     <?php if (!empty($doughGroups) && $filterDoughType): ?>
+                        <?php
+                            $fgDg = $doughGroups[$filterDoughType];
+                            $fgDeliveryDt = new DateTime($fgDg['delivery_date']);
+                            $fgViewDt = new DateTime($date);
+                            $fgDaysToDelivery = (int)$fgViewDt->diff($fgDeliveryDt)->format('%r%a');
+                            $fgNDays = max(1, $fgDg['method_days_count']);
+                            $fgTodayIdx = $fgNDays - 1 - $fgDaysToDelivery;
+                            $fgDayParam = ($fgNDays > 1 && $fgTodayIdx >= 0 && $fgTodayIdx < $fgNDays) ? '&day=' . $fgTodayIdx : '';
+                        ?>
                         <?php if ($existingBakactieId): ?>
-                            <a href="bak-actie.php?id=<?= (int)$existingBakactieId ?>" class="btn btn-bakactie"><i class="bi bi-journal-bookmark"></i> Bakactie</a>
+                            <a href="bak-actie.php?id=<?= (int)$existingBakactieId ?><?= $fgDayParam ?>" class="btn btn-bakactie"><i class="bi bi-journal-bookmark"></i> Bakactie</a>
                         <?php else: ?>
-                            <a href="bak-actie.php?date=<?= urlencode($date) ?>&dough_type=<?= urlencode($filterDoughType) ?>&dough_type_id=<?= $bakactieSimple ? (int)$bakactieSimple['dough_type_id'] : 0 ?>&qty=<?= $bakactieSimple ? (int)$bakactieSimple['total_qty'] : 0 ?>&weight=<?= $bakactieSimple ? (int)$bakactieSimple['total_weight_g'] : 0 ?>" class="btn btn-bakactie"><i class="bi bi-journal-plus"></i> Bakactie</a>
+                            <button onclick='createGeplandBakactie(this, <?= htmlspecialchars(json_encode(['datum' => $fgDg['delivery_date'], 'dough_type_name' => $filterDoughType, 'day_param' => $fgDayParam]), ENT_QUOTES) ?>)' class="btn btn-bakactie" style="border:none;cursor:pointer;font-family:inherit;font-size:inherit"><i class="bi bi-journal-plus"></i> Aanmaken</button>
                         <?php endif; ?>
                     <?php endif; ?>
                 </div>
@@ -625,13 +756,13 @@ require_once '../components/sidebar.php'; ?>
                         <div class="stats">
                             <span><i class="bi bi-box"></i> <?= $doughGroup['total_qty'] ?> stuks</span>
                             <span><i class="bi bi-speedometer"></i> <?= number_format($doughGroup['total_weight']/1000, 1, ',', '.') ?> kg</span>
-                            <span><i class="bi bi-droplet"></i> <?= $calc['hydration'] ?>%</span>
+                            <span><?= $calc['hydration'] ?>%</span>
                         </div>
                     </div>
                     <div class="recipe-body">
                         <div class="ingredients-grid">
                             <div class="ingredient-section">
-                                <h3><i class="bi bi-moisture"></i> Hoofddeeg — Meel</h3>
+                                <h3>Hoofddeeg — Meel</h3>
                                 <?php foreach ($calc['grains'] as $grain): ?>
                                     <div class="ingredient-row">
                                         <span class="ingredient-name"><?= htmlspecialchars($grain['name']) ?></span>
@@ -642,7 +773,7 @@ require_once '../components/sidebar.php'; ?>
                             </div>
 
                             <div class="ingredient-section">
-                                <h3><i class="bi bi-droplet"></i> Hoofddeeg — Water &amp; Zout</h3>
+                                <h3>Hoofddeeg — Water &amp; Zout</h3>
                                 <div class="ingredient-row">
                                     <span class="ingredient-name">Water</span>
                                     <span class="ingredient-weight"><?= $calc['mainWater'] ?>g</span>
@@ -691,7 +822,7 @@ require_once '../components/sidebar.php'; ?>
 
                             <?php if (!empty($calc['toppings'])): ?>
                             <div class="ingredient-section">
-                                <h3><i class="bi bi-stars"></i> Toppings</h3>
+                                <h3>Toppings</h3>
                                 <?php foreach ($calc['toppings'] as $topping): ?>
                                     <div class="ingredient-row">
                                         <span class="ingredient-name"><?= htmlspecialchars($topping['name']) ?></span>
@@ -795,12 +926,31 @@ require_once '../components/sidebar.php'; ?>
     <div class="summary-grid">
         <div class="summary-card">
             <div class="summary-header">
+                <h3><?= formatDutchDate($bereidingDate) ?></h3>
+                <a href="/admin/bestellingen/orders.php?delivery_date=<?= $date ?>" class="summary-header-link">Bekijk alles</a>
+            </div>
+            <div class="summary-body">
+                <div class="summary-bar" style="margin-bottom:0;gap:0.75rem">
+                    <div class="summary-stat" style="flex:1">
+                        <div class="label">Bestellingen</div>
+                        <div class="value"><?= $totalOrdersForDate ?></div>
+                    </div>
+                    <div class="summary-stat" style="flex:1">
+                        <div class="label">Broden</div>
+                        <div class="value"><?= $totalProducts ?></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="summary-card">
+            <div class="summary-header">
                 <h3><i class="bi bi-truck" style="color:#1976d2"></i> Bezorging vandaag</h3>
                 <a href="planning.php?filter=bezorging&mode=day" class="summary-header-link">Bekijk alles</a>
             </div>
             <div class="summary-body">
                 <?php if (empty($upcomingDeliveries)): ?>
-                    <div class="empty-state"><i class="bi bi-emoji-smile"></i>Geen leveringen vandaag</div>
+                    <div class="empty-state">Geen leveringen vandaag</div>
                 <?php else: ?>
                     <?php foreach ($upcomingDeliveries as $delivery): ?>
                         <?php
@@ -819,7 +969,7 @@ require_once '../components/sidebar.php'; ?>
 
         <div class="bt-card">
             <div class="bt-header">
-                <h3><i class="bi bi-thermometer-half" style="color:#c8913a"></i> Bakkerij temp</h3>
+                <h3>Bakkerij temp</h3>
                 <span id="bt-last-saved" class="bt-last-saved" style="font-size:0.75rem"></span>
             </div>
             <div class="bt-body">
@@ -833,6 +983,70 @@ require_once '../components/sidebar.php'; ?>
     </div>
 </div>
 
+<button class="fab" onclick="openNewOrderModal()" title="Nieuwe bestelling">
+    <i class="bi bi-plus-lg"></i>
+</button>
+
+<!-- New order modal -->
+<div class="modal-overlay" id="newOrderModal">
+    <div class="modal new-order-modal">
+        <div class="modal-header">
+            <h3><i class="bi bi-plus-circle"></i> Nieuwe Bestelling</h3>
+            <button class="modal-close" onclick="closeNewOrderModal()">&times;</button>
+        </div>
+        <div class="modal-body">
+            <div class="form-group">
+                <label class="internal-toggle">
+                    <input type="checkbox" id="newOrderInternal" onchange="onInternalToggle()">
+                    <span>Interne bestelling (Civetta)</span>
+                </label>
+            </div>
+            <div class="form-group" id="customerGroup">
+                <label>Klant</label>
+                <select class="form-control" id="newOrderCustomer" onchange="onCustomerChange()">
+                    <option value="">Selecteer een klant...</option>
+                </select>
+                <div class="customer-info-card" id="customerInfoCard">
+                    <div class="customer-info-grid">
+                        <div class="customer-info-item"><div class="ci-label">Contactpersoon</div><div class="ci-value" id="ciContact">-</div></div>
+                        <div class="customer-info-item"><div class="ci-label">Telefoon</div><div class="ci-value" id="ciPhone">-</div></div>
+                        <div class="customer-info-item"><div class="ci-label">E-mail</div><div class="ci-value" id="ciEmail">-</div></div>
+                        <div class="customer-info-item"><div class="ci-label">Leveradres</div><div class="ci-value" id="ciAddress">-</div></div>
+                    </div>
+                </div>
+            </div>
+            <div class="form-group">
+                <label>Bakdag / Leverdatum</label>
+                <input type="date" class="form-control" id="newOrderDate" onchange="checkBakdag()">
+                <div class="bakdag-indicator" id="bakdagIndicator" style="display:none;">
+                    <span class="bakdag-ok"><i class="bi bi-check-circle-fill"></i> Dit is een bakdag</span>
+                </div>
+                <div class="bakdag-warning" id="bakdagWarning" style="display:none;">
+                    <i class="bi bi-exclamation-triangle-fill"></i> Dit is geen bakdag. Eerstvolgende bakdag: <strong id="nextBakdag" onclick="selectNextBakdag()"></strong>
+                </div>
+            </div>
+            <div class="form-group">
+                <label>Producten</label>
+                <div id="newOrderProducts"></div>
+                <button type="button" class="btn-add-product" onclick="addProductRow()">
+                    <i class="bi bi-plus"></i> Product toevoegen
+                </button>
+            </div>
+            <div class="form-group">
+                <label>Opmerkingen</label>
+                <textarea class="form-control" id="newOrderNotes" rows="2" placeholder="Optionele opmerkingen..." style="resize:vertical;min-height:56px"></textarea>
+            </div>
+        </div>
+        <div class="order-total-bar">
+            <span>Totaal: <span class="total-amount" id="newOrderTotal">&euro;0,00</span></span>
+            <button class="btn-submit-order" id="btnSubmitOrder" onclick="submitNewOrder()">
+                <i class="bi bi-check-lg"></i> Bestelling plaatsen
+            </button>
+        </div>
+    </div>
+</div>
+
+<script src="../../js/ui-notifications.js?v=1"></script>
 <script>
 var BT_KEY = 'civetta_bakery_temp';
 var TODAY  = '<?= date('Y-m-d') ?>';
@@ -866,6 +1080,299 @@ function renderBtStatus(bt) {
     } catch(e) {}
 })();
 
+// ===== New Order Modal =====
+var _noAllProducts = [];
+var _noAllCustomers = [];
+var _noAllBakdagen = [];
+var _noProductIndex = 0;
+
+function _noToLocalDateStr(d) {
+    return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');
+}
+function _noEscHtml(str) { var d = document.createElement('div'); d.textContent = str; return d.innerHTML; }
+function _noEscAttr(str) { return str.replace(/'/g, "\\'").replace(/"/g, '&quot;'); }
+
+async function _noLoadData() {
+    if (_noAllCustomers.length && _noAllProducts.length) return;
+    try {
+        var [custRes, prodRes] = await Promise.all([
+            fetch('../../api/admin-orders.php?action=customers'),
+            fetch('../../api/admin-orders.php?action=products')
+        ]);
+        var custData = await custRes.json(); var prodData = await prodRes.json();
+        if (custData.success) _noAllCustomers = custData.customers;
+        if (prodData.success) _noAllProducts = prodData.products;
+        await _noLoadBakdagen();
+    } catch(e) { console.error('Error loading data:', e); }
+}
+
+async function _noLoadBakdagen() {
+    try {
+        var today = new Date();
+        var start = _noToLocalDateStr(today);
+        var end = _noToLocalDateStr(new Date(today.getFullYear(), today.getMonth()+3, today.getDate()));
+        var r = await fetch('../../api/bakdagen.php?start='+start+'&end='+end);
+        var d = await r.json();
+        if (d.success) _noAllBakdagen = d.bakdagen || [];
+    } catch(e) {}
+}
+
+function _noGetAvailableBakdagen() {
+    if (document.getElementById('newOrderInternal').checked) return 999;
+    var dateStr = document.getElementById('newOrderDate').value;
+    if (!dateStr) return 999;
+    var today = new Date(); today.setHours(0,0,0,0);
+    var target = new Date(dateStr+'T00:00');
+    var count = 0; var d = new Date(today);
+    while (d <= target) { if (_noAllBakdagen.includes(_noToLocalDateStr(d))) count++; d.setDate(d.getDate()+1); }
+    return count;
+}
+
+function checkBakdag() {
+    var date = document.getElementById('newOrderDate').value;
+    var indicator = document.getElementById('bakdagIndicator');
+    var warning = document.getElementById('bakdagWarning');
+    if (!date) { indicator.style.display = 'none'; warning.style.display = 'none'; return; }
+    if (_noAllBakdagen.includes(date)) {
+        indicator.style.display = ''; warning.style.display = 'none';
+    } else {
+        indicator.style.display = 'none'; warning.style.display = '';
+        var next = _noAllBakdagen.find(function(d) { return d > date; });
+        document.getElementById('nextBakdag').textContent = next
+            ? new Date(next+'T00:00').toLocaleDateString('nl-NL', {weekday:'long', day:'numeric', month:'long'})
+            : 'onbekend';
+    }
+    _noRefreshProductOptions();
+}
+
+function selectNextBakdag() {
+    var date = document.getElementById('newOrderDate').value;
+    var next = _noAllBakdagen.find(function(d) { return d > date; });
+    if (next) { document.getElementById('newOrderDate').value = next; checkBakdag(); }
+}
+
+function onInternalToggle() {
+    var isInternal = document.getElementById('newOrderInternal').checked;
+    document.getElementById('customerGroup').style.display = isInternal ? 'none' : '';
+    if (!isInternal) document.getElementById('customerInfoCard').classList.remove('show');
+    _noRefreshProductOptions();
+}
+
+function _noGetInternalAccountId() {
+    var acc = _noAllCustomers.find(function(c) { return c.is_internal == 1; });
+    return acc ? acc.id : null;
+}
+
+async function openNewOrderModal(prefillDate) {
+    await _noLoadData();
+    document.getElementById('newOrderInternal').checked = false;
+    onInternalToggle();
+    var custSelect = document.getElementById('newOrderCustomer');
+    custSelect.innerHTML = '<option value="">Selecteer een klant...</option>';
+    _noAllCustomers.filter(function(c) { return !c.is_internal; }).forEach(function(c) {
+        custSelect.innerHTML += '<option value="'+c.id+'">'+_noEscHtml(c.bedrijfsnaam)+' ('+_noEscHtml(c.contactpersoon)+')</option>';
+    });
+    document.getElementById('newOrderDate').value = prefillDate || _noToLocalDateStr(new Date());
+    document.getElementById('newOrderNotes').value = '';
+    document.getElementById('newOrderProducts').innerHTML = '';
+    _noProductIndex = 0;
+    addProductRow();
+    _noUpdateTotal();
+    checkBakdag();
+    document.getElementById('newOrderModal').classList.add('active');
+}
+
+function closeNewOrderModal() {
+    document.getElementById('newOrderModal').classList.remove('active');
+    document.getElementById('customerInfoCard').classList.remove('show');
+}
+
+function onCustomerChange() {
+    var select = document.getElementById('newOrderCustomer');
+    var card = document.getElementById('customerInfoCard');
+    var customerId = parseInt(select.value);
+    if (!customerId) { card.classList.remove('show'); return; }
+    var customer = _noAllCustomers.find(function(c) { return c.id == customerId; });
+    if (!customer) { card.classList.remove('show'); return; }
+    document.getElementById('ciContact').textContent = customer.contactpersoon || '-';
+    var phoneEl = document.getElementById('ciPhone');
+    phoneEl.innerHTML = customer.telefoon ? '<a href="tel:'+_noEscHtml(customer.telefoon)+'">'+_noEscHtml(customer.telefoon)+'</a>' : '-';
+    var emailEl = document.getElementById('ciEmail');
+    emailEl.innerHTML = customer.email ? '<a href="mailto:'+_noEscHtml(customer.email)+'">'+_noEscHtml(customer.email)+'</a>' : '-';
+    var address = (customer.delivery_same_as_business || !customer.delivery_adres)
+        ? [customer.adres, customer.postcode, customer.plaats].filter(Boolean).join(', ')
+        : [customer.delivery_adres, customer.delivery_postcode, customer.delivery_plaats].filter(Boolean).join(', ');
+    document.getElementById('ciAddress').textContent = address || '-';
+    card.classList.add('show');
+}
+
+function _noGetEarliestDeliveryDate(recipeDays) {
+    if (!recipeDays || recipeDays <= 0) recipeDays = 1;
+    var today = new Date(); today.setHours(0,0,0,0);
+    var count = 0; var d = new Date(today); var iter = 0;
+    while (count < recipeDays && iter < 365) {
+        if (_noAllBakdagen.includes(_noToLocalDateStr(d))) count++;
+        if (count < recipeDays) d.setDate(d.getDate()+1);
+        iter++;
+    }
+    return _noToLocalDateStr(d);
+}
+
+function _noBuildProductOptions() {
+    var isInternal = document.getElementById('newOrderInternal').checked;
+    var available = _noGetAvailableBakdagen();
+    var html = '<option value="">Kies product...</option>';
+    _noAllProducts.forEach(function(p) {
+        var days = p.recipe_days || 1;
+        if (isInternal || days <= available) {
+            html += '<option value="'+p.id+'">'+_noEscHtml(p.naam)+'</option>';
+        } else {
+            var earliest = _noGetEarliestDeliveryDate(days);
+            var label = new Date(earliest+'T00:00').toLocaleDateString('nl-NL', {weekday:'short',day:'numeric',month:'short'});
+            html += '<option value="'+p.id+'" disabled style="color:#999;">'+_noEscHtml(p.naam)+' — pas vanaf '+label+'</option>';
+        }
+    });
+    return html;
+}
+
+function _noRefreshProductOptions() {
+    var options = _noBuildProductOptions();
+    document.querySelectorAll('#newOrderProducts .product-select-row').forEach(function(row) {
+        var ps = row.querySelector('.product-select');
+        if (!ps) return;
+        var cur = ps.value; ps.innerHTML = options;
+        if (cur) { var p = _noAllProducts.find(function(x) { return x.id == cur; }); if (p && (document.getElementById('newOrderInternal').checked || (p.recipe_days||1) <= _noGetAvailableBakdagen())) ps.value = cur; }
+    });
+    _noUpdateTotal();
+}
+
+function addProductRow() {
+    var container = document.getElementById('newOrderProducts');
+    var idx = _noProductIndex++;
+    var row = document.createElement('div');
+    row.className = 'product-select-row';
+    row.innerHTML =
+        '<select class="form-control product-select" data-idx="'+idx+'" onchange="_noOnProductSelect(this)">'+_noBuildProductOptions()+'</select>' +
+        '<select class="form-control variant-select" data-idx="'+idx+'" onchange="_noOnVariantSelect(this)" style="display:none;"></select>' +
+        '<input type="number" class="form-control product-qty" data-idx="'+idx+'" min="1" value="1" oninput="_noUpdateTotal()">' +
+        '<span class="product-price" data-idx="'+idx+'">€0,00</span>' +
+        '<button type="button" class="btn-remove" onclick="this.closest(\'.product-select-row\').remove();_noUpdateTotal()"><i class="bi bi-x"></i></button>';
+    container.appendChild(row);
+}
+
+function _noOnProductSelect(select) {
+    var idx = select.dataset.idx;
+    var productId = parseInt(select.value);
+    var variantSelect = document.querySelector('.variant-select[data-idx="'+idx+'"]');
+    var priceEl = document.querySelector('.product-price[data-idx="'+idx+'"]');
+    if (!productId) { variantSelect.style.display='none'; variantSelect.innerHTML=''; priceEl.textContent='€0,00'; _noUpdateTotal(); return; }
+    var product = _noAllProducts.find(function(p) { return p.id == productId; });
+    if (!product) return;
+    if (product.variants && product.variants.length > 0) {
+        var available = _noGetAvailableBakdagen();
+        var opts = '<option value="">Kies variant...</option>';
+        product.variants.forEach(function(v) {
+            var label = v.gewicht+'g'+(v.naam ? ' - '+v.naam : '');
+            var days = v.recipe_days || 1;
+            if (days <= available || document.getElementById('newOrderInternal').checked) {
+                opts += '<option value="'+v.id+'" data-price="'+v.prijs+'" data-weight="'+v.gewicht+'" data-naam="'+_noEscAttr(v.naam||'')+'">'+_noEscHtml(label)+' (€'+parseFloat(v.prijs).toFixed(2).replace('.',',')+')</option>';
+            } else {
+                var earliest = _noGetEarliestDeliveryDate(days);
+                var lbl = new Date(earliest+'T00:00').toLocaleDateString('nl-NL',{weekday:'short',day:'numeric',month:'short'});
+                opts += '<option value="'+v.id+'" disabled style="color:#999;">'+_noEscHtml(label)+' — pas vanaf '+lbl+'</option>';
+            }
+        });
+        variantSelect.innerHTML = opts; variantSelect.style.display = ''; priceEl.textContent = '€0,00';
+    } else {
+        variantSelect.style.display = 'none'; variantSelect.innerHTML = '';
+        priceEl.textContent = '€'+parseFloat(product.prijs).toFixed(2).replace('.',',');
+    }
+    _noUpdateTotal();
+}
+
+function _noOnVariantSelect(select) {
+    var idx = select.dataset.idx;
+    var option = select.options[select.selectedIndex];
+    var price = parseFloat(option && option.dataset && option.dataset.price || 0);
+    document.querySelector('.product-price[data-idx="'+idx+'"]').textContent = '€'+price.toFixed(2).replace('.',',');
+    _noUpdateTotal();
+}
+
+function _noUpdateTotal() {
+    var total = 0;
+    document.querySelectorAll('#newOrderProducts .product-select-row').forEach(function(row) {
+        var ps = row.querySelector('.product-select');
+        var vs = row.querySelector('.variant-select');
+        var qty = parseInt(row.querySelector('.product-qty').value) || 0;
+        var price = 0;
+        if (ps) {
+            var productId = parseInt(ps.value);
+            if (productId) {
+                var p = _noAllProducts.find(function(x) { return x.id == productId; });
+                if (p && p.variants && p.variants.length > 0 && vs && vs.value) {
+                    price = parseFloat(vs.options[vs.selectedIndex].dataset.price || 0);
+                } else if (p && (!p.variants || p.variants.length === 0)) {
+                    price = parseFloat(p.prijs || 0);
+                }
+            }
+        }
+        total += qty * price;
+    });
+    document.getElementById('newOrderTotal').textContent = '€'+total.toFixed(2).replace('.',',');
+}
+
+async function submitNewOrder() {
+    var isInternal = document.getElementById('newOrderInternal').checked;
+    var accountId = isInternal ? _noGetInternalAccountId() : document.getElementById('newOrderCustomer').value;
+    var deliveryDate = document.getElementById('newOrderDate').value;
+    var notes = document.getElementById('newOrderNotes').value.trim();
+    if (!isInternal && !accountId) { showToast('Selecteer een klant', 'error'); return; }
+    if (isInternal && !accountId) { showToast('Intern account niet gevonden', 'error'); return; }
+    if (!deliveryDate) { showToast('Selecteer een leverdatum', 'error'); return; }
+    var items = [];
+    document.querySelectorAll('#newOrderProducts .product-select-row').forEach(function(row) {
+        var ps = row.querySelector('.product-select');
+        var vs = row.querySelector('.variant-select');
+        var qty = parseInt(row.querySelector('.product-qty').value) || 0;
+        if (qty <= 0 || !ps) return;
+        var productId = parseInt(ps.value);
+        if (!productId) return;
+        var p = _noAllProducts.find(function(x) { return x.id == productId; });
+        if (!p) return;
+        var productName = p.naam; var price = parseFloat(p.prijs || 0);
+        if (p.variants && p.variants.length > 0 && vs && vs.value) {
+            var vo = vs.options[vs.selectedIndex];
+            price = parseFloat(vo.dataset.price || 0);
+            productName = p.naam + (vo.dataset.naam ? ' - '+vo.dataset.naam+' ('+vo.dataset.weight+'g)' : ' ('+vo.dataset.weight+'g)');
+        }
+        items.push({ product_name: productName, quantity: qty, unit_price: price, variant_id: (vs && vs.value ? parseInt(vs.value)||null : null), product_id: productId || null });
+    });
+    if (items.length === 0) { showToast('Voeg minimaal één product toe', 'error'); return; }
+    var payload = { account_id: parseInt(accountId), delivery_date: deliveryDate, items: items, notes: notes };
+    if (isInternal) payload.is_internal = true;
+    var btn = document.getElementById('btnSubmitOrder');
+    btn.disabled = true; btn.innerHTML = '<i class="bi bi-hourglass-split"></i> Bezig...';
+    try {
+        var res = await fetch('../../api/admin-orders.php', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify(payload) });
+        var data = await res.json();
+        if (data.success) {
+            closeNewOrderModal(); showToast(data.message, 'success'); setTimeout(function() { location.reload(); }, 1500);
+        } else if (data.needs_confirm) {
+            var ok = await showConfirm(data.warning, 'Bakdag waarschuwing');
+            if (ok) { payload.confirm_override = true; btn.disabled = false; btn.innerHTML = '<i class="bi bi-check-lg"></i> Bestelling plaatsen'; await submitNewOrder(); }
+        } else {
+            showToast(data.error || 'Onbekende fout', 'error');
+        }
+    } catch(e) {
+        showToast('Er ging iets mis bij het plaatsen van de bestelling', 'error');
+    } finally {
+        btn.disabled = false; btn.innerHTML = '<i class="bi bi-check-lg"></i> Bestelling plaatsen';
+    }
+}
+
+document.getElementById('newOrderModal').addEventListener('mousedown', function(e) { this._md = e.target === this; });
+document.getElementById('newOrderModal').addEventListener('click', function(e) { if (e.target === this && this._md) closeNewOrderModal(); });
+
 if ('serviceWorker' in navigator) {
     navigator.serviceWorker.register('../sw.js', { scope: '/admin/' });
     if ('PushManager' in window) {
@@ -889,6 +1396,148 @@ if ('serviceWorker' in navigator) {
         });
     }
 }
+
+// ── Sourdough group modal ─────────────────────────────────────────────────────
+
+function openSdGroupModal(bakacties, label) {
+    _sdGroupBakacties = bakacties;
+    _sdGroupLabel = label;
+    var modal = document.getElementById('sdGroupModal');
+    modal.style.display = 'flex';
+
+    var titleEl = document.getElementById('sdGroupModalTitle');
+    titleEl.textContent = label.charAt(0).toUpperCase() + label.slice(1) + ' afschrijven';
+
+    var body = document.getElementById('sdGroupModalBody');
+    var allConsumed = bakacties.every(function(b) { return b.sourdough_consumed; });
+    var noneHaveBakactie = bakacties.every(function(b) { return !b.id; });
+
+    var html = '';
+    if (noneHaveBakactie) {
+        html = '<p style="color:#9ca3af;text-align:center;padding:1.5rem">Geen bakactie aangemaakt voor deze dag.</p>';
+    } else {
+        html += '<table style="width:100%;border-collapse:collapse;font-size:0.88rem;margin-bottom:0.75rem">';
+        html += '<thead><tr style="color:#9ca3af;font-size:0.72rem;text-transform:uppercase;border-bottom:2px solid #f3f4f6">';
+        html += '<th style="text-align:left;padding:0.35rem 0.5rem">Deegsoort</th>';
+        html += '<th style="text-align:right;padding:0.35rem 0.5rem">Desemmeel</th>';
+        html += '<th style="text-align:center;padding:0.35rem 0.5rem">Status</th>';
+        html += '</tr></thead><tbody>';
+        bakacties.forEach(function(b) {
+            html += '<tr style="border-bottom:1px solid #f9fafb">';
+            html += '<td style="padding:0.45rem 0.5rem;font-weight:600;color:#1f2937">' + b.dough_type_name + '</td>';
+            if (!b.id) {
+                html += '<td colspan="2" style="padding:0.45rem 0.5rem;color:#9ca3af;font-size:0.8rem">Geen bakactie</td>';
+            } else {
+                html += '<td style="text-align:right;padding:0.45rem 0.5rem;color:#7c3aed;font-weight:700">' + b.sd_flour_g + 'g</td>';
+                html += '<td style="text-align:center;padding:0.45rem 0.5rem">';
+                if (b.sourdough_consumed) {
+                    html += '<span style="color:#059669;font-size:0.8rem"><i class="bi bi-check-circle-fill"></i> Klaar</span>';
+                } else {
+                    html += '<span style="color:#7c3aed;font-size:0.8rem">Te doen</span>';
+                }
+                html += '</td>';
+            }
+            html += '</tr>';
+        });
+        html += '</tbody></table>';
+        if (allConsumed) {
+            html += '<div style="background:#d1fae5;border:1px solid #6ee7b7;padding:0.65rem 1rem;font-size:0.85rem;color:#065f46;display:flex;align-items:center;gap:0.5rem">'
+                + '<i class="bi bi-check-circle-fill"></i> Alle desem is al afgeschreven voor deze dag.</div>';
+        }
+    }
+    body.innerHTML = html;
+
+    var btn = document.getElementById('sdGroupConfirmBtn');
+    var pending = bakacties.filter(function(b) { return b.id && !b.sourdough_consumed; });
+    btn.style.display = (pending.length > 0) ? '' : 'none';
+}
+
+function closeSdGroupModal() {
+    document.getElementById('sdGroupModal').style.display = 'none';
+}
+
+async function createGeplandBakactie(btn, data) {
+    btn.disabled = true;
+    btn.innerHTML = '<i class="bi bi-hourglass-split"></i> Aanmaken...';
+    try {
+        const res = await fetch('/api/bak-acties.php', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                datum: data.datum + ' 00:00:00',
+                dough_type_name: data.dough_type_name,
+                status: 'gepland'
+            })
+        });
+        const json = await res.json();
+        if (json.success) {
+            window.location.href = 'bak-actie.php?id=' + json.id + (data.day_param || '');
+        } else {
+            btn.disabled = false;
+            btn.innerHTML = '<i class="bi bi-journal-plus"></i> Aanmaken';
+        }
+    } catch (e) {
+        btn.disabled = false;
+        btn.innerHTML = '<i class="bi bi-journal-plus"></i> Aanmaken';
+    }
+}
+
+var _sdGroupBakacties = [];
+var _sdGroupLabel = '';
+
+function confirmSdGroupConsumption() {
+    var pending = _sdGroupBakacties.filter(function(b) { return b.id && !b.sourdough_consumed; });
+    if (!pending.length) return;
+
+    var btn = document.getElementById('sdGroupConfirmBtn');
+    btn.disabled = true;
+    btn.innerHTML = '<i class="bi bi-hourglass-split"></i> Bezig…';
+
+    var promises = pending.map(function(b) {
+        return fetch('/api/bak-acties.php', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                _action: 'consume_sourdough',
+                id: b.id,
+                ingredient_id: b.brand_ingredient_id,
+                quantity_g: b.sd_flour_g
+            })
+        }).then(function(r) { return r.json(); });
+    });
+
+    Promise.all(promises).then(function(results) {
+        var anyFailed = results.some(function(d) { return !d.success; });
+        if (anyFailed) {
+            alert('Eén of meer afschrijvingen zijn mislukt. Controleer de individuele bakacties.');
+        }
+        closeSdGroupModal();
+        window.location.reload();
+    }).catch(function(e) {
+        btn.disabled = false;
+        btn.innerHTML = '<i class="bi bi-fire"></i> Alles afschrijven';
+        alert('Verbindingsfout: ' + e.message);
+    });
+}
 </script>
+
+<!-- Sourdough group modal -->
+<div id="sdGroupModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.45);z-index:300;align-items:center;justify-content:center;padding:1rem">
+    <div style="background:#fff;max-width:480px;width:100%;max-height:80vh;display:flex;flex-direction:column;box-shadow:0 20px 60px rgba(0,0,0,0.25)">
+        <div style="padding:1.1rem 1.25rem;border-bottom:1px solid #f3f4f6;display:flex;align-items:center;gap:0.75rem">
+            <i class="bi bi-fire" style="color:#7c3aed;font-size:1.2rem"></i>
+            <div style="font-weight:700;color:#1f2937;font-size:0.95rem" id="sdGroupModalTitle">Desem afschrijven</div>
+            <button onclick="closeSdGroupModal()" style="margin-left:auto;background:none;border:none;font-size:1.4rem;color:#9ca3af;cursor:pointer;line-height:1">×</button>
+        </div>
+        <div id="sdGroupModalBody" style="flex:1;overflow-y:auto;padding:1.25rem"></div>
+        <div style="padding:0.9rem 1.25rem;border-top:1px solid #f3f4f6;display:flex;gap:0.75rem;justify-content:flex-end;background:#fafafa">
+            <button onclick="closeSdGroupModal()" style="padding:0.55rem 1.25rem;background:#fff;border:1px solid #d1d5db;font-size:0.88rem;cursor:pointer;color:#374151">Sluiten</button>
+            <button id="sdGroupConfirmBtn" onclick="confirmSdGroupConsumption()" style="padding:0.55rem 1.5rem;background:#7c3aed;color:#fff;border:none;font-size:0.88rem;font-weight:700;cursor:pointer;display:flex;align-items:center;gap:0.4rem">
+                <i class="bi bi-fire"></i> Alles afschrijven
+            </button>
+        </div>
+    </div>
+</div>
+
 </body>
 </html>
